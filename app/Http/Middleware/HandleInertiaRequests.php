@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
+                'otp_sent' => fn () => $request->session()->get('otp_sent'),
             ],
         ];
     }

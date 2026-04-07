@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,9 +15,18 @@ class LoginController extends Controller
 {
     public function create(): Response
     {
+        $user = Auth::user();
+
         return Inertia::render('Auth/Login', [
             'canResetPassword' => true,
             'status' => session('status'),
+            'authenticatedUser' => $user
+                ? [
+                    'name' => $user->full_name,
+                    'email' => $user->email,
+                    'continueUrl' => $this->homeUrlForUser($user),
+                ]
+                : null,
         ]);
     }
 
@@ -38,12 +48,43 @@ class LoginController extends Controller
         $user = Auth::user();
         $user->updateLastLogin();
 
-        // Check if onboarding is complete
-        if (!$user->hasCompletedOnboarding()) {
+        return $this->redirectAfterAuthentication($request, $user);
+    }
+
+    /**
+     * Default “home” URL for the signed-in user (verify phone / onboarding / role dashboard).
+     */
+    protected function homeUrlForUser(User $user): string
+    {
+        if (! $user->phone_verified_at && ! $user->isAdmin()) {
+            return route('verify-phone');
+        }
+
+        if (! $user->hasCompletedOnboarding()) {
+            return route('onboarding.index');
+        }
+
+        if ($user->isAdmin()) {
+            return route('admin.dashboard');
+        }
+
+        if ($user->isProvider()) {
+            return route('provider.dashboard');
+        }
+
+        return route('dashboard');
+    }
+
+    protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse
+    {
+        if (! $user->phone_verified_at && ! $user->isAdmin()) {
+            return redirect()->route('verify-phone');
+        }
+
+        if (! $user->hasCompletedOnboarding()) {
             return redirect()->route('onboarding.index');
         }
 
-        // Redirect based on role
         if ($user->isAdmin()) {
             return redirect()->intended(route('admin.dashboard'));
         }

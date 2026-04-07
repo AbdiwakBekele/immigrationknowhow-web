@@ -7,6 +7,11 @@ import Button from '@/Components/ui/Button.vue';
 defineProps({
     canResetPassword: Boolean,
     status: String,
+    /** Present when a session already exists (e.g. user opened Sign in while logged in). */
+    authenticatedUser: {
+        type: Object,
+        default: null,
+    },
 });
 
 const form = useForm({
@@ -31,6 +36,33 @@ const submit = () => {
 
         <div v-if="status" class="mb-4 p-4 rounded-xl bg-emerald-50 text-sm font-medium text-emerald-600">
             {{ status }}
+        </div>
+
+        <div
+            v-if="authenticatedUser"
+            class="mb-5 space-y-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-950"
+        >
+            <p>
+                <span class="font-medium">You are already signed in</span>
+                <span class="text-primary-800"> as {{ authenticatedUser.email }}</span>
+            </p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Link
+                    :href="authenticatedUser.continueUrl"
+                    class="font-semibold text-primary-700 underline decoration-primary-400 underline-offset-2 hover:text-primary-900"
+                >
+                    Continue to your account
+                </Link>
+                <Link
+                    :href="route('logout')"
+                    method="post"
+                    as="button"
+                    type="button"
+                    class="text-sm font-semibold text-neutral-600 underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
+                >
+                    Sign out
+                </Link>
+            </div>
         </div>
 
         <form @submit.prevent="submit" class="space-y-5">

@@ -13,29 +13,6 @@ use Inertia\Response;
 
 class OnboardingController extends Controller
 {
-    protected array $languages = [
-        'en' => 'English',
-        'es' => 'Spanish',
-        'zh' => 'Chinese (Mandarin)',
-        'hi' => 'Hindi',
-        'ar' => 'Arabic',
-        'pt' => 'Portuguese',
-        'fr' => 'French',
-        'de' => 'German',
-        'ja' => 'Japanese',
-        'ko' => 'Korean',
-        'vi' => 'Vietnamese',
-        'tl' => 'Tagalog',
-        'ru' => 'Russian',
-        'it' => 'Italian',
-        'pl' => 'Polish',
-        'uk' => 'Ukrainian',
-        'fa' => 'Persian',
-        'tr' => 'Turkish',
-        'th' => 'Thai',
-        'he' => 'Hebrew',
-    ];
-
     public function index(): Response|RedirectResponse
     {
         $user = auth()->user();
@@ -50,7 +27,6 @@ class OnboardingController extends Controller
             'user' => $user->only(['id', 'first_name', 'last_name', 'email']),
             'isProvider' => $isProvider,
             'serviceTypes' => ServiceType::options(),
-            'languages' => $this->languages,
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
         ]);
@@ -59,24 +35,18 @@ class OnboardingController extends Controller
     protected function getUserSteps(): array
     {
         return [
-            ['key' => 'welcome', 'title' => 'Welcome', 'description' => 'Get started with your profile'],
-            ['key' => 'services', 'title' => 'Services Needed', 'description' => 'What services are you looking for?'],
-            ['key' => 'location', 'title' => 'Location', 'description' => 'Where are you located?'],
-            ['key' => 'language', 'title' => 'Language', 'description' => 'Your language preferences'],
-            ['key' => 'complete', 'title' => 'All Set!', 'description' => 'Your profile is ready'],
+            ['key' => 'services', 'title' => 'Services', 'description' => 'What kind of help are you looking for?'],
+            ['key' => 'complete', 'title' => 'Review', 'description' => 'You are ready to continue'],
         ];
     }
 
     protected function getProviderSteps(): array
     {
         return [
-            ['key' => 'welcome', 'title' => 'Welcome', 'description' => 'Set up your provider profile'],
-            ['key' => 'business', 'title' => 'Business Info', 'description' => 'Tell us about your business'],
-            ['key' => 'services', 'title' => 'Services Offered', 'description' => 'What services do you provide?'],
-            ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'Set your rates'],
-            ['key' => 'service-area', 'title' => 'Service Area', 'description' => 'Where do you serve clients?'],
-            ['key' => 'languages', 'title' => 'Languages', 'description' => 'Languages you can serve'],
-            ['key' => 'complete', 'title' => 'All Set!', 'description' => 'Your profile is ready'],
+            ['key' => 'business', 'title' => 'Business', 'description' => 'Tell clients about your practice'],
+            ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'How you charge'],
+            ['key' => 'service-area', 'title' => 'Service area', 'description' => 'How you meet clients'],
+            ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
     }
 
@@ -86,7 +56,6 @@ class OnboardingController extends Controller
         $step = $request->input('step');
         $data = $request->input('data', []);
 
-        // Merge with existing onboarding data
         $onboardingData = array_merge($user->onboarding_data ?? [], [
             $step => $data,
             'last_completed_step' => $step,
@@ -106,26 +75,28 @@ class OnboardingController extends Controller
             $data = $request->all();
             $onboardingData = $user->onboarding_data ?? [];
 
-            // Update user profile
             $user->update([
-                'city' => $data['city'] ?? $onboardingData['location']['city'] ?? null,
-                'state' => $data['state'] ?? $onboardingData['location']['state'] ?? null,
-                'country' => $data['country'] ?? $onboardingData['location']['country'] ?? 'US',
-                'postal_code' => $data['postal_code'] ?? $onboardingData['location']['postal_code'] ?? null,
-                'languages' => $data['languages'] ?? $onboardingData['language']['languages'] ?? ['en'],
-                'preferred_language' => $data['preferred_language'] ?? $onboardingData['language']['preferred'] ?? 'en',
+                'city' => $data['city'] ?? $onboardingData['location']['city'] ?? $user->city,
+                'state' => $data['state'] ?? $onboardingData['location']['state'] ?? $user->state,
+                'country' => $data['country'] ?? $onboardingData['location']['country'] ?? $user->country ?? 'US',
+                'postal_code' => $data['postal_code'] ?? $onboardingData['location']['postal_code'] ?? $user->postal_code,
+                'languages' => $data['languages'] ?? $onboardingData['language']['languages'] ?? $user->languages ?? ['en'],
+                'preferred_language' => $data['preferred_language'] ?? $onboardingData['language']['preferred'] ?? $user->preferred_language ?? 'en',
                 'onboarding_completed' => true,
                 'onboarding_data' => $onboardingData,
                 'onboarding_completed_at' => now(),
             ]);
 
-            // Create provider profile if applicable
             if ($isProvider) {
                 $businessData = $onboardingData['business'] ?? [];
-                $servicesData = $onboardingData['services'] ?? [];
+                $servicesData = array_merge($onboardingData['services'] ?? [], $data['services'] ?? []);
                 $pricingData = $onboardingData['pricing'] ?? [];
                 $serviceAreaData = $onboardingData['service-area'] ?? [];
-                $languagesData = $onboardingData['languages'] ?? [];
+
+                $serviceTypes = $servicesData['types'] ?? [];
+                if ($serviceTypes === [] && ! empty($onboardingData['registration']['service_type'])) {
+                    $serviceTypes = [$onboardingData['registration']['service_type']];
+                }
 
                 ServiceProvider::create([
                     'user_id' => $user->id,
@@ -135,7 +106,7 @@ class OnboardingController extends Controller
                     'business_email' => $businessData['business_email'] ?? $user->email,
                     'business_phone' => $businessData['business_phone'] ?? $user->phone,
                     'website' => $businessData['website'] ?? null,
-                    'service_types' => $servicesData['types'] ?? [],
+                    'service_types' => $serviceTypes,
                     'specializations' => $servicesData['specializations'] ?? [],
                     'pricing_model' => $pricingData['model'] ?? 'hourly',
                     'hourly_rate' => $pricingData['hourly_rate'] ?? null,
@@ -146,7 +117,7 @@ class OnboardingController extends Controller
                     'serves_in_person' => $serviceAreaData['in_person'] ?? true,
                     'service_radius_miles' => $serviceAreaData['radius'] ?? null,
                     'service_areas' => $serviceAreaData['areas'] ?? [],
-                    'languages_offered' => $languagesData['offered'] ?? ['en'],
+                    'languages_offered' => $user->languages ?? ['en'],
                     'years_experience' => $businessData['years_experience'] ?? null,
                 ]);
             }

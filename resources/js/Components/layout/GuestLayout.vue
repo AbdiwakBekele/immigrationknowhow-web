@@ -3,33 +3,26 @@ import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-br from-primary-50 via-white to-accent-50">
-        <!-- Decorative background -->
-        <div class="absolute inset-0 overflow-hidden pointer-events-none">
-            <div class="absolute -top-40 -right-32 w-96 h-96 bg-primary-200/30 rounded-full blur-3xl"></div>
-            <div class="absolute top-1/2 -left-32 w-80 h-80 bg-accent-200/20 rounded-full blur-3xl"></div>
-            <div class="absolute -bottom-20 right-1/4 w-72 h-72 bg-secondary-200/20 rounded-full blur-3xl"></div>
-        </div>
-
-        <div class="relative flex min-h-screen flex-col items-center justify-center py-12 sm:px-6 lg:px-8">
-            <!-- Logo -->
-            <div class="sm:mx-auto sm:w-full sm:max-w-md">
-                <Link :href="route('home')" class="flex justify-center items-center gap-3 group">
-                    <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-soft group-hover:shadow-glow transition-all duration-300">
-                        <span class="text-white font-display font-bold text-2xl">IK</span>
+    <div class="min-h-screen bg-neutral-50">
+        <div class="relative flex min-h-screen flex-col items-center justify-center py-10 sm:px-6 lg:px-8">
+            <div class="sm:mx-auto sm:w-full sm:max-w-lg">
+                <Link :href="route('home')" class="group flex justify-center">
+                    <div
+                        class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 shadow-sm transition group-hover:bg-primary-700"
+                    >
+                        <span class="font-display text-lg font-bold text-white">IK</span>
                     </div>
                 </Link>
-                <h2 class="mt-6 text-center text-3xl font-display font-bold tracking-tight text-neutral-900">
+                <h2 class="mt-5 text-center text-2xl font-display font-bold tracking-tight text-neutral-900">
                     <slot name="title">Welcome</slot>
                 </h2>
-                <p class="mt-2 text-center text-sm text-neutral-600">
+                <p class="mt-1.5 text-center text-sm text-neutral-600">
                     <slot name="subtitle" />
                 </p>
             </div>
 
-            <!-- Content card -->
-            <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div class="bg-white/80 backdrop-blur-xl py-8 px-4 shadow-soft-lg sm:rounded-2xl sm:px-10 ring-1 ring-neutral-900/5">
+            <div class="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
+                <div class="rounded-2xl border border-neutral-200/80 bg-white px-5 py-8 shadow-sm sm:px-8">
                     <slot />
                 </div>
 
