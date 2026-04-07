@@ -1,0 +1,253 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\ServiceType;
+use App\Enums\VerificationStatus;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Sluggable\HasSlug;
+use Spatie\Sluggable\SlugOptions;
+
+class ServiceProvider extends Model
+{
+    use HasFactory, HasSlug, SoftDeletes;
+
+    protected $fillable = [
+        'user_id',
+        'business_name',
+        'slug',
+        'bio',
+        'description',
+        'tagline',
+        'business_email',
+        'business_phone',
+        'website',
+        'service_types',
+        'specializations',
+        'languages_offered',
+        'pricing_model',
+        'hourly_rate',
+        'consultation_fee',
+        'free_consultation',
+        'pricing_notes',
+        'serves_remote',
+        'serves_in_person',
+        'service_radius_miles',
+        'service_areas',
+        'license_number',
+        'license_state',
+        'license_expiry',
+        'certifications',
+        'years_experience',
+        'linkedin_url',
+        'facebook_url',
+        'twitter_url',
+        'instagram_url',
+        'youtube_url',
+        'tiktok_url',
+        'total_leads',
+        'total_reviews',
+        'average_rating',
+        'profile_views',
+        'verification_status',
+        'verified_at',
+        'is_featured',
+        'is_active',
+        'accepting_clients',
+        'subscription_plan',
+        'subscription_expires_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'service_types' => 'array',
+            'specializations' => 'array',
+            'languages_offered' => 'array',
+            'service_areas' => 'array',
+            'certifications' => 'array',
+            'hourly_rate' => 'decimal:2',
+            'consultation_fee' => 'decimal:2',
+            'average_rating' => 'decimal:2',
+            'free_consultation' => 'boolean',
+            'serves_remote' => 'boolean',
+            'serves_in_person' => 'boolean',
+            'is_featured' => 'boolean',
+            'is_active' => 'boolean',
+            'accepting_clients' => 'boolean',
+            'license_expiry' => 'date',
+            'verified_at' => 'datetime',
+            'subscription_expires_at' => 'datetime',
+            'verification_status' => VerificationStatus::class,
+        ];
+    }
+
+    public function getSlugOptions(): SlugOptions
+    {
+        return SlugOptions::create()
+            ->generateSlugsFrom('business_name')
+            ->saveSlugsTo('slug')
+            ->doNotGenerateSlugsOnUpdate();
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    // Relationships
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class);
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    // Accessors
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->business_name ?: $this->user->full_name;
+    }
+
+    public function getServiceTypesLabelsAttribute(): array
+    {
+        return collect($this->service_types ?? [])
+            ->map(fn($type) => ServiceType::tryFrom($type)?->label() ?? $type)
+            ->toArray();
+    }
+
+    public function getPrimaryServiceTypeAttribute(): ?string
+    {
+        $first = $this->service_types[0] ?? null;
+        return $first ? ServiceType::tryFrom($first)?->label() : null;
+    }
+
+    public function getLocationDisplayAttribute(): string
+    {
+        $parts = array_filter([
+            $this->user->city,
+            $this->user->state,
+        ]);
+        return implode(', ', $parts) ?: 'Location not specified';
+    }
+
+    public function getRatingDisplayAttribute(): string
+    {
+        if ($this->total_reviews === 0) {
+            return 'No reviews yet';
+        }
+        return number_format($this->average_rating, 1) . ' (' . $this->total_reviews . ' reviews)';
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeVerified($query)
+    {
+        return $query->where('verification_status', VerificationStatus::APPROVED);
+    }
+
+    public function scopeAcceptingClients($query)
+    {
+        return $query->where('accepting_clients', true);
+    }
+
+    public function scopeFeatured($query)
+    {
+        return $query->where('is_featured', true);
+    }
+
+    public function scopeByServiceType($query, string|ServiceType $type)
+    {
+        $value = $type instanceof ServiceType ? $type->value : $type;
+        return $query->whereJsonContains('service_types', $value);
+    }
+
+    public function scopeByLanguage($query, string $language)
+    {
+        return $query->whereJsonContains('languages_offered', $language);
+    }
+
+    public function scopeServesLocation($query, string $city = null, string $state = null)
+    {
+        return $query->where(function ($q) use ($city, $state) {
+            $q->where('serves_remote', true)
+                ->orWhereHas('user', function ($uq) use ($city, $state) {
+                    if ($city) {
+                        $uq->where('city', 'like', "%{$city}%");
+                    }
+                    if ($state) {
+                        $uq->where('state', $state);
+                    }
+                });
+        });
+    }
+
+    public function scopeSearch($query, string $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('business_name', 'like', "%{$search}%")
+                ->orWhere('bio', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhereHas('user', function ($uq) use ($search) {
+                    $uq->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
+        });
+    }
+
+    // Helper Methods
+    public function isVerified(): bool
+    {
+        return $this->verification_status === VerificationStatus::APPROVED;
+    }
+
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscription_plan && 
+               (!$this->subscription_expires_at || $this->subscription_expires_at->isFuture());
+    }
+
+    public function incrementProfileViews(): void
+    {
+        $this->increment('profile_views');
+    }
+
+    public function updateRating(): void
+    {
+        $stats = $this->reviews()
+            ->where('is_approved', true)
+            ->selectRaw('COUNT(*) as count, AVG(rating) as average')
+            ->first();
+
+        $this->updateQuietly([
+            'total_reviews' => $stats->count ?? 0,
+            'average_rating' => round($stats->average ?? 0, 2),
+        ]);
+    }
+
+    public function incrementLeadCount(): void
+    {
+        $this->increment('total_leads');
+    }
+}

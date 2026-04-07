@@ -1,0 +1,30 @@
+{
+    "name": "immigration-knowhow",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@headlessui/vue": "^1.7.23",
+        "@heroicons/vue": "^2.1.1",
+        "@inertiajs/vue3": "^1.0.15",
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/typography": "^0.5.19",
+        "lodash-es": "^4.18.1",
+        "pinia": "^3.0.4",
+        "vue": "^3.4.21",
+        "vue-toastification": "^2.0.0-rc.5",
+        "ziggy-js": "^2.6.2"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-vue": "^5.0.4",
+        "autoprefixer": "^10.4.18",
+        "axios": "^1.6.8",
+        "laravel-vite-plugin": "^1.0.2",
+        "postcss": "^8.4.35",
+        "tailwindcss": "^3.4.1",
+        "vite": "^5.1.6"
+    }
+}

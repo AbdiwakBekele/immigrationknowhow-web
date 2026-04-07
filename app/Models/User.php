@@ -1,0 +1,183 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
+
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'email',
+        'password',
+        'phone',
+        'avatar',
+        'address',
+        'city',
+        'state',
+        'postal_code',
+        'country',
+        'latitude',
+        'longitude',
+        'languages',
+        'preferred_language',
+        'timezone',
+        'onboarding_completed',
+        'onboarding_data',
+        'onboarding_completed_at',
+        'is_active',
+        'last_login_at',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'languages' => 'array',
+            'onboarding_data' => 'array',
+            'onboarding_completed' => 'boolean',
+            'onboarding_completed_at' => 'datetime',
+            'is_active' => 'boolean',
+            'last_login_at' => 'datetime',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
+        ];
+    }
+
+    protected $appends = ['full_name', 'initials'];
+
+    // Accessors
+    public function getFullNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        return strtoupper(
+            substr($this->first_name, 0, 1) . substr($this->last_name, 0, 1)
+        );
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if ($this->avatar) {
+            return str_starts_with($this->avatar, 'http') 
+                ? $this->avatar 
+                : asset('storage/' . $this->avatar);
+        }
+        return null;
+    }
+
+    // Relationships
+    public function serviceProvider(): HasOne
+    {
+        return $this->hasOne(ServiceProvider::class);
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class);
+    }
+
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
+    }
+
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    public function identityVerifications(): HasMany
+    {
+        return $this->hasMany(IdentityVerification::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function libraryAccess(): HasMany
+    {
+        return $this->hasMany(LibraryUserAccess::class);
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeVerified($query)
+    {
+        return $query->whereNotNull('email_verified_at');
+    }
+
+    public function scopeProviders($query)
+    {
+        return $query->role(UserRole::PROVIDER->value);
+    }
+
+    public function scopeGeneralUsers($query)
+    {
+        return $query->role(UserRole::USER->value);
+    }
+
+    // Helper Methods
+    public function isProvider(): bool
+    {
+        return $this->hasRole(UserRole::PROVIDER->value);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasAnyRole([UserRole::ADMIN->value, UserRole::SUPER_ADMIN->value]);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(UserRole::SUPER_ADMIN->value);
+    }
+
+    public function hasCompletedOnboarding(): bool
+    {
+        return $this->onboarding_completed;
+    }
+
+    public function getLatestVerification()
+    {
+        return $this->identityVerifications()
+            ->latest()
+            ->first();
+    }
+
+    public function isVerified(): bool
+    {
+        $verification = $this->getLatestVerification();
+        return $verification && $verification->status === 'approved';
+    }
+
+    public function updateLastLogin(): void
+    {
+        $this->updateQuietly(['last_login_at' => now()]);
+    }
+}

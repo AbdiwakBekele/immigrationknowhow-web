@@ -1,0 +1,11 @@
+{
+  "resources/js/app.js": {
+    "file": "assets/app-CH5SyKid.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "css": [
+      "assets/app-CEWC3aft.css"
+    ]
+  }
+}
