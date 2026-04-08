@@ -149,6 +149,16 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::PROVIDER->value);
     }
 
+    public function hasProviderRegistration(): bool
+    {
+        return ! empty(data_get($this->onboarding_data, 'registration.service_type'));
+    }
+
+    public function followsProviderOnboarding(): bool
+    {
+        return $this->isProvider() || $this->hasProviderRegistration();
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasAnyRole([UserRole::ADMIN->value, UserRole::SUPER_ADMIN->value]);

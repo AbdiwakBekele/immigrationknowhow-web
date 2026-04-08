@@ -1,17 +1,20 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/vue';
 import { ArrowLeftIcon, ChevronDownIcon } from '@heroicons/vue/20/solid';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
-import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
 
 const props = defineProps({
     phone: {
         type: String,
         default: '',
+    },
+    isProvider: {
+        type: Boolean,
+        default: false,
     },
     phoneDialOptions: {
         type: Array,
@@ -23,6 +26,8 @@ const otpForm = useForm({
     code: '',
 });
 
+const OTP_LENGTH = 6;
+
 const resendForm = useForm({
     phone: '',
 });
@@ -30,6 +35,7 @@ const resendForm = useForm({
 const countryIso = ref('US');
 const phoneLocal = ref('');
 const hasSentOtp = ref(false);
+const otpInputs = ref([]);
 
 const flagClass = (iso2) => `fi fi-${String(iso2 || '').toLowerCase()}`;
 
@@ -53,6 +59,14 @@ watch(
     (p) => initFromStored(String(p || '').replace(/\D/g, '')),
 );
 
+watch(hasSentOtp, (sent) => {
+    if (sent) {
+        nextTick(() => {
+            otpInputs.value[0]?.focus();
+        });
+    }
+});
+
 const selectedDial = computed(() => {
     const o = props.phoneDialOptions.find((x) => x.value === countryIso.value);
     return o ? String(o.dial) : '1';
@@ -72,9 +86,107 @@ const maskedPhone = computed(() => {
     return `••••••${digits.slice(-4)}`;
 });
 
+const otpDigits = computed(() => {
+    const digits = String(otpForm.code || '').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    return Array.from({ length: OTP_LENGTH }, (_, index) => digits[index] || '');
+});
+
+const setOtpCode = (digits) => {
+    otpForm.code = digits.join('').replace(/\D/g, '').slice(0, OTP_LENGTH);
+    otpForm.clearErrors('code');
+};
+
+const setOtpInputRef = (element, index) => {
+    otpInputs.value[index] = element;
+};
+
+const focusOtpInput = (index) => {
+    nextTick(() => {
+        otpInputs.value[index]?.focus();
+        otpInputs.value[index]?.select?.();
+    });
+};
+
+const handleOtpInput = (index, event) => {
+    const typedDigits = String(event.target.value || '').replace(/\D/g, '');
+    const digits = [...otpDigits.value];
+
+    if (!typedDigits) {
+        digits[index] = '';
+        setOtpCode(digits);
+        return;
+    }
+
+    typedDigits
+        .slice(0, OTP_LENGTH - index)
+        .split('')
+        .forEach((digit, offset) => {
+            digits[index + offset] = digit;
+        });
+
+    setOtpCode(digits);
+
+    const nextIndex = Math.min(index + typedDigits.length, OTP_LENGTH - 1);
+    focusOtpInput(nextIndex);
+};
+
+const handleOtpKeydown = (index, event) => {
+    if (event.key === 'Backspace') {
+        event.preventDefault();
+
+        const digits = [...otpDigits.value];
+
+        if (digits[index]) {
+            digits[index] = '';
+            setOtpCode(digits);
+            return;
+        }
+
+        if (index > 0) {
+            digits[index - 1] = '';
+            setOtpCode(digits);
+            focusOtpInput(index - 1);
+        }
+
+        return;
+    }
+
+    if (event.key === 'ArrowLeft' && index > 0) {
+        event.preventDefault();
+        focusOtpInput(index - 1);
+    }
+
+    if (event.key === 'ArrowRight' && index < OTP_LENGTH - 1) {
+        event.preventDefault();
+        focusOtpInput(index + 1);
+    }
+};
+
+const handleOtpPaste = (event) => {
+    const pastedDigits = String(event.clipboardData?.getData('text') || '')
+        .replace(/\D/g, '')
+        .slice(0, OTP_LENGTH);
+
+    if (!pastedDigits) {
+        return;
+    }
+
+    event.preventDefault();
+    otpForm.code = pastedDigits;
+    otpForm.clearErrors('code');
+    focusOtpInput(Math.min(pastedDigits.length, OTP_LENGTH) - 1);
+};
+
 const submitOtp = () => {
     otpForm.post(route('address-detail.verify'), {
         preserveScroll: true,
+        onSuccess: () => {
+            router.visit(
+                props.isProvider
+                    ? route('onboarding.index', { step: 4 })
+                    : route('onboarding.index', { step: 2 }),
+            );
+        },
     });
 };
 
@@ -92,6 +204,7 @@ const editNumber = () => {
     hasSentOtp.value = false;
     otpForm.code = '';
     otpForm.clearErrors();
+    otpInputs.value = [];
 };
 
 const goBack = () => {
@@ -202,25 +315,39 @@ const goBack = () => {
 
         <form v-else class="space-y-4" @submit.prevent="submitOtp">
             <p class="text-sm text-neutral-600">We sent a 6-digit code to {{ maskedPhone }}.</p>
-            <Input
-                v-model="otpForm.code"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                autocomplete="one-time-code"
-                label="Code"
-                placeholder="000000"
-                :error="otpForm.errors.code"
-                required
-            />
-            <button
-                type="button"
-                class="text-sm font-medium text-primary-600 hover:text-primary-500 disabled:opacity-50"
-                :disabled="resendForm.processing"
-                @click="resendOtp"
-            >
-                Resend code
-            </button>
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-neutral-700">
+                    Code
+                    <span class="ml-0.5 text-red-500">*</span>
+                </label>
+                <div class="flex justify-center gap-2" @paste="handleOtpPaste">
+                    <input
+                        v-for="(_, index) in otpDigits"
+                        :key="index"
+                        :ref="(element) => setOtpInputRef(element, index)"
+                        :value="otpDigits[index]"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="one-time-code"
+                        maxlength="1"
+                        class="h-12 w-10 rounded-lg border border-neutral-300 bg-white text-center text-base font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 sm:h-12 sm:w-11"
+                        :class="otpForm.errors.code ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : ''"
+                        @input="handleOtpInput(index, $event)"
+                        @keydown="handleOtpKeydown(index, $event)"
+                    />
+                </div>
+                <p v-if="otpForm.errors.code" class="text-xs text-red-600">{{ otpForm.errors.code }}</p>
+            </div>
+            <div class="flex justify-center">
+                <button
+                    type="button"
+                    class="text-sm font-medium text-primary-600 hover:text-primary-500 disabled:opacity-50"
+                    :disabled="resendForm.processing"
+                    @click="resendOtp"
+                >
+                    Resend code
+                </button>
+            </div>
             <div class="flex items-center justify-between gap-3">
                 <Button
                     type="button"

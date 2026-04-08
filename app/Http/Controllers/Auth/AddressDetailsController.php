@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Services\PhoneVerificationService;
 use App\Support\CountryOptions;
@@ -24,11 +25,12 @@ class AddressDetailsController extends Controller
         $user = $request->user();
 
         if ($user->phone_verified_at) {
-            return redirect()->route('onboarding.index');
+            return $this->redirectToNextStep($user);
         }
 
         return Inertia::render('Auth/AddressDetails', [
             'phone' => $user->phone ?? '',
+            'isProvider' => $user->followsProviderOnboarding(),
             'address' => $user->address ?? '',
             'city' => $user->city ?? '',
             'country' => $user->country ?? 'US',
@@ -45,7 +47,7 @@ class AddressDetailsController extends Controller
         $user = $request->user();
 
         if ($user->phone_verified_at) {
-            return redirect()->route('onboarding.index');
+            return $this->redirectToNextStep($user);
         }
 
         $validated = $request->validate([
@@ -91,11 +93,12 @@ class AddressDetailsController extends Controller
         $user = $request->user();
 
         if ($user->phone_verified_at) {
-            return redirect()->route('onboarding.index');
+            return $this->redirectToNextStep($user);
         }
 
         return Inertia::render('Auth/VerifyOtp', [
             'phone' => $user->phone ?? '',
+            'isProvider' => $user->followsProviderOnboarding(),
             'phoneDialOptions' => PhoneDialOptions::selectOptions(),
         ]);
     }
@@ -105,7 +108,7 @@ class AddressDetailsController extends Controller
         $user = $request->user();
 
         if ($user->phone_verified_at) {
-            return redirect()->route('onboarding.index');
+            return $this->redirectToNextStep($user);
         }
 
         $validated = $request->validate([
@@ -116,6 +119,19 @@ class AddressDetailsController extends Controller
             return back()->withErrors(['code' => 'Invalid or expired code. Try again or request a new code.']);
         }
 
-        return redirect()->route('onboarding.index')->with('success', 'Phone number verified.');
+        return $this->redirectToNextStep($user)->with('success', 'Phone number verified.');
+    }
+
+    protected function redirectToNextStep($user): RedirectResponse
+    {
+        if ($user->followsProviderOnboarding()) {
+            if (! $user->isProvider()) {
+                $user->assignRole(UserRole::PROVIDER->value);
+            }
+
+            return redirect()->route('onboarding.index', ['step' => 4]);
+        }
+
+        return redirect()->route('onboarding.index', ['step' => 2]);
     }
 }

@@ -10,6 +10,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
     user: Object,
+    initialStep: Number,
     isProvider: Boolean,
     serviceTypes: Array,
     countryOptions: Array,
@@ -17,20 +18,24 @@ const props = defineProps({
     existingData: Object,
 });
 
-const currentStep = ref(props.isProvider ? 4 : 2);
+const currentStep = ref(props.initialStep ?? (props.isProvider ? 4 : 2));
 const totalSteps = computed(() => (props.isProvider ? 5 : 3));
-const isBusinessStep = computed(() => props.isProvider && currentStep.value === 4);
+const isProviderBusinessStep = computed(() => props.isProvider && currentStep.value === 4);
+const isProviderPricingStep = computed(() => props.isProvider && currentStep.value === 5);
 const isUserStepTwo = computed(() => !props.isProvider && currentStep.value === 2);
 const isUserStepThree = computed(() => !props.isProvider && currentStep.value === 3);
 
 const onboardingHeading = computed(() => {
-    if (isBusinessStep.value) {
+    if (isProviderBusinessStep.value) {
         return 'Business information';
+    }
+    if (isProviderPricingStep.value) {
+        return 'Pricing';
     }
     if (isUserStepThree.value) {
         return 'Congratulations';
     }
-    return props.isProvider ? 'Pricing and service area' : 'Service preferences';
+    return props.isProvider ? 'Business information' : 'Service preferences';
 });
 
 const formData = ref({
@@ -45,6 +50,7 @@ const formData = ref({
         business_email: props.user?.email || '',
         business_phone: '',
         website: '',
+        license_number: '',
         years_experience: null,
     },
     services: {
@@ -145,7 +151,7 @@ const pricingModels = [
     { value: 'custom', label: 'Custom' },
 ];
 
-const goToStepFive = () => {
+const goToProviderPricingStep = () => {
     currentStep.value = 5;
 };
 
@@ -245,7 +251,7 @@ const goBack = () => {
                 </p>
             </div>
 
-            <div v-else-if="isBusinessStep" class="space-y-2.5">
+            <div v-else-if="isProviderBusinessStep" class="space-y-2.5">
                         <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Business</h2>
                 <Input
                     v-model="formData.business.business_name"
@@ -268,13 +274,21 @@ const goBack = () => {
                         placeholder="Experience, credentials, and how you help clients..."
                     />
                 </div>
-                <Input
-                    v-model="formData.business.years_experience"
-                    type="number"
-                    label="Years of experience"
-                    placeholder="e.g. 5"
-                    size="compact"
-                />
+                <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <Input
+                        v-model="formData.business.license_number"
+                        label="License number"
+                        placeholder="Enter license number"
+                        size="compact"
+                    />
+                    <Input
+                        v-model="formData.business.years_experience"
+                        type="number"
+                        label="Years of experience"
+                        placeholder="e.g. 5"
+                        size="compact"
+                    />
+                </div>
             </div>
 
             <div v-else class="space-y-3.5">
@@ -354,7 +368,7 @@ const goBack = () => {
                     <ArrowLeftIcon class="h-3.5 w-3.5" />
                     Back
                 </Button>
-                <Button v-if="isBusinessStep" variant="primary" size="sm" class="!py-1.5 !text-xs !rounded-md" @click="goToStepFive">
+                <Button v-if="isProviderBusinessStep" variant="primary" size="sm" class="!py-1.5 !text-xs !rounded-md" @click="goToProviderPricingStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>

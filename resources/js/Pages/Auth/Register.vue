@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -11,6 +11,7 @@ import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
     roles: Array,
+    initialRole: String,
     serviceTypes: Array,
 });
 
@@ -20,7 +21,7 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    role: 'user',
+    role: props.initialRole || 'user',
     service_type: '',
 });
 
@@ -32,8 +33,15 @@ const handleImageError = () => {
 };
 
 const submit = () => {
+    const selectedRole = form.role;
+
     form.post(route('register'), {
         preserveScroll: true,
+        onSuccess: () => {
+            if (selectedRole === 'provider') {
+                router.visit(route('address-detail'));
+            }
+        },
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };

@@ -15,7 +15,7 @@ use Inertia\Response;
 
 class OnboardingController extends Controller
 {
-    public function index(): Response|RedirectResponse
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = auth()->user();
 
@@ -23,10 +23,18 @@ class OnboardingController extends Controller
             return $this->redirectToDashboard();
         }
 
-        $isProvider = $user->hasRole(UserRole::PROVIDER->value);
+        $isProvider = $user->followsProviderOnboarding();
+        if ($isProvider && ! $user->isProvider()) {
+            $user->assignRole(UserRole::PROVIDER->value);
+        }
+        $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
+        $initialStep = $isProvider
+            ? max(4, min(5, $requestedStep))
+            : max(2, min(3, $requestedStep));
 
         return Inertia::render('Onboarding/Index', [
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'country', 'preferred_language']),
+            'initialStep' => $initialStep,
             'isProvider' => $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
@@ -75,7 +83,11 @@ class OnboardingController extends Controller
     public function complete(Request $request): RedirectResponse
     {
         $user = auth()->user();
-        $isProvider = $user->hasRole(UserRole::PROVIDER->value);
+        $isProvider = $user->followsProviderOnboarding();
+
+        if ($isProvider && ! $user->isProvider()) {
+            $user->assignRole(UserRole::PROVIDER->value);
+        }
 
         DB::transaction(function () use ($user, $request, $isProvider) {
             $data = $request->all();
@@ -124,6 +136,7 @@ class OnboardingController extends Controller
                     'service_radius_miles' => $serviceAreaData['radius'] ?? null,
                     'service_areas' => $serviceAreaData['areas'] ?? [],
                     'languages_offered' => $user->languages ?? ['en'],
+                    'license_number' => $businessData['license_number'] ?? null,
                     'years_experience' => $businessData['years_experience'] ?? null,
                 ]);
             }

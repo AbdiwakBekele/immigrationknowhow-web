@@ -2644,3 +2644,9 @@
 #62 C:/Program Files/Herd/resources/app.asar.unpacked/resources/valet/server.php(139): require('C://Users//Lidiya...')
 #63 {main}
 "} 
+[2026-04-08 20:08:34] local.INFO: Phone verification OTP {"user_id":26,"phone":"9981200000000002","code":"594601","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-08 20:20:57] local.INFO: Phone verification OTP {"user_id":27,"phone":"1123456789","code":"821830","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-08 20:25:32] local.INFO: Phone verification OTP {"user_id":28,"phone":"6781343546576","code":"921636","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-08 20:31:33] local.INFO: Phone verification OTP {"user_id":29,"phone":"1423576890","code":"595609","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-08 20:35:56] local.INFO: Phone verification OTP {"user_id":30,"phone":"1123456789","code":"167759","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-08 20:41:42] local.INFO: Phone verification OTP {"user_id":31,"phone":"10943587412","code":"724710","hint":"Replace with SMS in production; OTP is logged for development."} 

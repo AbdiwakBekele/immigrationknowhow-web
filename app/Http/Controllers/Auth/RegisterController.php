@@ -19,25 +19,35 @@ class RegisterController extends Controller
 {
     public function create(Request $request): Response
     {
+        $initialRole = $request->string('role')->toString();
+        if (! in_array($initialRole, [UserRole::USER->value, UserRole::PROVIDER->value], true)) {
+            $initialRole = UserRole::USER->value;
+        }
+
         return Inertia::render('Auth/Register', [
             'roles' => [
                 ['value' => UserRole::USER->value, 'label' => UserRole::USER->label(), 'description' => UserRole::USER->description()],
                 ['value' => UserRole::PROVIDER->value, 'label' => UserRole::PROVIDER->label(), 'description' => UserRole::PROVIDER->description()],
             ],
+            'initialRole' => $initialRole,
             'serviceTypes' => ServiceTypeOptions::selectOptions(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $effectiveRole = $request->filled('service_type')
+            ? UserRole::PROVIDER->value
+            : $request->input('role', UserRole::USER->value);
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['required', 'string', 'in:'.UserRole::USER->value.','.UserRole::PROVIDER->value],
+            'role' => ['nullable', 'string', 'in:'.UserRole::USER->value.','.UserRole::PROVIDER->value],
             'service_type' => [
-                Rule::requiredIf($request->input('role') === UserRole::PROVIDER->value),
+                Rule::requiredIf($effectiveRole === UserRole::PROVIDER->value),
                 'nullable',
                 Rule::in(ServiceTypeOptions::values()),
             ],
@@ -55,11 +65,11 @@ class RegisterController extends Controller
             ],
         ]);
 
-        $user->assignRole($validated['role']);
+        $user->assignRole($effectiveRole);
 
         Auth::login($user);
 
-        if ($validated['role'] === UserRole::USER->value) {
+        if ($effectiveRole === UserRole::USER->value) {
             return redirect()->route('onboarding.index');
         }
 
