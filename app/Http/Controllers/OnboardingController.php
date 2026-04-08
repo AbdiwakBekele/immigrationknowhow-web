@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ServiceType;
 use App\Enums\UserRole;
 use App\Models\ServiceProvider;
+use App\Support\CountryOptions;
+use App\Support\LanguageOptions;
+use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +26,13 @@ class OnboardingController extends Controller
         $isProvider = $user->hasRole(UserRole::PROVIDER->value);
 
         return Inertia::render('Onboarding/Index', [
-            'user' => $user->only(['id', 'first_name', 'last_name', 'email']),
+            'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'country', 'preferred_language']),
             'isProvider' => $isProvider,
-            'serviceTypes' => ServiceType::options(),
+            'serviceTypes' => $isProvider
+                ? ServiceTypeOptions::selectOptions('provider')
+                : ServiceTypeOptions::userIntakeOptions(),
+            'countryOptions' => CountryOptions::selectOptions(),
+            'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
         ]);

@@ -1,20 +1,17 @@
 <script setup>
+import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
+import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
 import Select from '@/Components/ui/Select.vue';
 import { UserIcon, BriefcaseIcon } from '@heroicons/vue/24/outline';
+import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 
-defineProps({
+const props = defineProps({
     roles: Array,
     serviceTypes: Array,
-    languageOptions: Array,
-    countryOptions: Array,
-    captchaCode: {
-        type: String,
-        required: true,
-    },
 });
 
 const form = useForm({
@@ -25,29 +22,63 @@ const form = useForm({
     password_confirmation: '',
     role: 'user',
     service_type: '',
-    address: '',
-    city: '',
-    country: 'US',
-    postal_code: '',
-    preferred_language: 'en',
-    terms: false,
-    captcha: '',
 });
+
+const authImage = ref('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1400&q=80');
+const fallbackImage = ref(false);
+
+const handleImageError = () => {
+    fallbackImage.value = true;
+};
 
 const submit = () => {
     form.post(route('register'), {
         preserveScroll: true,
         onFinish: () => form.reset('password', 'password_confirmation'),
-        onError: () => {
-            form.captcha = '';
-        },
     });
+};
+
+const goBack = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.href = route('home');
 };
 
 const roleOptions = [
     { value: 'user', label: 'I need services', icon: UserIcon },
     { value: 'provider', label: 'I provide services', icon: BriefcaseIcon },
 ];
+
+const serviceTypeLabel = computed(() =>
+    form.role === 'provider' ? 'Service you provide' : 'Service you need'
+);
+
+const serviceTypePlaceholder = computed(() =>
+    form.role === 'provider'
+        ? 'Choose the service you provide'
+        : 'Choose the service you need help with'
+);
+
+const filteredServiceTypes = computed(() =>
+    (props.serviceTypes || []).filter((type) => {
+        if (form.role === 'provider') {
+            return type.for_provider ?? true;
+        }
+        return type.for_user ?? true;
+    })
+);
+
+const totalSteps = computed(() => (form.role === 'user' ? 3 : 5));
+
+watch(
+    () => form.role,
+    () => {
+        form.service_type = '';
+    }
+);
 </script>
 
 <template>
@@ -55,10 +86,44 @@ const roleOptions = [
 
     <GuestLayout>
         <template #title>Create your account</template>
-        <template #subtitle>One short form — then we will confirm your phone.</template>
+        <template #subtitle />
+        <template #progress>
+            <AuthFlowProgress :current-step="1" :total-steps="totalSteps" />
+        </template>
+        <template #side-image>
+            <div class="relative h-full w-full overflow-hidden">
+                <img
+                    v-if="!fallbackImage"
+                    :src="authImage"
+                    alt="Customer support illustration"
+                    class="h-full w-full object-cover"
+                    @error="handleImageError"
+                />
+                <div
+                    v-if="!fallbackImage"
+                    class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"
+                />
+                <div v-if="!fallbackImage" class="pointer-events-none absolute bottom-0 left-0 right-0 p-6 text-white">
+                    <p class="mb-2 inline-flex rounded-full bg-emerald-500/70 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
+                        Immigration Support
+                    </p>
+                    <h3 class="text-2xl font-bold leading-tight">Your journey. Our guidance.</h3>
+                    <p class="mt-2 text-sm text-white/90">
+                        Create your account and connect with trusted experts.
+                    </p>
+                </div>
+                <div
+                    v-else
+                    class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 via-white to-primary-200 px-6 text-center text-sm font-medium text-primary-700"
+                >
+                    Side image unavailable right now.
+                </div>
+            </div>
+        </template>
 
-        <form @submit.prevent="submit" class="space-y-6">
-            <div class="space-y-2">
+        <form @submit.prevent="submit" class="space-y-2.5">
+            <div class="space-y-1.5">
+                <p class="text-sm font-medium text-neutral-700 sm:max-w-md sm:mx-auto">I am joining as</p>
                 <div class="grid grid-cols-2 gap-2 sm:max-w-md sm:mx-auto">
                     <button
                         v-for="option in roleOptions"
@@ -66,39 +131,23 @@ const roleOptions = [
                         type="button"
                         @click="form.role = option.value"
                         :class="[
-                            'flex flex-col items-center justify-center rounded-xl border px-2 py-3 text-center transition-all duration-200',
-                            form.role === 'provider' && option.value === 'provider'
-                                ? 'border-primary-600 bg-primary-600 shadow-md ring-1 ring-primary-700/20'
-                                : option.value === 'provider'
-                                  ? 'border-primary-300 bg-primary-100/90 shadow-sm hover:border-primary-400 hover:bg-primary-100'
-                                  : form.role === option.value
-                                    ? 'border-primary-600 bg-primary-50/90 shadow-sm ring-1 ring-primary-500/25'
-                                    : 'border-neutral-200 bg-white shadow-sm hover:border-primary-300',
+                            'flex min-h-[42px] flex-col items-center justify-center rounded-md border px-1 py-1 text-center transition-colors duration-200',
+                            form.role === option.value
+                                ? 'border-primary-600 bg-primary-600 shadow-md'
+                                : 'border-neutral-200 bg-white',
                         ]"
                     >
                         <component
                             :is="option.icon"
                             :class="[
-                                'mb-1.5 h-6 w-6 shrink-0 sm:h-7 sm:w-7',
-                                form.role === 'provider' && option.value === 'provider'
-                                    ? 'text-white'
-                                    : option.value === 'provider'
-                                      ? 'text-primary-700'
-                                      : form.role === option.value
-                                        ? 'text-primary-600'
-                                        : 'text-primary-500/80',
+                                'mb-0.5 h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5',
+                                form.role === option.value ? 'text-white' : 'text-primary-500/80',
                             ]"
                         />
                         <span
                             :class="[
-                                'text-center text-xs font-semibold leading-tight sm:text-[13px]',
-                                form.role === 'provider' && option.value === 'provider'
-                                    ? 'text-white'
-                                    : option.value === 'provider'
-                                      ? 'text-primary-900'
-                                      : form.role === option.value
-                                        ? 'text-primary-900'
-                                        : 'text-neutral-800',
+                                'text-center text-[10px] font-semibold leading-tight',
+                                form.role === option.value ? 'text-white' : 'text-neutral-800',
                             ]"
                         >
                             {{ option.label }}
@@ -108,12 +157,24 @@ const roleOptions = [
                 <p v-if="form.errors.role" class="text-xs text-red-600">{{ form.errors.role }}</p>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+                v-if="form.role === 'provider'"
+                v-model="form.service_type"
+                :options="filteredServiceTypes"
+                :label="serviceTypeLabel"
+                :placeholder="serviceTypePlaceholder"
+                :error="form.errors.service_type"
+                size="compact"
+                required
+            />
+
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <Input
                     v-model="form.first_name"
                     label="First name"
                     placeholder="Jane"
                     :error="form.errors.first_name"
+                    size="compact"
                     required
                 />
                 <Input
@@ -121,6 +182,7 @@ const roleOptions = [
                     label="Last name"
                     placeholder="Doe"
                     :error="form.errors.last_name"
+                    size="compact"
                     required
                 />
             </div>
@@ -131,70 +193,11 @@ const roleOptions = [
                 label="Email"
                 placeholder="you@example.com"
                 :error="form.errors.email"
+                size="compact"
                 required
             />
 
-            <Select
-                v-model="form.service_type"
-                :options="serviceTypes"
-                label="Service type"
-                placeholder="Choose the type that fits you best"
-                :error="form.errors.service_type"
-                required
-            />
-
-            <div class="space-y-2">
-                <p class="text-xs font-medium text-neutral-600">Location</p>
-                <Input
-                    v-model="form.address"
-                    label="Street address"
-                    placeholder="Street, apt / unit"
-                    :error="form.errors.address"
-                    size="compact"
-                    required
-                    autocomplete="street-address"
-                />
-                <div class="grid grid-cols-2 gap-2">
-                    <Input
-                        v-model="form.city"
-                        label="City"
-                        placeholder="City"
-                        :error="form.errors.city"
-                        size="compact"
-                        required
-                        autocomplete="address-level2"
-                    />
-                    <Input
-                        v-model="form.postal_code"
-                        label="Postal code"
-                        placeholder="ZIP / postal"
-                        :error="form.errors.postal_code"
-                        size="compact"
-                        required
-                        autocomplete="postal-code"
-                    />
-                </div>
-                <Select
-                    v-model="form.country"
-                    :options="countryOptions"
-                    label="Country"
-                    placeholder="Country"
-                    :error="form.errors.country"
-                    size="compact"
-                    required
-                />
-            </div>
-
-            <Select
-                v-model="form.preferred_language"
-                :options="languageOptions"
-                label="Language"
-                placeholder="Select language"
-                :error="form.errors.preferred_language"
-                required
-            />
-
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <Input
                     v-model="form.password"
                     type="password"
@@ -202,6 +205,7 @@ const roleOptions = [
                     placeholder="••••••••"
                     helper="At least 8 characters"
                     :error="form.errors.password"
+                    size="compact"
                     required
                 />
                 <Input
@@ -210,68 +214,36 @@ const roleOptions = [
                     label="Confirm password"
                     placeholder="••••••••"
                     :error="form.errors.password_confirmation"
+                    size="compact"
                     required
                 />
             </div>
 
-            <div class="space-y-1.5">
-                <label for="register-captcha" class="block text-sm font-medium text-neutral-700">
-                    Captcha
-                    <span class="ml-0.5 text-red-500">*</span>
-                </label>
-                <div
-                    class="flex overflow-hidden rounded-xl border transition-all duration-200"
-                    :class="
-                        form.errors.captcha
-                            ? 'border-red-300 ring-2 ring-red-500/20'
-                            : 'border-neutral-300 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20'
-                    "
+            <div class="flex items-center justify-between">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="!rounded-md border border-neutral-200 bg-white !px-2.5 !py-1.5 !text-xs text-neutral-700 hover:bg-neutral-50"
+                    @click="goBack"
                 >
-                    <input
-                        id="register-captcha"
-                        v-model="form.captcha"
-                        type="text"
-                        inputmode="numeric"
-                        maxlength="4"
-                        autocomplete="off"
-                        placeholder="Enter the 4-digit code"
-                        required
-                        class="min-w-0 flex-1 border-0 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
-                    />
-                    <div
-                        class="flex min-w-[5.5rem] shrink-0 select-none items-center justify-center bg-emerald-900 px-4 py-3 text-lg font-semibold tracking-widest text-white"
-                        aria-hidden="true"
-                    >
-                        {{ captchaCode }}
-                    </div>
-                </div>
-                <p v-if="form.errors.captcha" class="text-xs text-red-600">{{ form.errors.captcha }}</p>
+                    <ArrowLeftIcon class="h-3.5 w-3.5" />
+                    Back
+                </Button>
+                <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    :loading="form.processing"
+                    class="min-w-[10rem] !py-1.5 !text-xs !rounded-md"
+                >
+                    Continue
+                </Button>
             </div>
-
-            <div class="space-y-2">
-                <label class="flex cursor-pointer items-start gap-3">
-                    <input
-                        v-model="form.terms"
-                        type="checkbox"
-                        class="mt-0.5 h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span class="text-sm text-neutral-600">
-                        I agree to the
-                        <a href="#" class="font-medium text-primary-600 hover:text-primary-500">Terms</a>
-                        and
-                        <a href="#" class="font-medium text-primary-600 hover:text-primary-500">Privacy Policy</a>
-                    </span>
-                </label>
-                <p v-if="form.errors.terms" class="text-xs text-red-600">{{ form.errors.terms }}</p>
-            </div>
-
-            <Button type="submit" variant="primary" size="lg" :loading="form.processing" class="w-full">
-                Continue
-            </Button>
         </form>
 
         <template #footer>
-            Already have an account?
+            <span class="inline-block pt-1">Already have an account?</span>
             <Link :href="route('login')" class="ml-1 font-semibold text-primary-600 hover:text-primary-500">
                 Sign in
             </Link>

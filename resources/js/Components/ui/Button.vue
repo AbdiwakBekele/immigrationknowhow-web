@@ -42,9 +42,9 @@ const classes = computed(() => {
     };
     
     const sizes = {
-        sm: props.icon ? 'p-2 text-xs' : 'px-3 py-1.5 text-xs',
-        md: props.icon ? 'p-2.5 text-sm' : 'px-4 py-2.5 text-sm',
-        lg: props.icon ? 'p-3 text-base' : 'px-6 py-3 text-base',
+        sm: props.icon ? 'p-1.5 text-xs' : 'px-2.5 py-1 text-xs',
+        md: props.icon ? 'p-2 text-sm' : 'px-3.5 py-2 text-sm',
+        lg: props.icon ? 'p-2.5 text-sm' : 'px-4.5 py-2.5 text-sm',
     };
     
     return `${base} ${variants[props.variant]} ${sizes[props.size]}`;
