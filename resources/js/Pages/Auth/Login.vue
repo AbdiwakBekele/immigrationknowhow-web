@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -20,6 +21,13 @@ const form = useForm({
     remember: false,
 });
 
+const authImage = ref('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1400&q=80');
+const fallbackImage = ref(false);
+
+const handleImageError = () => {
+    fallbackImage.value = true;
+};
+
 const submit = () => {
     form.post(route('login'), {
         onFinish: () => form.reset('password'),
@@ -33,6 +41,23 @@ const submit = () => {
     <GuestLayout>
         <template #title>Welcome back</template>
         <template #subtitle>Sign in to your account to continue</template>
+        <template #side-image>
+            <div class="h-full w-full">
+                <img
+                    v-if="!fallbackImage"
+                    :src="authImage"
+                    alt="Customer support illustration"
+                    class="h-full w-full object-cover"
+                    @error="handleImageError"
+                />
+                <div
+                    v-else
+                    class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 via-white to-primary-200 px-6 text-center text-sm font-medium text-primary-700"
+                >
+                    Side image unavailable right now.
+                </div>
+            </div>
+        </template>
 
         <div v-if="status" class="mb-4 p-4 rounded-xl bg-emerald-50 text-sm font-medium text-emerald-600">
             {{ status }}
@@ -103,15 +128,17 @@ const submit = () => {
                 </Link>
             </div>
 
-            <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                :loading="form.processing"
-                class="w-full"
-            >
-                Sign in
-            </Button>
+            <div class="flex justify-center">
+                <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    :loading="form.processing"
+                    class="min-w-[12rem] !py-1.5 !text-xs"
+                >
+                    Sign in
+                </Button>
+            </div>
         </form>
 
         <template #footer>

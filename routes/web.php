@@ -62,9 +62,10 @@ Route::post('/logout', [Auth\LoginController::class, 'destroy'])
 
 // Phone verification after registration (before onboarding)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/verify-phone', [Auth\PhoneVerificationController::class, 'show'])->name('verify-phone');
-    Route::post('/verify-phone', [Auth\PhoneVerificationController::class, 'sendOtp'])->name('verify-phone.send');
-    Route::post('/verify-phone/verify', [Auth\PhoneVerificationController::class, 'verify'])->name('verify-phone.verify');
+    Route::get('/address-detail', [Auth\AddressDetailsController::class, 'show'])->name('address-detail');
+    Route::post('/address-detail', [Auth\AddressDetailsController::class, 'sendOtp'])->name('address-detail.send');
+    Route::get('/address-detail/otp', [Auth\AddressDetailsController::class, 'showOtp'])->name('address-detail.otp');
+    Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
 });
 
 // Onboarding — requires verified phone
@@ -193,6 +194,8 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         
         // Videos
         Route::resource('videos', Admin\VideoController::class);
+        Route::get('/service-types', [Admin\ServiceTypeController::class, 'index'])->name('service-types.index');
+        Route::post('/service-types', [Admin\ServiceTypeController::class, 'store'])->name('service-types.store');
         
         // Reports
         Route::get('/reports', [Admin\ReportController::class, 'index'])->name('reports.index');

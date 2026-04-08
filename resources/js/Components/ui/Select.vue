@@ -35,6 +35,11 @@ const props = defineProps({
         type: String,
         default: 'label',
     },
+    size: {
+        type: String,
+        default: 'default',
+        validator: (v) => ['default', 'compact'].includes(v),
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -61,28 +66,43 @@ const selectedLabel = computed(() => {
 const handleChange = (value) => {
     emit('update:modelValue', value);
 };
+
+const labelClasses = computed(() =>
+    props.size === 'compact'
+        ? 'mb-1 block text-xs font-medium text-neutral-600'
+        : 'mb-1.5 block text-sm font-medium text-neutral-700',
+);
+
+const buttonClasses = computed(() => {
+    const sizeClasses =
+        props.size === 'compact'
+            ? 'rounded-lg py-2 pl-3 pr-9 text-xs'
+            : 'rounded-xl py-2.5 pl-3.5 pr-10 text-sm';
+
+    return [
+        `relative w-full cursor-pointer bg-white text-left border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 ${sizeClasses}`,
+        props.error ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-300 focus:border-primary-500 focus:ring-primary-500/20',
+        props.disabled ? 'bg-neutral-100 cursor-not-allowed' : '',
+    ];
+});
 </script>
 
 <template>
     <Listbox :model-value="modelValue" @update:model-value="handleChange" :multiple="multiple" :disabled="disabled">
         <div class="relative">
-            <ListboxLabel v-if="label" class="block text-sm font-medium text-neutral-700 mb-1.5">
+            <ListboxLabel v-if="label" :class="labelClasses">
                 {{ label }}
                 <span v-if="required" class="text-red-500 ml-0.5">*</span>
             </ListboxLabel>
             
             <ListboxButton
-                :class="[
-                    'relative w-full cursor-pointer rounded-xl bg-white py-3 pl-4 pr-10 text-left border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 text-sm',
-                    error ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' : 'border-neutral-300 focus:border-primary-500 focus:ring-primary-500/20',
-                    disabled ? 'bg-neutral-100 cursor-not-allowed' : ''
-                ]"
+                :class="buttonClasses"
             >
                 <span :class="['block truncate', selectedLabel ? 'text-neutral-900' : 'text-neutral-400']">
                     {{ selectedLabel || placeholder }}
                 </span>
-                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                    <ChevronUpDownIcon class="h-5 w-5 text-neutral-400" aria-hidden="true" />
+                <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
+                    <ChevronUpDownIcon class="h-4 w-4 text-neutral-400" aria-hidden="true" />
                 </span>
             </ListboxButton>
 

@@ -56,8 +56,8 @@ class LoginController extends Controller
      */
     protected function homeUrlForUser(User $user): string
     {
-        if (! $user->phone_verified_at && ! $user->isAdmin()) {
-            return route('verify-phone');
+        if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
+            return route('address-detail');
         }
 
         if (! $user->hasCompletedOnboarding()) {
@@ -77,8 +77,8 @@ class LoginController extends Controller
 
     protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse
     {
-        if (! $user->phone_verified_at && ! $user->isAdmin()) {
-            return redirect()->route('verify-phone');
+        if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
+            return redirect()->route('address-detail');
         }
 
         if (! $user->hasCompletedOnboarding()) {

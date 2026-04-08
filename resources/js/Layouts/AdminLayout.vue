@@ -14,6 +14,7 @@ import {
     VideoCameraIcon,
     ChartBarIcon,
     Cog6ToothIcon,
+    Squares2X2Icon,
     ArrowRightOnRectangleIcon,
     BellIcon,
 } from '@heroicons/vue/24/outline';
@@ -31,6 +32,7 @@ const navigation = [
     { name: 'Library', href: '/admin/library', icon: BookOpenIcon },
     { name: 'Affiliates', href: '/admin/affiliates', icon: LinkIcon },
     { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },
+    { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
     { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
     { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ];

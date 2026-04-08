@@ -34,8 +34,8 @@ const inputId = computed(() => props.id || `input-${Math.random().toString(36).s
 const inputClasses = computed(() => {
     const sizeClasses =
         props.size === 'compact'
-            ? 'px-3 py-2 text-xs rounded-lg'
-            : 'px-4 py-3 text-sm rounded-xl';
+            ? 'px-2.5 py-1.5 text-xs rounded-md'
+            : 'px-3 py-2 text-sm rounded-lg';
 
     const base = `w-full ${sizeClasses} bg-white border transition-all duration-200 placeholder:text-neutral-400 focus:outline-none`;
 
@@ -59,7 +59,7 @@ const handleInput = (event) => {
 
 <template>
     <div :class="size === 'compact' ? 'space-y-1' : 'space-y-1.5'">
-        <label v-if="label" :for="inputId" class="block text-sm font-medium text-neutral-700">
+        <label v-if="label" :for="inputId" :class="labelClasses">
             {{ label }}
             <span v-if="required" class="text-red-500 ml-0.5">*</span>
         </label>

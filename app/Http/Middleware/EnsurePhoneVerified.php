@@ -15,14 +15,18 @@ class EnsurePhoneVerified
     {
         $user = $request->user();
 
-        if (! $user || $user->phone_verified_at || $user->isAdmin()) {
+        if (! $user || $user->phone_verified_at || $user->isAdmin() || ! $user->followsProviderOnboarding()) {
             return $next($request);
         }
 
-        if ($request->routeIs('verify-phone', 'verify-phone.*', 'logout')) {
+        if (! $user->isProvider()) {
+            $user->assignRole('provider');
+        }
+
+        if ($request->routeIs('address-detail', 'address-detail.*', 'logout')) {
             return $next($request);
         }
 
-        return redirect()->route('verify-phone');
+        return redirect()->route('address-detail');
     }
 }
