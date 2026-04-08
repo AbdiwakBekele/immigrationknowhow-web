@@ -14,7 +14,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolid, StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { ref, computed, watch } from 'vue';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 const props = defineProps({
     items: Object,

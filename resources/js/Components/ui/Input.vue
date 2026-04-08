@@ -17,6 +17,14 @@ const props = defineProps({
     required: Boolean,
     disabled: Boolean,
     id: String,
+    maxlength: [String, Number],
+    inputmode: String,
+    autocomplete: String,
+    size: {
+        type: String,
+        default: 'default',
+        validator: (v) => ['default', 'compact'].includes(v),
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -24,14 +32,25 @@ const emit = defineEmits(['update:modelValue']);
 const inputId = computed(() => props.id || `input-${Math.random().toString(36).substr(2, 9)}`);
 
 const inputClasses = computed(() => {
-    const base = 'w-full px-4 py-3 text-sm bg-white border rounded-xl transition-all duration-200 placeholder:text-neutral-400 focus:outline-none';
-    
+    const sizeClasses =
+        props.size === 'compact'
+            ? 'px-3 py-2 text-xs rounded-lg'
+            : 'px-4 py-3 text-sm rounded-xl';
+
+    const base = `w-full ${sizeClasses} bg-white border transition-all duration-200 placeholder:text-neutral-400 focus:outline-none`;
+
     if (props.error) {
         return `${base} border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20`;
     }
-    
+
     return `${base} border-neutral-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20`;
 });
+
+const labelClasses = computed(() =>
+    props.size === 'compact'
+        ? 'block text-xs font-medium text-neutral-600'
+        : 'block text-sm font-medium text-neutral-700',
+);
 
 const handleInput = (event) => {
     emit('update:modelValue', event.target.value);
@@ -39,7 +58,7 @@ const handleInput = (event) => {
 </script>
 
 <template>
-    <div class="space-y-1.5">
+    <div :class="size === 'compact' ? 'space-y-1' : 'space-y-1.5'">
         <label v-if="label" :for="inputId" class="block text-sm font-medium text-neutral-700">
             {{ label }}
             <span v-if="required" class="text-red-500 ml-0.5">*</span>
@@ -55,6 +74,9 @@ const handleInput = (event) => {
                 :placeholder="placeholder"
                 :required="required"
                 :disabled="disabled"
+                :maxlength="maxlength"
+                :inputmode="inputmode"
+                :autocomplete="autocomplete"
                 :class="inputClasses"
                 @input="handleInput"
             />

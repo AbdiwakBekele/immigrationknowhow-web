@@ -43,9 +43,12 @@ Route::get('/dv-lottery', fn() => redirect('https://dvprogram.state.gov/'))->nam
 Route::middleware('guest')->group(function () {
     Route::get('/register', [Auth\RegisterController::class, 'create'])->name('register');
     Route::post('/register', [Auth\RegisterController::class, 'store']);
-    Route::get('/login', [Auth\LoginController::class, 'create'])->name('login');
-    Route::post('/login', [Auth\LoginController::class, 'store']);
 });
+
+// Login is not behind `guest`: authenticated users must still reach this page (e.g. "Sign in"
+// from register) instead of being redirected to dashboard → onboarding by RedirectIfAuthenticated.
+Route::get('/login', [Auth\LoginController::class, 'create'])->name('login');
+Route::post('/login', [Auth\LoginController::class, 'store']);
 
 Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
@@ -57,8 +60,15 @@ Route::post('/logout', [Auth\LoginController::class, 'destroy'])
 |--------------------------------------------------------------------------
 */
 
-// Onboarding - auth only (no email verification required)
+// Phone verification after registration (before onboarding)
 Route::middleware(['auth'])->group(function () {
+    Route::get('/verify-phone', [Auth\PhoneVerificationController::class, 'show'])->name('verify-phone');
+    Route::post('/verify-phone', [Auth\PhoneVerificationController::class, 'sendOtp'])->name('verify-phone.send');
+    Route::post('/verify-phone/verify', [Auth\PhoneVerificationController::class, 'verify'])->name('verify-phone.verify');
+});
+
+// Onboarding — requires verified phone
+Route::middleware(['auth', 'phone.verified'])->group(function () {
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::post('/onboarding/progress', [OnboardingController::class, 'saveProgress'])->name('onboarding.progress');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
