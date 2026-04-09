@@ -61,11 +61,14 @@ const formatTimeAgo = (date) => {
 };
 
 const verificationStatus = computed(() => {
-    if (props.provider.verification_status === 'approved') {
+    if (props.provider.background_check_status === 'clear') {
         return { icon: CheckBadgeSolid, text: 'Verified', color: 'text-green-600 bg-green-50' };
     }
-    if (props.provider.verification_status === 'pending') {
-        return { icon: ClockIcon, text: 'Pending Verification', color: 'text-yellow-600 bg-yellow-50' };
+    if (props.provider.background_check_status === 'invited') {
+        return { icon: ClockIcon, text: 'Check Email', color: 'text-blue-600 bg-blue-50' };
+    }
+    if (props.provider.background_check_status === 'completed') {
+        return { icon: ClockIcon, text: 'Under Review', color: 'text-yellow-600 bg-yellow-50' };
     }
     return { icon: ExclamationTriangleIcon, text: 'Not Verified', color: 'text-red-600 bg-red-50' };
 });
@@ -76,37 +79,42 @@ const verificationStatus = computed(() => {
 
     <ProviderLayout>
         <div class="space-y-8">
-            <!-- Verification Alert Banner -->
-            <div v-if="provider.verification_status !== 'approved'" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+            <!-- Background Check Alert Banner -->
+            <div v-if="provider.background_check_status !== 'clear'" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
                 <div class="flex items-start gap-4">
                     <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                         <ExclamationTriangleIcon class="w-6 h-6 text-amber-600" />
                     </div>
-                    <div class="flex-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h3 class="text-2xl font-semibold text-amber-900">
-                                <template v-if="provider.verification_status === 'pending'">
-                                    Verfication Pending
-                                </template>
-                                <template v-else>
-                                    Complete Your Verification
-                                </template>
-                            </h3>
-                            <p class="text-amber-700 mt-1">
-                                <template v-if="provider.verification_status === 'pending'">
-                                    Please complete our background check to have your account activated
-                                </template>
-                                <template v-else>
-                                    Verified providers get more visibility and build trust with potential clients. Complete your identity verification to unlock all features.
-                                </template>
-                            </p>
-                        </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-amber-900">
+                            <template v-if="provider.background_check_status === 'invited'">
+                                Complete Your Background Check
+                            </template>
+                            <template v-else-if="provider.background_check_status === 'completed'">
+                                Background Check Under Review
+                            </template>
+                            <template v-else>
+                                Background Check Required
+                            </template>
+                        </h3>
+                        <p class="text-amber-700 mt-1">
+                            <template v-if="provider.background_check_status === 'invited'">
+                                We've sent you an email from Checkr. Please complete your background check to get verified.
+                            </template>
+                            <template v-else-if="provider.background_check_status === 'completed'">
+                                Your background check is complete and under review. Results typically arrive within 2-5 business days.
+                            </template>
+                            <template v-else>
+                                Verified providers get more visibility and build trust with potential clients. Complete a background check to unlock all features.
+                            </template>
+                        </p>
                         <Link 
-                            :href="route('provider.verification.index')"
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-xl transition-colors self-start md:self-auto"
+                            v-if="!['invited', 'completed'].includes(provider.background_check_status)"
+                            :href="route('provider.background-check.index')"
+                            class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-xl transition-colors"
                         >
                             <CheckBadgeIcon class="w-5 h-5" />
-                            Get Verified
+                            Start Background Check
                         </Link>
                     </div>
                 </div>
@@ -125,7 +133,7 @@ const verificationStatus = computed(() => {
 
                 <div class="flex items-center gap-3">
                     <Link 
-                        :href="route('provider.verification.index')"
+                        :href="route('provider.background-check.index')"
                         :class="['flex items-center gap-2 px-4 py-2 rounded-xl', verificationStatus.color]"
                     >
                         <component :is="verificationStatus.icon" class="w-5 h-5" />
@@ -308,8 +316,8 @@ const verificationStatus = computed(() => {
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link 
-                                v-if="provider.verification_status !== 'approved'"
-                                :href="route('provider.verification.index')"
+                                v-if="provider.background_check_status !== 'clear'"
+                                :href="route('provider.background-check.index')"
                                 class="flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
                             >
                                 <span>Get Verified</span>

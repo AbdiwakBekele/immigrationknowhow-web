@@ -25,7 +25,7 @@ const navigation = [
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
-    { name: 'Verification', href: '/provider/verification', icon: ShieldCheckIcon },
+    { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
     { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
 ];
 
@@ -74,6 +74,27 @@ const isActive = (href) => {
                         <span class="block text-xs text-slate-500">Provider Portal</span>
                     </div>
                 </Link>
+            </div>
+
+            <!-- Provider info card -->
+            <div class="p-4 border-b border-slate-100">
+                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
+                        {{ user?.initials }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-900 truncate">{{ provider?.business_name || user?.full_name }}</p>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span v-if="provider?.background_check_status === 'clear'" class="inline-flex items-center gap-1 text-xs text-emerald-600">
+                                <ShieldCheckIcon class="h-3.5 w-3.5" />
+                                Verified
+                            </span>
+                            <span v-else-if="provider?.background_check_status === 'invited'" class="text-xs text-blue-600">Check Email for Background Check</span>
+                            <span v-else-if="provider?.background_check_status === 'completed'" class="text-xs text-amber-600">Background Check Under Review</span>
+                            <span v-else class="text-xs text-amber-600">Background Check Required</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Navigation -->

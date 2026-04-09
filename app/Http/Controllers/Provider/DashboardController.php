@@ -61,7 +61,7 @@ class DashboardController extends Controller
             'leadsChartData' => $leadsChartData,
             'provider' => $provider->only([
                 'id', 'slug', 'business_name', 'average_rating', 'total_reviews', 
-                'verification_status', 'is_featured', 'profile_views',
+                'background_check_status', 'is_featured', 'profile_views',
             ]),
         ]);
     }
