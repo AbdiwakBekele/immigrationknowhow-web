@@ -278,7 +278,7 @@ const isMessageValid = computed(() => form.message.length >= 20);
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <h3 class="font-semibold text-slate-900">{{ provider.business_name }}</h3>
-                                        <CheckBadgeSolid v-if="provider.verification_status === 'approved'" class="w-5 h-5 text-primary-500" />
+                                        <CheckBadgeSolid v-if="provider.background_check_status === 'clear'" class="w-5 h-5 text-primary-500" />
                                     </div>
                                     <div class="flex items-center gap-1 mt-1">
                                         <StarSolid class="w-4 h-4 text-secondary-500" />

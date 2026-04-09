@@ -27,7 +27,7 @@ const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
     { name: 'Users', href: '/admin/users', icon: UsersIcon },
     { name: 'Providers', href: '/admin/providers', icon: BriefcaseIcon },
-    { name: 'Verifications', href: '/admin/verifications', icon: ShieldCheckIcon },
+    { name: 'Background Checks', href: '/admin/background-checks', icon: ShieldCheckIcon },
     { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },
     { name: 'Library', href: '/admin/library', icon: BookOpenIcon },
     { name: 'Affiliates', href: '/admin/affiliates', icon: LinkIcon },

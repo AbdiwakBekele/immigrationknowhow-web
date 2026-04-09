@@ -34,6 +34,10 @@ Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('
 // DV Lottery link
 Route::get('/dv-lottery', fn() => redirect('https://dvprogram.state.gov/'))->name('dv-lottery');
 
+Route::prefix('webhooks')->name('webhooks.')->group(function () {
+Route::post('/checkr', \App\Http\Controllers\Webhooks\CheckrWebhookController::class)->name('checkr');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Authentication Routes
@@ -146,9 +150,15 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::get('/reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{review:uuid}/respond', [Provider\ReviewController::class, 'respond'])->name('reviews.respond');
         
-        // Identity Verification
-        Route::get('/verification', [Provider\VerificationController::class, 'index'])->name('verification.index');
-        Route::post('/verification', [Provider\VerificationController::class, 'store'])->name('verification.store');
+        // Background Check (replaces old Identity Verification)
+        // Redirect old verification URL for backward compatibility
+        Route::get('/verification', fn() => redirect()->route('provider.background-check.index'))->name('verification.index');
+    Route::prefix('background-check')->name('background-check.')->group(function () {
+        Route::get('/', [Provider\BackgroundCheckController::class, 'index'])->name('index');
+        Route::post('/', [Provider\BackgroundCheckController::class, 'store'])->name('store');
+        Route::get('/{backgroundCheck:uuid}', [Provider\BackgroundCheckController::class, 'show'])->name('show');
+        Route::post('/{backgroundCheck:uuid}/refresh', [Provider\BackgroundCheckController::class, 'refresh'])->name('refresh');
+    });
         
         // Analytics
         Route::get('/analytics', [Provider\AnalyticsController::class, 'index'])->name('analytics.index');
@@ -174,11 +184,9 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::resource('providers', Admin\ProviderController::class);
         Route::post('/providers/{provider}/verify', [Admin\ProviderController::class, 'verify'])->name('providers.verify');
         
-        // Verifications
-        Route::get('/verifications', [Admin\VerificationController::class, 'index'])->name('verifications.index');
-        Route::get('/verifications/{verification:uuid}', [Admin\VerificationController::class, 'show'])->name('verifications.show');
-        Route::post('/verifications/{verification:uuid}/approve', [Admin\VerificationController::class, 'approve'])->name('verifications.approve');
-        Route::post('/verifications/{verification:uuid}/reject', [Admin\VerificationController::class, 'reject'])->name('verifications.reject');
+        // Background Checks
+        Route::get('/background-checks', [Admin\BackgroundCheckController::class, 'index'])->name('background-checks.index');
+        Route::get('/background-checks/{backgroundCheck:uuid}', [Admin\BackgroundCheckController::class, 'show'])->name('background-checks.show');
         
         // Reviews
         Route::get('/reviews', [Admin\ReviewController::class, 'index'])->name('reviews.index');
@@ -206,4 +214,5 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         // Settings
         Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
         Route::patch('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+
     });

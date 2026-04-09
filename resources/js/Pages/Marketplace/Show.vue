@@ -128,7 +128,7 @@ const formatDate = (dateStr) => {
                                             :alt="provider.business_name"
                                             class="h-24 w-24 rounded-2xl border-4 border-white shadow-lg object-cover bg-white"
                                         />
-                                        <div v-if="provider.verification_status === 'approved'" class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                                        <div v-if="provider.background_check_status === 'clear'" class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                             <CheckBadgeSolid class="h-6 w-6 text-primary-600" />
                                         </div>
                                     </div>
@@ -390,7 +390,7 @@ const formatDate = (dateStr) => {
                             <!-- Trust Badges -->
                             <div class="mt-6 pt-6 border-t border-slate-100">
                                 <div class="flex items-center justify-center gap-4 text-xs text-slate-500">
-                                    <div v-if="provider.verification_status === 'approved'" class="flex items-center gap-1">
+                                    <div v-if="provider.background_check_status === 'clear'" class="flex items-center gap-1">
                                         <ShieldCheckIcon class="h-4 w-4 text-green-500" />
                                         <span>Verified</span>
                                     </div>

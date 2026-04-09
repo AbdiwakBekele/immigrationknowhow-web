@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\BackgroundCheckStatus;
 use App\Enums\LeadStatus;
-use App\Enums\VerificationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\BackgroundCheck;
 use App\Models\Lead;
 use App\Models\LibraryItem;
 use App\Models\Review;
@@ -29,9 +30,17 @@ class DashboardController extends Controller
         // Provider stats
         $providerStats = [
             'total' => ServiceProvider::count(),
-            'verified' => ServiceProvider::where('verification_status', VerificationStatus::APPROVED)->count(),
-            'pending_verification' => ServiceProvider::where('verification_status', VerificationStatus::PENDING)->count(),
+            'verified' => ServiceProvider::where('background_check_status', 'clear')->count(),
+            'pending_verification' => ServiceProvider::whereIn('background_check_status', ['invited', 'completed'])->count(),
             'active' => ServiceProvider::active()->acceptingClients()->count(),
+        ];
+
+        // Background check stats
+        $backgroundCheckStats = [
+            'pending' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::PENDING, BackgroundCheckStatus::INVITED])->count(),
+            'in_progress' => BackgroundCheck::where('status', BackgroundCheckStatus::COMPLETED)->count(),
+            'cleared' => BackgroundCheck::where('status', BackgroundCheckStatus::CLEAR)->count(),
+            'needs_review' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::CONSIDER, BackgroundCheckStatus::SUSPENDED])->count(),
         ];
 
         // Lead stats
@@ -64,8 +73,8 @@ class DashboardController extends Controller
             ->latest()
             ->limit(5)
             ->get();
-        $pendingVerifications = ServiceProvider::with('user:id,first_name,last_name,email')
-            ->where('verification_status', VerificationStatus::PENDING)
+        $pendingBackgroundChecks = BackgroundCheck::with(['serviceProvider.user:id,first_name,last_name,email'])
+            ->whereIn('status', [BackgroundCheckStatus::INVITED, BackgroundCheckStatus::COMPLETED, BackgroundCheckStatus::CONSIDER])
             ->latest()
             ->limit(5)
             ->get();
@@ -97,12 +106,13 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'userStats' => $userStats,
             'providerStats' => $providerStats,
+            'backgroundCheckStats' => $backgroundCheckStats,
             'leadStats' => $leadStats,
             'reviewStats' => $reviewStats,
             'libraryStats' => $libraryStats,
             'recentUsers' => $recentUsers,
             'recentLeads' => $recentLeads,
-            'pendingVerifications' => $pendingVerifications,
+            'pendingBackgroundChecks' => $pendingBackgroundChecks,
             'leadsChartData' => $leadsChartData,
             'serviceTypeDistribution' => $serviceTypeDistribution,
         ]);

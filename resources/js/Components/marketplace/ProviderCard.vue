@@ -37,7 +37,7 @@ const ratingStars = (rating) => {
                 
                 <!-- Verified badge -->
                 <div 
-                    v-if="provider.verification_status === 'approved'"
+                    v-if="provider.background_check_status === 'clear'"
                     class="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-sm"
                 >
                     <CheckBadgeIcon class="w-5 h-5 text-emerald-500" />
