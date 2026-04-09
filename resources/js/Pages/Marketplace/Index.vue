@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { debounce } from 'lodash-es';
 import AppLayout from '@/Components/layout/AppLayout.vue';
@@ -23,7 +23,7 @@ const props = defineProps({
 
 const showFilters = ref(false);
 
-const form = ref({
+const form = reactive({
     search: props.filters?.search || '',
     service_type: props.filters?.service_type || '',
     language: props.filters?.language || '',
@@ -58,26 +58,24 @@ const serviceTypeOptions = computed(() => {
 });
 
 const hasActiveFilters = computed(() => {
-    return form.value.service_type || form.value.language || form.value.location || form.value.remote_only || form.value.free_consultation;
+    return form.service_type || form.language || form.location || form.remote_only || form.free_consultation;
 });
 
 const applyFilters = () => {
-    router.get(route('marketplace.index'), form.value, {
+    router.get(route('marketplace.index'), form, {
         preserveState: true,
         preserveScroll: true,
     });
 };
 
 const clearFilters = () => {
-    form.value = {
-        search: '',
-        service_type: '',
-        language: '',
-        location: '',
-        remote_only: false,
-        free_consultation: false,
-        sort: 'rating',
-    };
+    form.search = '';
+    form.service_type = '';
+    form.language = '';
+    form.location = '';
+    form.remote_only = false;
+    form.free_consultation = false;
+    form.sort = 'rating';
     applyFilters();
 };
 
@@ -86,11 +84,11 @@ const debouncedSearch = debounce(() => {
     applyFilters();
 }, 300);
 
-watch(() => form.value.search, () => {
+watch(() => form.search, () => {
     debouncedSearch();
 });
 
-watch(() => form.value.sort, () => {
+watch(() => form.sort, () => {
     applyFilters();
 });
 </script>
@@ -263,21 +261,25 @@ watch(() => form.value.sort, () => {
 
                 <!-- Pagination -->
                 <div v-if="providers.last_page > 1" class="flex items-center justify-center gap-2 pt-6">
-                    <Link
-                        v-for="link in providers.links"
-                        :key="link.label"
-                        :href="link.url"
-                        :class="[
-                            'px-4 py-2 text-sm rounded-lg transition-colors',
-                            link.active
-                                ? 'bg-primary-600 text-white'
-                                : link.url
-                                    ? 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
-                                    : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                        ]"
-                        v-html="link.label"
-                        preserve-scroll
-                    />
+                    <template v-for="link in providers.links" :key="link.label">
+                        <Link
+                            v-if="link.url"
+                            :href="link.url"
+                            :class="[
+                                'px-4 py-2 text-sm rounded-lg transition-colors',
+                                link.active
+                                    ? 'bg-primary-600 text-white'
+                                    : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
+                            ]"
+                            v-html="link.label"
+                            preserve-scroll
+                        />
+                        <span
+                            v-else
+                            class="px-4 py-2 text-sm rounded-lg transition-colors bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                            v-html="link.label"
+                        />
+                    </template>
                 </div>
             </div>
         </div>

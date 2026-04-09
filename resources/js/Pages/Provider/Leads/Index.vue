@@ -41,7 +41,7 @@ const urgencyOptions = [
     { value: 'low', label: 'Low' },
     { value: 'normal', label: 'Normal' },
     { value: 'high', label: 'High' },
-    { value: 'critical', label: 'Critical' },
+    { value: 'urgent', label: 'Urgent' },
 ];
 
 const applyFilters = () => {
@@ -89,7 +89,7 @@ const getUrgencyColor = (urgency) => {
         low: 'text-gray-500',
         normal: 'text-blue-500',
         high: 'text-orange-500',
-        critical: 'text-red-600',
+        urgent: 'text-red-600',
     };
     return colors[urgency] || 'text-gray-500';
 };
@@ -225,7 +225,7 @@ const formatDate = (date) => {
                                                 v-slot="{ active }"
                                             >
                                                 <button 
-                                                    @click="updateLeadStatus(lead.id, status.value)"
+                                            @click="updateLeadStatus(lead.uuid, status.value)"
                                                     class="w-full px-4 py-2 text-sm text-left"
                                                     :class="[active ? 'bg-gray-50' : '', lead.status === status.value ? 'font-medium text-primary-600' : 'text-gray-700']"
                                                 >
@@ -237,7 +237,7 @@ const formatDate = (date) => {
                                 </td>
                                 <td class="px-6 py-4">
                                     <span class="flex items-center gap-1 text-sm" :class="getUrgencyColor(lead.urgency)">
-                                        <ExclamationCircleIcon v-if="['high', 'critical'].includes(lead.urgency)" class="h-4 w-4" />
+                                        <ExclamationCircleIcon v-if="['high', 'urgent'].includes(lead.urgency)" class="h-4 w-4" />
                                         {{ lead.urgency }}
                                     </span>
                                 </td>
@@ -247,7 +247,7 @@ const formatDate = (date) => {
                                 <td class="px-6 py-4 text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         <Link 
-                                            :href="`/provider/leads/${lead.id}`"
+                                            :href="`/provider/leads/${lead.uuid}`"
                                             class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                                             title="View Details"
                                         >
@@ -255,7 +255,7 @@ const formatDate = (date) => {
                                         </Link>
                                         <Link 
                                             v-if="lead.conversation"
-                                            :href="`/messages/${lead.conversation.id}`"
+                                            :href="route('provider.messages.show', lead.conversation.uuid)"
                                             class="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-gray-100"
                                             title="View Messages"
                                         >

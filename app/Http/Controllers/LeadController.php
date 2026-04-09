@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LeadStatus;
+use App\Enums\ServiceType;
 use App\Models\Lead;
 use App\Models\ServiceProvider;
 use App\Notifications\NewLeadNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,19 +34,26 @@ class LeadController extends Controller
     public function store(Request $request, ServiceProvider $provider): RedirectResponse
     {
         $this->authorize('create', Lead::class);
+        $sender = $request->user();
+
+        $allowedServiceTypes = ! empty($provider->service_types)
+            ? $provider->service_types
+            : [ServiceType::OTHER->value];
 
         $validated = $request->validate([
-            'service_type' => ['required', 'string'],
+            'service_type' => ['required', 'string', Rule::in($allowedServiceTypes)],
             'message' => ['required', 'string', 'min:20', 'max:2000'],
             'requirements' => ['nullable', 'array'],
-            'preferred_contact_method' => ['required', 'in:message,email,phone'],
+            'preferred_contact_method' => ['nullable', 'in:message,email,phone'],
             'preferred_contact_time' => ['nullable', 'string', 'max:255'],
             'urgency' => ['required', 'in:low,normal,high,urgent'],
-            'needed_by' => ['nullable', 'date', 'after:today'],
+            'needed_by' => ['nullable', 'date', 'after_or_equal:today'],
             'budget_range' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $lead = DB::transaction(function () use ($validated, $provider) {
+        $validated['preferred_contact_method'] = $validated['preferred_contact_method'] ?? 'message';
+
+        $lead = DB::transaction(function () use ($validated, $provider, $sender) {
             $lead = Lead::create([
                 ...$validated,
                 'user_id' => auth()->id(),
@@ -56,7 +65,8 @@ class LeadController extends Controller
             $provider->incrementLeadCount();
 
             // Create initial conversation
-            $lead->createConversation();
+            $conversation = $lead->createConversation();
+            $conversation->addMessage($sender, $lead->message);
 
             return $lead;
         });

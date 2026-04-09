@@ -1,7 +1,8 @@
-<script setup>
+fi<script setup>
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { 
+    ArrowLeftIcon,
     UserCircleIcon,
     CameraIcon,
     BuildingOfficeIcon,
@@ -188,13 +189,22 @@ const verificationStatusLabel = computed(() => {
 <template>
     <Head title="Edit Profile" />
 
-    <AppLayout>
+    <ProviderLayout>
         <div class="min-h-screen bg-slate-50">
             <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <!-- Header -->
                 <div class="flex items-center justify-between mb-6">
                     <div>
-                        <h1 class="text-2xl font-display font-bold text-slate-900">Edit Profile</h1>
+                        <div class="flex items-center gap-2">
+                            <Link
+                                :href="route('provider.profile.index')"
+                                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                                aria-label="Back to profile"
+                            >
+                                <ArrowLeftIcon class="h-5 w-5" />
+                            </Link>
+                            <h1 class="text-2xl font-display font-bold text-slate-900">Edit Profile</h1>
+                        </div>
                         <p class="text-slate-500 mt-1">Update your business information and settings</p>
                     </div>
                     <div class="flex items-center gap-3">
@@ -676,7 +686,7 @@ const verificationStatusLabel = computed(() => {
 
                     <!-- Submit -->
                     <div class="flex justify-end gap-3 pb-8">
-                        <Link :href="route('provider.dashboard')" class="px-6 py-3 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors">
+                        <Link :href="route('provider.profile.index')" class="px-6 py-3 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors">
                             Cancel
                         </Link>
                         <button 
@@ -690,5 +700,5 @@ const verificationStatusLabel = computed(() => {
                 </form>
             </div>
         </div>
-    </AppLayout>
+    </ProviderLayout>
 </template>

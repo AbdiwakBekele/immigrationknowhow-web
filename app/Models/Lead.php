@@ -212,6 +212,9 @@ class Lead extends Model
         return $this->isOpen && $this->status !== LeadStatus::IN_PROGRESS;
     }
 
+    /**
+     * Creates the single message thread for this inquiry (controlled, inquiry-based messaging).
+     */
     public function createConversation(): Conversation
     {
         return Conversation::create([

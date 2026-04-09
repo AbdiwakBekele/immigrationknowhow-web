@@ -34,8 +34,11 @@ const user = computed(() => page.props.auth?.user);
 const showInquiryModal = ref(false);
 
 const inquiryForm = useForm({
-    service_type: props.provider.service_types?.[0] || '',
+    service_type: props.provider.service_types?.[0] || 'other',
     message: '',
+    /** Required by LeadController — in-app messaging */
+    preferred_contact_method: 'message',
+    requirements: [],
     urgency: 'normal',
 });
 
@@ -454,12 +457,18 @@ const formatDate = (dateStr) => {
                         </p>
                         
                         <form @submit.prevent="submitInquiry" class="space-y-4">
+                            <div v-if="Object.keys(inquiryForm.errors).length" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                                <p v-for="(err, key) in inquiryForm.errors" :key="key">{{ Array.isArray(err) ? err[0] : err }}</p>
+                            </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Service Needed</label>
                                 <select v-model="inquiryForm.service_type" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                                    <option v-for="(label, idx) in serviceTypeLabels" :key="idx" :value="provider.service_types?.[idx]">
-                                        {{ label }}
-                                    </option>
+                                    <template v-if="provider.service_types?.length">
+                                        <option v-for="(label, idx) in serviceTypeLabels" :key="idx" :value="provider.service_types[idx]">
+                                            {{ label }}
+                                        </option>
+                                    </template>
+                                    <option v-else value="other">General / other</option>
                                 </select>
                             </div>
 
@@ -468,10 +477,12 @@ const formatDate = (dateStr) => {
                                 <textarea 
                                     v-model="inquiryForm.message"
                                     rows="4"
+                                    minlength="20"
                                     class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                     placeholder="Describe what you're looking for, your situation, timeline, etc..."
                                     required
                                 ></textarea>
+                                <p class="mt-1 text-xs text-slate-500">At least 20 characters (required to send).</p>
                                 <p v-if="inquiryForm.errors.message" class="mt-1 text-sm text-red-600">{{ inquiryForm.errors.message }}</p>
                             </div>
 
@@ -481,7 +492,7 @@ const formatDate = (dateStr) => {
                                     <option value="low">Not urgent - flexible timeline</option>
                                     <option value="normal">Normal - within a few weeks</option>
                                     <option value="high">Urgent - need help soon</option>
-                                    <option value="critical">Critical - immediate assistance needed</option>
+                                    <option value="urgent">Urgent - immediate assistance needed</option>
                                 </select>
                             </div>
 

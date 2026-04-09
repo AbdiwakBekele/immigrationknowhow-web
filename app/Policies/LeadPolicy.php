@@ -54,8 +54,8 @@ class LeadPolicy
      */
     public function create(User $user): bool
     {
-        // Only regular users (not providers) can create leads
-        return $user->hasRole('user');
+        // Match marketplace: any onboarded non-provider may send an inquiry (not only Spatie role "user").
+        return ! $user->isProvider();
     }
 
     /**

@@ -1,12 +1,10 @@
 <script setup>
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
-import { 
+import {
     ArrowLeftIcon,
     PaperAirplaneIcon,
     PaperClipIcon,
-    PhotoIcon,
     DocumentIcon,
     XMarkIcon,
     EllipsisVerticalIcon,
@@ -22,6 +20,9 @@ const props = defineProps({
     otherParticipant: Object,
 });
 
+const page = usePage();
+const authId = computed(() => page.props.auth?.user?.id);
+
 const messagesContainer = ref(null);
 const fileInput = ref(null);
 const showLeadInfo = ref(false);
@@ -32,10 +33,6 @@ const form = useForm({
 });
 
 const attachmentPreviews = ref([]);
-const layoutComponent = computed(() => (props.isProvider ? ProviderLayout : AppLayout));
-const messagesIndexHref = computed(() =>
-    props.isProvider ? route('provider.messages.index') : route('messages.index'),
-);
 
 const formatTime = (date) => {
     const d = new Date(date);
@@ -56,10 +53,11 @@ const formatDate = (date) => {
 const groupedMessages = computed(() => {
     const groups = [];
     let currentDate = null;
+    const list = props.conversation?.messages ?? [];
 
-    props.conversation.messages.forEach(message => {
+    list.forEach((message) => {
         const messageDate = new Date(message.created_at).toDateString();
-        
+
         if (messageDate !== currentDate) {
             currentDate = messageDate;
             groups.push({
@@ -67,12 +65,19 @@ const groupedMessages = computed(() => {
                 messages: [],
             });
         }
-        
+
         groups[groups.length - 1].messages.push(message);
     });
 
     return groups;
 });
+
+const isFromMe = (message) => {
+    if (typeof message.is_mine === 'boolean') {
+        return message.is_mine;
+    }
+    return authId.value != null && message.sender_id === authId.value;
+};
 
 const scrollToBottom = () => {
     nextTick(() => {
@@ -86,14 +91,14 @@ onMounted(() => {
     scrollToBottom();
 });
 
-watch(() => props.conversation.messages, () => {
+watch(() => props.conversation?.messages, () => {
     scrollToBottom();
 }, { deep: true });
 
 const sendMessage = () => {
     if (!form.body.trim() && form.attachments.length === 0) return;
 
-    form.post(route('messages.send', props.conversation.uuid), {
+    form.post(route('provider.messages.send', props.conversation.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             form.reset();
@@ -116,19 +121,19 @@ const triggerFileInput = () => {
 
 const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
-    
-    files.forEach(file => {
+
+    files.forEach((file) => {
         if (form.attachments.length >= 5) return;
-        
+
         form.attachments.push(file);
-        
+
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = (ev) => {
                 attachmentPreviews.value.push({
                     name: file.name,
                     type: 'image',
-                    url: e.target.result,
+                    url: ev.target.result,
                 });
             };
             reader.readAsDataURL(file);
@@ -140,7 +145,7 @@ const handleFileSelect = (e) => {
             });
         }
     });
-    
+
     e.target.value = '';
 };
 
@@ -156,7 +161,7 @@ const formatFileSize = (bytes) => {
 };
 
 const archiveConversation = () => {
-    router.post(route('messages.archive', props.conversation.uuid));
+    router.post(route('provider.messages.archive', props.conversation.uuid));
 };
 
 const getServiceTypeLabel = (type) => {
@@ -186,21 +191,20 @@ const getStatusColor = (status) => {
 <template>
     <Head :title="`Chat with ${otherParticipant.first_name}`" />
 
-    <component :is="layoutComponent" :fullWidth="true" :noPadding="true">
+    <ProviderLayout>
         <div class="h-[calc(100vh-4rem)] flex flex-col bg-slate-50">
-            <!-- Header -->
             <div class="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3">
                 <div class="max-w-4xl mx-auto flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                        <Link 
-                            :href="messagesIndexHref"
+                        <Link
+                            :href="route('provider.messages.index')"
                             class="p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                             <ArrowLeftIcon class="w-5 h-5" />
                         </Link>
-                        
+
                         <div class="flex items-center gap-3">
-                            <img 
+                            <img
                                 :src="otherParticipant.avatar || '/img/default-avatar.png'"
                                 :alt="otherParticipant.first_name"
                                 class="w-10 h-10 rounded-full object-cover"
@@ -217,28 +221,30 @@ const getStatusColor = (status) => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button 
+                        <button
                             v-if="conversation.lead"
+                            type="button"
                             @click="showLeadInfo = !showLeadInfo"
                             :class="[
                                 'p-2 rounded-lg transition-colors',
-                                showLeadInfo ? 'bg-primary-100 text-primary-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                                showLeadInfo ? 'bg-primary-100 text-primary-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100',
                             ]"
                         >
                             <InformationCircleIcon class="w-5 h-5" />
                         </button>
-                        
+
                         <Menu as="div" class="relative">
                             <MenuButton class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                                 <EllipsisVerticalIcon class="w-5 h-5" />
                             </MenuButton>
                             <MenuItems class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-10">
                                 <MenuItem v-slot="{ active }">
-                                    <button 
+                                    <button
+                                        type="button"
                                         @click="archiveConversation"
                                         :class="[
                                             'flex items-center gap-3 w-full px-4 py-2 text-sm',
-                                            active ? 'bg-slate-50 text-slate-900' : 'text-slate-700'
+                                            active ? 'bg-slate-50 text-slate-900' : 'text-slate-700',
                                         ]"
                                     >
                                         <ArchiveBoxIcon class="w-4 h-4" />
@@ -251,7 +257,6 @@ const getStatusColor = (status) => {
                 </div>
             </div>
 
-            <!-- Lead Info Panel (collapsible) -->
             <Transition
                 enter-active-class="transition-all duration-300 ease-out"
                 enter-from-class="opacity-0 -translate-y-2"
@@ -285,57 +290,60 @@ const getStatusColor = (status) => {
                 </div>
             </Transition>
 
-            <!-- Messages -->
             <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-6">
                 <div class="max-w-4xl mx-auto space-y-8">
+                    <div v-if="form.errors.body" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        {{ form.errors.body }}
+                    </div>
+                    <div
+                        v-if="!(conversation?.messages?.length)"
+                        class="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-8 text-center text-slate-500 text-sm"
+                    >
+                        No messages in this thread yet. When the client sends an inquiry, it will appear here — you can reply below.
+                    </div>
                     <div v-for="group in groupedMessages" :key="group.date" class="space-y-4">
-                        <!-- Date Separator -->
                         <div class="flex items-center justify-center">
                             <span class="px-3 py-1 bg-slate-200 text-slate-600 text-xs font-medium rounded-full">
                                 {{ formatDate(group.date) }}
                             </span>
                         </div>
 
-                        <!-- Messages in this group -->
-                        <div 
-                            v-for="message in group.messages" 
-                            :key="message.uuid"
+                        <div
+                            v-for="message in group.messages"
+                            :key="message.uuid || message.id"
                             :class="[
                                 'flex',
-                                message.is_mine ? 'justify-end' : 'justify-start'
+                                isFromMe(message) ? 'justify-end' : 'justify-start',
                             ]"
                         >
-                            <div :class="['flex gap-3 max-w-[75%]', message.is_mine && 'flex-row-reverse']">
-                                <img 
-                                    v-if="!message.is_mine"
+                            <div :class="['flex gap-3 max-w-[75%]', isFromMe(message) && 'flex-row-reverse']">
+                                <img
+                                    v-if="!isFromMe(message)"
                                     :src="message.sender?.avatar || '/img/default-avatar.png'"
                                     :alt="message.sender?.first_name"
                                     class="w-8 h-8 rounded-full object-cover flex-shrink-0"
                                 />
-                                
+
                                 <div :class="[
                                     'rounded-2xl px-4 py-3',
-                                    message.is_mine 
-                                        ? 'bg-primary-600 text-white rounded-br-md' 
-                                        : 'bg-white text-slate-900 shadow-sm rounded-bl-md'
+                                    isFromMe(message)
+                                        ? 'bg-primary-600 text-white rounded-br-md'
+                                        : 'bg-white text-slate-900 shadow-sm rounded-bl-md',
                                 ]">
-                                    <!-- System message -->
                                     <p v-if="message.is_system_message" class="text-sm italic opacity-80">
                                         {{ message.body }}
                                     </p>
-                                    
-                                    <!-- Regular message -->
+
                                     <template v-else>
                                         <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
-                                        
-                                        <!-- Attachments -->
+
                                         <div v-if="message.attachments?.length" class="mt-2 space-y-2">
-                                            <div 
-                                                v-for="(attachment, i) in message.attachments" 
+                                            <div
+                                                v-for="(attachment, i) in message.attachments"
                                                 :key="i"
                                                 :class="[
                                                     'flex items-center gap-2 p-2 rounded-lg',
-                                                    message.is_mine ? 'bg-primary-500/30' : 'bg-slate-100'
+                                                    isFromMe(message) ? 'bg-primary-500/30' : 'bg-slate-100',
                                                 ]"
                                             >
                                                 <DocumentIcon class="w-5 h-5 flex-shrink-0" />
@@ -343,10 +351,10 @@ const getStatusColor = (status) => {
                                             </div>
                                         </div>
                                     </template>
-                                    
+
                                     <span :class="[
                                         'block text-xs mt-1',
-                                        message.is_mine ? 'text-primary-200' : 'text-slate-400'
+                                        isFromMe(message) ? 'text-primary-200' : 'text-slate-400',
                                     ]">
                                         {{ formatTime(message.created_at) }}
                                     </span>
@@ -357,13 +365,11 @@ const getStatusColor = (status) => {
                 </div>
             </div>
 
-            <!-- Message Input -->
             <div class="flex-shrink-0 bg-white border-t border-slate-200 px-4 py-4">
                 <div class="max-w-4xl mx-auto">
-                    <!-- Attachment Previews -->
                     <div v-if="attachmentPreviews.length" class="flex flex-wrap gap-2 mb-3">
-                        <div 
-                            v-for="(preview, index) in attachmentPreviews" 
+                        <div
+                            v-for="(preview, index) in attachmentPreviews"
                             :key="index"
                             class="relative group"
                         >
@@ -374,7 +380,8 @@ const getStatusColor = (status) => {
                                 <DocumentIcon class="w-5 h-5 text-slate-500" />
                                 <span class="text-sm text-slate-700 truncate max-w-[100px]">{{ preview.name }}</span>
                             </div>
-                            <button 
+                            <button
+                                type="button"
                                 @click="removeAttachment(index)"
                                 class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -383,8 +390,8 @@ const getStatusColor = (status) => {
                         </div>
                     </div>
 
-                    <form @submit.prevent="sendMessage" class="flex items-end gap-3">
-                        <input 
+                    <form class="flex items-end gap-3" @submit.prevent="sendMessage">
+                        <input
                             ref="fileInput"
                             type="file"
                             multiple
@@ -392,34 +399,34 @@ const getStatusColor = (status) => {
                             class="hidden"
                             @change="handleFileSelect"
                         />
-                        
-                        <button 
+
+                        <button
                             type="button"
-                            @click="triggerFileInput"
                             class="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                            @click="triggerFileInput"
                         >
                             <PaperClipIcon class="w-5 h-5" />
                         </button>
-                        
+
                         <div class="flex-1 relative">
                             <textarea
                                 v-model="form.body"
-                                @keydown="handleKeydown"
                                 placeholder="Type your message..."
                                 rows="1"
                                 class="w-full px-4 py-3 bg-slate-100 border-0 rounded-2xl text-slate-900 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 style="min-height: 48px; max-height: 120px;"
+                                @keydown="handleKeydown"
                             ></textarea>
                         </div>
-                        
-                        <button 
+
+                        <button
                             type="submit"
                             :disabled="form.processing || (!form.body.trim() && form.attachments.length === 0)"
                             :class="[
                                 'p-3 rounded-xl transition-all',
                                 (form.body.trim() || form.attachments.length > 0)
                                     ? 'bg-primary-600 text-white hover:bg-primary-500'
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed',
                             ]"
                         >
                             <PaperAirplaneIcon class="w-5 h-5" />
@@ -428,5 +435,5 @@ const getStatusColor = (status) => {
                 </div>
             </div>
         </div>
-    </component>
+    </ProviderLayout>
 </template>

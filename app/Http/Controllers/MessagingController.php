@@ -18,10 +18,11 @@ class MessagingController extends Controller
 
         $conversations = Conversation::query()
             ->forUser($user)
+            ->forServiceInquiries()
             ->with([
                 'user:id,first_name,last_name,avatar',
                 'serviceProvider.user:id,first_name,last_name,avatar',
-                'latestMessage:id,conversation_id,sender_id,body,created_at',
+                'latestMessage',
                 'lead:id,service_type,status',
             ])
             ->withCount(['messages as unread_count' => function ($q) use ($user) {
@@ -36,6 +37,7 @@ class MessagingController extends Controller
         // Get total unread count
         $totalUnread = Conversation::query()
             ->forUser($user)
+            ->forServiceInquiries()
             ->whereHas('messages', function ($q) use ($user) {
                 $q->where('sender_id', '!=', $user->id)
                     ->whereDoesntHave('reads', function ($rq) use ($user) {
@@ -47,6 +49,7 @@ class MessagingController extends Controller
         return Inertia::render('Messages/Index', [
             'conversations' => $conversations,
             'totalUnread' => $totalUnread,
+            'isProvider' => (bool) $user->serviceProvider,
         ]);
     }
 
@@ -134,7 +137,11 @@ class MessagingController extends Controller
 
         $conversation->archive(auth()->user());
 
-        return redirect()->route('messages.index')
+        $indexRoute = auth()->user()->serviceProvider
+            ? 'provider.messages.index'
+            : 'messages.index';
+
+        return redirect()->route($indexRoute)
             ->with('success', 'Conversation archived.');
     }
 
@@ -153,6 +160,7 @@ class MessagingController extends Controller
         $user = auth()->user();
 
         $conversations = Conversation::query()
+            ->forServiceInquiries()
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
                     ->where('user_archived', true);
@@ -166,7 +174,7 @@ class MessagingController extends Controller
             ->with([
                 'user:id,first_name,last_name,avatar',
                 'serviceProvider.user:id,first_name,last_name,avatar',
-                'latestMessage:id,conversation_id,body,created_at',
+                'latestMessage',
             ])
             ->orderByDesc('last_message_at')
             ->paginate(20);
@@ -183,6 +191,7 @@ class MessagingController extends Controller
 
         $count = Conversation::query()
             ->forUser($user)
+            ->forServiceInquiries()
             ->whereHas('messages', function ($q) use ($user) {
                 $q->where('sender_id', '!=', $user->id)
                     ->whereDoesntHave('reads', function ($rq) use ($user) {

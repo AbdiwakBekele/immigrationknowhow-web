@@ -82,30 +82,31 @@ const verificationStatus = computed(() => {
                     <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                         <ExclamationTriangleIcon class="w-6 h-6 text-amber-600" />
                     </div>
-                    <div class="flex-1">
-                        <h3 class="text-lg font-semibold text-amber-900">
-                            <template v-if="provider.verification_status === 'pending'">
-                                Verification In Progress
-                            </template>
-                            <template v-else>
-                                Complete Your Verification
-                            </template>
-                        </h3>
-                        <p class="text-amber-700 mt-1">
-                            <template v-if="provider.verification_status === 'pending'">
-                                We're reviewing your verification documents. This usually takes 1-2 business days.
-                            </template>
-                            <template v-else>
-                                Verified providers get more visibility and build trust with potential clients. Complete your identity verification to unlock all features.
-                            </template>
-                        </p>
+                    <div class="flex-1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h3 class="text-2xl font-semibold text-amber-900">
+                                <template v-if="provider.verification_status === 'pending'">
+                                    Verfication Pending
+                                </template>
+                                <template v-else>
+                                    Complete Your Verification
+                                </template>
+                            </h3>
+                            <p class="text-amber-700 mt-1">
+                                <template v-if="provider.verification_status === 'pending'">
+                                    Please complete our background check to have your account activated
+                                </template>
+                                <template v-else>
+                                    Verified providers get more visibility and build trust with potential clients. Complete your identity verification to unlock all features.
+                                </template>
+                            </p>
+                        </div>
                         <Link 
-                            v-if="provider.verification_status !== 'pending'"
                             :href="route('provider.verification.index')"
-                            class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-xl transition-colors"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-xl transition-colors self-start md:self-auto"
                         >
                             <CheckBadgeIcon class="w-5 h-5" />
-                            Start Verification
+                            Get Verified
                         </Link>
                     </div>
                 </div>
@@ -130,9 +131,8 @@ const verificationStatus = computed(() => {
                         <component :is="verificationStatus.icon" class="w-5 h-5" />
                         <span class="font-medium">{{ verificationStatus.text }}</span>
                     </Link>
-                    <Link 
-                        v-if="provider.slug"
-                        :href="route('marketplace.show', provider.slug)"
+                    <Link
+                        :href="route('provider.profile.index')"
                         class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl transition-colors"
                     >
                         <EyeIcon class="w-5 h-5" />

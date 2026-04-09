@@ -108,8 +108,8 @@ class AnalyticsController extends Controller
 
         return [
             'total' => $reviews->count(),
-            'averageRating' => round($reviews->avg('overall_rating') ?? 0, 1),
-            'fiveStars' => $reviews->clone()->where('overall_rating', 5)->count(),
+            'averageRating' => round($reviews->avg('rating') ?? 0, 1),
+            'fiveStars' => $reviews->clone()->where('rating', 5)->count(),
             'needsResponse' => $reviews->clone()->whereNull('provider_response')->count(),
         ];
     }

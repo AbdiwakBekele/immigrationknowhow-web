@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Enums\ServiceType;
 use App\Http\Controllers\Controller;
+use App\Models\ServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,61 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function index(): Response
+    {
+        $user = auth()->user();
+        $provider = $user->serviceProvider;
+
+        return Inertia::render('Provider/Profile/Index', [
+            'user' => $user->only([
+                'id',
+                'first_name',
+                'last_name',
+                'email',
+                'phone',
+                'avatar',
+            ]),
+            'provider' => $provider ? $provider->only([
+                'id',
+                'business_name',
+                'slug',
+                'bio',
+                'description',
+                'tagline',
+                'business_email',
+                'business_phone',
+                'website',
+                'service_types',
+                'specializations',
+                'languages_offered',
+                'pricing_model',
+                'hourly_rate',
+                'consultation_fee',
+                'free_consultation',
+                'pricing_notes',
+                'serves_remote',
+                'serves_in_person',
+                'service_radius_miles',
+                'service_areas',
+                'license_number',
+                'license_state',
+                'license_expiry',
+                'certifications',
+                'years_experience',
+                'linkedin_url',
+                'facebook_url',
+                'twitter_url',
+                'instagram_url',
+                'youtube_url',
+                'tiktok_url',
+                'verification_status',
+                'accepting_clients',
+                'average_rating',
+                'total_reviews',
+            ]) : null,
+        ]);
+    }
+
     public function edit(): Response
     {
         $user = auth()->user();
@@ -32,25 +88,37 @@ class ProfileController extends Controller
                 'id',
                 'business_name',
                 'slug',
-                'primary_service_type',
                 'bio',
-                'credentials',
-                'services_offered',
-                'languages_spoken',
-                'years_experience',
-                'price_range_min',
-                'price_range_max',
-                'offers_free_consultation',
-                'offers_remote',
-                'city',
-                'state',
-                'country',
+                'description',
+                'tagline',
+                'business_email',
+                'business_phone',
+                'website',
+                'service_types',
+                'specializations',
+                'languages_offered',
+                'pricing_model',
+                'hourly_rate',
+                'consultation_fee',
+                'free_consultation',
+                'pricing_notes',
+                'serves_remote',
+                'serves_in_person',
+                'service_radius_miles',
                 'service_areas',
-                'phone',
-                'show_phone',
-                'website_url',
+                'license_number',
+                'license_state',
+                'license_expiry',
+                'certifications',
+                'years_experience',
                 'linkedin_url',
-                'response_time',
+                'facebook_url',
+                'twitter_url',
+                'instagram_url',
+                'youtube_url',
+                'tiktok_url',
+                'verification_status',
+                'accepting_clients',
             ]) : null,
             'serviceTypes' => collect(ServiceType::cases())->map(fn($type) => [
                 'value' => $type->value,
@@ -70,31 +138,43 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'business_name' => ['required', 'string', 'max:255'],
-            'primary_service_type' => ['required', Rule::enum(ServiceType::class)],
+            'tagline' => ['nullable', 'string', 'max:100'],
             'bio' => ['nullable', 'string', 'max:2000'],
-            'credentials' => ['nullable', 'array'],
-            'credentials.*.title' => ['required', 'string', 'max:255'],
-            'credentials.*.issuer' => ['nullable', 'string', 'max:255'],
-            'credentials.*.year' => ['nullable', 'integer', 'min:1900', 'max:' . date('Y')],
-            'services_offered' => ['nullable', 'array'],
-            'services_offered.*' => ['string', 'max:255'],
-            'languages_spoken' => ['nullable', 'array'],
-            'languages_spoken.*' => ['string', 'max:50'],
-            'years_experience' => ['nullable', 'integer', 'min:0', 'max:100'],
-            'price_range_min' => ['nullable', 'numeric', 'min:0'],
-            'price_range_max' => ['nullable', 'numeric', 'min:0', 'gte:price_range_min'],
-            'offers_free_consultation' => ['boolean'],
-            'offers_remote' => ['boolean'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'state' => ['nullable', 'string', 'max:100'],
-            'country' => ['nullable', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'business_email' => ['nullable', 'email', 'max:255'],
+            'business_phone' => ['nullable', 'string', 'max:20'],
+            'website' => ['nullable', 'url', 'max:255'],
+            'service_types' => ['required', 'array', 'min:1'],
+            'service_types.*' => [Rule::enum(ServiceType::class)],
+            'specializations' => ['nullable', 'array'],
+            'specializations.*' => ['string', 'max:255'],
+            'languages_offered' => ['required', 'array', 'min:1'],
+            'languages_offered.*' => ['string', 'max:50'],
+            'pricing_model' => ['nullable', 'in:hourly,flat_rate,consultation,custom'],
+            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
+            'consultation_fee' => ['nullable', 'numeric', 'min:0'],
+            'free_consultation' => ['boolean'],
+            'pricing_notes' => ['nullable', 'string', 'max:1000'],
+            'serves_remote' => ['boolean'],
+            'serves_in_person' => ['boolean'],
+            'service_radius_miles' => ['nullable', 'integer', 'min:1', 'max:500'],
             'service_areas' => ['nullable', 'array'],
             'service_areas.*' => ['string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'show_phone' => ['boolean'],
-            'website_url' => ['nullable', 'url', 'max:255'],
+            'license_number' => ['nullable', 'string', 'max:100'],
+            'license_state' => ['nullable', 'string', 'max:100'],
+            'license_expiry' => ['nullable', 'date'],
+            'certifications' => ['nullable', 'array'],
+            'certifications.*.name' => ['required', 'string', 'max:255'],
+            'certifications.*.issuer' => ['nullable', 'string', 'max:255'],
+            'certifications.*.year' => ['nullable', 'integer', 'min:1900', 'max:' . date('Y')],
+            'years_experience' => ['nullable', 'integer', 'min:0', 'max:100'],
             'linkedin_url' => ['nullable', 'url', 'max:255'],
-            'response_time' => ['nullable', 'string', 'max:100'],
+            'facebook_url' => ['nullable', 'url', 'max:255'],
+            'twitter_url' => ['nullable', 'url', 'max:255'],
+            'instagram_url' => ['nullable', 'url', 'max:255'],
+            'youtube_url' => ['nullable', 'url', 'max:255'],
+            'tiktok_url' => ['nullable', 'url', 'max:255'],
+            'accepting_clients' => ['boolean'],
         ]);
 
         // Update slug if business name changed
@@ -104,14 +184,16 @@ class ProfileController extends Controller
             // Ensure unique slug
             $baseSlug = $validated['slug'];
             $counter = 1;
-            while ($provider->where('slug', $validated['slug'])->where('id', '!=', $provider->id)->exists()) {
+            while (ServiceProvider::where('slug', $validated['slug'])->where('id', '!=', $provider->id)->exists()) {
                 $validated['slug'] = $baseSlug . '-' . $counter++;
             }
         }
 
         $provider->update($validated);
 
-        return back()->with('success', 'Profile updated successfully.');
+        return redirect()
+            ->route('provider.profile.index')
+            ->with('success', 'Profile updated successfully.');
     }
 
     public function updateAvatar(Request $request): RedirectResponse
@@ -129,7 +211,9 @@ class ProfileController extends Controller
         $path = $request->file('avatar')->store('avatars', 'public');
         $user->update(['avatar' => $path]);
 
-        return back()->with('success', 'Profile photo updated.');
+        return redirect()
+            ->route('provider.profile.edit')
+            ->with('success', 'Profile photo updated.');
     }
 
     public function updateCoverImage(Request $request): RedirectResponse

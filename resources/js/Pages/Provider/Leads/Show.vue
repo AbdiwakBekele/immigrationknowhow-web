@@ -40,7 +40,7 @@ const noteForm = useForm({
 });
 
 const updateStatus = (newStatus) => {
-    router.patch(`/provider/leads/${props.lead.id}/status`, {
+    router.patch(`/provider/leads/${props.lead.uuid}/status`, {
         status: newStatus,
     }, {
         preserveScroll: true,
@@ -48,7 +48,7 @@ const updateStatus = (newStatus) => {
 };
 
 const addNote = () => {
-    noteForm.post(`/provider/leads/${props.lead.id}/notes`, {
+    noteForm.post(`/provider/leads/${props.lead.uuid}/notes`, {
         preserveScroll: true,
         onSuccess: () => {
             showNoteModal.value = false;
@@ -58,7 +58,7 @@ const addNote = () => {
 };
 
 const startConversation = () => {
-    router.post(`/provider/leads/${props.lead.id}/conversation`, {}, {
+    router.post(`/provider/leads/${props.lead.uuid}/conversation`, {}, {
         onSuccess: (page) => {
             // Redirect to conversation
         },
@@ -74,7 +74,7 @@ const getUrgencyInfo = (urgency) => {
         low: { label: 'Low Priority', color: 'text-gray-500', bg: 'bg-gray-100' },
         normal: { label: 'Normal Priority', color: 'text-blue-600', bg: 'bg-blue-100' },
         high: { label: 'High Priority', color: 'text-orange-600', bg: 'bg-orange-100' },
-        critical: { label: 'Critical - Immediate', color: 'text-red-600', bg: 'bg-red-100' },
+        urgent: { label: 'Urgent - Immediate', color: 'text-red-600', bg: 'bg-red-100' },
     };
     return info[urgency] || info.normal;
 };
@@ -170,10 +170,43 @@ const formatDate = (date, full = false) => {
                                 <CalendarIcon class="h-4 w-4" />
                                 {{ formatDate(lead.created_at, true) }}
                             </div>
-                            <div v-if="lead.preferred_contact" class="flex items-center gap-1">
+                            <div v-if="lead.preferred_contact_method" class="flex items-center gap-1">
                                 <ChatBubbleLeftRightIcon class="h-4 w-4" />
-                                Prefers: {{ lead.preferred_contact }}
+                                Prefers: {{ lead.preferred_contact_method }}
                             </div>
+                            <div v-if="lead.preferred_contact_time" class="flex items-center gap-1">
+                                <ClockIcon class="h-4 w-4" />
+                                Best time: {{ lead.preferred_contact_time }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Request Metadata -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Request Details</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="rounded-xl bg-gray-50 p-4">
+                                <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Budget Range</div>
+                                <div class="text-gray-900 font-medium">{{ lead.budget_range || 'Not specified' }}</div>
+                            </div>
+                            <div class="rounded-xl bg-gray-50 p-4">
+                                <div class="text-xs uppercase tracking-wide text-gray-500 mb-1">Needed By</div>
+                                <div class="text-gray-900 font-medium">{{ lead.needed_by ? formatDate(lead.needed_by) : 'Flexible' }}</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-900 mb-2">Requirements</h3>
+                            <div v-if="lead.requirements?.length" class="flex flex-wrap gap-2">
+                                <span
+                                    v-for="(req, index) in lead.requirements"
+                                    :key="`${index}-${req}`"
+                                    class="inline-flex items-center px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 text-sm"
+                                >
+                                    {{ req }}
+                                </span>
+                            </div>
+                            <p v-else class="text-sm text-gray-500">No specific requirements provided.</p>
                         </div>
                     </div>
 
@@ -217,7 +250,7 @@ const formatDate = (date, full = false) => {
                         <div class="space-y-3">
                             <Link 
                                 v-if="conversation"
-                                :href="`/messages/${conversation.id}`"
+                                :href="route('provider.messages.show', conversation.uuid)"
                                 class="btn-primary w-full"
                             >
                                 <ChatBubbleLeftRightIcon class="h-5 w-5 mr-2" />
@@ -242,8 +275,8 @@ const formatDate = (date, full = false) => {
                             </a>
 
                             <a 
-                                v-if="lead.phone"
-                                :href="`tel:${lead.phone}`"
+                                v-if="lead.user?.phone"
+                                :href="`tel:${lead.user.phone}`"
                                 class="btn-secondary w-full flex items-center justify-center"
                             >
                                 <PhoneIcon class="h-5 w-5 mr-2" />
@@ -262,10 +295,10 @@ const formatDate = (date, full = false) => {
                                     {{ lead.user.email }}
                                 </a>
                             </div>
-                            <div v-if="lead.phone" class="flex items-center gap-3">
+                            <div v-if="lead.user?.phone" class="flex items-center gap-3">
                                 <PhoneIcon class="h-5 w-5 text-gray-400" />
-                                <a :href="`tel:${lead.phone}`" class="text-primary-600 hover:underline">
-                                    {{ lead.phone }}
+                                <a :href="`tel:${lead.user.phone}`" class="text-primary-600 hover:underline">
+                                    {{ lead.user.phone }}
                                 </a>
                             </div>
                             <div v-if="lead.user?.city || lead.user?.state" class="flex items-center gap-3">
@@ -296,9 +329,9 @@ const formatDate = (date, full = false) => {
                                 <span class="text-gray-500">Received</span>
                                 <span class="text-gray-900">{{ formatDate(lead.created_at) }}</span>
                             </div>
-                            <div v-if="lead.contacted_at" class="flex justify-between">
+                            <div v-if="lead.responded_at" class="flex justify-between">
                                 <span class="text-gray-500">First Contact</span>
-                                <span class="text-gray-900">{{ formatDate(lead.contacted_at) }}</span>
+                                <span class="text-gray-900">{{ formatDate(lead.responded_at) }}</span>
                             </div>
                             <div v-if="lead.converted_at" class="flex justify-between">
                                 <span class="text-gray-500">Converted</span>
