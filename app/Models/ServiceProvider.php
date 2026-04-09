@@ -219,7 +219,28 @@ class ServiceProvider extends Model
     // Helper Methods
     public function isVerified(): bool
     {
-        return $this->verification_status === VerificationStatus::APPROVED;
+        return $this->background_check_status === 'clear' 
+            && $this->background_check_verified_at 
+            && (!$this->latestBackgroundCheck()?->is_expired ?? true);
+    }
+
+    public function hasValidBackgroundCheck(): bool
+    {
+        return $this->background_check_status === 'clear'
+            && $this->background_check_verified_at
+            && $this->latestBackgroundCheck()?->is_valid;
+    }
+
+    public function latestBackgroundCheck()
+    {
+        return $this->hasMany(\App\Models\BackgroundCheck::class)
+            ->latest()
+            ->first();
+    }
+
+    public function backgroundChecks()
+    {
+        return $this->hasMany(\App\Models\BackgroundCheck::class);
     }
 
     public function hasActiveSubscription(): bool

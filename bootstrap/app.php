@@ -11,18 +11,23 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-        ]);
+    $middleware->web(append: [
+        \App\Http\Middleware\HandleInertiaRequests::class,
+    ]);
 
-        $middleware->alias([
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'onboarding.complete' => \App\Http\Middleware\EnsureOnboardingComplete::class,
-            'phone.verified' => \App\Http\Middleware\EnsurePhoneVerified::class,
-        ]);
-    })
+    $middleware->alias([
+        'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
+        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        'onboarding.complete' => \App\Http\Middleware\EnsureOnboardingComplete::class,
+        'phone.verified' => \App\Http\Middleware\EnsurePhoneVerified::class,
+    ]);
+
+    // Disable CSRF for webhooks
+    $middleware->validateCsrfTokens(except: [
+        'webhooks/*',
+    ]);
+})
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

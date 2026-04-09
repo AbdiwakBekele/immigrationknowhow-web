@@ -25,7 +25,7 @@ const navigation = [
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
-    { name: 'Verification', href: '/provider/verification', icon: ShieldCheckIcon },
+    { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
     { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
 ];
 
@@ -85,11 +85,13 @@ const isActive = (href) => {
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-slate-900 truncate">{{ provider?.business_name || user?.full_name }}</p>
                         <div class="flex items-center gap-1 mt-0.5">
-                            <span v-if="provider?.verification_status === 'approved'" class="inline-flex items-center gap-1 text-xs text-emerald-600">
+                            <span v-if="provider?.background_check_status === 'clear'" class="inline-flex items-center gap-1 text-xs text-emerald-600">
                                 <ShieldCheckIcon class="h-3.5 w-3.5" />
                                 Verified
                             </span>
-                            <span v-else class="text-xs text-amber-600">Pending Verification</span>
+                            <span v-else-if="provider?.background_check_status === 'invited'" class="text-xs text-blue-600">Check Email for Background Check</span>
+                            <span v-else-if="provider?.background_check_status === 'completed'" class="text-xs text-amber-600">Background Check Under Review</span>
+                            <span v-else class="text-xs text-amber-600">Background Check Required</span>
                         </div>
                     </div>
                 </div>
