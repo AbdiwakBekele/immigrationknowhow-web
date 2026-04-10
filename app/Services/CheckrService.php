@@ -17,9 +17,9 @@ class CheckrService
 
     public function __construct()
     {
-        $this->apiKey = config('checkr.api_key');
-        $this->apiUrl = config('checkr.api_url');
-        $this->sandbox = config('checkr.sandbox', true);
+    $this->apiKey = config('checkr.api_key') ?? '';
+    $this->apiUrl = config('checkr.api_url') ?? 'https://api.checkr-staging.com/v1';
+    $this->sandbox = config('checkr.sandbox', true);
     }
 
     /**
@@ -204,7 +204,7 @@ class CheckrService
     public function processWebhook(array $payload): void
     {
         $type = $payload['type'] ?? null;
-        $data = $payload['data'] ?? $payload;
+        $data = $payload['object_type'] ?? $payload['data'] ?? $payload;
         $object = $data['object'] ?? null;
 
         Log::info('Checkr: Processing webhook', [
@@ -252,45 +252,48 @@ class CheckrService
     }
 
     protected function handleReportCompleted(array $data): void
-    {
-        $reportId = $data['id'] ?? null;
-        $status = $data['status'] ?? null;
-        $adjudication = $data['adjudication'] ?? null;
+{
+    $reportId = $data['id'] ?? null;
+    $candidateId = $data['candidate_id'] ?? null;
+    $result = $data['result'] ?? null;
+    $adjudication = $data['adjudication'] ?? null;
 
-        $check = BackgroundCheck::where('checkr_report_id', $reportId)->first();
+    // Try to find by report_id first, then by candidate_id
+    $check = BackgroundCheck::where('checkr_report_id', $reportId)->first();
+    if (!$check && $candidateId) {
+        $check = BackgroundCheck::where('checkr_candidate_id', $candidateId)->latest()->first();
+    }
 
-        if (!$check) {
-            return;
-        }
+    if (!$check) {
+        Log::warning('Checkr: No background check found for report', ['report_id' => $reportId, 'candidate_id' => $candidateId]);
+        return;
+    }
 
-        $newStatus = match ($status) {
-            'clear' => BackgroundCheckStatus::CLEAR,
-            'consider' => BackgroundCheckStatus::CONSIDER,
-            default => BackgroundCheckStatus::COMPLETED,
-        };
+    $status = match ($result) {
+        'clear' => BackgroundCheckStatus::CLEAR,
+        'consider' => BackgroundCheckStatus::CONSIDER,
+        default => BackgroundCheckStatus::COMPLETED,
+    };
 
-        $check->update([
-            'status' => $newStatus,
-            'adjudication' => $adjudication,
-            'completed_at' => now(),
-            'expires_at' => $newStatus === BackgroundCheckStatus::CLEAR 
-                ? now()->addDays(config('checkr.expiration_days')) 
-                : null,
-            'report_summary' => [
-                'status' => $status,
-                'adjudication' => $adjudication,
-                'completed_at' => $data['completed_at'] ?? null,
-            ],
-        ]);
+    $check->update([
+        'checkr_report_id' => $reportId,
+        'status' => $status,
+        'adjudication' => $adjudication,
+        'completed_at' => now(),
+        'expires_at' => now()->addDays(config('checkr.expiration_days', 365)),
+        'report_summary' => $data,
+    ]);
 
-        $check->recordWebhook('report.completed', $data);
-
-        // Update provider status
+    // Update provider's background check status
+    if ($check->serviceProvider) {
         $check->serviceProvider->update([
-            'background_check_status' => $newStatus->value,
-            'background_check_verified_at' => $newStatus === BackgroundCheckStatus::CLEAR ? now() : null,
+            'background_check_status' => $status->value,
+            'background_check_verified_at' => $status === BackgroundCheckStatus::CLEAR ? now() : null,
         ]);
     }
+
+    $check->recordWebhook('report.completed', $data);
+}
 
     protected function handleReportSuspended(array $data): void
     {
