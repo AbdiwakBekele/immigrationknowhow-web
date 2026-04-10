@@ -60,6 +60,8 @@ class ServiceProvider extends Model
         'accepting_clients',
         'subscription_plan',
         'subscription_expires_at',
+        'background_check_status',
+        'background_check_verified_at',
     ];
 
     protected function casts(): array
