@@ -13,7 +13,14 @@ import {
     FunnelIcon,
 } from '@heroicons/vue/24/outline';
 import { ref, watch } from 'vue';
-import debounce from 'lodash/debounce';
+
+const debounce = (fn, wait = 300) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), wait);
+    };
+};
 
 const props = defineProps({
     backgroundChecks: Object,

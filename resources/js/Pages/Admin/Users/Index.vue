@@ -3,12 +3,10 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { 
     MagnifyingGlassIcon,
-    FunnelIcon,
     PlusIcon,
     EyeIcon,
     PencilIcon,
     TrashIcon,
-    ShieldCheckIcon,
     NoSymbolIcon,
     ArrowPathIcon
 } from '@heroicons/vue/24/outline';
@@ -65,30 +63,35 @@ const formatDate = (date) => {
         year: 'numeric',
     });
 };
+
+const getInitial = (user) => {
+    const value = (user?.first_name || '?').trim();
+    return value ? value.charAt(0).toUpperCase() : '?';
+};
 </script>
 
 <template>
     <Head title="Manage Users" />
 
     <AdminLayout>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mx-auto max-w-7xl space-y-4">
             <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-display font-bold text-gray-900">Users</h1>
-                    <p class="text-gray-500 mt-1">Manage platform users and their roles</p>
+                    <h1 class="text-lg font-display font-bold text-slate-900">Users</h1>
+                    <p class="mt-0.5 text-xs text-slate-500">Manage platform users and their roles</p>
                 </div>
-                <Link href="/admin/users/create" class="btn-primary">
-                    <PlusIcon class="h-5 w-5 mr-2" />
+                <Link href="/admin/users/create" class="inline-flex items-center rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700">
+                    <PlusIcon class="mr-1.5 h-4 w-4" />
                     Add User
                 </Link>
             </div>
 
             <!-- Filters -->
-            <div class="bg-white rounded-xl border border-gray-100 p-4 mb-6">
-                <div class="flex flex-col sm:flex-row gap-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div class="flex flex-col gap-3 sm:flex-row">
                     <div class="flex-1 relative">
-                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input 
                             v-model="search"
                             type="text"
@@ -96,13 +99,13 @@ const formatDate = (date) => {
                             placeholder="Search by name or email..."
                         />
                     </div>
-                    <select v-model="roleFilter" class="input w-full sm:w-40">
+                    <select v-model="roleFilter" class="input w-full sm:w-36">
                         <option value="">All Roles</option>
                         <option v-for="role in roles" :key="role.value" :value="role.value">
                             {{ role.label }}
                         </option>
                     </select>
-                    <select v-model="statusFilter" class="input w-full sm:w-40">
+                    <select v-model="statusFilter" class="input w-full sm:w-36">
                         <option value="">All Status</option>
                         <option value="verified">Verified</option>
                         <option value="unverified">Unverified</option>
@@ -111,36 +114,35 @@ const formatDate = (date) => {
             </div>
 
             <!-- Users Table -->
-            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-gray-50 border-b border-gray-100">
+                        <thead class="border-b border-slate-200 bg-slate-50">
                             <tr>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">User</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Role</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Joined</th>
-                                <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">Activity</th>
-                                <th class="text-right py-3 px-4 text-sm font-medium text-gray-500">Actions</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">User</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Role</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Status</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Joined</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Activity</th>
+                                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr v-for="user in users.data" :key="user.id" class="hover:bg-gray-50">
-                                <td class="py-3 px-4">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="user in users.data" :key="user.id" class="hover:bg-slate-50">
+                                <td class="px-3 py-2.5">
                                     <div class="flex items-center gap-3">
-                                        <img 
-                                            :src="user.avatar || '/images/default-avatar.png'" 
-                                            class="h-10 w-10 rounded-full"
-                                        />
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
+                                            {{ getInitial(user) }}
+                                        </div>
                                         <div>
-                                            <div class="font-medium text-gray-900">{{ user.first_name }} {{ user.last_name }}</div>
-                                            <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                            <div class="text-sm font-medium text-slate-900">{{ user.first_name }} {{ user.last_name }}</div>
+                                            <div class="text-xs text-slate-500">{{ user.email }}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4">
+                                <td class="px-3 py-2.5">
                                     <span 
-                                        class="px-2 py-1 text-xs font-medium rounded-full"
+                                        class="rounded-full px-2 py-0.5 text-xs font-medium"
                                         :class="{
                                             'bg-purple-100 text-purple-700': user.roles?.[0]?.name === 'super_admin',
                                             'bg-red-100 text-red-700': user.roles?.[0]?.name === 'admin',
@@ -151,39 +153,39 @@ const formatDate = (date) => {
                                         {{ user.roles?.[0]?.name || 'user' }}
                                     </span>
                                 </td>
-                                <td class="py-3 px-4">
+                                <td class="px-3 py-2.5">
                                     <div class="flex items-center gap-2">
-                                        <span v-if="user.banned_at" class="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                                        <span v-if="user.banned_at" class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                                             Banned
                                         </span>
-                                        <span v-else-if="user.email_verified_at" class="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                        <span v-else-if="user.email_verified_at" class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                                             Verified
                                         </span>
-                                        <span v-else class="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">
+                                        <span v-else class="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
                                             Unverified
                                         </span>
                                     </div>
                                 </td>
-                                <td class="py-3 px-4 text-sm text-gray-500">
+                                <td class="px-3 py-2.5 text-xs text-slate-500">
                                     {{ formatDate(user.created_at) }}
                                 </td>
-                                <td class="py-3 px-4 text-sm text-gray-500">
+                                <td class="px-3 py-2.5 text-xs text-slate-500">
                                     <div>{{ user.leads_count || 0 }} leads</div>
                                     <div>{{ user.reviews_count || 0 }} reviews</div>
                                 </td>
-                                <td class="py-3 px-4 text-right">
+                                <td class="px-3 py-2.5 text-right">
                                     <Menu as="div" class="relative inline-block">
-                                        <MenuButton class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                                        <MenuButton class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                                             <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                                             </svg>
                                         </MenuButton>
-                                        <MenuItems class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
+                                        <MenuItems class="absolute right-0 z-10 mt-2 w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                                             <MenuItem v-slot="{ active }">
                                                 <Link 
                                                     :href="`/admin/users/${user.id}`"
                                                     class="flex items-center gap-2 px-4 py-2 text-sm"
-                                                    :class="active ? 'bg-gray-50' : ''"
+                                                    :class="active ? 'bg-slate-50' : ''"
                                                 >
                                                     <EyeIcon class="h-4 w-4" />
                                                     View
@@ -193,7 +195,7 @@ const formatDate = (date) => {
                                                 <Link 
                                                     :href="`/admin/users/${user.id}/edit`"
                                                     class="flex items-center gap-2 px-4 py-2 text-sm"
-                                                    :class="active ? 'bg-gray-50' : ''"
+                                                    :class="active ? 'bg-slate-50' : ''"
                                                 >
                                                     <PencilIcon class="h-4 w-4" />
                                                     Edit
@@ -203,7 +205,7 @@ const formatDate = (date) => {
                                                 <button 
                                                     @click="banUser(user)"
                                                     class="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600"
-                                                    :class="active ? 'bg-gray-50' : ''"
+                                                    :class="active ? 'bg-slate-50' : ''"
                                                 >
                                                     <NoSymbolIcon class="h-4 w-4" />
                                                     Ban User
@@ -213,7 +215,7 @@ const formatDate = (date) => {
                                                 <button 
                                                     @click="unbanUser(user)"
                                                     class="flex items-center gap-2 w-full px-4 py-2 text-sm text-green-600"
-                                                    :class="active ? 'bg-gray-50' : ''"
+                                                    :class="active ? 'bg-slate-50' : ''"
                                                 >
                                                     <ArrowPathIcon class="h-4 w-4" />
                                                     Unban User
@@ -223,7 +225,7 @@ const formatDate = (date) => {
                                                 <button 
                                                     @click="deleteUser(user)"
                                                     class="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600"
-                                                    :class="active ? 'bg-gray-50' : ''"
+                                                    :class="active ? 'bg-slate-50' : ''"
                                                 >
                                                     <TrashIcon class="h-4 w-4" />
                                                     Delete
@@ -238,14 +240,14 @@ const formatDate = (date) => {
                 </div>
 
                 <!-- Pagination -->
-                <div v-if="users.links?.length > 3" class="px-4 py-3 border-t border-gray-100">
+                <div v-if="users.links?.length > 3" class="border-t border-slate-100 px-3 py-2.5">
                     <nav class="flex justify-center gap-1">
                         <Link 
                             v-for="link in users.links" 
                             :key="link.label"
                             :href="link.url"
-                            class="px-3 py-2 text-sm rounded-lg"
-                            :class="link.active ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'"
+                            class="rounded-lg px-2.5 py-1.5 text-xs"
+                            :class="link.active ? 'bg-sky-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
                             v-html="link.label"
                         />
                     </nav>

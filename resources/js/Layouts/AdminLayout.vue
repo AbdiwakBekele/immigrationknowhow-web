@@ -3,7 +3,6 @@ import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { 
     Bars3Icon, 
-    XMarkIcon,
     HomeIcon,
     UsersIcon,
     BriefcaseIcon,
@@ -17,6 +16,7 @@ import {
     Squares2X2Icon,
     ArrowRightOnRectangleIcon,
     BellIcon,
+    UserCircleIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -67,23 +67,23 @@ const isActive = (href) => {
         <!-- Sidebar -->
         <aside 
             :class="[
-                'fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 transform transition-transform duration-300 lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col bg-white border-r border-slate-200 shadow-sm transform transition-transform duration-300 lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             ]"
         >
             <!-- Logo -->
-            <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-800">
-                <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
-                    <span class="text-white font-bold">IK</span>
+            <div class="flex shrink-0 items-center gap-3 border-b border-slate-200 px-6 py-5 pb-6">
+                <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600">
+                    <span class="font-bold text-white">IK</span>
                 </div>
-                <div>
-                    <span class="text-white font-semibold">ImmigrationKnowHow</span>
-                    <span class="block text-xs text-slate-400">Admin Panel</span>
+                <div class="min-w-0">
+                    <span class="block truncate text-sm font-semibold leading-tight text-slate-900">ImmigrationKnowHow</span>
+                    <span class="mt-0.5 block text-xs text-slate-500">Admin Panel</span>
                 </div>
             </div>
 
             <!-- Navigation -->
-            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-10">
                 <Link
                     v-for="item in navigation"
                     :key="item.name"
@@ -91,8 +91,8 @@ const isActive = (href) => {
                     :class="[
                         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                         isActive(item.href)
-                            ? 'bg-sky-600 text-white'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                            ? 'bg-sky-50 text-sky-700 border border-sky-100'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     ]"
                 >
                     <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
@@ -100,24 +100,15 @@ const isActive = (href) => {
                 </Link>
             </nav>
 
-            <!-- User section -->
-            <div class="p-4 border-t border-slate-800">
-                <div class="flex items-center gap-3 px-3 py-2">
-                    <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-semibold">
-                        {{ user?.initials }}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-white truncate">{{ user?.full_name }}</p>
-                        <p class="text-xs text-slate-400 truncate">Administrator</p>
-                    </div>
-                </div>
-                <button
-                    @click="logout"
-                    class="mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+            <!-- Profile (bottom) -->
+            <div class="shrink-0 border-t border-slate-200 p-3">
+                <Link
+                    href="/admin/profile"
+                    class="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
                 >
-                    <ArrowRightOnRectangleIcon class="h-5 w-5" />
-                    Sign out
-                </button>
+                    <UserCircleIcon class="h-5 w-5 flex-shrink-0 text-slate-500" />
+                    <span class="min-w-0 truncate font-medium">{{ user?.full_name || 'Profile' }}</span>
+                </Link>
             </div>
         </aside>
 
@@ -146,6 +137,20 @@ const isActive = (href) => {
                         >
                             View Site
                         </Link>
+                        <Link
+                            href="/admin/profile"
+                            title="Profile"
+                            class="inline-flex items-center justify-center p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                        >
+                            <UserCircleIcon class="h-6 w-6" />
+                        </Link>
+                        <button
+                            @click="logout"
+                            title="Sign out"
+                            class="inline-flex items-center justify-center p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                        >
+                            <ArrowRightOnRectangleIcon class="h-6 w-6" />
+                        </button>
                     </div>
                 </div>
             </header>
