@@ -75,6 +75,14 @@ class Conversation extends Model
         return $this->hasOne(Message::class)->latestOfMany();
     }
 
+    /**
+     * Only threads created from a service inquiry (lead). No standalone / public community messaging.
+     */
+    public function scopeForServiceInquiries($query)
+    {
+        return $query->whereNotNull('lead_id');
+    }
+
     // Accessors
     public function getOtherParticipantAttribute()
     {

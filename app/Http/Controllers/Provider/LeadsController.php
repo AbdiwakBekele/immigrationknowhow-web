@@ -20,7 +20,7 @@ class LeadsController extends Controller
 
         $query = Lead::query()
             ->where('service_provider_id', $provider->id)
-            ->with(['user:id,first_name,last_name,email,avatar', 'conversation:id,lead_id']);
+            ->with(['user:id,first_name,last_name,email,avatar', 'conversation:id,uuid,lead_id']);
 
         // Apply filters
         if ($request->filled('status')) {
@@ -164,7 +164,7 @@ class LeadsController extends Controller
 
         // Check if conversation already exists
         if ($lead->conversation) {
-            return redirect()->route('messages.show', $lead->conversation);
+            return redirect()->route('provider.messages.show', $lead->conversation);
         }
 
         // Create conversation
@@ -182,7 +182,7 @@ class LeadsController extends Controller
             ]);
         }
 
-        return redirect()->route('messages.show', $conversation)
+        return redirect()->route('provider.messages.show', $conversation)
             ->with('success', 'Conversation started.');
     }
 

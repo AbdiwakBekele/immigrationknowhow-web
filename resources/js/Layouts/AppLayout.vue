@@ -30,6 +30,7 @@ const navigation = [
 const userNavigation = [
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'Messages', href: '/messages' },
+    { name: 'Reviews', href: '/reviews' },
     { name: 'Profile', href: '/profile' },
 ];
 

@@ -139,9 +139,8 @@ const verificationStatus = computed(() => {
                         <component :is="verificationStatus.icon" class="w-5 h-5" />
                         <span class="font-medium">{{ verificationStatus.text }}</span>
                     </Link>
-                    <Link 
-                        v-if="provider.slug"
-                        :href="route('marketplace.show', provider.slug)"
+                    <Link
+                        :href="route('provider.profile.index')"
                         class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl transition-colors"
                     >
                         <EyeIcon class="w-5 h-5" />

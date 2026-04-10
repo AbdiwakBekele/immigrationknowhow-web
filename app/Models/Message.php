@@ -13,6 +13,13 @@ class Message extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'is_mine',
+    ];
+
     protected $fillable = [
         'uuid',
         'conversation_id',

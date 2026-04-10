@@ -20,7 +20,7 @@ class ReviewController extends Controller
 
         // Filter by rating
         if ($request->filled('rating')) {
-            $query->where('overall_rating', $request->rating);
+            $query->where('rating', $request->rating);
         }
 
         // Filter by response status
@@ -36,8 +36,8 @@ class ReviewController extends Controller
         $sortBy = $request->get('sort', 'newest');
         match ($sortBy) {
             'oldest' => $query->oldest(),
-            'highest' => $query->orderByDesc('overall_rating'),
-            'lowest' => $query->orderBy('overall_rating'),
+            'highest' => $query->orderByDesc('rating'),
+            'lowest' => $query->orderBy('rating'),
             default => $query->latest(),
         };
 
@@ -51,11 +51,11 @@ class ReviewController extends Controller
                 ->whereNull('provider_response')
                 ->count(),
             'distribution' => [
-                5 => Review::where('service_provider_id', $provider->id)->where('overall_rating', 5)->count(),
-                4 => Review::where('service_provider_id', $provider->id)->where('overall_rating', 4)->count(),
-                3 => Review::where('service_provider_id', $provider->id)->where('overall_rating', 3)->count(),
-                2 => Review::where('service_provider_id', $provider->id)->where('overall_rating', 2)->count(),
-                1 => Review::where('service_provider_id', $provider->id)->where('overall_rating', 1)->count(),
+                5 => Review::where('service_provider_id', $provider->id)->where('rating', 5)->count(),
+                4 => Review::where('service_provider_id', $provider->id)->where('rating', 4)->count(),
+                3 => Review::where('service_provider_id', $provider->id)->where('rating', 3)->count(),
+                2 => Review::where('service_provider_id', $provider->id)->where('rating', 2)->count(),
+                1 => Review::where('service_provider_id', $provider->id)->where('rating', 1)->count(),
             ],
         ];
 
@@ -81,7 +81,7 @@ class ReviewController extends Controller
 
         $review->update([
             'provider_response' => $validated['response'],
-            'responded_at' => now(),
+            'provider_responded_at' => now(),
         ]);
 
         return back()->with('success', 'Response posted successfully.');
@@ -116,7 +116,7 @@ class ReviewController extends Controller
 
         $review->update([
             'provider_response' => null,
-            'responded_at' => null,
+            'provider_responded_at' => null,
         ]);
 
         return back()->with('success', 'Response removed.');

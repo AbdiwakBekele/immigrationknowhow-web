@@ -5,6 +5,7 @@ import {
     UsersIcon,
     UserGroupIcon,
     ShieldCheckIcon,
+    PlusIcon,
     StarIcon,
     ChatBubbleLeftRightIcon,
     DocumentTextIcon,
@@ -139,9 +140,15 @@ const formatDate = (date) => {
                 <div class="bg-white rounded-xl border border-gray-100 p-6">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold text-gray-900">Recent Users</h2>
-                        <Link href="/admin/users" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
-                            View all →
-                        </Link>
+                        <div class="flex items-center gap-3">
+                            <Link href="/admin/users/create" class="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                                <PlusIcon class="h-4 w-4" />
+                                Add User
+                            </Link>
+                            <Link href="/admin/users" class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                                View all →
+                            </Link>
+                        </div>
                     </div>
                     <div v-if="recentUsers.length" class="space-y-3">
                         <Link 

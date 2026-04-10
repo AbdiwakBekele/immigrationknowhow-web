@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -10,6 +11,7 @@ import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 const props = defineProps({
     address: { type: String, default: '' },
     city: { type: String, default: '' },
+    state: { type: String, default: '' },
     country: { type: String, default: 'US' },
     postal_code: { type: String, default: '' },
     preferred_language: { type: String, default: 'en' },
@@ -21,10 +23,92 @@ const phoneForm = useForm({
     serve_client_in_location: false,
     address: props.address,
     city: props.city,
+    state: props.state,
     country: props.country,
     postal_code: props.postal_code,
     preferred_language: props.preferred_language,
 });
+
+const autocompleteStatus = ref('');
+let autocompleteDebounce = null;
+
+const getAddressComponent = (components, type) =>
+    components.find((component) => Array.isArray(component.types) && component.types.includes(type));
+
+const componentLongText = (component) => component?.long_name ?? component?.longText ?? '';
+const componentShortText = (component) => component?.short_name ?? component?.shortText ?? '';
+
+const syncFormFromPlace = (place) => {
+    const components = place.addressComponents ?? place.address_components ?? [];
+    const streetNumber = componentLongText(getAddressComponent(components, 'street_number'));
+    const route = componentLongText(getAddressComponent(components, 'route'));
+    const street = [streetNumber, route].filter(Boolean).join(' ').trim();
+    const city =
+        componentLongText(getAddressComponent(components, 'locality')) ||
+        componentLongText(getAddressComponent(components, 'postal_town')) ||
+        componentLongText(getAddressComponent(components, 'administrative_area_level_2'));
+    const state =
+        componentShortText(getAddressComponent(components, 'administrative_area_level_1')) ||
+        componentLongText(getAddressComponent(components, 'administrative_area_level_1'));
+    const postalCode = componentLongText(getAddressComponent(components, 'postal_code'));
+    const country = componentShortText(getAddressComponent(components, 'country'));
+
+    if (street) {
+        phoneForm.address = street;
+    } else if (place.formattedAddress || place.formatted_address) {
+        phoneForm.address = place.formattedAddress ?? place.formatted_address;
+    }
+
+    if (city) phoneForm.city = city;
+    if (state) phoneForm.state = state;
+    if (postalCode) phoneForm.postal_code = postalCode;
+    if (country) phoneForm.country = country;
+};
+
+const runStreetAutocomplete = async () => {
+    const query = String(phoneForm.address || '').trim();
+    if (query.length < 3) {
+        autocompleteStatus.value = '';
+        return;
+    }
+
+    try {
+        const endpoint = route('address-detail.autocomplete', {
+            query,
+        });
+        const response = await fetch(endpoint, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Backend autocomplete failed (${response.status})`);
+        }
+
+        const payload = await response.json();
+        if (!payload?.ok || !payload?.data) {
+            autocompleteStatus.value = '';
+            return;
+        }
+
+        syncFormFromPlace(payload.data);
+        autocompleteStatus.value = '';
+    } catch {
+        autocompleteStatus.value = 'Unable to autocomplete this address right now.';
+    }
+};
+
+const handleStreetAddressChange = () => {
+    if (autocompleteDebounce) {
+        clearTimeout(autocompleteDebounce);
+    }
+
+    autocompleteDebounce = setTimeout(() => {
+        runStreetAutocomplete();
+    }, 300);
+};
 
 const submitAddress = () => {
     phoneForm.post(route('address-detail.send'), {
@@ -33,11 +117,6 @@ const submitAddress = () => {
 };
 
 const goBack = () => {
-    if (window.history.length > 1) {
-        window.history.back();
-        return;
-    }
-
     router.visit(route('register'));
 };
 </script>
@@ -70,15 +149,27 @@ const goBack = () => {
                     />
                     <span class="text-sm text-neutral-700">I serve the client in their location</span>
                 </label>
-                <Input
-                    v-model="phoneForm.address"
-                    label="Street address"
-                    placeholder="Street, apt / unit"
-                    :error="phoneForm.errors.address"
-                    size="compact"
-                    autocomplete="street-address"
-                />
-                <div class="grid grid-cols-2 gap-2">
+                <div class="space-y-1">
+                    <label for="street-address" class="block text-xs font-medium text-neutral-600">
+                        Street address
+                    </label>
+                    <input
+                        id="street-address"
+                        v-model="phoneForm.address"
+                        type="text"
+                        placeholder="Street, apt / unit"
+                        autocomplete="street-address"
+                        class="w-full rounded-md border bg-white px-2.5 py-1.5 text-xs transition-all duration-200 placeholder:text-neutral-400 focus:outline-none"
+                        :class="phoneForm.errors.address
+                            ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+                            : 'border-neutral-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20'"
+                        @input="handleStreetAddressChange"
+                        @change="handleStreetAddressChange"
+                    />
+                    <p v-if="phoneForm.errors.address" class="text-xs text-red-600">{{ phoneForm.errors.address }}</p>
+                    <p v-else-if="autocompleteStatus" class="text-xs text-neutral-500">{{ autocompleteStatus }}</p>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
                     <Input
                         v-model="phoneForm.city"
                         label="City"
@@ -87,6 +178,15 @@ const goBack = () => {
                         size="compact"
                         required
                         autocomplete="address-level2"
+                    />
+                    <Input
+                        v-model="phoneForm.state"
+                        label="State"
+                        placeholder="State"
+                        :error="phoneForm.errors.state"
+                        size="compact"
+                        required
+                        autocomplete="address-level1"
                     />
                     <Input
                         v-model="phoneForm.postal_code"

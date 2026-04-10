@@ -67,6 +67,7 @@ Route::post('/logout', [Auth\LoginController::class, 'destroy'])
 // Phone verification after registration (before onboarding)
 Route::middleware(['auth'])->group(function () {
     Route::get('/address-detail', [Auth\AddressDetailsController::class, 'show'])->name('address-detail');
+    Route::get('/address-detail/autocomplete', [Auth\AddressDetailsController::class, 'autocomplete'])->name('address-detail.autocomplete');
     Route::post('/address-detail', [Auth\AddressDetailsController::class, 'sendOtp'])->name('address-detail.send');
     Route::get('/address-detail/otp', [Auth\AddressDetailsController::class, 'showOtp'])->name('address-detail.otp');
     Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
@@ -116,6 +117,7 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
         });
 
         // Reviews
+        Route::get('/reviews', [User\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/providers/{provider:slug}/reviews', [User\ReviewController::class, 'store'])->name('reviews.store');
         Route::post('/reviews/{review:uuid}/helpful', [User\ReviewController::class, 'markHelpful'])->name('reviews.helpful');
 });
@@ -134,7 +136,8 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
         
         // Profile management
-        Route::get('/profile', [Provider\ProfileController::class, 'edit'])->name('profile.edit');
+        Route::get('/profile', [Provider\ProfileController::class, 'index'])->name('profile.index');
+        Route::get('/profile/edit', [Provider\ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [Provider\ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [Provider\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
         
@@ -149,6 +152,15 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         // Reviews
         Route::get('/reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{review:uuid}/respond', [Provider\ReviewController::class, 'respond'])->name('reviews.respond');
+
+        // Messages (provider portal — separate from service-seeker /messages)
+        Route::get('/messages', [Provider\MessageController::class, 'index'])->name('messages.index');
+        Route::get('/messages/archived', [Provider\MessageController::class, 'archived'])->name('messages.archived');
+        Route::get('/messages/{conversation:uuid}', [Provider\MessageController::class, 'show'])->name('messages.show');
+        Route::post('/messages/{conversation:uuid}', [MessagingController::class, 'sendMessage'])->name('messages.send');
+        Route::post('/messages/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('messages.read');
+        Route::post('/messages/{conversation:uuid}/archive', [MessagingController::class, 'archive'])->name('messages.archive');
+        Route::post('/messages/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('messages.unarchive');
         
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility

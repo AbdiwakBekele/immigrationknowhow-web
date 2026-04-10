@@ -127,7 +127,7 @@ const ratingDistribution = computed(() => {
                 </div>
                 <div class="bg-white rounded-xl border border-gray-100 p-4 text-center">
                     <div class="flex items-center justify-center gap-1">
-                        <span class="text-3xl font-display font-bold text-gray-900">{{ (stats.average || 0).toFixed(1) }}</span>
+                        <span class="text-3xl font-display font-bold text-gray-900">{{ Number(stats.average || 0).toFixed(1) }}</span>
                         <StarSolid class="h-6 w-6 text-yellow-500" />
                     </div>
                     <div class="text-sm text-gray-500">Average Rating</div>
@@ -218,7 +218,7 @@ const ratingDistribution = computed(() => {
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <template v-for="i in 5" :key="i">
-                                        <StarSolid v-if="i <= review.overall_rating" class="h-5 w-5 text-yellow-500" />
+                                        <StarSolid v-if="i <= review.rating" class="h-5 w-5 text-yellow-500" />
                                         <StarOutline v-else class="h-5 w-5 text-gray-300" />
                                     </template>
                                 </div>
@@ -247,7 +247,7 @@ const ratingDistribution = computed(() => {
                             <div v-if="review.provider_response" class="bg-gray-50 rounded-lg p-4 border-l-4 border-primary-500 mb-4">
                                 <div class="text-sm font-medium text-gray-900 mb-1">Your Response</div>
                                 <p class="text-gray-600 text-sm">{{ review.provider_response }}</p>
-                                <div class="text-xs text-gray-400 mt-2">{{ formatDate(review.responded_at) }}</div>
+                                <div class="text-xs text-gray-400 mt-2">{{ formatDate(review.provider_responded_at) }}</div>
                             </div>
 
                             <!-- Actions -->
@@ -312,7 +312,7 @@ const ratingDistribution = computed(() => {
                         <div class="bg-gray-50 rounded-lg p-4 mb-4">
                             <div class="flex items-center gap-2 mb-2">
                                 <div class="flex">
-                                    <StarSolid v-for="i in selectedReview?.overall_rating" :key="i" class="h-4 w-4 text-yellow-500" />
+                                    <StarSolid v-for="i in selectedReview?.rating" :key="i" class="h-4 w-4 text-yellow-500" />
                                 </div>
                                 <span class="text-sm text-gray-500">by {{ selectedReview?.user?.full_name }}</span>
                             </div>

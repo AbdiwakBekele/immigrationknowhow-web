@@ -24,13 +24,18 @@ class NewMessageNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $sender = $this->message->sender;
+        $conversation = $this->message->conversation;
+
+        $conversationUrl = $notifiable->serviceProvider
+            ? route('provider.messages.show', $conversation->uuid)
+            : route('messages.show', $conversation->uuid);
 
         return (new MailMessage)
             ->subject("New message from {$sender->full_name}")
             ->greeting("Hello {$notifiable->first_name}!")
             ->line("{$sender->full_name} sent you a message:")
             ->line('"' . \Str::limit($this->message->body, 200) . '"')
-            ->action('View Conversation', route('messages.show', $this->message->conversation->uuid))
+            ->action('View Conversation', $conversationUrl)
             ->line('Reply to keep the conversation going!');
     }
 

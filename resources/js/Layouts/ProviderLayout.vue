@@ -22,7 +22,7 @@ const sidebarOpen = ref(false);
 const navigation = [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
-    { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
@@ -59,7 +59,7 @@ const isActive = (href) => {
         <!-- Sidebar -->
         <aside 
             :class="[
-                'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white border-r border-slate-200 transform transition-transform duration-300 lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             ]"
         >
@@ -115,16 +115,23 @@ const isActive = (href) => {
                 </Link>
             </nav>
 
-            <!-- Logout -->
             <div class="p-4 border-t border-slate-100">
-                <button
-                    @click="logout"
-                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                >
-                    <ArrowRightOnRectangleIcon class="h-5 w-5" />
-                    Sign out
-                </button>
+                <div class="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+                    <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
+                        {{ user?.initials }}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-slate-900">
+                            {{ provider?.business_name || user?.full_name }}
+                        </p>
+                        <p class="mt-0.5 text-xs">
+                            <span v-if="provider?.verification_status === 'approved'" class="text-emerald-600">Verified</span>
+                            <span v-else class="text-amber-600">Pending Verification</span>
+                        </p>
+                    </div>
+                </div>
             </div>
+
         </aside>
 
         <!-- Main content -->
@@ -153,6 +160,13 @@ const isActive = (href) => {
                         >
                             View Public Profile
                         </Link>
+                        <button
+                            @click="logout"
+                            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                        >
+                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
+                            Sign out
+                        </button>
                     </div>
                 </div>
             </header>

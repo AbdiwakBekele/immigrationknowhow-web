@@ -20,6 +20,11 @@ class ConversationPolicy
      */
     public function view(User $user, Conversation $conversation): bool
     {
+        // Controlled, inquiry-based messaging only (no orphan / open threads)
+        if ($conversation->lead_id === null && ! $user->isAdmin()) {
+            return false;
+        }
+
         // The user who initiated the conversation
         if ($conversation->user_id === $user->id) {
             return true;
@@ -43,6 +48,10 @@ class ConversationPolicy
      */
     public function update(User $user, Conversation $conversation): bool
     {
+        if ($conversation->lead_id === null) {
+            return false;
+        }
+
         // The user who initiated the conversation
         if ($conversation->user_id === $user->id) {
             return true;

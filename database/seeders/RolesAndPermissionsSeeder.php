@@ -75,14 +75,20 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
         // Create roles and assign permissions
         
         // General User (Immigrant)
-        $userRole = Role::create(['name' => UserRole::USER->value]);
-        $userRole->givePermissionTo([
+        $userRole = Role::firstOrCreate([
+            'name' => UserRole::USER->value,
+            'guard_name' => 'web',
+        ]);
+        $userRole->syncPermissions([
             'view providers',
             'create leads',
             'view leads',
@@ -97,8 +103,11 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Service Provider
-        $providerRole = Role::create(['name' => UserRole::PROVIDER->value]);
-        $providerRole->givePermissionTo([
+        $providerRole = Role::firstOrCreate([
+            'name' => UserRole::PROVIDER->value,
+            'guard_name' => 'web',
+        ]);
+        $providerRole->syncPermissions([
             'view providers',
             'edit providers', // Can edit own profile
             'view leads',
@@ -114,8 +123,11 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Admin
-        $adminRole = Role::create(['name' => UserRole::ADMIN->value]);
-        $adminRole->givePermissionTo([
+        $adminRole = Role::firstOrCreate([
+            'name' => UserRole::ADMIN->value,
+            'guard_name' => 'web',
+        ]);
+        $adminRole->syncPermissions([
             'view users',
             'edit users',
             'view providers',
@@ -139,7 +151,10 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Super Admin - has all permissions
-        $superAdminRole = Role::create(['name' => UserRole::SUPER_ADMIN->value]);
-        $superAdminRole->givePermissionTo(Permission::all());
+        $superAdminRole = Role::firstOrCreate([
+            'name' => UserRole::SUPER_ADMIN->value,
+            'guard_name' => 'web',
+        ]);
+        $superAdminRole->syncPermissions(Permission::pluck('name')->all());
     }
 }
