@@ -188,8 +188,10 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
     ->group(function () {
         
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+        Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
         
         // Users
+        Route::get('/users/check-email', [Admin\UserController::class, 'checkEmail'])->name('users.check-email');
         Route::resource('users', Admin\UserController::class);
         
         // Providers

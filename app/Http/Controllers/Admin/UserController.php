@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -15,6 +16,20 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    public function checkEmail(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $email = trim(strtolower($request->string('email')->toString()));
+        $exists = User::whereRaw('LOWER(email) = ?', [$email])->exists();
+
+        return response()->json([
+            'available' => !$exists,
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $query = User::query()

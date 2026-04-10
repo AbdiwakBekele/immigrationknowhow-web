@@ -30,8 +30,12 @@ class DashboardController extends Controller
         // Provider stats
         $providerStats = [
             'total' => ServiceProvider::count(),
-            'verified' => ServiceProvider::where('background_check_status', 'clear')->count(),
-            'pending_verification' => ServiceProvider::whereIn('background_check_status', ['invited', 'completed'])->count(),
+            'verified' => BackgroundCheck::where('status', BackgroundCheckStatus::CLEAR)
+                ->distinct('service_provider_id')
+                ->count('service_provider_id'),
+            'pending_verification' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::INVITED, BackgroundCheckStatus::COMPLETED])
+                ->distinct('service_provider_id')
+                ->count('service_provider_id'),
             'active' => ServiceProvider::active()->acceptingClients()->count(),
         ];
 

@@ -34,7 +34,7 @@ class ProviderController extends Controller
 
         // Filter by service type
         if ($request->filled('service_type')) {
-            $query->where('primary_service_type', $request->service_type);
+            $query->whereJsonContains('service_types', $request->service_type);
         }
 
         // Filter by verification status
@@ -66,7 +66,7 @@ class ProviderController extends Controller
         $provider->load([
             'user:id,first_name,last_name,email,phone,avatar,created_at',
             'reviews' => fn($q) => $q->latest()->limit(5)->with('user:id,first_name,last_name'),
-            'identityVerifications' => fn($q) => $q->latest(),
+            'backgroundChecks' => fn($q) => $q->latest(),
         ]);
 
         return Inertia::render('Admin/Providers/Show', [
@@ -102,12 +102,16 @@ class ProviderController extends Controller
         // If verification status is being changed manually
         if ($validated['is_verified'] !== $provider->is_verified) {
             $validated['verified_at'] = $validated['is_verified'] ? now() : null;
-            $validated['verified_by'] = $validated['is_verified'] ? auth()->id() : null;
         }
+
+        // The DB stores service types as JSON array (service_types), not primary_service_type column.
+        $validated['service_types'] = [$validated['primary_service_type']];
+        unset($validated['primary_service_type']);
 
         $provider->update($validated);
 
-        return back()->with('success', 'Provider updated successfully.');
+        return redirect()->route('admin.providers.index')
+            ->with('success', 'Provider updated successfully.');
     }
 
     public function destroy(ServiceProvider $provider): RedirectResponse
@@ -125,7 +129,6 @@ class ProviderController extends Controller
         $provider->update([
             'is_verified' => true,
             'verified_at' => now(),
-            'verified_by' => auth()->id(),
         ]);
 
         // TODO: Send notification to provider
@@ -138,7 +141,6 @@ class ProviderController extends Controller
         $provider->update([
             'is_verified' => false,
             'verified_at' => null,
-            'verified_by' => null,
         ]);
 
         return back()->with('success', 'Provider verification has been revoked.');
@@ -188,12 +190,13 @@ class ProviderController extends Controller
             ]);
 
             foreach ($providers as $p) {
+                $serviceType = $p->service_types[0] ?? null;
                 fputcsv($file, [
                     $p->id,
                     $p->business_name,
                     $p->user?->full_name,
                     $p->user?->email,
-                    $p->primary_service_type?->value,
+                    ServiceType::tryFrom($serviceType)?->label() ?? $serviceType,
                     $p->is_verified ? 'Yes' : 'No',
                     $p->is_active ? 'Yes' : 'No',
                     $p->average_rating,
