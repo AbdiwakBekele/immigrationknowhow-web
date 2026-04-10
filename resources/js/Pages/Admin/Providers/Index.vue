@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { BriefcaseIcon, CheckBadgeIcon, Squares2X2Icon, StarIcon } from '@heroicons/vue/24/outline';
+import { BriefcaseIcon, CheckBadgeIcon, PlusIcon, Squares2X2Icon, StarIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     providers: { type: Object, required: true },
@@ -15,19 +15,43 @@ const totalProviders = computed(() => props.providers?.total || providerRows.val
 const verifiedProviders = computed(() => providerRows.value.filter((p) => p.is_verified).length);
 const activeProviders = computed(() => providerRows.value.filter((p) => p.is_active).length);
 
+const primaryServiceValue = (provider) => {
+    const types = provider?.service_types;
+    if (!Array.isArray(types) || types.length === 0) {
+        return null;
+    }
+    const raw = types[0];
+    return typeof raw === 'string' && raw.trim() !== '' ? raw : null;
+};
+
+const serviceTypeLabelForValue = (value) => {
+    if (!value) return 'Other';
+    const match = (props.serviceTypes || []).find((t) => t.value === value);
+    if (match?.label) return match.label;
+    return categoryLabel(value);
+};
+
 const categoryCards = computed(() => {
     const map = new Map();
 
     for (const provider of providerRows.value) {
-        const key = provider.primary_service_type || 'other';
-        const current = map.get(key) || { key, label: key, count: 0 };
+        const valueKey = primaryServiceValue(provider) || 'other';
+        const current = map.get(valueKey) || { key: valueKey, label: valueKey, count: 0 };
         current.count += 1;
-        map.set(key, current);
+        map.set(valueKey, current);
     }
 
-    for (const entry of props.serviceTypes) {
+    for (const entry of props.serviceTypes || []) {
         if (map.has(entry.value)) {
             map.get(entry.value).label = entry.label;
+        }
+    }
+
+    for (const card of map.values()) {
+        if (card.key === 'other') {
+            card.label = 'Other';
+        } else if (card.label === card.key) {
+            card.label = serviceTypeLabelForValue(card.key);
         }
     }
 
@@ -35,7 +59,7 @@ const categoryCards = computed(() => {
 });
 
 const categoryLabel = (value) => {
-    if (!value) return 'Other';
+    if (!value || value === 'other') return 'Other';
     return value
         .replaceAll('_', ' ')
         .replaceAll('-', ' ')
@@ -53,9 +77,18 @@ const initial = (provider) => {
 
     <AdminLayout>
         <div class="space-y-4">
-            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <h1 class="text-lg font-bold text-slate-900">Providers</h1>
-                <p class="mt-0.5 text-xs text-slate-500">All provider profiles with category-based summary cards.</p>
+            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900">Providers</h1>
+                    <p class="mt-0.5 text-xs text-slate-500">All provider profiles with category-based summary cards.</p>
+                </div>
+                <Link
+                    href="/admin/providers/create"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700"
+                >
+                    <PlusIcon class="h-4 w-4" />
+                    Add Provider
+                </Link>
             </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -122,7 +155,7 @@ const initial = (provider) => {
 
                         <div class="mt-3 flex flex-wrap items-center gap-1.5">
                             <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                                {{ categoryLabel(provider.primary_service_type) }}
+                                {{ serviceTypeLabelForValue(primaryServiceValue(provider)) }}
                             </span>
                             <span
                                 class="rounded-full px-2 py-0.5 text-xs"
@@ -139,12 +172,18 @@ const initial = (provider) => {
                             </span>
                         </div>
 
-                        <div class="mt-3">
+                        <div class="mt-3 flex flex-wrap gap-2">
                             <Link
                                 :href="`/admin/providers/${provider.slug}`"
                                 class="inline-flex rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700"
                             >
                                 View Profile
+                            </Link>
+                            <Link
+                                :href="`/admin/providers/${provider.slug}/edit`"
+                                class="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                                Edit
                             </Link>
                         </div>
                     </div>

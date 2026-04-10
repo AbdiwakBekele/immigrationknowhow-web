@@ -224,7 +224,7 @@ const getInitial = (user) => {
                                 <td class="px-3 py-2.5">
                                     <div class="flex items-center gap-1">
                                         <StarIcon class="h-4 w-4 text-yellow-500 fill-current" />
-                                        <span class="text-sm">{{ review.overall_rating }}</span>
+                                        <span class="text-sm">{{ review.rating }}</span>
                                     </div>
                                 </td>
                                 <td class="px-3 py-2.5 text-xs text-slate-500">

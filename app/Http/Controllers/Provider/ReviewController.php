@@ -135,14 +135,18 @@ class ReviewController extends Controller
             'details' => ['nullable', 'string', 'max:500'],
         ]);
 
-        // Flag the review for admin review
+        // Queue for admin moderation (reviews table has is_approved / moderation_notes)
+        $note = 'Provider report: ' . $validated['reason'];
+        if (!empty($validated['details'])) {
+            $note .= ' — ' . $validated['details'];
+        }
+
         $review->update([
-            'is_flagged' => true,
-            'flag_reason' => $validated['reason'],
-            'flag_details' => $validated['details'] ?? null,
-            'flagged_at' => now(),
-            'flagged_by' => auth()->id(),
+            'is_approved' => false,
+            'moderation_notes' => $note,
         ]);
+
+        $review->serviceProvider->updateRating();
 
         return back()->with('success', 'Review has been reported and will be reviewed by our team.');
     }

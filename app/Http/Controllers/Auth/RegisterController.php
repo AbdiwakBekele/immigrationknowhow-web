@@ -30,12 +30,18 @@ class RegisterController extends Controller
                 ['value' => UserRole::PROVIDER->value, 'label' => UserRole::PROVIDER->label(), 'description' => UserRole::PROVIDER->description()],
             ],
             'initialRole' => $initialRole,
-            'serviceTypes' => ServiceTypeOptions::selectOptions(),
+            // Provider dropdown: active rows from service_type_options with for_provider = true
+            // (plus enum fallback when the table is empty — see ServiceTypeOptions::selectOptions).
+            'serviceTypes' => ServiceTypeOptions::selectOptions('provider'),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        if ($request->input('service_type') === '') {
+            $request->merge(['service_type' => null]);
+        }
+
         $effectiveRole = $request->filled('service_type')
             ? UserRole::PROVIDER->value
             : $request->input('role', UserRole::USER->value);
@@ -49,7 +55,8 @@ class RegisterController extends Controller
             'service_type' => [
                 Rule::requiredIf($effectiveRole === UserRole::PROVIDER->value),
                 'nullable',
-                Rule::in(ServiceTypeOptions::values()),
+                'string',
+                Rule::in(ServiceTypeOptions::values('provider')),
             ],
         ]);
 

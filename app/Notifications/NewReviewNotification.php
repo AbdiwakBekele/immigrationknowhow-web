@@ -23,12 +23,13 @@ class NewReviewNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $stars = str_repeat('★', $this->review->overall_rating) . str_repeat('☆', 5 - $this->review->overall_rating);
+        $rating = (int) $this->review->rating;
+        $stars = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
 
         return (new MailMessage)
             ->subject('You received a new review!')
             ->greeting('Hello ' . $notifiable->first_name . '!')
-            ->line('You just received a new ' . $this->review->overall_rating . '-star review.')
+            ->line('You just received a new ' . $rating . '-star review.')
             ->line($stars)
             ->line('"' . \Str::limit($this->review->comment, 200) . '"')
             ->action('View & Respond', url('/provider/reviews'))
@@ -40,9 +41,9 @@ class NewReviewNotification extends Notification implements ShouldQueue
         return [
             'type' => 'new_review',
             'review_id' => $this->review->id,
-            'rating' => $this->review->overall_rating,
+            'rating' => $this->review->rating,
             'reviewer_name' => $this->review->user?->full_name ?? 'A user',
-            'message' => 'You received a new ' . $this->review->overall_rating . '-star review',
+            'message' => 'You received a new ' . $this->review->rating . '-star review',
         ];
     }
 }

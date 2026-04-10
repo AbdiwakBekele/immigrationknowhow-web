@@ -73,6 +73,8 @@ class ReviewController extends Controller
         $validated['user_id'] = $user->id;
         $validated['service_provider_id'] = $provider->id;
         $validated['uuid'] = Str::uuid();
+        $validated['rating'] = $validated['overall_rating'];
+        unset($validated['overall_rating'], $validated['would_recommend']);
 
         if ($existingReview) {
             $existingReview->update($validated);
@@ -86,8 +88,7 @@ class ReviewController extends Controller
             $provider->user->notify(new NewReviewNotification($review));
         }
 
-        // Update provider's average rating
-        $provider->updateRatingStats();
+        $provider->updateRating();
 
         return redirect()->route('marketplace.show', $provider)
             ->with('success', $message);
@@ -158,10 +159,12 @@ class ReviewController extends Controller
             'would_recommend' => ['boolean'],
         ]);
 
+        $validated['rating'] = $validated['overall_rating'];
+        unset($validated['overall_rating'], $validated['would_recommend']);
+
         $review->update($validated);
 
-        // Update provider's average rating
-        $review->serviceProvider->updateRatingStats();
+        $review->serviceProvider->updateRating();
 
         return redirect()->route('marketplace.show', $review->serviceProvider)
             ->with('success', 'Review updated successfully.');
@@ -174,8 +177,7 @@ class ReviewController extends Controller
         $provider = $review->serviceProvider;
         $review->delete();
 
-        // Update provider's average rating
-        $provider->updateRatingStats();
+        $provider->updateRating();
 
         return back()->with('success', 'Review deleted.');
     }

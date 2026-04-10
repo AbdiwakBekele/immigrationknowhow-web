@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -39,6 +40,16 @@ class HandleInertiaRequests extends Middleware
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
                 ] : null,
             ],
+            'unread_notifications_count' => function () use ($request) {
+                if (! $request->user() || ! str_starts_with($request->path(), 'admin')) {
+                    return 0;
+                }
+                if (! Schema::hasTable('notifications')) {
+                    return 0;
+                }
+
+                return $request->user()->unreadNotifications()->count();
+            },
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
