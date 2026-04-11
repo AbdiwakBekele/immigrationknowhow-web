@@ -135,11 +135,12 @@ const unreadNotificationsCount = computed(
 
                     <div class="flex-1 lg:flex-none"></div>
 
-                    <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 sm:gap-3">
                         <Link
                             href="/admin/notifications"
-                            class="relative p-2 rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
+                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                             title="Notifications"
+                            aria-label="Notifications"
                         >
                             <BellIcon class="h-6 w-6" />
                             <span
@@ -148,22 +149,25 @@ const unreadNotificationsCount = computed(
                             />
                         </Link>
                         <Link
-                            href="/"
-                            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
-                        >
-                            View Site
-                        </Link>
-                        <Link
                             href="/admin/profile"
                             title="Profile"
-                            class="inline-flex items-center justify-center p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                            aria-label="Profile"
+                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                         >
                             <UserCircleIcon class="h-6 w-6" />
                         </Link>
+                        <Link
+                            href="/"
+                            class="hidden items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 sm:inline-flex"
+                        >
+                            View Site
+                        </Link>
                         <button
-                            @click="logout"
+                            type="button"
                             title="Sign out"
-                            class="inline-flex items-center justify-center p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                            aria-label="Sign out"
+                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            @click="logout"
                         >
                             <ArrowRightOnRectangleIcon class="h-6 w-6" />
                         </button>

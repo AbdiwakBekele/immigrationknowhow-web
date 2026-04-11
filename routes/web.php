@@ -164,6 +164,8 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
     ->group(function () {
         
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/notifications', [Provider\NotificationController::class, 'index'])->name('notifications.index');
         
         // Profile management
         Route::get('/profile', [Provider\ProfileController::class, 'index'])->name('profile.index');
@@ -229,6 +231,10 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
+        Route::patch('/profile', [Admin\ProfileController::class, 'update'])->name('profile.update');
+        Route::patch('/profile/password', [Admin\ProfileController::class, 'updatePassword'])->name('profile.password');
+        Route::post('/profile/avatar', [Admin\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+        Route::delete('/profile/avatar', [Admin\ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
         
         // Users
         Route::get('/users/check-email', [Admin\UserController::class, 'checkEmail'])->name('users.check-email');

@@ -96,22 +96,25 @@ const maxDob = computed(() => {
     <Head title="Background Check" />
 
     <ProviderLayout>
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="mx-auto max-w-3xl space-y-6 pb-4">
             <!-- Header -->
-            <div class="mb-6">
-                <h1 class="text-2xl font-display font-bold text-gray-900">Background Check</h1>
-                <p class="text-gray-500 mt-1">Complete a background check to become a verified provider and build trust with clients</p>
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wider text-primary-600">Trust and safety</p>
+                <h1 class="mt-1 font-display text-3xl font-bold tracking-tight text-slate-900">Background check</h1>
+                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+                    Complete a background check to become a verified provider and build trust with clients.
+                </p>
             </div>
 
-            <div v-if="form.errors.error" class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
+            <div v-if="form.errors.error" class="card border-red-200/80 bg-red-50/90 p-4">
                 <div class="flex items-center gap-3">
-                    <XCircleIcon class="h-5 w-5 text-red-600" />
-                    <p class="text-red-800">{{ form.errors.error }}</p>
+                    <XCircleIcon class="h-5 w-5 shrink-0 text-red-600" />
+                    <p class="text-sm font-medium text-red-900">{{ form.errors.error }}</p>
                 </div>
             </div>
 
             <!-- Cleared Status -->
-            <div v-if="backgroundCheck?.status === 'clear' && backgroundCheck?.is_valid" class="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6">
+            <div v-if="backgroundCheck?.status === 'clear' && backgroundCheck?.is_valid" class="card border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white p-6 shadow-soft">
                 <div class="flex items-center gap-4">
                     <div class="p-3 bg-emerald-100 rounded-full">
                         <CheckBadgeSolid class="h-8 w-8 text-emerald-600" />
@@ -128,19 +131,19 @@ const maxDob = computed(() => {
             </div>
 
             <!-- Active Check Status (not clear) -->
-            <div v-else-if="backgroundCheck && !['pending', 'expired'].includes(backgroundCheck.status)" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div v-else-if="backgroundCheck && !['pending', 'expired'].includes(backgroundCheck.status)" class="card p-6 shadow-soft">
                 <div class="flex items-start gap-4">
-                    <div class="p-3 rounded-full" :class="backgroundCheck.status_display.badge_classes">
+                    <div class="rounded-2xl p-3" :class="backgroundCheck.status_display.badge_classes">
                         <component :is="getStatusIcon(backgroundCheck.status)" class="h-6 w-6" />
                     </div>
-                    <div class="flex-1">
-                        <h2 class="text-lg font-semibold text-gray-900">
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-lg font-semibold text-slate-900">
                             {{ backgroundCheck.status_display.label }}
                         </h2>
-                        <p class="text-gray-600 mt-1">
+                        <p class="mt-1 text-sm leading-relaxed text-slate-600">
                             {{ backgroundCheck.status_display.description }}
                         </p>
-                        <div class="mt-3 text-sm text-gray-500">
+                        <div class="mt-3 text-xs text-slate-500 sm:text-sm">
                             <span>Initiated: {{ backgroundCheck.initiated_at }}</span>
                             <span v-if="backgroundCheck.completed_at" class="ml-4">Completed: {{ backgroundCheck.completed_at }}</span>
                         </div>
@@ -153,7 +156,7 @@ const maxDob = computed(() => {
                             class="mt-4"
                         >
                             <input type="hidden" name="_token" :value="$page.props.csrf_token" />
-                            <button type="submit" class="inline-flex items-center gap-2 text-sm text-sky-600 hover:text-sky-700">
+                            <button type="submit" class="inline-flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700">
                                 <ArrowPathIcon class="h-4 w-4" />
                                 Refresh Status
                             </button>
@@ -161,43 +164,43 @@ const maxDob = computed(() => {
                     </div>
                     <Link 
                         :href="`/provider/background-check/${backgroundCheck.id}`"
-                        class="text-sm text-sky-600 hover:text-sky-700 font-medium"
+                        class="shrink-0 text-sm font-medium text-primary-600 hover:text-primary-700"
                     >
-                        View Details →
+                        View details →
                     </Link>
                 </div>
             </div>
 
             <!-- Consider/Suspended Status -->
-            <div v-if="backgroundCheck?.status === 'consider'" class="bg-orange-50 border border-orange-200 rounded-2xl p-6 mb-6">
+            <div v-if="backgroundCheck?.status === 'consider'" class="card border-orange-200/90 bg-gradient-to-br from-orange-50/95 to-white p-6 shadow-soft">
                 <div class="flex items-start gap-4">
-                    <div class="p-3 bg-orange-100 rounded-full">
+                    <div class="rounded-2xl bg-orange-100 p-3">
                         <ExclamationTriangleIcon class="h-6 w-6 text-orange-600" />
                     </div>
                     <div>
-                        <h2 class="text-lg font-semibold text-orange-800">Review Required</h2>
-                        <p class="text-orange-700 mt-1">
+                        <h2 class="text-lg font-semibold text-orange-900">Review required</h2>
+                        <p class="mt-1 text-sm leading-relaxed text-orange-800/90">
                             Your background check requires additional review. You may receive a follow-up from Checkr. 
-                            If you believe there's an error, you can dispute the results.
+                            If you believe there is an error, you can dispute the results.
                         </p>
                     </div>
                 </div>
             </div>
 
             <!-- Initiate New Check -->
-            <div v-if="canInitiate && !showForm" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div v-if="canInitiate && !showForm" class="card overflow-hidden p-6 shadow-soft">
                 <div class="flex items-start gap-4">
-                    <div class="p-3 bg-sky-100 rounded-full">
-                        <ShieldCheckIcon class="h-6 w-6 text-sky-600" />
+                    <div class="rounded-2xl bg-primary-100 p-3">
+                        <ShieldCheckIcon class="h-6 w-6 text-primary-600" />
                     </div>
-                    <div class="flex-1">
-                        <h2 class="text-lg font-semibold text-gray-900">Start Your Background Check</h2>
-                        <p class="text-gray-600 mt-1">
+                    <div class="min-w-0 flex-1">
+                        <h2 class="text-lg font-semibold text-slate-900">Start your background check</h2>
+                        <p class="mt-1 text-sm leading-relaxed text-slate-600">
                             A background check helps build trust with potential clients. The check is conducted by 
-                            <a href="https://checkr.com" target="_blank" class="text-sky-600 hover:underline">Checkr</a>, 
+                            <a href="https://checkr.com" target="_blank" rel="noopener noreferrer" class="font-medium text-primary-600 hover:underline">Checkr</a>, 
                             a trusted third-party screening service.
                         </p>
-                        <ul class="mt-3 space-y-2 text-sm text-gray-600">
+                        <ul class="mt-4 space-y-2 text-sm text-slate-600">
                             <li class="flex items-center gap-2">
                                 <CheckBadgeIcon class="h-4 w-4 text-green-500" />
                                 Verified badge on your profile
@@ -212,160 +215,161 @@ const maxDob = computed(() => {
                             </li>
                         </ul>
                         <button 
+                            type="button"
                             @click="showForm = true"
-                            class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 transition-colors"
+                            class="btn-primary mt-5"
                         >
                             <ShieldCheckIcon class="h-5 w-5" />
-                            Start Background Check
+                            Start background check
                         </button>
                     </div>
                 </div>
             </div>
 
             <!-- Background Check Form -->
-            <div v-if="showForm" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-1">Background Check Information</h2>
-                <p class="text-sm text-gray-500 mb-6">Please provide accurate information. This will be verified against official records.</p>
+            <div v-if="showForm" class="card p-6 shadow-soft sm:p-8">
+                <h2 class="font-display text-lg font-semibold text-slate-900">Background check information</h2>
+                <p class="helper-text mb-6 mt-1 text-sm">Please provide accurate information. This will be verified against official records.</p>
 
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- Name Fields -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                First Name <span class="text-red-500">*</span>
+                            <label class="label">
+                                First name <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.first_name"
                                 type="text"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p v-if="form.errors.first_name" class="mt-1 text-sm text-red-600">{{ form.errors.first_name }}</p>
+                            <p v-if="form.errors.first_name" class="error-text">{{ form.errors.first_name }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <label class="label">Middle name</label>
                             <input 
                                 v-model="form.middle_name"
                                 type="text"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Last Name <span class="text-red-500">*</span>
+                            <label class="label">
+                                Last name <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.last_name"
                                 type="text"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p v-if="form.errors.last_name" class="mt-1 text-sm text-red-600">{{ form.errors.last_name }}</p>
+                            <p v-if="form.errors.last_name" class="error-text">{{ form.errors.last_name }}</p>
                         </div>
                     </div>
 
                     <!-- Contact -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="label">
                                 Email <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.email"
                                 type="email"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p class="mt-1 text-xs text-gray-500">You'll receive the background check link at this email</p>
-                            <p v-if="form.errors.email" class="mt-1 text-sm text-red-600">{{ form.errors.email }}</p>
+                            <p class="helper-text">You will receive the background check link at this email.</p>
+                            <p v-if="form.errors.email" class="error-text">{{ form.errors.email }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                            <label class="label">
                                 Phone <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.phone"
                                 type="tel"
                                 placeholder="(555) 123-4567"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p v-if="form.errors.phone" class="mt-1 text-sm text-red-600">{{ form.errors.phone }}</p>
+                            <p v-if="form.errors.phone" class="error-text">{{ form.errors.phone }}</p>
                         </div>
                     </div>
 
                     <!-- DOB and Zipcode -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Date of Birth <span class="text-red-500">*</span>
+                            <label class="label">
+                                Date of birth <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.dob"
                                 type="date"
                                 :max="maxDob"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p v-if="form.errors.dob" class="mt-1 text-sm text-red-600">{{ form.errors.dob }}</p>
+                            <p v-if="form.errors.dob" class="error-text">{{ form.errors.dob }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                ZIP Code <span class="text-red-500">*</span>
+                            <label class="label">
+                                ZIP code <span class="text-red-500">*</span>
                             </label>
                             <input 
                                 v-model="form.zipcode"
                                 type="text"
                                 maxlength="10"
                                 placeholder="12345"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 required
                             />
-                            <p v-if="form.errors.zipcode" class="mt-1 text-sm text-red-600">{{ form.errors.zipcode }}</p>
+                            <p v-if="form.errors.zipcode" class="error-text">{{ form.errors.zipcode }}</p>
                         </div>
                     </div>
 
                     <!-- SSN -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <label class="label">
                             Social Security Number <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <input 
                                 :value="form.ssn"
-                                @input="formatSSN"
                                 type="text"
                                 placeholder="XXX-XX-XXXX"
                                 maxlength="11"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 pr-10"
+                                class="input pr-11"
                                 required
+                                @input="formatSSN"
                             />
-                            <LockClosedIcon class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <LockClosedIcon class="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         </div>
-                        <p class="mt-1 text-xs text-gray-500">Your SSN is encrypted and only used for identity verification</p>
-                        <p v-if="form.errors.ssn" class="mt-1 text-sm text-red-600">{{ form.errors.ssn }}</p>
+                        <p class="helper-text">Your SSN is encrypted and only used for identity verification.</p>
+                        <p v-if="form.errors.ssn" class="error-text">{{ form.errors.ssn }}</p>
                     </div>
 
                     <!-- Driver's License (Optional) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Driver's License Number <span class="text-gray-400">(Optional)</span>
+                            <label class="label">
+                                Driver's license number <span class="font-normal text-slate-400">(optional)</span>
                             </label>
                             <input 
                                 v-model="form.driver_license_number"
                                 type="text"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                             />
-                            <p v-if="form.errors.driver_license_number" class="mt-1 text-sm text-red-600">{{ form.errors.driver_license_number }}</p>
+                            <p v-if="form.errors.driver_license_number" class="error-text">{{ form.errors.driver_license_number }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                License State
+                            <label class="label">
+                                License state
                             </label>
                             <select 
                                 v-model="form.driver_license_state"
-                                class="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                                class="input"
                                 :disabled="!form.driver_license_number"
                             >
                                 <option value="">Select State</option>
@@ -376,10 +380,10 @@ const maxDob = computed(() => {
                     </div>
 
                     <!-- Info Box -->
-                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div class="rounded-2xl border border-amber-200/80 bg-amber-50/90 p-4">
                         <div class="flex gap-3">
-                            <InformationCircleIcon class="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div class="text-sm text-amber-800">
+                            <InformationCircleIcon class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                            <div class="text-sm text-amber-900">
                                 <p class="font-medium mb-1">What happens next?</p>
                                 <ol class="list-decimal list-inside space-y-1 text-amber-700">
                                     <li>You'll receive an email from Checkr to complete the process</li>
@@ -392,14 +396,14 @@ const maxDob = computed(() => {
                     </div>
 
                     <!-- Consent -->
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <label class="flex items-start gap-3 cursor-pointer">
+                    <div class="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
+                        <label class="flex cursor-pointer items-start gap-3">
                             <input 
                                 v-model="form.consent"
                                 type="checkbox"
-                                class="mt-1 h-4 w-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500"
+                                class="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
-                            <span class="text-sm text-gray-700">
+                            <span class="text-sm leading-relaxed text-slate-700">
                                 I consent to a background check being conducted by Checkr. I understand that this check may include 
                                 criminal history, sex offender registry, and other public records searches. I certify that all 
                                 information provided is accurate and complete.
@@ -410,52 +414,52 @@ const maxDob = computed(() => {
                     </div>
 
                     <!-- Submit -->
-                    <div class="flex gap-3">
+                    <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <button 
                             type="button" 
+                            class="btn btn-outline sm:w-auto"
                             @click="showForm = false; form.reset();"
-                            class="px-4 py-2.5 border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                             Cancel
                         </button>
                         <button 
                             type="submit" 
-                            class="flex-1 px-4 py-2.5 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="btn-primary flex-1 sm:min-w-[14rem]"
                             :disabled="!form.consent || form.processing"
                         >
-                            {{ form.processing ? 'Submitting...' : 'Submit & Continue to Payment' }}
+                            {{ form.processing ? 'Submitting…' : 'Submit and continue to payment' }}
                         </button>
                     </div>
                 </form>
             </div>
 
             <!-- History -->
-            <div v-if="history.length > 0" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Background Check History</h2>
-                <div class="space-y-3">
+            <div v-if="history.length > 0" class="card p-6 shadow-soft">
+                <h2 class="mb-4 font-display text-lg font-semibold text-slate-900">Background check history</h2>
+                <div class="divide-y divide-slate-100">
                     <Link 
                         v-for="item in history" 
                         :key="item.id"
                         :href="`/provider/background-check/${item.id}`"
-                        class="flex items-center justify-between py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors"
+                        class="-mx-2 flex items-center justify-between gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-slate-50"
                     >
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 rounded-full" :class="item.status_display.badge_classes">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="rounded-xl p-2" :class="item.status_display.badge_classes">
                                 <component :is="getStatusIcon(item.status)" class="h-4 w-4" />
                             </div>
-                            <div>
-                                <div class="font-medium text-gray-900">{{ item.status_display.label }}</div>
-                                <div class="text-sm text-gray-500">Initiated {{ item.initiated_at }}</div>
+                            <div class="min-w-0">
+                                <div class="font-medium text-slate-900">{{ item.status_display.label }}</div>
+                                <div class="text-sm text-slate-500">Initiated {{ item.initiated_at }}</div>
                             </div>
                         </div>
-                        <div class="text-right">
+                        <div class="shrink-0 text-right">
                             <span 
-                                class="px-3 py-1 rounded-full text-sm font-medium"
+                                class="inline-flex rounded-full px-3 py-1 text-xs font-medium"
                                 :class="item.status_display.badge_classes"
                             >
                                 {{ item.status_display.label }}
                             </span>
-                            <div v-if="item.expires_at" class="text-xs text-gray-500 mt-1">
+                            <div v-if="item.expires_at" class="mt-1 text-xs text-slate-500">
                                 Expires: {{ item.expires_at }}
                             </div>
                         </div>

@@ -39,6 +39,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $request->user()->email,
                     'email_verified_at' => $request->user()->email_verified_at,
                     'avatar' => $request->user()->avatar,
+                    'avatar_url' => $request->user()->avatar_url,
                     'roles' => $request->user()->roles->pluck('name'),
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
                     'is_affiliate' => $request->user()->isAffiliate(),
@@ -46,7 +47,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'branding' => fn () => PlatformSetting::branding(),
             'unread_notifications_count' => function () use ($request) {
-                if (! $request->user() || ! str_starts_with($request->path(), 'admin')) {
+                if (! $request->user()) {
                     return 0;
                 }
                 if (! Schema::hasTable('notifications')) {

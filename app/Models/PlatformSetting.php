@@ -63,9 +63,35 @@ class PlatformSetting extends Model
         return static::query()->firstOrCreate([], static::defaults());
     }
 
+    /**
+     * Canonical default logo (replace public/images/logo.svg to update branding app-wide).
+     * Other optional filenames are checked if logo.svg is missing.
+     */
+    public static function publicBrandLogoCandidates(): array
+    {
+        return [
+            'images/logo.svg',
+            'images/logo.png',
+            'images/logo.webp',
+            'images/logo.jpg',
+            'images/logo.jpeg',
+            'images/brand-logo.svg',
+            'images/brand-logo.png',
+            'images/site-logo.svg',
+            'images/site-logo.png',
+            'images/immigrants-know-how-logo.svg',
+        ];
+    }
+
     public static function defaultBrandLogoUrl(): string
     {
-        return asset('images/immigrants-know-how-logo.svg');
+        foreach (static::publicBrandLogoCandidates() as $relative) {
+            if (is_file(public_path($relative))) {
+                return asset($relative);
+            }
+        }
+
+        return asset('images/provider-portal-mark.svg');
     }
 
     public static function branding(): array

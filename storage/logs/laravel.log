@@ -7264,3 +7264,21 @@
 #72 C:/Program Files/Herd/resources/app.asar.unpacked/resources/valet/server.php(139): require('C://Users//Lidiya...')
 #73 {main}
 "} 
+[2026-04-11 16:47:10] local.INFO: AddressDetails show page opened. {"user_id":2,"route":"address-detail","ip":"127.0.0.1"} 
+[2026-04-11 16:47:40] local.ERROR: Maximum execution time of 30 seconds exceeded {"userId":2,"exception":"[object] (Symfony\\Component\\ErrorHandler\\Error\\FatalError(code: 0): Maximum execution time of 30 seconds exceeded at C:/Users/Lidiya Getale/Herd/immigrationknowhow/vendor/giggsey/libphonenumber-for-php/src/data/PhoneNumberMetadata_JO.php:21)
+[stacktrace]
+#0 {main}
+"} 
+[2026-04-11 16:48:00] local.INFO: AddressDetails show page opened. {"user_id":2,"route":"address-detail","ip":"127.0.0.1"} 
+[2026-04-11 16:48:03] local.INFO: AddressDetails show page opened. {"user_id":2,"route":"address-detail","ip":"127.0.0.1"} 
+[2026-04-11 16:48:44] local.INFO: AddressDetails autocomplete requested. {"user_id":2,"query":"Tigoni Road","country":null,"ip":"127.0.0.1","has_api_key":true} 
+[2026-04-11 16:48:47] local.INFO: AddressDetails sendOtp request received. {"user_id":2,"route":"address-detail","ip":"127.0.0.1","address_payload":{"address":"Tigoni Road","city":"Nairobi","state":"Nairobi County","country":"US","postal_code":"10510","preferred_language":"en","serve_client_in_location":true},"has_phone":false} 
+[2026-04-11 16:48:47] local.INFO: AddressDetails sendOtp validated payload. {"user_id":2,"validated":{"address":"Tigoni Road","city":"Nairobi","state":"Nairobi County","country":"US","postal_code":"10510","preferred_language":"en"}} 
+[2026-04-11 16:48:47] local.INFO: AddressDetails sendOtp persisted user address details. {"user_id":2,"saved":{"address":"Tigoni Road","city":"Nairobi","state":"Nairobi County","country":"US","postal_code":"10510","preferred_language":"en"}} 
+[2026-04-11 16:48:47] local.INFO: AddressDetails sendOtp completed without phone send; redirecting to OTP step. {"user_id":2} 
+[2026-04-11 16:48:55] local.INFO: AddressDetails sendOtp request received. {"user_id":2,"route":"address-detail","ip":"127.0.0.1","address_payload":{"address":null,"city":null,"state":null,"country":null,"postal_code":null,"preferred_language":null,"serve_client_in_location":false},"has_phone":true} 
+[2026-04-11 16:48:55] local.INFO: AddressDetails sendOtp validated payload. {"user_id":2,"validated":{"phone":"1234576890"}} 
+[2026-04-11 16:48:55] local.INFO: AddressDetails sendOtp persisted user address details. {"user_id":2,"saved":{"address":"Tigoni Road","city":"Nairobi","state":"Nairobi County","country":"US","postal_code":"10510","preferred_language":"en"}} 
+[2026-04-11 16:48:56] local.INFO: Phone verification OTP {"user_id":2,"phone":"1234576890","code":"973324","hint":"Replace with SMS in production; OTP is logged for development."} 
+[2026-04-11 16:48:56] local.INFO: AddressDetails sendOtp OTP sent successfully. {"user_id":2,"phone_last4":"6890"} 
+[2026-04-11 16:49:01] local.INFO: AddressDetails autocomplete resolved place. {"user_id":2,"query":"Tigoni Road","place":"places/EhtUaWdvbmkgUm9hZCwgTmFpcm9iaSwgS2VueWEiLiosChQKEgl7i2pEpBAvGBEi5ZHGz7Hk9RIUChIJp0lN2HIRLxgRTJKXslQCz_c","formatted":"Tigoni Rd, Nairobi, Kenya"} 
