@@ -16,17 +16,21 @@ class ReviewController extends Controller
         $query = Review::query()
             ->with([
                 'user:id,first_name,last_name,email,avatar',
-                'serviceProvider:id,business_name,slug,primary_service_type',
+                'serviceProvider:id,business_name,slug',
             ]);
 
-        // Filter by flagged
+        // Filter: pending moderation = not approved (replaces legacy is_flagged)
         if ($request->filled('flagged')) {
-            $query->where('is_flagged', $request->flagged === 'yes');
+            if ($request->flagged === 'yes') {
+                $query->where('is_approved', false);
+            } elseif ($request->flagged === 'no') {
+                $query->where('is_approved', true);
+            }
         }
 
-        // Filter by rating
+        // Filter by star rating
         if ($request->filled('rating')) {
-            $query->where('overall_rating', $request->rating);
+            $query->where('rating', $request->rating);
         }
 
         // Search
@@ -43,11 +47,12 @@ class ReviewController extends Controller
 
         $reviews = $query->paginate(20)->withQueryString();
 
-        // Stats
+        // Stats (no is_flagged column — use unapproved as "needs attention")
         $stats = [
             'total' => Review::count(),
-            'flagged' => Review::where('is_flagged', true)->count(),
+            'pending' => Review::where('is_approved', false)->count(),
             'today' => Review::whereDate('created_at', today())->count(),
+            'average_rating' => round((float) Review::avg('rating'), 1),
         ];
 
         return Inertia::render('Admin/Reviews/Index', [
@@ -72,13 +77,11 @@ class ReviewController extends Controller
     public function approve(Review $review): RedirectResponse
     {
         $review->update([
-            'is_flagged' => false,
-            'flag_reason' => null,
-            'flag_details' => null,
-            'flagged_at' => null,
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
+            'is_approved' => true,
+            'moderation_notes' => null,
         ]);
+
+        $review->serviceProvider->updateRating();
 
         return back()->with('success', 'Review approved.');
     }
@@ -89,16 +92,12 @@ class ReviewController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        // Hide the review
         $review->update([
-            'is_hidden' => true,
-            'hidden_reason' => $validated['reason'] ?? 'Violated community guidelines',
-            'reviewed_by' => auth()->id(),
-            'reviewed_at' => now(),
+            'is_approved' => false,
+            'moderation_notes' => $validated['reason'] ?? 'Violated community guidelines',
         ]);
 
-        // Update provider's rating stats
-        $review->serviceProvider->updateRatingStats();
+        $review->serviceProvider->updateRating();
 
         return back()->with('success', 'Review hidden.');
     }
@@ -106,12 +105,11 @@ class ReviewController extends Controller
     public function restore(Review $review): RedirectResponse
     {
         $review->update([
-            'is_hidden' => false,
-            'hidden_reason' => null,
+            'is_approved' => true,
+            'moderation_notes' => null,
         ]);
 
-        // Update provider's rating stats
-        $review->serviceProvider->updateRatingStats();
+        $review->serviceProvider->updateRating();
 
         return back()->with('success', 'Review restored.');
     }
@@ -121,8 +119,7 @@ class ReviewController extends Controller
         $provider = $review->serviceProvider;
         $review->delete();
 
-        // Update provider's rating stats
-        $provider->updateRatingStats();
+        $provider->updateRating();
 
         return redirect()->route('admin.reviews.index')
             ->with('success', 'Review deleted permanently.');

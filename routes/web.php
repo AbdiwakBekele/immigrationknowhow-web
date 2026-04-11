@@ -188,6 +188,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
     ->group(function () {
         
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+        Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
         
         // Users
@@ -216,6 +217,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         
         // Videos
         Route::resource('videos', Admin\VideoController::class);
+        Route::get('/service-types/create', [Admin\ServiceTypeController::class, 'create'])->name('service-types.create');
         Route::get('/service-types', [Admin\ServiceTypeController::class, 'index'])->name('service-types.index');
         Route::post('/service-types', [Admin\ServiceTypeController::class, 'store'])->name('service-types.store');
         

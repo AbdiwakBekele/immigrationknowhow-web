@@ -6,6 +6,8 @@ use App\Enums\ServiceType;
 use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,6 +17,10 @@ use Spatie\Sluggable\SlugOptions;
 class ServiceProvider extends Model
 {
     use HasFactory, HasSlug, SoftDeletes;
+
+    protected $appends = [
+        'primary_service_type',
+    ];
 
     protected $fillable = [
         'user_id',
@@ -82,6 +88,7 @@ class ServiceProvider extends Model
             'serves_in_person' => 'boolean',
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
+            'is_verified' => 'boolean',
             'accepting_clients' => 'boolean',
             'license_expiry' => 'date',
             'verified_at' => 'datetime',
@@ -133,14 +140,42 @@ class ServiceProvider extends Model
     public function getServiceTypesLabelsAttribute(): array
     {
         return collect($this->service_types ?? [])
-            ->map(fn($type) => ServiceType::tryFrom($type)?->label() ?? $type)
+            ->map(fn ($type) => $this->resolveServiceTypeLabel(is_string($type) ? $type : (string) $type))
             ->toArray();
     }
 
     public function getPrimaryServiceTypeAttribute(): ?string
     {
         $first = $this->service_types[0] ?? null;
-        return $first ? ServiceType::tryFrom($first)?->label() : null;
+        if ($first === null || $first === '') {
+            return null;
+        }
+
+        return $this->resolveServiceTypeLabel(is_string($first) ? $first : (string) $first);
+    }
+
+    protected function resolveServiceTypeLabel(string $value): string
+    {
+        if ($enum = ServiceType::tryFrom($value)) {
+            return $enum->label();
+        }
+
+        $optionLabels = once(function () {
+            if (! Schema::hasTable('service_type_options')) {
+                return [];
+            }
+            try {
+                return ServiceTypeOption::query()->pluck('label', 'value')->all();
+            } catch (\Throwable) {
+                return [];
+            }
+        });
+
+        if (isset($optionLabels[$value])) {
+            return $optionLabels[$value];
+        }
+
+        return Str::of($value)->replace(['_', '-'], ' ')->title()->toString();
     }
 
     public function getLocationDisplayAttribute(): string

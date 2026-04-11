@@ -44,6 +44,10 @@ const logout = () => {
 const isActive = (href) => {
     return page.url.startsWith(href);
 };
+
+const unreadNotificationsCount = computed(
+    () => page.props.unread_notifications_count ?? 0,
+);
 </script>
 
 <template>
@@ -127,10 +131,17 @@ const isActive = (href) => {
                     <div class="flex-1 lg:flex-none"></div>
 
                     <div class="flex items-center gap-4">
-                        <button class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+                        <Link
+                            href="/admin/notifications"
+                            class="relative p-2 rounded-lg text-slate-500 transition-colors hover:bg-slate-100"
+                            title="Notifications"
+                        >
                             <BellIcon class="h-6 w-6" />
-                            <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500"></span>
-                        </button>
+                            <span
+                                v-if="unreadNotificationsCount > 0"
+                                class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500"
+                            />
+                        </Link>
                         <Link
                             href="/"
                             class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"

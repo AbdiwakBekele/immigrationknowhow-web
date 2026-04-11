@@ -260,7 +260,7 @@ const ratingDistribution = computed(() => {
                                     {{ review.provider_response ? 'Edit Response' : 'Respond' }}
                                 </button>
                                 <button 
-                                    v-if="!review.is_flagged"
+                                    v-if="review.is_approved"
                                     @click="openReportModal(review)"
                                     class="btn-ghost btn-sm text-gray-500"
                                 >
@@ -268,7 +268,7 @@ const ratingDistribution = computed(() => {
                                     Report
                                 </button>
                                 <span v-else class="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                                    Reported
+                                    Under moderation
                                 </span>
                             </div>
                         </div>

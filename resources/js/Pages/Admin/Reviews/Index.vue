@@ -2,6 +2,18 @@
 import { Head } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { StarIcon, ChatBubbleLeftRightIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
+
+defineProps({
+    stats: {
+        type: Object,
+        default: () => ({
+            total: 0,
+            pending: 0,
+            today: 0,
+            average_rating: 0,
+        }),
+    },
+});
 </script>
 
 <template>
@@ -19,22 +31,22 @@ import { StarIcon, ChatBubbleLeftRightIcon, ExclamationTriangleIcon } from '@her
                     <div class="mb-3 inline-flex rounded-lg bg-yellow-100 p-2">
                         <StarIcon class="h-5 w-5 text-yellow-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-gray-900">--</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ stats.average_rating ?? 0 }}</p>
                     <p class="text-sm text-gray-500">Average rating</p>
                 </div>
                 <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
                     <div class="mb-3 inline-flex rounded-lg bg-sky-100 p-2">
                         <ChatBubbleLeftRightIcon class="h-5 w-5 text-sky-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-gray-900">--</p>
-                    <p class="text-sm text-gray-500">New reviews</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ stats.today ?? 0 }}</p>
+                    <p class="text-sm text-gray-500">New today</p>
                 </div>
                 <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
                     <div class="mb-3 inline-flex rounded-lg bg-rose-100 p-2">
                         <ExclamationTriangleIcon class="h-5 w-5 text-rose-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-gray-900">--</p>
-                    <p class="text-sm text-gray-500">Flagged items</p>
+                    <p class="text-3xl font-semibold text-gray-900">{{ stats.pending ?? 0 }}</p>
+                    <p class="text-sm text-gray-500">Pending moderation</p>
                 </div>
             </div>
 
