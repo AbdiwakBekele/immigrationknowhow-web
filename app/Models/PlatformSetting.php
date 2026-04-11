@@ -63,6 +63,11 @@ class PlatformSetting extends Model
         return static::query()->firstOrCreate([], static::defaults());
     }
 
+    public static function defaultBrandLogoUrl(): string
+    {
+        return asset('images/immigrants-know-how-logo.svg');
+    }
+
     public static function branding(): array
     {
         $defaults = static::defaults();
@@ -70,8 +75,8 @@ class PlatformSetting extends Model
         if (! Schema::hasTable('platform_settings')) {
             return [
                 'company_name' => $defaults['company_name'],
-                'site_logo_url' => null,
-                'admin_logo_url' => null,
+                'site_logo_url' => static::defaultBrandLogoUrl(),
+                'admin_logo_url' => static::defaultBrandLogoUrl(),
                 'support_email' => $defaults['support_email'],
                 'support_phone' => $defaults['support_phone'],
                 'support_address' => $defaults['support_address'],
@@ -84,8 +89,8 @@ class PlatformSetting extends Model
 
         return [
             'company_name' => $settings?->company_name ?: $defaults['company_name'],
-            'site_logo_url' => $settings?->site_logo_url,
-            'admin_logo_url' => $settings?->admin_logo_url,
+            'site_logo_url' => $settings?->site_logo_url ?? static::defaultBrandLogoUrl(),
+            'admin_logo_url' => $settings?->admin_logo_url ?? static::defaultBrandLogoUrl(),
             'support_email' => $settings?->support_email ?: $defaults['support_email'],
             'support_phone' => $settings?->support_phone ?: $defaults['support_phone'],
             'support_address' => $settings?->support_address ?: $defaults['support_address'],
@@ -94,13 +99,17 @@ class PlatformSetting extends Model
         ];
     }
 
-    public function getSiteLogoUrlAttribute(): ?string
+    public function getSiteLogoUrlAttribute(): string
     {
-        return $this->site_logo_path ? asset('storage/'.$this->site_logo_path) : null;
+        return $this->site_logo_path
+            ? asset('storage/'.$this->site_logo_path)
+            : static::defaultBrandLogoUrl();
     }
 
-    public function getAdminLogoUrlAttribute(): ?string
+    public function getAdminLogoUrlAttribute(): string
     {
-        return $this->admin_logo_path ? asset('storage/'.$this->admin_logo_path) : null;
+        return $this->admin_logo_path
+            ? asset('storage/'.$this->admin_logo_path)
+            : static::defaultBrandLogoUrl();
     }
 }
