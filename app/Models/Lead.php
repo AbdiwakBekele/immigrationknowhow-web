@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\AffiliateReferral;
 use App\Enums\LeadStatus;
 use App\Enums\ServiceType;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,6 +37,7 @@ class Lead extends Model
         'decline_reason',
         'source',
         'referral_code',
+        'affiliate_referral_id',
     ];
 
     protected function casts(): array
@@ -87,6 +88,11 @@ class Lead extends Model
     public function review(): HasOne
     {
         return $this->hasOne(Review::class);
+    }
+
+    public function affiliateReferral(): BelongsTo
+    {
+        return $this->belongsTo(AffiliateReferral::class);
     }
 
     // Accessors

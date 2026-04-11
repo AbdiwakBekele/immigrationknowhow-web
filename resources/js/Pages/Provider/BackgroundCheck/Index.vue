@@ -103,14 +103,6 @@ const maxDob = computed(() => {
                 <p class="text-gray-500 mt-1">Complete a background check to become a verified provider and build trust with clients</p>
             </div>
 
-            <!-- Flash Messages -->
-            <div v-if="$page.props.flash?.success" class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4">
-                <div class="flex items-center gap-3">
-                    <CheckBadgeSolid class="h-5 w-5 text-green-600" />
-                    <p class="text-green-800">{{ $page.props.flash.success }}</p>
-                </div>
-            </div>
-
             <div v-if="form.errors.error" class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4">
                 <div class="flex items-center gap-3">
                     <XCircleIcon class="h-5 w-5 text-red-600" />

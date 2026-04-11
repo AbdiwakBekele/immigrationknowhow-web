@@ -22,4 +22,33 @@ export default defineConfig({
             '@': '/resources/js',
         },
     },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) {
+                        return;
+                    }
+
+                    if (id.includes('/@inertiajs/') || id.includes('/vue/') || id.includes('/@vue/')) {
+                        return 'framework';
+                    }
+
+                    if (id.includes('/@heroicons/') || id.includes('/@headlessui/')) {
+                        return 'ui';
+                    }
+
+                    if (id.includes('/chart.js/') || id.includes('/vue-chartjs/')) {
+                        return 'charts';
+                    }
+
+                    if (id.includes('/lodash/') || id.includes('/lodash-es/')) {
+                        return 'utils';
+                    }
+
+                    return 'vendor';
+                },
+            },
+        },
+    },
 });

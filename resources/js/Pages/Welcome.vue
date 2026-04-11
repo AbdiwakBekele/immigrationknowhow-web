@@ -1,5 +1,7 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { 
     MagnifyingGlassIcon, 
     ShieldCheckIcon, 
@@ -7,7 +9,6 @@ import {
     StarIcon,
     ArrowRightIcon,
     CheckCircleIcon,
-    GlobeAltIcon,
     UserGroupIcon,
     BookOpenIcon
 } from '@heroicons/vue/24/outline';
@@ -19,6 +20,14 @@ defineProps({
     stats: { type: Object, default: () => ({}) },
     testimonials: { type: Array, default: () => [] },
 });
+
+const page = usePage();
+const companyName = computed(() => page.props.branding?.company_name || 'ImmigrationKnowHow');
+const siteTagline = computed(() => page.props.branding?.site_tagline || 'Connect with trusted attorneys, tax experts, translators, and more to navigate your immigration journey with confidence.');
+const footerTagline = computed(() => page.props.branding?.footer_tagline || 'Connecting immigrants with trusted service providers since 2024.');
+const supportEmail = computed(() => page.props.branding?.support_email || null);
+const supportPhone = computed(() => page.props.branding?.support_phone || null);
+const supportAddress = computed(() => page.props.branding?.support_address || null);
 
 const features = [
     {
@@ -45,7 +54,7 @@ const features = [
 </script>
 
 <template>
-    <Head title="Find Trusted Immigration Services" />
+    <Head :title="`Find Trusted Immigration Services | ${companyName}`" />
 
     <div class="min-h-screen bg-white">
         <!-- Navigation -->
@@ -54,8 +63,7 @@ const features = [
                 <div class="flex justify-between h-16">
                     <div class="flex items-center">
                         <Link href="/" class="flex items-center gap-2">
-                            <GlobeAltIcon class="h-8 w-8 text-primary-600" />
-                            <span class="text-xl font-display font-bold text-gray-900">ImmigrationKnowHow</span>
+                            <BrandLogo context="site" subtitle="" mark-class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-primary-50 text-primary-600" name-class="text-xl font-display font-bold text-gray-900" initials-class="font-display text-base font-bold uppercase tracking-wide" />
                         </Link>
                     </div>
                     <div class="hidden md:flex items-center gap-6">
@@ -87,8 +95,7 @@ const features = [
                             <span class="text-secondary-400">Immigration Services</span>
                         </h1>
                         <p class="mt-6 text-lg lg:text-xl text-primary-100 leading-relaxed">
-                            Connect with verified attorneys, tax experts, translators, and more. 
-                            Get the help you need to navigate your immigration journey with confidence.
+                            {{ siteTagline }}
                         </p>
                         <div class="mt-10 flex flex-col sm:flex-row gap-4">
                             <Link href="/marketplace" class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-primary-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-lg">
@@ -162,7 +169,7 @@ const features = [
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center max-w-3xl mx-auto mb-16">
                     <h2 class="text-3xl lg:text-4xl font-display font-bold text-gray-900">
-                        Why Choose ImmigrationKnowHow?
+                        Why Choose {{ companyName }}?
                     </h2>
                     <p class="mt-4 text-lg text-gray-600">
                         We make it easy to find and connect with trusted immigration service providers
@@ -316,10 +323,9 @@ const features = [
                 <div class="grid md:grid-cols-4 gap-8">
                     <div>
                         <div class="flex items-center gap-2 mb-4">
-                            <GlobeAltIcon class="h-8 w-8 text-primary-400" />
-                            <span class="text-xl font-display font-bold text-white">ImmigrationKnowHow</span>
+                            <BrandLogo context="site" subtitle="" mark-class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/10 text-white" name-class="text-xl font-display font-bold text-white" subtitle-class="text-white/70" initials-class="font-display text-base font-bold uppercase tracking-wide" />
                         </div>
-                        <p class="text-sm">Connecting immigrants with trusted service providers since 2024.</p>
+                        <p class="text-sm">{{ footerTagline }}</p>
                     </div>
                     <div>
                         <h4 class="font-semibold text-white mb-4">For Users</h4>
@@ -342,13 +348,16 @@ const features = [
                         <ul class="space-y-2 text-sm">
                             <li><Link href="/help" class="hover:text-white">Help Center</Link></li>
                             <li><Link href="/contact" class="hover:text-white">Contact Us</Link></li>
+                            <li v-if="supportEmail"><a :href="`mailto:${supportEmail}`" class="hover:text-white">{{ supportEmail }}</a></li>
+                            <li v-if="supportPhone"><a :href="`tel:${supportPhone}`" class="hover:text-white">{{ supportPhone }}</a></li>
+                            <li v-if="supportAddress" class="text-gray-400">{{ supportAddress }}</li>
                             <li><Link href="/privacy" class="hover:text-white">Privacy Policy</Link></li>
                             <li><Link href="/terms" class="hover:text-white">Terms of Service</Link></li>
                         </ul>
                     </div>
                 </div>
                 <div class="mt-12 pt-8 border-t border-gray-800 text-center text-sm">
-                    &copy; {{ new Date().getFullYear() }} ImmigrationKnowHow. All rights reserved.
+                    &copy; {{ new Date().getFullYear() }} {{ companyName }}. All rights reserved.
                 </div>
             </div>
         </footer>

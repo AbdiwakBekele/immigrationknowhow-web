@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
     $middleware->web(append: [
         \App\Http\Middleware\HandleInertiaRequests::class,
+        \App\Http\Middleware\CaptureAffiliateAttribution::class,
     ]);
 
     $middleware->alias([
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         'onboarding.complete' => \App\Http\Middleware\EnsureOnboardingComplete::class,
         'phone.verified' => \App\Http\Middleware\EnsurePhoneVerified::class,
+        'affiliate.access' => \App\Http\Middleware\EnsureAffiliatePortalAccess::class,
     ]);
 
     // Disable CSRF for webhooks

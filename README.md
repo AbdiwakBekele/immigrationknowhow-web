@@ -1,6 +1,6 @@
 # ImmigrationKnowHow Platform
 
-A full-featured immigration services marketplace built with Laravel 11, Vue 3, Inertia.js, and Tailwind CSS.
+A full-featured immigration services marketplace built with Laravel 13, Vue 3, Inertia.js, and Tailwind CSS.
 
 ## Features
 
@@ -16,7 +16,7 @@ A full-featured immigration services marketplace built with Laravel 11, Vue 3, I
 
 ## Tech Stack
 
-- **Backend**: Laravel 11, PHP 8.2+
+- **Backend**: Laravel 13, PHP 8.4+
 - **Frontend**: Vue 3, Inertia.js, Tailwind CSS
 - **UI Components**: Headless UI, Heroicons
 - **Authorization**: Spatie Laravel Permission
@@ -24,7 +24,7 @@ A full-featured immigration services marketplace built with Laravel 11, Vue 3, I
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.4+
 - Composer 2.x
 - Node.js 18+ and npm
 - SQLite, MySQL, or PostgreSQL

@@ -71,7 +71,10 @@ const formatDuration = (seconds) => {
         <div class="min-h-screen bg-slate-50">
             <!-- Hero Section -->
             <div class="bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 relative overflow-hidden">
-                <div class="absolute inset-0 bg-[url('/img/pattern.svg')] opacity-5"></div>
+                <div
+                    class="absolute inset-0 opacity-5"
+                    style="background-image: url('/img/pattern.svg');"
+                ></div>
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative">
                     <h1 class="text-4xl lg:text-5xl font-display font-bold text-white mb-4">
                         Digital Library

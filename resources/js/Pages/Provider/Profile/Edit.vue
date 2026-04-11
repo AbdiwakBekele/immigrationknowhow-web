@@ -26,9 +26,6 @@ const props = defineProps({
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
-// Flash messages
-const flash = computed(() => page.props.flash || {});
-
 const form = useForm({
     // Business Info
     business_name: props.provider?.business_name || '',
@@ -216,16 +213,6 @@ const verificationStatusLabel = computed(() => {
                             Preview
                         </Link>
                     </div>
-                </div>
-
-                <!-- Flash Messages -->
-                <div v-if="flash.success" class="mb-6 flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700">
-                    <CheckCircleIcon class="h-5 w-5 flex-shrink-0" />
-                    {{ flash.success }}
-                </div>
-                <div v-if="flash.error" class="mb-6 flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                    <ExclamationTriangleIcon class="h-5 w-5 flex-shrink-0" />
-                    {{ flash.error }}
                 </div>
 
                 <form @submit.prevent="updateProfile" class="space-y-6">

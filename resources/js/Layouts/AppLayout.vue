@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
 import { Transition } from 'vue';
 import {
@@ -62,13 +63,15 @@ const logout = () => {
                     <div class="flex items-center">
                         <Link href="/" class="flex items-center space-x-3">
                             <div class="relative">
-                                <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
-                                    <span class="text-white font-bold text-lg">IK</span>
-                                </div>
+                                <BrandLogo
+                                    context="site"
+                                    :show-name="false"
+                                    mark-class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25"
+                                />
                                 <div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-white"></div>
                             </div>
                             <span class="hidden sm:block text-xl font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                                ImmigrationKnowHow
+                                {{ $page.props.branding?.company_name || 'ImmigrationKnowHow' }}
                             </span>
                         </Link>
                     </div>
@@ -263,7 +266,7 @@ const logout = () => {
                 </div>
                 <div class="mt-12 pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center">
                     <p class="text-sm text-slate-400">
-                        © {{ new Date().getFullYear() }} ImmigrationKnowHow. All rights reserved.
+                        © {{ new Date().getFullYear() }} {{ $page.props.branding?.company_name || 'ImmigrationKnowHow' }}. All rights reserved.
                     </p>
                     <div class="flex space-x-6 mt-4 md:mt-0">
                         <a href="#" class="text-slate-400 hover:text-white transition-colors">

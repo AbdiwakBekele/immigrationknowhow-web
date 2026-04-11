@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { 
     Bars3Icon, 
     HomeIcon,
@@ -22,8 +23,9 @@ import {
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const sidebarOpen = ref(false);
+const isSuperAdmin = computed(() => user.value?.roles?.includes('super_admin'));
 
-const navigation = [
+const navigation = computed(() => [
     { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
     { name: 'Users', href: '/admin/users', icon: UsersIcon },
     { name: 'Providers', href: '/admin/providers', icon: BriefcaseIcon },
@@ -34,8 +36,8 @@ const navigation = [
     { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },
     { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
     { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
-    { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
-];
+    ...(isSuperAdmin.value ? [{ name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon }] : []),
+]);
 
 const logout = () => {
     router.post('/logout');
@@ -76,14 +78,17 @@ const unreadNotificationsCount = computed(
             ]"
         >
             <!-- Logo -->
-            <div class="flex shrink-0 items-center gap-3 border-b border-slate-200 px-6 py-5 pb-6">
-                <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600">
-                    <span class="font-bold text-white">IK</span>
-                </div>
-                <div class="min-w-0">
-                    <span class="block truncate text-sm font-semibold leading-tight text-slate-900">ImmigrationKnowHow</span>
-                    <span class="mt-0.5 block text-xs text-slate-500">Admin Panel</span>
-                </div>
+            <div class="flex shrink-0 items-center border-b border-slate-200 px-6 py-5 pb-6">
+                <Link href="/admin/dashboard" class="block w-full">
+                    <BrandLogo
+                        context="admin"
+                        :show-name="false"
+                        container-class="flex items-center"
+                        mark-class="flex h-12 w-full max-w-[180px] items-center justify-start overflow-hidden rounded-none bg-transparent text-slate-900 shadow-none"
+                        image-class="h-full w-full object-contain object-left"
+                        initials-class="font-bold text-lg uppercase tracking-wide"
+                    />
+                </Link>
             </div>
 
             <!-- Navigation -->

@@ -8,6 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $driver = Schema::getConnection()->getDriverName();
+
         // Library categories
         Schema::create('library_categories', function (Blueprint $table) {
             $table->id();
@@ -21,7 +23,7 @@ return new class extends Migration
         });
 
         // Library items (ebooks, audiobooks)
-        Schema::create('library_items', function (Blueprint $table) {
+        Schema::create('library_items', function (Blueprint $table) use ($driver) {
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('category_id')->nullable()->constrained('library_categories')->nullOnDelete();
@@ -67,7 +69,10 @@ return new class extends Migration
             $table->index(['type', 'is_active']);
             $table->index(['category_id', 'is_active']);
             $table->index('is_featured');
-            $table->fullText(['title', 'description', 'author']);
+
+            if ($driver !== 'sqlite') {
+                $table->fullText(['title', 'description', 'author']);
+            }
         });
 
         // User library access/downloads

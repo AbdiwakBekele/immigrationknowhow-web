@@ -58,6 +58,10 @@ class RolesAndPermissionsSeeder extends Seeder
             // Affiliate permissions
             'view affiliates',
             'manage affiliates',
+            'view affiliate dashboard',
+            'view affiliate earnings',
+            'view affiliate payouts',
+            'edit affiliate profile',
             
             // Video permissions
             'view videos',
@@ -120,6 +124,19 @@ class RolesAndPermissionsSeeder extends Seeder
             'download library items',
             'view videos',
             'view affiliates',
+        ]);
+
+        // Affiliate
+        $affiliateRole = Role::firstOrCreate([
+            'name' => UserRole::AFFILIATE->value,
+            'guard_name' => 'web',
+        ]);
+        $affiliateRole->syncPermissions([
+            'view affiliates',
+            'view affiliate dashboard',
+            'view affiliate earnings',
+            'view affiliate payouts',
+            'edit affiliate profile',
         ]);
 
         // Admin

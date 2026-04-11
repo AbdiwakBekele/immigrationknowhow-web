@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Affiliates\CreateAffiliateEarningAction;
 use App\Enums\LeadStatus;
+use App\Enums\AffiliateCommissionTrigger;
 use App\Enums\ServiceType;
 use App\Models\Lead;
 use App\Models\ServiceProvider;
@@ -16,6 +18,10 @@ use Inertia\Response;
 
 class LeadController extends Controller
 {
+    public function __construct(
+        protected CreateAffiliateEarningAction $createAffiliateEarning,
+    ) {}
+
     public function create(ServiceProvider $provider): Response
     {
         $this->authorize('create', Lead::class);
@@ -54,11 +60,15 @@ class LeadController extends Controller
         $validated['preferred_contact_method'] = $validated['preferred_contact_method'] ?? 'message';
 
         $lead = DB::transaction(function () use ($validated, $provider, $sender) {
+            $source = $sender->affiliate_referral_id ? 'affiliate' : 'marketplace';
+
             $lead = Lead::create([
                 ...$validated,
-                'user_id' => auth()->id(),
+                'user_id' => $sender->id,
                 'service_provider_id' => $provider->id,
-                'source' => 'marketplace',
+                'source' => $source,
+                'referral_code' => $sender->referredByAffiliate?->code,
+                'affiliate_referral_id' => $sender->affiliate_referral_id,
             ]);
 
             // Increment provider's lead count
@@ -81,7 +91,7 @@ class LeadController extends Controller
     // For providers to view their leads
     public function index(Request $request): Response
     {
-        $user = auth()->user();
+        $user = $request->user();
         $provider = $user->serviceProvider;
 
         abort_unless($provider, 403, 'You must be a service provider to view leads.');
@@ -134,7 +144,7 @@ class LeadController extends Controller
 
     public function show(Lead $lead): Response
     {
-        $user = auth()->user();
+        $user = request()->user();
 
         // Ensure user can view this lead
         $this->authorize('view', $lead);
@@ -176,7 +186,7 @@ class LeadController extends Controller
         match ($status) {
             LeadStatus::CONTACTED => $lead->markAsContacted(),
             LeadStatus::IN_PROGRESS => $lead->markAsInProgress(),
-            LeadStatus::CONVERTED => $lead->markAsConverted(),
+            LeadStatus::CONVERTED => $this->markAsConvertedWithCommission($lead),
             LeadStatus::CLOSED => $lead->markAsClosed(),
             LeadStatus::DECLINED => $lead->decline($validated['decline_reason'] ?? null),
             default => $lead->update(['status' => $status]),
@@ -187,5 +197,45 @@ class LeadController extends Controller
         }
 
         return back()->with('success', 'Lead status updated.');
+    }
+
+    protected function markAsConvertedWithCommission(Lead $lead): void
+    {
+        $lead->markAsConverted();
+
+        if (! $lead->affiliateReferral) {
+            return;
+        }
+
+        $baseAmount = $this->estimateCommissionBaseAmount($lead->budget_range);
+
+        $this->createAffiliateEarning->handle(
+            $lead->affiliateReferral,
+            AffiliateCommissionTrigger::LEAD_CONVERTED,
+            Lead::class,
+            $lead->id,
+            $baseAmount,
+            'Lead conversion commission generated automatically.',
+            ['budget_range' => $lead->budget_range],
+        );
+
+        $lead->affiliateReferral->update(['last_conversion_at' => now()]);
+    }
+
+    protected function estimateCommissionBaseAmount(?string $budgetRange): float
+    {
+        if (! $budgetRange) {
+            return 0;
+        }
+
+        preg_match_all('/\d+(?:\.\d+)?/', str_replace(',', '', $budgetRange), $matches);
+
+        $numbers = collect($matches[0] ?? [])->map(fn ($value) => (float) $value)->filter();
+
+        if ($numbers->isEmpty()) {
+            return 0;
+        }
+
+        return round($numbers->avg(), 2);
     }
 }

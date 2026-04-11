@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
@@ -33,13 +34,17 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'first_name' => $request->user()->first_name,
                     'last_name' => $request->user()->last_name,
+                    'initials' => $request->user()->initials,
                     'full_name' => $request->user()->full_name,
                     'email' => $request->user()->email,
+                    'email_verified_at' => $request->user()->email_verified_at,
                     'avatar' => $request->user()->avatar,
                     'roles' => $request->user()->roles->pluck('name'),
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
+                    'is_affiliate' => $request->user()->isAffiliate(),
                 ] : null,
             ],
+            'branding' => fn () => PlatformSetting::branding(),
             'unread_notifications_count' => function () use ($request) {
                 if (! $request->user() || ! str_starts_with($request->path(), 'admin')) {
                     return 0;

@@ -1,12 +1,13 @@
 import '../css/app.css';
 import 'flag-icons/css/flag-icons.min.css';
 
-import { createApp, h } from 'vue';
+import { createApp, Fragment, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { createPinia } from 'pinia';
 import { ZiggyVue } from 'ziggy-js';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
+import AppFeedback from './Components/App/AppFeedback.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ImmigrationKnowHow';
 
@@ -19,7 +20,12 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();
         
-        return createApp({ render: () => h(App, props) })
+        return createApp({
+            render: () => h(Fragment, [
+                h(AppFeedback),
+                h(App, props),
+            ]),
+        })
             .use(plugin)
             .use(pinia)
             .use(ZiggyVue)
@@ -36,6 +42,8 @@ createInertiaApp({
                 closeButton: 'button',
                 icon: true,
                 rtl: false,
+                maxToasts: 4,
+                newestOnTop: true,
             })
             .mount(el);
     },

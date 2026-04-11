@@ -3,17 +3,23 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Models\Affiliate;
+use App\Models\AffiliateReferral;
+use App\Models\IdentityVerification;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use HasFactory, HasRoles, MustVerifyEmailTrait, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'first_name',
@@ -37,6 +43,8 @@ class User extends Authenticatable
         'onboarding_completed',
         'onboarding_data',
         'onboarding_completed_at',
+        'referred_by_affiliate_id',
+        'affiliate_referral_id',
         'is_active',
         'last_login_at',
     ];
@@ -93,9 +101,19 @@ class User extends Authenticatable
         return $this->hasOne(ServiceProvider::class);
     }
 
+    public function affiliateProfile(): HasOne
+    {
+        return $this->hasOne(Affiliate::class);
+    }
+
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class);
+    }
+
+    public function affiliateReferrals(): HasMany
+    {
+        return $this->hasMany(AffiliateReferral::class, 'referred_user_id');
     }
 
     public function conversations(): HasMany
@@ -123,6 +141,16 @@ class User extends Authenticatable
         return $this->hasMany(LibraryUserAccess::class);
     }
 
+    public function referredByAffiliate(): BelongsTo
+    {
+        return $this->belongsTo(Affiliate::class, 'referred_by_affiliate_id');
+    }
+
+    public function affiliateReferral(): BelongsTo
+    {
+        return $this->belongsTo(AffiliateReferral::class, 'affiliate_referral_id');
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -142,6 +170,11 @@ class User extends Authenticatable
     public function scopeGeneralUsers($query)
     {
         return $query->role(UserRole::USER->value);
+    }
+
+    public function scopeAffiliates($query)
+    {
+        return $query->role(UserRole::AFFILIATE->value);
     }
 
     // Helper Methods
@@ -165,6 +198,11 @@ class User extends Authenticatable
         return $this->hasAnyRole([UserRole::ADMIN->value, UserRole::SUPER_ADMIN->value]);
     }
 
+    public function isAffiliate(): bool
+    {
+        return $this->hasRole(UserRole::AFFILIATE->value);
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->hasRole(UserRole::SUPER_ADMIN->value);
@@ -173,6 +211,13 @@ class User extends Authenticatable
     public function hasCompletedOnboarding(): bool
     {
         return $this->onboarding_completed;
+    }
+
+    public function canAccessAffiliatePortal(): bool
+    {
+        return $this->isAffiliate()
+            && $this->affiliateProfile
+            && $this->affiliateProfile->isPortalAccessible();
     }
 
     public function getLatestVerification()
