@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\Affiliate as AffiliatePortal;
+use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LibraryController;
@@ -47,6 +49,11 @@ Route::post('/checkr', \App\Http\Controllers\Webhooks\CheckrWebhookController::c
 Route::middleware('guest')->group(function () {
     Route::get('/register', [Auth\RegisterController::class, 'create'])->name('register');
     Route::post('/register', [Auth\RegisterController::class, 'store']);
+
+    Route::get('/affiliate/register', [AffiliateAuth\RegistrationController::class, 'create'])->name('affiliate.register');
+    Route::post('/affiliate/register', [AffiliateAuth\RegistrationController::class, 'store'])->name('affiliate.register.store');
+    Route::get('/affiliate/invites/{token}', [AffiliateAuth\InviteAcceptanceController::class, 'show'])->name('affiliate.invites.show');
+    Route::post('/affiliate/invites/{token}', [AffiliateAuth\InviteAcceptanceController::class, 'store'])->name('affiliate.invites.store');
 });
 
 // Login is not behind `guest`: authenticated users must still reach this page (e.g. "Sign in"
@@ -57,6 +64,29 @@ Route::post('/login', [Auth\LoginController::class, 'store']);
 Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->prefix('affiliate')->name('affiliate.')->group(function () {
+    Route::get('/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');
+    Route::post('/email/verification-notification', AffiliateAuth\EmailVerificationNotificationController::class)
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+    Route::get('/email/verify/{id}/{hash}', AffiliateAuth\EmailVerificationController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+});
+
+Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->group(function () {
+    Route::get('/affiliate/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');
+    Route::post('/affiliate/email/verification-notification', AffiliateAuth\EmailVerificationNotificationController::class)
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+    Route::get('/affiliate/email/verify/{id}/{hash}', AffiliateAuth\EmailVerificationController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
+    Route::get('/affiliate/profile', [AffiliatePortal\ProfileController::class, 'edit'])->name('affiliate.profile.edit');
+    Route::patch('/affiliate/profile', [AffiliatePortal\ProfileController::class, 'update'])->name('affiliate.profile.update');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -176,6 +206,15 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::get('/analytics', [Provider\AnalyticsController::class, 'index'])->name('analytics.index');
     });
 
+Route::middleware(['auth', 'role:affiliate', 'affiliate.access', 'verified'])
+    ->prefix('affiliate')
+    ->name('affiliate.')
+    ->group(function () {
+        Route::get('/dashboard', AffiliatePortal\DashboardController::class)->name('dashboard');
+        Route::get('/earnings', [AffiliatePortal\EarningsController::class, 'index'])->name('earnings.index');
+        Route::get('/payouts', [AffiliatePortal\PayoutController::class, 'index'])->name('payouts.index');
+    });
+
 /*
 |--------------------------------------------------------------------------
 | Admin Routes
@@ -212,8 +251,20 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::resource('library', Admin\LibraryController::class);
         Route::resource('library-categories', Admin\LibraryCategoryController::class);
         
-        // Affiliates
-        Route::resource('affiliates', Admin\AffiliateController::class);
+        // Legacy partner links
+        Route::resource('partner-links', Admin\AffiliateController::class);
+
+        // Affiliate Program
+        Route::get('/affiliates/invite', [Admin\AffiliateInviteController::class, 'create'])->name('affiliates.invite.create');
+        Route::post('/affiliates/invite', [Admin\AffiliateInviteController::class, 'store'])->name('affiliates.invite.store');
+        Route::post('/affiliates/invite/{affiliateInvite}/resend', [Admin\AffiliateInviteController::class, 'resend'])->name('affiliates.invite.resend');
+        Route::get('/affiliates/commissions', [Admin\AffiliateCommissionController::class, 'index'])->name('affiliates.commissions.index');
+        Route::post('/affiliates/commissions', [Admin\AffiliateCommissionController::class, 'store'])->name('affiliates.commissions.store');
+        Route::patch('/affiliates/commissions/{affiliateCommission}', [Admin\AffiliateCommissionController::class, 'update'])->name('affiliates.commissions.update');
+        Route::delete('/affiliates/commissions/{affiliateCommission}', [Admin\AffiliateCommissionController::class, 'destroy'])->name('affiliates.commissions.destroy');
+        Route::get('/affiliates/payouts', [Admin\AffiliatePayoutController::class, 'index'])->name('affiliates.payouts.index');
+        Route::post('/affiliates/payouts', [Admin\AffiliatePayoutController::class, 'store'])->name('affiliates.payouts.store');
+        Route::resource('affiliates', Admin\AffiliatePartnerController::class);
         
         // Videos
         Route::resource('videos', Admin\VideoController::class);
@@ -228,7 +279,9 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/reports/revenue', [Admin\ReportController::class, 'revenue'])->name('reports.revenue');
         
         // Settings
-        Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
-        Route::patch('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+        Route::middleware('role:super_admin')->group(function () {
+            Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
+            Route::patch('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+        });
 
     });

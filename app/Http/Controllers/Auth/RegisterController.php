@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Actions\Affiliates\AttachAffiliateReferralToUserAction;
+use App\Actions\Affiliates\CreateAffiliateEarningAction;
+use App\Enums\AffiliateCommissionTrigger;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +21,11 @@ use Inertia\Response;
 
 class RegisterController extends Controller
 {
+    public function __construct(
+        protected AttachAffiliateReferralToUserAction $attachAffiliateReferral,
+        protected CreateAffiliateEarningAction $createAffiliateEarning,
+    ) {}
+
     public function create(Request $request): Response
     {
         $initialRole = $request->string('role')->toString();
@@ -72,7 +81,20 @@ class RegisterController extends Controller
             ],
         ]);
 
+        RoleHelper::ensureExists($effectiveRole);
         $user->assignRole($effectiveRole);
+
+        $referral = $this->attachAffiliateReferral->handle($user, $request);
+        if ($referral) {
+            $this->createAffiliateEarning->handle(
+                $referral,
+                AffiliateCommissionTrigger::SIGNUP,
+                User::class,
+                $user->id,
+                0,
+                'Signup referral commission generated automatically.',
+            );
+        }
 
         Auth::login($user);
 

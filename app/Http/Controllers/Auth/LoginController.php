@@ -45,6 +45,7 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
+        /** @var User $user */
         $user = Auth::user();
         $user->updateLastLogin();
 
@@ -56,6 +57,14 @@ class LoginController extends Controller
      */
     protected function homeUrlForUser(User $user): string
     {
+        if ($user->isAffiliate() && ! $user->hasVerifiedEmail()) {
+            return route('verification.notice');
+        }
+
+        if ($user->isAffiliate()) {
+            return route('affiliate.dashboard');
+        }
+
         if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
             return route('address-detail');
         }
@@ -77,6 +86,14 @@ class LoginController extends Controller
 
     protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse
     {
+        if ($user->isAffiliate() && ! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
+        if ($user->isAffiliate()) {
+            return redirect()->intended(route('affiliate.dashboard'));
+        }
+
         if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
             return redirect()->route('address-detail');
         }

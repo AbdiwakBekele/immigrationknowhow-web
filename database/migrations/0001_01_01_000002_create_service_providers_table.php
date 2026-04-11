@@ -8,7 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('service_providers', function (Blueprint $table) {
+        $driver = Schema::getConnection()->getDriverName();
+
+        Schema::create('service_providers', function (Blueprint $table) use ($driver) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             
@@ -81,7 +83,10 @@ return new class extends Migration
             $table->index('verification_status');
             $table->index(['is_active', 'accepting_clients']);
             $table->index('is_featured');
-            $table->fullText(['business_name', 'bio', 'description']);
+
+            if ($driver !== 'sqlite') {
+                $table->fullText(['business_name', 'bio', 'description']);
+            }
         });
     }
 

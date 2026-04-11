@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Provider;
 
+use App\Actions\Affiliates\CreateAffiliateEarningAction;
+use App\Enums\AffiliateCommissionTrigger;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
@@ -14,9 +16,13 @@ use Inertia\Response;
 
 class LeadsController extends Controller
 {
+    public function __construct(
+        protected CreateAffiliateEarningAction $createAffiliateEarning,
+    ) {}
+
     public function index(Request $request): Response
     {
-        $provider = auth()->user()->serviceProvider;
+        $provider = $request->user()->serviceProvider;
 
         $query = Lead::query()
             ->where('service_provider_id', $provider->id)
@@ -85,15 +91,13 @@ class LeadsController extends Controller
         ]);
 
         // Add status changes from notes/logs if you have them
-        if ($lead->notes) {
-            foreach ($lead->notes as $index => $note) {
-                $activityLog->push([
-                    'id' => 'note-' . $index,
-                    'type' => 'note',
-                    'description' => $note['content'] ?? $note,
-                    'created_at' => $note['created_at'] ?? $lead->created_at,
-                ]);
-            }
+        if ($lead->provider_notes) {
+            $activityLog->push([
+                'id' => 'provider-notes',
+                'type' => 'note',
+                'description' => $lead->provider_notes,
+                'created_at' => $lead->updated_at,
+            ]);
         }
 
         return Inertia::render('Provider/Leads/Show', [
@@ -114,25 +118,40 @@ class LeadsController extends Controller
         $oldStatus = $lead->status;
         $newStatus = LeadStatus::from($validated['status']);
 
-        $lead->update(['status' => $newStatus]);
+        $updates = ['status' => $newStatus];
 
         // Update timestamps based on status
-        if ($newStatus === LeadStatus::CONTACTED && !$lead->contacted_at) {
-            $lead->update(['contacted_at' => now()]);
-        } elseif ($newStatus === LeadStatus::CONVERTED && !$lead->converted_at) {
-            $lead->update(['converted_at' => now()]);
-        } elseif (in_array($newStatus, [LeadStatus::CLOSED, LeadStatus::DECLINED]) && !$lead->closed_at) {
-            $lead->update(['closed_at' => now()]);
+        if ($newStatus === LeadStatus::CONTACTED && ! $lead->responded_at) {
+            $updates['responded_at'] = now();
+        } elseif ($newStatus === LeadStatus::CONVERTED && ! $lead->converted_at) {
+            $updates['converted_at'] = now();
+            $updates['closed_at'] = now();
+        } elseif (in_array($newStatus, [LeadStatus::CLOSED, LeadStatus::DECLINED], true) && ! $lead->closed_at) {
+            $updates['closed_at'] = now();
         }
 
-        // Add to activity log / notes
-        $notes = $lead->notes ?? [];
-        $notes[] = [
-            'type' => 'status_change',
-            'content' => "Status changed from {$oldStatus->value} to {$newStatus->value}",
-            'created_at' => now()->toISOString(),
-        ];
-        $lead->updateQuietly(['notes' => $notes]);
+        $updates['provider_notes'] = trim(collect([
+            $lead->provider_notes,
+            '['.now()->toDateTimeString()."] Status changed from {$oldStatus->value} to {$newStatus->value}",
+        ])->filter()->implode(PHP_EOL));
+
+        $lead->update($updates);
+
+        if ($newStatus === LeadStatus::CONVERTED && $lead->affiliateReferral) {
+            $baseAmount = $this->estimateCommissionBaseAmount($lead->budget_range);
+
+            $this->createAffiliateEarning->handle(
+                $lead->affiliateReferral,
+                AffiliateCommissionTrigger::LEAD_CONVERTED,
+                Lead::class,
+                $lead->id,
+                $baseAmount,
+                'Lead conversion commission generated from provider lead workflow.',
+                ['budget_range' => $lead->budget_range],
+            );
+
+            $lead->affiliateReferral->update(['last_conversion_at' => now()]);
+        }
 
         return back()->with('success', 'Lead status updated.');
     }
@@ -145,15 +164,12 @@ class LeadsController extends Controller
             'note' => ['required', 'string', 'max:1000'],
         ]);
 
-        $notes = $lead->notes ?? [];
-        $notes[] = [
-            'type' => 'note',
-            'content' => $validated['note'],
-            'created_at' => now()->toISOString(),
-            'user_id' => auth()->id(),
-        ];
-
-        $lead->update(['notes' => $notes]);
+        $lead->update([
+            'provider_notes' => trim(collect([
+                $lead->provider_notes,
+                '['.now()->toDateTimeString().'] '.$validated['note'],
+            ])->filter()->implode(PHP_EOL)),
+        ]);
 
         return back()->with('success', 'Note added.');
     }
@@ -178,7 +194,7 @@ class LeadsController extends Controller
         if ($lead->status === LeadStatus::NEW) {
             $lead->update([
                 'status' => LeadStatus::CONTACTED,
-                'contacted_at' => now(),
+                'responded_at' => now(),
             ]);
         }
 
@@ -194,19 +210,32 @@ class LeadsController extends Controller
             'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $notes = $lead->notes ?? [];
-        $notes[] = [
-            'type' => 'declined',
-            'content' => $validated['reason'] ?? 'Lead declined by provider',
-            'created_at' => now()->toISOString(),
-        ];
-
         $lead->update([
             'status' => LeadStatus::DECLINED,
             'closed_at' => now(),
-            'notes' => $notes,
+            'provider_notes' => trim(collect([
+                $lead->provider_notes,
+                '['.now()->toDateTimeString().'] '.($validated['reason'] ?? 'Lead declined by provider'),
+            ])->filter()->implode(PHP_EOL)),
         ]);
 
         return back()->with('success', 'Lead declined.');
+    }
+
+    protected function estimateCommissionBaseAmount(?string $budgetRange): float
+    {
+        if (! $budgetRange) {
+            return 0;
+        }
+
+        preg_match_all('/\d+(?:\.\d+)?/', str_replace(',', '', $budgetRange), $matches);
+
+        $numbers = collect($matches[0] ?? [])->map(fn ($value) => (float) $value)->filter();
+
+        if ($numbers->isEmpty()) {
+            return 0;
+        }
+
+        return round($numbers->avg(), 2);
     }
 }

@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 </script>
 
 <template>
@@ -26,10 +27,7 @@ import { Link } from '@inertiajs/vue3';
                 <!-- Logo -->
                 <div>
                     <Link href="/" class="flex items-center space-x-3">
-                        <div class="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            <span class="text-white font-bold text-xl">IK</span>
-                        </div>
-                        <span class="text-2xl font-bold">ImmigrationKnowHow</span>
+                        <BrandLogo context="site" subtitle="" mark-class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/20 text-white backdrop-blur-sm" name-class="text-2xl font-bold text-white" />
                     </Link>
                 </div>
 
@@ -41,8 +39,7 @@ import { Link } from '@inertiajs/vue3';
                         Starts Here
                     </h1>
                     <p class="text-lg text-sky-100 max-w-md">
-                        Connect with trusted immigration attorneys, accountants, tutors, and more. 
-                        Get the professional support you need to thrive in your new home.
+                        {{ $page.props.branding?.site_tagline || 'Connect with trusted immigration attorneys, accountants, tutors, and more. Get the professional support you need to thrive in your new home.' }}
                     </p>
                 </div>
 
@@ -73,10 +70,7 @@ import { Link } from '@inertiajs/vue3';
             <!-- Mobile header -->
             <div class="lg:hidden p-6 flex justify-between items-center border-b border-slate-100">
                 <Link href="/" class="flex items-center space-x-2">
-                    <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
-                        <span class="text-white font-bold text-lg">IK</span>
-                    </div>
-                    <span class="text-xl font-semibold text-slate-900">ImmigrationKnowHow</span>
+                    <BrandLogo context="site" subtitle="" mark-class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white" name-class="text-xl font-semibold text-slate-900" />
                 </Link>
             </div>
 
@@ -89,7 +83,8 @@ import { Link } from '@inertiajs/vue3';
 
             <!-- Footer -->
             <div class="p-6 text-center text-sm text-slate-500">
-                <p>© {{ new Date().getFullYear() }} ImmigrationKnowHow. All rights reserved.</p>
+                <p>© {{ new Date().getFullYear() }} {{ $page.props.branding?.company_name || 'ImmigrationKnowHow' }}. All rights reserved.</p>
+                <p v-if="$page.props.branding?.support_email" class="mt-1">{{ $page.props.branding.support_email }}</p>
             </div>
         </div>
     </div>

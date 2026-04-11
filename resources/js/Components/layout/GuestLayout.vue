@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 </script>
 
 <template>
@@ -9,11 +10,11 @@ import { Link } from '@inertiajs/vue3';
                 <div class="flex flex-col px-3 py-3 sm:px-5 sm:py-4 lg:items-center lg:justify-center">
                     <div class="sm:mx-auto sm:w-full sm:max-w-lg">
                         <Link :href="route('home')" class="group flex justify-center">
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 shadow-sm transition group-hover:bg-primary-700"
-                            >
-                                <span class="font-display text-base font-bold text-white">IK</span>
-                            </div>
+                            <BrandLogo
+                                context="site"
+                                :show-name="false"
+                                mark-class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-primary-600 shadow-sm transition group-hover:bg-primary-700"
+                            />
                         </Link>
                         <h2 class="mt-1.5 text-center text-xl font-display font-bold tracking-tight text-neutral-900">
                             <slot name="title">Welcome</slot>

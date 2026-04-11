@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { 
     Bars3Icon,
     HomeIcon,
@@ -66,13 +67,7 @@ const isActive = (href) => {
             <!-- Logo -->
             <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-100">
                 <Link href="/" class="flex items-center gap-3">
-                    <div class="h-9 w-9 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
-                        <span class="text-white font-bold">IK</span>
-                    </div>
-                    <div>
-                        <span class="text-slate-900 font-semibold">ImmigrationKnowHow</span>
-                        <span class="block text-xs text-slate-500">Provider Portal</span>
-                    </div>
+                    <BrandLogo context="site" subtitle="Provider Portal" mark-class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-white" />
                 </Link>
             </div>
 
