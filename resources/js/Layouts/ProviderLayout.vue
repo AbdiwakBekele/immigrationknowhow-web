@@ -16,12 +16,19 @@ import {
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user);
-const provider = computed(() => page.props.provider);
 const sidebarOpen = ref(false);
+
+/** Always resolve a non-empty logo URL (branding can be missing or empty in edge cases). */
+const providerLogoSrc = computed(() => {
+    const u = page.props.branding?.site_logo_url;
+    return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
+});
+
+const unreadNotificationsCount = computed(() => page.props.unread_notifications_count ?? 0);
 
 const navigation = [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
+    { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
@@ -40,7 +47,7 @@ const isActive = (href) => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-50">
+    <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/90">
         <!-- Mobile sidebar backdrop -->
         <Transition
             enter-active-class="transition-opacity duration-300"
@@ -52,7 +59,7 @@ const isActive = (href) => {
         >
             <div 
                 v-if="sidebarOpen" 
-                class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+                class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px] lg:hidden"
                 @click="sidebarOpen = false"
             ></div>
         </Transition>
@@ -60,114 +67,117 @@ const isActive = (href) => {
         <!-- Sidebar -->
         <aside 
             :class="[
-                'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white border-r border-slate-200 transform transition-transform duration-300 lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col border-r border-slate-200/80 bg-white/90 shadow-soft-lg backdrop-blur-xl transition-transform duration-300 ease-out lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             ]"
         >
-            <!-- Logo -->
-            <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-100">
-                <Link href="/" class="flex items-center gap-3">
-                    <BrandLogo context="site" subtitle="Provider Portal" mark-class="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 text-white" />
+            <!-- Logo only (wordmark from branding; no duplicate name / portal badge) -->
+            <div class="flex shrink-0 border-b border-slate-100/90 px-4 py-4">
+                <Link
+                    href="/"
+                    class="block w-full rounded-lg outline-none ring-offset-2 transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary-400"
+                >
+                    <BrandLogo
+                        context="site"
+                        :mark-src="providerLogoSrc"
+                        :show-name="false"
+                        container-class="flex items-center"
+                        mark-class="flex min-h-[3rem] w-full max-w-[220px] items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white px-2 py-2 shadow-sm"
+                        image-class="block h-10 w-auto max-w-full object-contain object-left"
+                        initials-class="text-sm font-bold uppercase tracking-wide text-slate-600"
+                    />
                 </Link>
             </div>
 
-            <!-- Provider info card -->
-            <div class="p-4 border-b border-slate-100">
-                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                    <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
-                        {{ user?.initials }}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-slate-900 truncate">{{ provider?.business_name || user?.full_name }}</p>
-                        <div class="flex items-center gap-1 mt-0.5">
-                            <span v-if="provider?.background_check_status === 'clear'" class="inline-flex items-center gap-1 text-xs text-emerald-600">
-                                <ShieldCheckIcon class="h-3.5 w-3.5" />
-                                Verified
-                            </span>
-                            <span v-else-if="provider?.background_check_status === 'invited'" class="text-xs text-blue-600">Check Email for Background Check</span>
-                            <span v-else-if="provider?.background_check_status === 'completed'" class="text-xs text-amber-600">Background Check Under Review</span>
-                            <span v-else class="text-xs text-amber-600">Background Check Required</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Navigation -->
-            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <nav class="flex-1 space-y-2 overflow-y-auto px-3 py-4">
                 <Link
                     v-for="item in navigation"
                     :key="item.name"
                     :href="item.href"
                     :class="[
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                        'group flex items-center gap-3 rounded-xl px-3 py-3 text-lg font-medium transition-all duration-200',
                         isActive(item.href)
-                            ? 'bg-sky-50 text-sky-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            ? 'bg-primary-50 text-primary-800 shadow-sm ring-1 ring-primary-100/80'
+                            : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
                     ]"
                 >
-                    <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                    <component
+                        :is="item.icon"
+                        :class="[
+                            'h-6 w-6 shrink-0 transition-colors',
+                            isActive(item.href) ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'
+                        ]"
+                    />
                     {{ item.name }}
                 </Link>
             </nav>
 
-            <div class="p-4 border-t border-slate-100">
-                <div class="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                    <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold">
-                        {{ user?.initials }}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-slate-900">
-                            {{ provider?.business_name || user?.full_name }}
-                        </p>
-                        <p class="mt-0.5 text-xs">
-                            <span v-if="provider?.verification_status === 'approved'" class="text-emerald-600">Verified</span>
-                            <span v-else class="text-amber-600">Pending Verification</span>
-                        </p>
-                    </div>
-                </div>
+            <div class="border-t border-slate-100/90 p-4">
+                <Link
+                    href="/provider/profile"
+                    class="flex items-center justify-between rounded-xl border border-dashed border-slate-200/90 bg-slate-50/50 px-3 py-2.5 text-xs text-slate-500 transition-colors hover:border-primary-200 hover:bg-primary-50/40 hover:text-primary-700"
+                >
+                    <span class="font-medium">Profile and visibility</span>
+                    <span class="text-primary-600">Manage →</span>
+                </Link>
             </div>
-
         </aside>
 
         <!-- Main content -->
-        <div class="lg:pl-64">
-            <!-- Top bar -->
-            <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-sm border-b border-slate-200">
-                <div class="flex h-16 items-center justify-between px-4 sm:px-6">
-                    <button
-                        @click="sidebarOpen = true"
-                        class="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100"
-                    >
-                        <Bars3Icon class="h-6 w-6" />
-                    </button>
-
-                    <div class="flex-1 lg:flex-none">
-                        <h1 class="text-lg font-semibold text-slate-900 lg:hidden">Provider Portal</h1>
+        <div class="lg:pl-[17rem]">
+            <header class="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 shadow-sm backdrop-blur-md">
+                <div class="flex h-[4.25rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+                    <div class="flex min-w-0 flex-1 items-center gap-3">
+                        <button
+                            type="button"
+                            @click="sidebarOpen = true"
+                            class="inline-flex rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:hidden"
+                        >
+                            <Bars3Icon class="h-6 w-6" />
+                        </button>
+                        <h1 class="truncate text-base font-semibold text-slate-900 lg:hidden">Provider Portal</h1>
                     </div>
 
-                    <div class="flex items-center gap-4">
-                        <button class="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
-                            <BellIcon class="h-6 w-6" />
-                        </button>
+                    <div class="flex shrink-0 items-center gap-1 sm:gap-2">
                         <Link
-                            :href="provider?.slug ? `/providers/${provider.slug}` : '#'"
-                            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                            :href="route('provider.notifications.index')"
+                            class="relative inline-flex rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                            title="Notifications"
+                            aria-label="Notifications"
                         >
-                            View Public Profile
+                            <BellIcon class="h-5 w-5" />
+                            <span
+                                v-if="unreadNotificationsCount > 0"
+                                class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white"
+                            />
+                        </Link>
+                        <Link
+                            href="/provider/profile"
+                            class="inline-flex rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                            title="Profile"
+                            aria-label="Profile"
+                        >
+                            <UserCircleIcon class="h-5 w-5" />
                         </Link>
                         <button
+                            type="button"
+                            title="Sign out"
+                            aria-label="Sign out"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
                             @click="logout"
-                            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors"
                         >
-                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
-                            Sign out
+                            <ArrowRightOnRectangleIcon class="h-4 w-4 text-slate-500" />
+                            <span class="hidden sm:inline">Sign out</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 lg:p-8">
-                <slot />
+            <main class="p-4 sm:p-6 lg:p-8 lg:pb-10">
+                <div class="mx-auto max-w-7xl">
+                    <slot />
+                </div>
             </main>
         </div>
     </div>

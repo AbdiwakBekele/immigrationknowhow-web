@@ -19,6 +19,11 @@ const props = defineProps({
         type: String,
         default: 'flex items-center gap-3',
     },
+    /** When set, this image is used in the mark (overrides uploaded site/admin logos for that slot). */
+    markSrc: {
+        type: String,
+        default: '',
+    },
     markClass: {
         type: String,
         default: 'flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-sm',
@@ -46,6 +51,17 @@ const page = usePage();
 const branding = computed(() => page.props.branding || {});
 const companyName = computed(() => branding.value.company_name || 'ImmigrationKnowHow');
 const logoUrl = computed(() => props.context === 'admin' ? branding.value.admin_logo_url : branding.value.site_logo_url);
+const markImageSrc = computed(() => {
+    const fromMark = typeof props.markSrc === 'string' ? props.markSrc.trim() : '';
+    if (fromMark) {
+        return fromMark;
+    }
+    const fromBranding = logoUrl.value;
+    if (typeof fromBranding === 'string' && fromBranding.trim() !== '') {
+        return fromBranding.trim();
+    }
+    return fromBranding || '';
+});
 const initials = computed(() => {
     return companyName.value
         .split(/\s+/)
@@ -60,7 +76,7 @@ const initials = computed(() => {
 <template>
     <div :class="containerClass">
         <div :class="markClass">
-            <img v-if="logoUrl" :src="logoUrl" :alt="companyName" :class="imageClass" />
+            <img v-if="markImageSrc" :src="markImageSrc" :alt="companyName" :class="imageClass" />
             <span v-else :class="initialsClass">{{ initials }}</span>
         </div>
 

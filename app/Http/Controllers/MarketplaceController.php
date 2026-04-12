@@ -87,18 +87,24 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    public function show(ServiceProvider $provider): Response
+    public function show(Request $request, ServiceProvider $provider): Response
     {
-        // Ensure provider is active (verification check relaxed for now)
-        abort_unless($provider->is_active, 404);
+        $viewer = $request->user();
+        $isOwner = $viewer
+            && $viewer->serviceProvider
+            && (int) $viewer->serviceProvider->getKey() === (int) $provider->getKey();
+
+        // Public visitors only see active listings; providers can preview their own (e.g. from Edit Profile)
+        abort_unless($provider->is_active || $isOwner, 404);
 
         $provider->load([
             'user:id,first_name,last_name,avatar,city,state,country',
             'reviews' => fn($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
         ]);
 
-        // Increment profile views
-        $provider->incrementProfileViews();
+        if (! $isOwner) {
+            $provider->incrementProfileViews();
+        }
 
         // Get similar providers
         $similarProviders = $this->getSimilarProviders($provider);
@@ -107,6 +113,7 @@ class MarketplaceController extends Controller
             'provider' => $provider,
             'similarProviders' => $similarProviders,
             'canContactProvider' => auth()->check() && !auth()->user()->isProvider(),
+            'isOwnListingPreview' => $isOwner,
             'serviceTypeLabels' => collect($provider->service_types ?? [])
                 ->map(fn($type) => ServiceType::tryFrom($type)?->label() ?? $type)
                 ->toArray(),

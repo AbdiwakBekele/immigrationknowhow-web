@@ -70,7 +70,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    protected $appends = ['full_name', 'initials'];
+    protected $appends = ['full_name', 'initials', 'avatar_url'];
 
     // Accessors
     public function getFullNameAttribute(): string

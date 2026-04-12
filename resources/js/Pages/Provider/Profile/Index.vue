@@ -32,8 +32,9 @@ const formatCurrency = (value) => {
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="flex items-center gap-4">
                         <img
-                            :src="user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider?.business_name || user?.first_name || 'P')}&background=3B95F3&color=fff&size=120`"
-                            class="w-20 h-20 rounded-2xl object-cover bg-slate-100"
+                            :src="user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider?.business_name || user?.first_name || 'P')}&background=3B95F3&color=fff&size=120`"
+                            class="h-20 w-20 rounded-2xl bg-slate-100 object-cover ring-1 ring-slate-200/80"
+                            alt=""
                         />
                         <div>
                             <h1 class="text-2xl font-display font-bold text-slate-900">

@@ -26,6 +26,8 @@ const props = defineProps({
     similarProviders: { type: Array, default: () => [] },
     canContactProvider: { type: Boolean, default: false },
     serviceTypeLabels: { type: Array, default: () => [] },
+    /** True when the logged-in provider is viewing their own public listing (e.g. Preview from edit). */
+    isOwnListingPreview: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -108,9 +110,27 @@ const formatDate = (dateStr) => {
     <AppLayout>
         <div class="min-h-screen bg-slate-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <!-- Back Button -->
-                <Link :href="route('marketplace.index')" class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 group">
-                    <ArrowLeftIcon class="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+                <div
+                    v-if="isOwnListingPreview"
+                    class="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900"
+                >
+                    You are previewing how your public listing looks. Visitors only see this page when your profile is active on the marketplace.
+                </div>
+                <!-- Back: return to edit profile when previewing own listing -->
+                <Link
+                    v-if="isOwnListingPreview"
+                    :href="route('provider.profile.edit')"
+                    class="group mb-6 inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-slate-900"
+                >
+                    <ArrowLeftIcon class="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                    Back to Edit Profile
+                </Link>
+                <Link
+                    v-else
+                    :href="route('marketplace.index')"
+                    class="group mb-6 inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-slate-900"
+                >
+                    <ArrowLeftIcon class="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     Back to Providers
                 </Link>
 

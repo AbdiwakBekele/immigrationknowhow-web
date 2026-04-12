@@ -1,4 +1,4 @@
-fi<script setup>
+<script setup>
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { 
@@ -110,15 +110,38 @@ const updateProfile = () => {
     });
 };
 
+const avatarUploading = ref(false);
+const avatarClientError = ref('');
+
 const uploadAvatar = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) {
+        return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+    if (!allowedTypes.includes(file.type)) {
+        avatarClientError.value = 'Please choose a JPEG, PNG, GIF, WebP, or BMP image.';
+        input.value = '';
+        return;
+    }
+    avatarClientError.value = '';
 
     const formData = new FormData();
     formData.append('avatar', file);
 
+    avatarUploading.value = true;
     router.post(route('provider.profile.avatar'), formData, {
         preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            avatarClientError.value = '';
+        },
+        onFinish: () => {
+            avatarUploading.value = false;
+            input.value = '';
+        },
     });
 };
 
@@ -208,7 +231,10 @@ const verificationStatusLabel = computed(() => {
                         <span :class="['px-3 py-1 rounded-full text-sm font-medium', verificationStatusLabel.class]">
                             {{ verificationStatusLabel.text }}
                         </span>
-                        <Link :href="route('marketplace.show', provider.slug)" class="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                        <Link
+                            :href="route('marketplace.show', { provider: provider.slug })"
+                            class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-slate-700 transition-colors hover:bg-slate-50"
+                        >
                             <EyeIcon class="h-4 w-4" />
                             Preview
                         </Link>
@@ -219,30 +245,46 @@ const verificationStatusLabel = computed(() => {
                     <!-- Profile Photo -->
                     <div class="bg-white rounded-2xl shadow-soft p-6">
                         <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Profile Photo</h2>
-                        <div class="flex items-center gap-6">
-                            <div class="relative">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+                            <div class="relative shrink-0">
                                 <img 
-                                    :src="user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(form.business_name || 'P')}&background=3B95F3&color=fff&size=96`" 
-                                    class="h-24 w-24 rounded-2xl object-cover bg-slate-100"
+                                    :src="user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(form.business_name || 'P')}&background=3B95F3&color=fff&size=96`" 
+                                    class="h-24 w-24 rounded-2xl object-cover bg-slate-100 ring-1 ring-slate-200/80"
+                                    alt=""
                                 />
                                 <button 
                                     type="button"
+                                    :disabled="avatarUploading"
+                                    class="absolute bottom-0 right-0 rounded-full border border-slate-200 bg-white p-2 shadow-lg transition-colors hover:bg-slate-50 disabled:opacity-50"
+                                    aria-label="Change profile photo"
                                     @click="avatarInput?.click()"
-                                    class="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-colors"
                                 >
                                     <CameraIcon class="h-4 w-4 text-slate-600" />
                                 </button>
                                 <input 
                                     ref="avatarInput"
-                                    type="file" 
-                                    accept="image/*" 
-                                    class="hidden" 
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,image/jpeg,image/png,image/gif,image/webp,image/bmp"
+                                    class="sr-only"
+                                    :disabled="avatarUploading"
                                     @change="uploadAvatar"
                                 />
                             </div>
-                            <div>
-                                <p class="text-sm text-slate-600">Upload a professional photo</p>
-                                <p class="text-xs text-slate-400 mt-1">JPG, PNG or GIF. Max 2MB.</p>
+                            <div class="min-w-0 flex-1 space-y-2">
+                                <p class="text-sm text-slate-600">Upload a professional headshot or logo. This appears on your public listing.</p>
+                                <p class="text-xs text-slate-500">JPEG, PNG, GIF, WebP, or BMP. Max 5&nbsp;MB.</p>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        :disabled="avatarUploading"
+                                        class="btn btn-outline btn-sm"
+                                        @click="avatarInput?.click()"
+                                    >
+                                        {{ avatarUploading ? 'Uploading…' : 'Choose image' }}
+                                    </button>
+                                </div>
+                                <p v-if="avatarClientError" class="text-sm text-red-600">{{ avatarClientError }}</p>
+                                <p v-else-if="page.props.errors?.avatar" class="text-sm text-red-600">{{ page.props.errors.avatar }}</p>
                             </div>
                         </div>
                     </div>

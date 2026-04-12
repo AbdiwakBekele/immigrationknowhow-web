@@ -121,13 +121,14 @@ const verificationStatus = computed(() => {
             </div>
 
             <!-- Header -->
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <h1 class="text-3xl font-display font-bold text-slate-900">
-                        Welcome back, {{ user.first_name }}!
+                    <p class="text-xs font-semibold uppercase tracking-wider text-primary-600">Overview</p>
+                    <h1 class="mt-1 font-display text-3xl font-bold tracking-tight text-slate-900">
+                        Welcome back, {{ user.first_name }}
                     </h1>
-                    <p class="text-slate-500 mt-1">
-                        Here's how your profile is performing.
+                    <p class="mt-2 text-slate-600">
+                        Here is how your profile is performing.
                     </p>
                 </div>
 

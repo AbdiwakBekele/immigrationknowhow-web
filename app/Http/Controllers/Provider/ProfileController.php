@@ -21,14 +21,14 @@ class ProfileController extends Controller
         $provider = $user->serviceProvider;
 
         return Inertia::render('Provider/Profile/Index', [
-            'user' => $user->only([
+            'user' => array_merge($user->only([
                 'id',
                 'first_name',
                 'last_name',
                 'email',
                 'phone',
                 'avatar',
-            ]),
+            ]), ['avatar_url' => $user->avatar_url]),
             'provider' => $provider ? $provider->only([
                 'id',
                 'business_name',
@@ -76,14 +76,14 @@ class ProfileController extends Controller
         $provider = $user->serviceProvider;
 
         return Inertia::render('Provider/Profile/Edit', [
-            'user' => $user->only([
+            'user' => array_merge($user->only([
                 'id',
                 'first_name',
                 'last_name',
                 'email',
                 'phone',
                 'avatar',
-            ]),
+            ]), ['avatar_url' => $user->avatar_url]),
             'provider' => $provider ? $provider->only([
                 'id',
                 'business_name',
@@ -199,7 +199,7 @@ class ProfileController extends Controller
     public function updateAvatar(Request $request): RedirectResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'max:2048'],
+            'avatar' => ['required', 'file', 'mimes:jpeg,jpg,png,gif,webp,bmp', 'max:5120'],
         ]);
 
         $user = auth()->user();
