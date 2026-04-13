@@ -2,7 +2,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { debounce } from 'lodash-es';
-import AppLayout from '@/Components/layout/AppLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderCard from '@/Components/marketplace/ProviderCard.vue';
 import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
@@ -60,6 +60,15 @@ const serviceTypeOptions = computed(() => {
 const hasActiveFilters = computed(() => {
     return form.service_type || form.language || form.location || form.remote_only || form.free_consultation;
 });
+const activeFilterCount = computed(() => {
+    return [
+        Boolean(form.service_type),
+        Boolean(form.language),
+        Boolean(form.location),
+        Boolean(form.remote_only),
+        Boolean(form.free_consultation),
+    ].filter(Boolean).length;
+});
 
 const applyFilters = () => {
     router.get(route('marketplace.index'), form, {
@@ -97,60 +106,78 @@ watch(() => form.sort, () => {
     <Head title="Find Service Providers" />
 
     <AppLayout>
-        <div class="space-y-6">
-            <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="section-title">Find Service Providers</h1>
-                    <p class="section-subtitle">
-                        Connect with trusted professionals who can help you navigate your immigration journey
-                    </p>
+        <div class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+            <section class="overflow-hidden rounded-3xl bg-gradient-to-r from-sky-600 via-indigo-600 to-violet-600 px-6 py-8 text-white shadow-xl sm:px-8">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="max-w-2xl">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-sky-100">Marketplace</p>
+                        <h1 class="mt-2 text-3xl font-display font-bold sm:text-4xl">Find trusted service providers</h1>
+                        <p class="mt-3 text-sm text-sky-50 sm:text-base">
+                            Browse verified professionals for legal support, taxes, language services, and more.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Providers</p>
+                            <p class="text-lg font-semibold">{{ providers.total }}</p>
+                        </div>
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Featured</p>
+                            <p class="text-lg font-semibold">{{ featuredProviders?.length || 0 }}</p>
+                        </div>
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm col-span-2 sm:col-span-1">
+                            <p class="text-xs text-sky-100">Active filters</p>
+                            <p class="text-lg font-semibold">{{ activeFilterCount }}</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Search and filters bar -->
-            <div class="bg-white rounded-2xl shadow-soft p-4">
-                <div class="flex flex-col lg:flex-row gap-4">
-                    <!-- Search -->
-                    <div class="flex-1 relative">
-                        <MagnifyingGlassIcon class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+            <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div class="relative flex-1">
+                        <MagnifyingGlassIcon class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         <input
                             v-model="form.search"
                             type="text"
-                            placeholder="Search by name, service, or keyword..."
-                            class="w-full pl-11 pr-4 py-3 text-sm bg-neutral-50 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-primary-500/20 transition-all"
+                            placeholder="Search by provider, service, language, or keyword..."
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
                         />
                     </div>
 
-                    <!-- Quick filters -->
-                    <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
                         <Select
                             v-model="form.service_type"
                             :options="serviceTypeOptions"
                             placeholder="Service Type"
-                            class="w-40"
+                            class="w-44"
                             @update:model-value="applyFilters"
                         />
-                        
                         <Select
                             v-model="form.sort"
                             :options="sortOptions"
-                            class="w-36"
+                            class="w-40"
                         />
-
                         <Button
                             variant="ghost"
                             @click="showFilters = !showFilters"
-                            :class="{ 'bg-primary-50 text-primary-600': hasActiveFilters }"
+                            :class="[
+                                'border border-transparent',
+                                showFilters || hasActiveFilters ? 'bg-primary-50 text-primary-700 border-primary-100' : ''
+                            ]"
                         >
-                            <AdjustmentsHorizontalIcon class="w-5 h-5" />
+                            <AdjustmentsHorizontalIcon class="h-5 w-5" />
                             Filters
-                            <span v-if="hasActiveFilters" class="w-2 h-2 bg-primary-500 rounded-full"></span>
+                            <span
+                                v-if="activeFilterCount"
+                                class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary-600 px-1 text-xs font-semibold text-white"
+                            >
+                                {{ activeFilterCount }}
+                            </span>
                         </Button>
                     </div>
                 </div>
 
-                <!-- Expanded filters -->
                 <transition
                     enter-active-class="transition-all duration-200 ease-out"
                     enter-from-class="opacity-0 -translate-y-2"
@@ -159,82 +186,72 @@ watch(() => form.sort, () => {
                     leave-from-class="opacity-100 translate-y-0"
                     leave-to-class="opacity-0 -translate-y-2"
                 >
-                    <div v-if="showFilters" class="mt-4 pt-4 border-t border-neutral-100">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <Select
-                                v-model="form.language"
-                                :options="languageOptions"
-                                label="Language"
-                                @update:model-value="applyFilters"
-                            />
-                            
-                            <Input
-                                v-model="form.location"
-                                label="Location"
-                                placeholder="City or state"
-                                @blur="applyFilters"
-                            />
-
-                            <div class="space-y-3 pt-6">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        v-model="form.remote_only"
-                                        class="w-4 h-4 rounded border-neutral-300 text-primary-600"
-                                        @change="applyFilters"
-                                    />
-                                    <span class="text-sm text-neutral-700">Remote services only</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        v-model="form.free_consultation"
-                                        class="w-4 h-4 rounded border-neutral-300 text-primary-600"
-                                        @change="applyFilters"
-                                    />
-                                    <span class="text-sm text-neutral-700">Free consultation</span>
-                                </label>
-                            </div>
-
-                            <div class="flex items-end">
-                                <Button
-                                    v-if="hasActiveFilters"
-                                    variant="ghost"
-                                    size="sm"
-                                    @click="clearFilters"
-                                >
-                                    <XMarkIcon class="w-4 h-4" />
-                                    Clear filters
-                                </Button>
-                            </div>
+                    <div v-if="showFilters" class="mt-4 grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <Select
+                            v-model="form.language"
+                            :options="languageOptions"
+                            label="Language"
+                            @update:model-value="applyFilters"
+                        />
+                        <Input
+                            v-model="form.location"
+                            label="Location"
+                            placeholder="City or state"
+                            @blur="applyFilters"
+                        />
+                        <div class="space-y-3 pt-6">
+                            <label class="flex cursor-pointer items-center gap-2">
+                                <input
+                                    v-model="form.remote_only"
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
+                                    @change="applyFilters"
+                                />
+                                <span class="text-sm text-slate-700">Remote services only</span>
+                            </label>
+                            <label class="flex cursor-pointer items-center gap-2">
+                                <input
+                                    v-model="form.free_consultation"
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
+                                    @change="applyFilters"
+                                />
+                                <span class="text-sm text-slate-700">Free consultation</span>
+                            </label>
+                        </div>
+                        <div class="flex items-end">
+                            <Button v-if="hasActiveFilters || form.search" variant="ghost" size="sm" @click="clearFilters">
+                                <XMarkIcon class="h-4 w-4" />
+                                Clear all
+                            </Button>
                         </div>
                     </div>
                 </transition>
-            </div>
+            </section>
 
-            <!-- Featured providers -->
-            <div v-if="featuredProviders?.length && !hasActiveFilters && !form.search" class="space-y-4">
-                <h2 class="text-lg font-semibold text-neutral-900">Featured Providers</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <section v-if="featuredProviders?.length && !hasActiveFilters && !form.search" class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-slate-900">Featured Providers</h2>
+                    <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">Recommended</span>
+                </div>
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <ProviderCard
                         v-for="provider in featuredProviders"
                         :key="provider.id"
                         :provider="provider"
                     />
                 </div>
-            </div>
+            </section>
 
-            <!-- Results -->
-            <div class="space-y-4">
+            <section class="space-y-4">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold text-neutral-900">
-                        {{ hasActiveFilters || form.search ? 'Results' : 'All Providers' }}
-                        <span class="text-neutral-400 font-normal">({{ providers.total }})</span>
+                    <h2 class="text-lg font-semibold text-slate-900">
+                        {{ hasActiveFilters || form.search ? 'Search Results' : 'All Providers' }}
+                        <span class="font-normal text-slate-400">({{ providers.total }})</span>
                     </h2>
                 </div>
 
-                <!-- Provider grid -->
-                <div v-if="providers.data.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div v-if="providers.data.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <ProviderCard
                         v-for="provider in providers.data"
                         :key="provider.id"
@@ -242,13 +259,10 @@ watch(() => form.sort, () => {
                     />
                 </div>
 
-                <!-- Empty state -->
-                <div v-else class="empty-state">
-                    <MagnifyingGlassIcon class="empty-state-icon" />
-                    <h3 class="empty-state-title">No providers found</h3>
-                    <p class="empty-state-text">
-                        Try adjusting your filters or search terms to find what you're looking for.
-                    </p>
+                <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-10 text-center">
+                    <MagnifyingGlassIcon class="mx-auto h-11 w-11 text-slate-300" />
+                    <h3 class="mt-3 text-lg font-semibold text-slate-900">No providers found</h3>
+                    <p class="mt-1 text-sm text-slate-500">Try adjusting your filters or search terms to find better matches.</p>
                     <Button
                         v-if="hasActiveFilters || form.search"
                         variant="outline"
@@ -259,29 +273,28 @@ watch(() => form.sort, () => {
                     </Button>
                 </div>
 
-                <!-- Pagination -->
-                <div v-if="providers.last_page > 1" class="flex items-center justify-center gap-2 pt-6">
+                <div v-if="providers.last_page > 1" class="flex flex-wrap items-center justify-center gap-2 pt-2">
                     <template v-for="link in providers.links" :key="link.label">
                         <Link
                             v-if="link.url"
                             :href="link.url"
                             :class="[
-                                'px-4 py-2 text-sm rounded-lg transition-colors',
+                                'rounded-lg px-4 py-2 text-sm transition-colors',
                                 link.active
                                     ? 'bg-primary-600 text-white'
-                                    : 'bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200'
+                                    : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                             ]"
                             v-html="link.label"
                             preserve-scroll
                         />
                         <span
                             v-else
-                            class="px-4 py-2 text-sm rounded-lg transition-colors bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                            class="cursor-not-allowed rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-400"
                             v-html="link.label"
                         />
                     </template>
                 </div>
-            </div>
+            </section>
         </div>
     </AppLayout>
 </template>

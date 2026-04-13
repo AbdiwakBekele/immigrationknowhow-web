@@ -12,6 +12,15 @@ const props = defineProps({
 const ratingStars = (rating) => {
     return Math.round(rating);
 };
+
+const resolveAvatar = (person) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
 </script>
 
 <template>
@@ -22,9 +31,9 @@ const ratingStars = (rating) => {
         <!-- Header with avatar and verification badge -->
         <div class="flex items-start gap-4">
             <div class="relative flex-shrink-0">
-                <div v-if="provider.user?.avatar" class="w-16 h-16 rounded-2xl overflow-hidden">
+                <div v-if="resolveAvatar(provider.user)" class="w-16 h-16 rounded-2xl overflow-hidden">
                     <img 
-                        :src="provider.user.avatar" 
+                        :src="resolveAvatar(provider.user)"
                         :alt="provider.display_name"
                         class="w-full h-full object-cover"
                     />

@@ -267,14 +267,14 @@ const formatTimeAgo = (date) => {
                                 </Link>
                             </div>
 
-                            <div class="p-4 space-y-3">
+                            <div class="p-3 space-y-2">
                                 <Link 
                                     v-for="item in libraryItems" 
                                     :key="item.uuid"
                                     :href="route('library.show', item.slug)"
-                                    class="flex items-center gap-3 group"
+                                    class="flex items-center gap-2.5 group"
                                 >
-                                    <div class="w-12 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                                    <div class="w-8 h-6 sm:w-9 sm:h-7 bg-slate-100 rounded overflow-hidden flex-shrink-0 ring-1 ring-slate-100">
                                         <img 
                                             v-if="item.cover_image_url"
                                             :src="item.cover_image_url"

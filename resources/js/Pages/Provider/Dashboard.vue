@@ -77,7 +77,7 @@ const verificationStatus = computed(() => {
 <template>
     <Head title="Provider Dashboard" />
 
-    <ProviderLayout>
+    <ProviderLayout :default-sidebar-minimized="true">
         <div class="space-y-8">
             <!-- Background Check Alert Banner -->
             <div v-if="provider.background_check_status !== 'clear'" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">

@@ -19,22 +19,25 @@ class ProfileController extends Controller
         $user = auth()->user();
 
         return Inertia::render('User/Profile/Edit', [
-            'user' => $user->only([
-                'id',
-                'first_name',
-                'last_name',
-                'email',
-                'phone',
-                'avatar',
-                'city',
-                'state',
-                'country',
-                'preferred_language',
-                'languages_spoken',
-                'immigration_status',
-                'country_of_origin',
-                'notification_preferences',
-            ]),
+            'user' => array_merge(
+                $user->only([
+                    'id',
+                    'first_name',
+                    'last_name',
+                    'email',
+                    'phone',
+                    'avatar',
+                    'city',
+                    'state',
+                    'country',
+                    'preferred_language',
+                    'languages_spoken',
+                    'immigration_status',
+                    'country_of_origin',
+                    'notification_preferences',
+                ]),
+                ['avatar_url' => $user->avatar_url]
+            ),
         ]);
     }
 
@@ -65,7 +68,7 @@ class ProfileController extends Controller
     public function updateAvatar(Request $request): RedirectResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'max:2048'], // 2MB max
+            'avatar' => ['required', 'file', 'mimes:jpeg,png', 'max:2048'],
         ]);
 
         $user = auth()->user();

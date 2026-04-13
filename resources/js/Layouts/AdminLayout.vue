@@ -36,7 +36,16 @@ const navigation = computed(() => [
     { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },
     { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
     { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
-    ...(isSuperAdmin.value ? [{ name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon }] : []),
+    ...(isSuperAdmin.value
+        ? [{
+            name: 'Settings',
+            icon: Cog6ToothIcon,
+            children: [
+                { name: 'General', href: '/admin/settings' },
+                { name: 'Category Create', href: '/admin/library-categories/create' },
+            ],
+        }]
+        : []),
 ]);
 
 const logout = () => {
@@ -93,20 +102,40 @@ const unreadNotificationsCount = computed(
 
             <!-- Navigation -->
             <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-10">
-                <Link
-                    v-for="item in navigation"
-                    :key="item.name"
-                    :href="item.href"
-                    :class="[
-                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                        isActive(item.href)
-                            ? 'bg-sky-50 text-sky-700 border border-sky-100'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                    ]"
-                >
-                    <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-                    {{ item.name }}
-                </Link>
+                <template v-for="item in navigation" :key="item.name">
+                    <div v-if="item.children" class="space-y-1">
+                        <div class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700">
+                            <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                            {{ item.name }}
+                        </div>
+                        <Link
+                            v-for="child in item.children"
+                            :key="`${item.name}-${child.name}`"
+                            :href="child.href"
+                            :class="[
+                                'ml-8 flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                isActive(child.href)
+                                    ? 'bg-sky-50 text-sky-700 border border-sky-100'
+                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            ]"
+                        >
+                            {{ child.name }}
+                        </Link>
+                    </div>
+                    <Link
+                        v-else
+                        :href="item.href"
+                        :class="[
+                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                            isActive(item.href)
+                                ? 'bg-sky-50 text-sky-700 border border-sky-100'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        ]"
+                    >
+                        <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+                        {{ item.name }}
+                    </Link>
+                </template>
             </nav>
 
             <!-- Profile (bottom) -->

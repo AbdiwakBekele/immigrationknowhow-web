@@ -18,6 +18,21 @@ return [
             'throw' => false,
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | Library media (e-books / audiobooks)
+        |--------------------------------------------------------------------------
+        |
+        | Not web-accessible — downloads only through LibraryController after
+        | access checks. Covers stay on the `public` disk.
+        |
+        */
+        'library_media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/library-media'),
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

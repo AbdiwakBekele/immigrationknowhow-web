@@ -12,6 +12,7 @@ use App\Notifications\NewLeadNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -61,15 +62,21 @@ class LeadController extends Controller
 
         $lead = DB::transaction(function () use ($validated, $provider, $sender) {
             $source = $sender->affiliate_referral_id ? 'affiliate' : 'marketplace';
+            $supportsAffiliateReferral = Schema::hasColumn('leads', 'affiliate_referral_id');
 
-            $lead = Lead::create([
+            $leadData = [
                 ...$validated,
                 'user_id' => $sender->id,
                 'service_provider_id' => $provider->id,
                 'source' => $source,
                 'referral_code' => $sender->referredByAffiliate?->code,
-                'affiliate_referral_id' => $sender->affiliate_referral_id,
-            ]);
+            ];
+
+            if ($supportsAffiliateReferral) {
+                $leadData['affiliate_referral_id'] = $sender->affiliate_referral_id;
+            }
+
+            $lead = Lead::create($leadData);
 
             // Increment provider's lead count
             $provider->incrementLeadCount();

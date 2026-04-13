@@ -55,6 +55,7 @@ const deleteForm = useForm({
 
 const avatarInput = ref(null);
 const showDeleteConfirm = ref(false);
+const avatarTypeError = ref('');
 
 const languageOptions = [
     'English', 'Spanish', 'Mandarin', 'Hindi', 'Arabic', 'Portuguese', 
@@ -81,15 +82,30 @@ const updateNotifications = () => {
     });
 };
 
+const allowedAvatarTypes = ['image/jpeg', 'image/png'];
+
 const uploadAvatar = (event) => {
     const file = event.target.files[0];
+    avatarTypeError.value = '';
     if (!file) return;
+
+    if (!allowedAvatarTypes.includes(file.type)) {
+        avatarTypeError.value = 'Please choose a JPG or PNG image.';
+        event.target.value = '';
+        return;
+    }
 
     const formData = new FormData();
     formData.append('avatar', file);
 
     router.post('/profile/avatar', formData, {
         preserveScroll: true,
+        onFinish: () => {
+            event.target.value = '';
+        },
+        onSuccess: () => {
+            avatarTypeError.value = '';
+        },
     });
 };
 
@@ -149,8 +165,9 @@ const toggleLanguage = (lang) => {
                             <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100">
                                 <div class="relative">
                                     <img 
-                                        :src="user.avatar || '/images/default-avatar.png'" 
+                                        :src="user.avatar_url || '/images/default-avatar.png'" 
                                         class="h-24 w-24 rounded-full object-cover"
+                                        alt=""
                                     />
                                     <button 
                                         @click="avatarInput?.click()"
@@ -161,14 +178,15 @@ const toggleLanguage = (lang) => {
                                     <input 
                                         ref="avatarInput"
                                         type="file" 
-                                        accept="image/*" 
+                                        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                                         class="hidden" 
                                         @change="uploadAvatar"
                                     />
                                 </div>
                                 <div>
                                     <h3 class="font-medium text-gray-900">Profile Photo</h3>
-                                    <p class="text-sm text-gray-500 mb-2">JPG, PNG or GIF. Max 2MB.</p>
+                                    <p class="text-sm text-gray-500 mb-2">JPG or PNG. Max 2MB.</p>
+                                    <p v-if="avatarTypeError" class="text-sm text-red-600 mb-2">{{ avatarTypeError }}</p>
                                     <div class="flex gap-2">
                                         <button @click="avatarInput?.click()" class="btn-secondary btn-sm">
                                             Upload

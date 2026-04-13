@@ -17,4 +17,21 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+
+    /*
+    | Stripe — library checkout reads these. Accepts common alternate env names.
+    | Publishable: STRIPE_KEY (preferred) or STRIPE_PUBLISHABLE_KEY.
+    | Secret: STRIPE_SECRET (preferred) or STRIPE_SECRET_KEY.
+    */
+    'stripe' => [
+        'key' => ($k = env('STRIPE_KEY') ?: env('STRIPE_PUBLISHABLE_KEY')) !== null && (string) $k !== ''
+            ? trim((string) $k)
+            : '',
+        'secret' => ($s = env('STRIPE_SECRET') ?: env('STRIPE_SECRET_KEY')) !== null && (string) $s !== ''
+            ? trim((string) $s)
+            : '',
+        'webhook_secret' => ($w = env('STRIPE_WEBHOOK_SECRET')) !== null && (string) $w !== ''
+            ? trim((string) $w)
+            : '',
+    ],
 ];
