@@ -11,11 +11,17 @@ import AppFeedback from './Components/App/AppFeedback.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ImmigrationKnowHow';
 
+const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
-        return pages[`./Pages/${name}.vue`];
+        const path = `./Pages/${name}.vue`;
+        const page = pages[path];
+        if (!page) {
+            throw new Error(`Missing Inertia page: "${name}" (expected ${path}).`);
+        }
+        return page;
     },
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();

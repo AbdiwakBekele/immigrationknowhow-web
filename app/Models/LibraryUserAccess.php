@@ -16,6 +16,11 @@ class LibraryUserAccess extends Model
         'access_count',
         'progress',
         'is_favorite',
+        'purchased_at',
+        'purchase_amount',
+        'purchase_currency',
+        'stripe_checkout_session_id',
+        'stripe_payment_intent_id',
     ];
 
     protected function casts(): array
@@ -25,6 +30,8 @@ class LibraryUserAccess extends Model
             'progress' => 'array',
             'is_favorite' => 'boolean',
             'access_count' => 'integer',
+            'purchased_at' => 'datetime',
+            'purchase_amount' => 'decimal:2',
         ];
     }
 

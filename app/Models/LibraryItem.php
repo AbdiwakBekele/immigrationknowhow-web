@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
@@ -15,8 +16,33 @@ class LibraryItem extends Model
 {
     use HasFactory, HasSlug, SoftDeletes;
 
+    /** Disk for e-book / audiobook binaries (not publicly linked). */
+    public const LIBRARY_MEDIA_DISK = 'library_media';
+
+    public const TYPE_DEFINITIONS = [
+        'ebook' => [
+            'label' => 'E-Book',
+            'icon' => 'book-open',
+            'allowed_extensions' => ['pdf'],
+        ],
+        'audiobook' => [
+            'label' => 'Audiobook',
+            'icon' => 'musical-note',
+            'allowed_extensions' => ['mp3', 'm4a', 'aac', 'wav', 'ogg'],
+        ],
+    ];
+
+    /**
+     * Stored on disk but must never be exposed to the browser — otherwise files
+     * can be downloaded directly from /storage/... without going through access checks.
+     */
+    protected $hidden = [
+        'file_path',
+    ];
+
     protected $fillable = [
         'uuid',
+        'provider_id',
         'category_id',
         'title',
         'slug',
@@ -35,6 +61,8 @@ class LibraryItem extends Model
         'duration_seconds',
         'narrator',
         'is_premium',
+        'price',
+        'currency',
         'is_featured',
         'is_active',
         'download_count',
@@ -48,6 +76,7 @@ class LibraryItem extends Model
         return [
             'tags' => 'array',
             'is_premium' => 'boolean',
+            'price' => 'decimal:2',
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
             'file_size' => 'integer',
@@ -80,10 +109,45 @@ class LibraryItem extends Model
         return 'slug';
     }
 
+    /**
+     * Where the main library file currently lives (private disk first, then legacy public).
+     */
+    public function resolveLibraryFileDisk(): ?string
+    {
+        if (! $this->file_path) {
+            return null;
+        }
+        if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+            return self::LIBRARY_MEDIA_DISK;
+        }
+        if (Storage::disk('public')->exists($this->file_path)) {
+            return 'public';
+        }
+
+        return null;
+    }
+
+    public function deleteStoredLibraryFile(): void
+    {
+        if (! $this->file_path) {
+            return;
+        }
+        foreach ([self::LIBRARY_MEDIA_DISK, 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($this->file_path)) {
+                Storage::disk($disk)->delete($this->file_path);
+            }
+        }
+    }
+
     // Relationships
     public function category(): BelongsTo
     {
         return $this->belongsTo(LibraryCategory::class, 'category_id');
+    }
+
+    public function provider(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProvider::class, 'provider_id');
     }
 
     public function userAccess(): HasMany
@@ -94,20 +158,12 @@ class LibraryItem extends Model
     // Accessors
     public function getTypeIconAttribute(): string
     {
-        return match ($this->type) {
-            'ebook' => 'book-open',
-            'audiobook' => 'musical-note',
-            default => 'document',
-        };
+        return static::TYPE_DEFINITIONS[$this->type]['icon'] ?? 'document';
     }
 
     public function getTypeLabelAttribute(): string
     {
-        return match ($this->type) {
-            'ebook' => 'E-Book',
-            'audiobook' => 'Audiobook',
-            default => ucfirst($this->type),
-        };
+        return static::TYPE_DEFINITIONS[$this->type]['label'] ?? ucfirst($this->type);
     }
 
     public function getCoverImageUrlAttribute(): ?string
@@ -115,9 +171,12 @@ class LibraryItem extends Model
         return $this->cover_image ? asset('storage/' . $this->cover_image) : null;
     }
 
-    public function getFileUrlAttribute(): string
+    /**
+     * Library binaries are not served via /storage URLs.
+     */
+    public function getFileUrlAttribute(): ?string
     {
-        return asset('storage/' . $this->file_path);
+        return null;
     }
 
     public function getFileSizeFormattedAttribute(): string
@@ -215,5 +274,45 @@ class LibraryItem extends Model
         $access->update(['last_accessed_at' => now()]);
 
         return $access;
+    }
+
+    public static function supportedTypes(): array
+    {
+        return array_keys(static::TYPE_DEFINITIONS);
+    }
+
+    public static function typeLabel(string $type): string
+    {
+        return static::TYPE_DEFINITIONS[$type]['label'] ?? ucfirst($type);
+    }
+
+    public static function allowedExtensionsFor(string $type): array
+    {
+        return static::TYPE_DEFINITIONS[$type]['allowed_extensions'] ?? [];
+    }
+
+    public static function typeOptionsWithCounts(bool $activeOnly = true): array
+    {
+        $query = static::query();
+
+        if ($activeOnly) {
+            $query->where('is_active', true);
+        }
+
+        $counts = $query
+            ->selectRaw('type, COUNT(*) as total')
+            ->groupBy('type')
+            ->pluck('total', 'type');
+
+        return collect(static::TYPE_DEFINITIONS)
+            ->map(function (array $definition, string $value) use ($counts) {
+                return [
+                    'value' => $value,
+                    'label' => $definition['label'],
+                    'count' => (int) ($counts[$value] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

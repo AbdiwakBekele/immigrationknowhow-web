@@ -131,6 +131,11 @@ class ServiceProvider extends Model
         return $this->hasMany(Review::class);
     }
 
+    public function libraryItems(): HasMany
+    {
+        return $this->hasMany(LibraryItem::class, 'provider_id');
+    }
+
     // Accessors
     public function getDisplayNameAttribute(): string
     {

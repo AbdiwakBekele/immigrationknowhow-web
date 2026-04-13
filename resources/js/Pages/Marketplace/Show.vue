@@ -102,14 +102,23 @@ const formatDate = (dateStr) => {
         year: 'numeric', month: 'short', day: 'numeric' 
     });
 };
+
+const resolveAvatar = (person, fallback) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return fallback;
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
 </script>
 
 <template>
     <Head :title="provider.business_name || 'Provider Profile'" />
 
     <AppLayout>
-        <div class="min-h-screen bg-slate-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
+            <div class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 <div
                     v-if="isOwnListingPreview"
                     class="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900"
@@ -134,59 +143,59 @@ const formatDate = (dateStr) => {
                     Back to Providers
                 </Link>
 
-                <div class="grid lg:grid-cols-3 gap-8">
+                <div class="grid gap-6 lg:grid-cols-3 xl:gap-8">
                     <!-- Main Content -->
                     <div class="lg:col-span-2 space-y-6">
                         <!-- Provider Header Card -->
-                        <div class="bg-white rounded-2xl shadow-soft overflow-hidden">
+                        <div class="overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-sm">
                             <!-- Cover Gradient -->
-                            <div class="h-32 bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500"></div>
+                            <div class="h-36 bg-gradient-to-r from-primary-600 via-sky-500 to-cyan-500"></div>
                             
-                            <div class="px-6 pb-6">
+                            <div class="px-6 pb-6 sm:px-7">
                                 <!-- Avatar & Basic Info -->
-                                <div class="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+                                <div class="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end">
                                     <div class="relative">
-                                        <img 
-                                            :src="provider.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=96`" 
+                                        <img
+                                            :src="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=96`)"
                                             :alt="provider.business_name"
-                                            class="h-24 w-24 rounded-2xl border-4 border-white shadow-lg object-cover bg-white"
+                                            class="h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-lg"
                                         />
                                         <div v-if="provider.background_check_status === 'clear'" class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                             <CheckBadgeSolid class="h-6 w-6 text-primary-600" />
                                         </div>
                                     </div>
                                     <div class="flex-1 sm:pb-2">
-                                        <div class="flex items-center gap-2 flex-wrap">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <h1 class="text-2xl font-display font-bold text-slate-900">
                                                 {{ provider.business_name }}
                                             </h1>
-                                            <span v-if="provider.is_featured" class="px-2 py-0.5 bg-secondary-100 text-secondary-700 text-xs font-semibold rounded-full">
+                                            <span v-if="provider.is_featured" class="rounded-full bg-secondary-100 px-2 py-0.5 text-xs font-semibold text-secondary-700">
                                                 Featured
                                             </span>
                                         </div>
                                         <p v-if="provider.tagline" class="text-slate-600 mt-1">{{ provider.tagline }}</p>
-                                        <div class="flex flex-wrap gap-2 mt-2">
+                                        <div class="mt-2 flex flex-wrap gap-2">
                                             <span 
                                                 v-for="label in serviceTypeLabels" 
                                                 :key="label"
-                                                class="px-2.5 py-1 bg-primary-50 text-primary-700 text-sm font-medium rounded-lg"
+                                                class="rounded-lg bg-primary-50 px-2.5 py-1 text-sm font-medium text-primary-700"
                                             >
                                                 {{ label }}
                                             </span>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 sm:pb-2">
-                                        <button class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <button class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
                                             <ShareIcon class="h-5 w-5" />
                                         </button>
-                                        <button class="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <button class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500">
                                             <HeartIcon class="h-5 w-5" />
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- Stats Row -->
-                                <div class="mt-6 flex flex-wrap gap-6">
+                                <div class="mt-6 flex flex-wrap gap-5 border-t border-slate-100 pt-5">
                                     <div class="flex items-center gap-2">
                                         <div class="flex">
                                             <template v-for="i in 5" :key="i">
@@ -209,13 +218,13 @@ const formatDate = (dateStr) => {
 
                                 <!-- Tags -->
                                 <div class="mt-4 flex flex-wrap gap-2">
-                                    <span v-if="provider.serves_remote" class="px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-full">
+                                    <span v-if="provider.serves_remote" class="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
                                         🌐 Remote Available
                                     </span>
-                                    <span v-if="provider.free_consultation" class="px-3 py-1 bg-green-50 text-green-700 text-sm font-medium rounded-full">
+                                    <span v-if="provider.free_consultation" class="rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
                                         ✓ Free Consultation
                                     </span>
-                                    <span v-if="provider.serves_in_person" class="px-3 py-1 bg-purple-50 text-purple-700 text-sm font-medium rounded-full">
+                                    <span v-if="provider.serves_in_person" class="rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
                                         📍 In-Person
                                     </span>
                                 </div>
@@ -223,7 +232,7 @@ const formatDate = (dateStr) => {
                         </div>
 
                         <!-- About Section -->
-                        <div class="bg-white rounded-2xl shadow-soft p-6">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
                             <h2 class="text-lg font-display font-bold text-slate-900 mb-4">About</h2>
                             <div class="prose prose-slate max-w-none">
                                 <p class="text-slate-600 whitespace-pre-line leading-relaxed">
@@ -247,14 +256,14 @@ const formatDate = (dateStr) => {
                         </div>
 
                         <!-- Pricing Section -->
-                        <div class="bg-white rounded-2xl shadow-soft p-6">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
                             <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Pricing</h2>
                             <div class="grid sm:grid-cols-2 gap-4">
-                                <div v-if="provider.hourly_rate" class="p-4 bg-slate-50 rounded-xl">
+                                <div v-if="provider.hourly_rate" class="rounded-xl bg-slate-50 p-4">
                                     <div class="text-sm text-slate-500 mb-1">Hourly Rate</div>
                                     <div class="text-2xl font-bold text-slate-900">${{ Number(provider.hourly_rate).toFixed(0) }}<span class="text-base font-normal text-slate-500">/hr</span></div>
                                 </div>
-                                <div v-if="provider.consultation_fee || provider.free_consultation" class="p-4 bg-slate-50 rounded-xl">
+                                <div v-if="provider.consultation_fee || provider.free_consultation" class="rounded-xl bg-slate-50 p-4">
                                     <div class="text-sm text-slate-500 mb-1">Consultation Fee</div>
                                     <div class="text-2xl font-bold text-slate-900">
                                         <template v-if="provider.free_consultation">
@@ -272,7 +281,7 @@ const formatDate = (dateStr) => {
                         </div>
 
                         <!-- Reviews Section -->
-                        <div class="bg-white rounded-2xl shadow-soft p-6">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
                             <div class="flex items-center justify-between mb-6">
                                 <h2 class="text-lg font-display font-bold text-slate-900">Reviews</h2>
                             </div>
@@ -311,12 +320,12 @@ const formatDate = (dateStr) => {
                                 <div 
                                     v-for="review in reviews" 
                                     :key="review.id"
-                                    class="pb-6 border-b border-slate-100 last:border-0 last:pb-0"
+                                    class="border-b border-slate-100 pb-6 last:border-0 last:pb-0"
                                 >
                                     <div class="flex items-start justify-between">
                                         <div class="flex items-center gap-3">
                                             <img 
-                                                :src="review.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.first_name || 'U')}&background=e2e8f0&color=64748b&size=40`" 
+                                                :src="resolveAvatar(review.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.first_name || 'U')}&background=e2e8f0&color=64748b&size=40`)"
                                                 class="h-10 w-10 rounded-full bg-slate-100"
                                             />
                                             <div>
@@ -350,9 +359,9 @@ const formatDate = (dateStr) => {
                     </div>
 
                     <!-- Sidebar -->
-                    <div class="lg:col-span-1 space-y-6">
+                    <div class="space-y-6 lg:col-span-1">
                         <!-- Contact Card -->
-                        <div class="bg-white rounded-2xl shadow-soft p-6 sticky top-24">
+                        <div class="sticky top-24 rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
                             <div class="text-center mb-6">
                                 <div class="text-sm text-slate-500 mb-1">Starting from</div>
                                 <div class="text-3xl font-display font-bold text-slate-900">
@@ -367,7 +376,7 @@ const formatDate = (dateStr) => {
                             <button 
                                 v-if="canContactProvider"
                                 @click="showInquiryModal = true"
-                                class="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors mb-3"
+                                class="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-500"
                             >
                                 <ChatBubbleLeftRightIcon class="h-5 w-5" />
                                 Send Inquiry
@@ -375,7 +384,7 @@ const formatDate = (dateStr) => {
                             <Link 
                                 v-else-if="!user"
                                 :href="route('login')"
-                                class="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors mb-3"
+                                class="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-500"
                             >
                                 Sign in to Contact
                             </Link>
@@ -384,7 +393,7 @@ const formatDate = (dateStr) => {
                                 v-if="provider.website"
                                 :href="provider.website"
                                 target="_blank"
-                                class="w-full flex items-center justify-center gap-2 px-6 py-3 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-6 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
                             >
                                 <GlobeAltIcon class="h-5 w-5" />
                                 Visit Website
@@ -428,18 +437,18 @@ const formatDate = (dateStr) => {
                 </div>
 
                 <!-- Similar Providers -->
-                <div v-if="similarProviders.length" class="mt-12">
+                <div v-if="similarProviders.length" class="mt-10">
                     <h2 class="text-xl font-display font-bold text-slate-900 mb-6">Similar Providers</h2>
-                    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                         <Link 
                             v-for="similar in similarProviders" 
                             :key="similar.id"
                             :href="route('marketplace.show', similar.slug)"
-                            class="bg-white rounded-2xl shadow-soft p-5 hover:shadow-lg transition-all group"
+                            class="group rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         >
                             <div class="flex items-center gap-4">
                                 <img 
-                                    :src="similar.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(similar.business_name || 'P')}&background=3B95F3&color=fff&size=48`" 
+                                    :src="resolveAvatar(similar.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(similar.business_name || 'P')}&background=3B95F3&color=fff&size=48`)"
                                     class="h-12 w-12 rounded-xl bg-slate-100"
                                 />
                                 <div class="flex-1 min-w-0">

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
+import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import {
     Bars3Icon,
     XMarkIcon,
@@ -16,6 +17,10 @@ import {
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const unreadMessages = computed(() => page.props.unreadMessages || 0);
+const userLogoSrc = computed(() => {
+    const u = page.props.branding?.site_logo_url;
+    return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
+});
 
 const mobileMenuOpen = ref(false);
 const scrolled = ref(false);
@@ -58,16 +63,19 @@ const logout = () => {
                 <div class="flex h-16 items-center justify-between">
                     <!-- Logo -->
                     <div class="flex items-center">
-                        <Link href="/" class="flex items-center space-x-3">
-                            <div class="relative">
-                                <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
-                                    <span class="text-white font-bold text-lg">IK</span>
-                                </div>
-                                <div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-white"></div>
-                            </div>
-                            <span class="hidden sm:block text-xl font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                                ImmigrationKnowHow
-                            </span>
+                        <Link
+                            href="/"
+                            class="block rounded-lg outline-none ring-offset-2 transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary-400"
+                        >
+                            <BrandLogo
+                                context="site"
+                                :mark-src="userLogoSrc"
+                                :show-name="false"
+                                container-class="flex items-center"
+                                mark-class="flex min-h-[2.5rem] w-full max-w-[180px] items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white px-2 py-1.5 shadow-sm"
+                                image-class="block h-8 w-auto max-w-full object-contain object-left"
+                                initials-class="text-sm font-bold uppercase tracking-wide text-slate-600"
+                            />
                         </Link>
                     </div>
 

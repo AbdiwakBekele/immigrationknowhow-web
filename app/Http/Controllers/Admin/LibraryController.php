@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ValidatesLibraryItemPricing;
 use App\Http\Controllers\Controller;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
@@ -9,11 +10,17 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LibraryController extends Controller
 {
+    use ValidatesLibraryItemPricing;
+
+    private const MAX_EBOOK_PDF_UPLOADS = 480;
+
     public function index(Request $request): Response
     {
         $query = LibraryItem::query()
@@ -26,7 +33,7 @@ class LibraryController extends Controller
 
         // Filter by category
         if ($request->filled('category')) {
-            $query->where('library_category_id', $request->category);
+            $query->where('category_id', $request->category);
         }
 
         // Search
@@ -48,6 +55,7 @@ class LibraryController extends Controller
         return Inertia::render('Admin/Library/Index', [
             'items' => $items,
             'categories' => $categories,
+            'types' => LibraryItem::typeOptionsWithCounts(activeOnly: false),
             'filters' => $request->only(['type', 'category', 'search']),
         ]);
     }
@@ -58,6 +66,7 @@ class LibraryController extends Controller
 
         return Inertia::render('Admin/Library/Create', [
             'categories' => $categories,
+            'types' => LibraryItem::typeOptionsWithCounts(activeOnly: false),
         ]);
     }
 
@@ -65,18 +74,25 @@ class LibraryController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:ebook,audiobook'],
-            'library_category_id' => ['required', 'exists:library_categories,id'],
+            'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
+            'category_id' => ['nullable', 'exists:library_categories,id'],
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'language' => ['nullable', 'string', 'max:50'],
+            'publisher' => ['nullable', 'string', 'max:255'],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
+            'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
-            'duration_minutes' => ['nullable', 'integer', 'min:1'],
+            'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['required', 'file', 'max:102400'], // 100MB
+            'is_premium' => ['boolean'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'size:3'],
             'is_active' => ['boolean'],
             'is_featured' => ['boolean'],
         ]);
+
+        $this->validateUploadRules($request, $validated['type']);
 
         // Generate slug
         $validated['slug'] = Str::slug($validated['title']);
@@ -88,17 +104,22 @@ class LibraryController extends Controller
 
         // Upload cover image
         if ($request->hasFile('cover_image')) {
-            $validated['cover_image_path'] = $request->file('cover_image')
+            $validated['cover_image'] = $request->file('cover_image')
                 ->store('library/covers', 'public');
         }
 
         // Upload file
         $file = $request->file('file');
-        $validated['file_path'] = $file->store('library/files', 's3-private');
+        $validated['file_path'] = $file->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+        $validated['file_name'] = $file->getClientOriginalName();
         $validated['file_size'] = $file->getSize();
-        $validated['file_format'] = $file->getClientOriginalExtension();
+        $validated['file_type'] = strtolower($file->getClientOriginalExtension());
 
-        unset($validated['cover_image'], $validated['file']);
+        $validated = $this->applyLibraryItemPricing($validated);
+        $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
+        $validated['is_featured'] = (bool) ($validated['is_featured'] ?? false);
+
+        unset($validated['cover_image'], $validated['file'], $validated['duration_minutes']);
 
         LibraryItem::create($validated);
 
@@ -113,6 +134,7 @@ class LibraryController extends Controller
         return Inertia::render('Admin/Library/Edit', [
             'item' => $library,
             'categories' => $categories,
+            'types' => LibraryItem::typeOptionsWithCounts(activeOnly: false),
         ]);
     }
 
@@ -120,18 +142,25 @@ class LibraryController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:ebook,audiobook'],
-            'library_category_id' => ['required', 'exists:library_categories,id'],
+            'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
+            'category_id' => ['nullable', 'exists:library_categories,id'],
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'language' => ['nullable', 'string', 'max:50'],
+            'publisher' => ['nullable', 'string', 'max:255'],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
+            'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
-            'duration_minutes' => ['nullable', 'integer', 'min:1'],
+            'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['nullable', 'file', 'max:102400'],
+            'is_premium' => ['boolean'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'size:3'],
             'is_active' => ['boolean'],
             'is_featured' => ['boolean'],
         ]);
+
+        $this->validateUploadRules($request, $validated['type'], $library);
 
         // Update slug if title changed
         if ($validated['title'] !== $library->title) {
@@ -146,10 +175,10 @@ class LibraryController extends Controller
         // Upload new cover image
         if ($request->hasFile('cover_image')) {
             // Delete old cover
-            if ($library->cover_image_path) {
-                Storage::disk('public')->delete($library->cover_image_path);
+            if ($library->cover_image) {
+                Storage::disk('public')->delete($library->cover_image);
             }
-            $validated['cover_image_path'] = $request->file('cover_image')
+            $validated['cover_image'] = $request->file('cover_image')
                 ->store('library/covers', 'public');
         }
         unset($validated['cover_image']);
@@ -158,14 +187,19 @@ class LibraryController extends Controller
         if ($request->hasFile('file')) {
             // Delete old file
             if ($library->file_path) {
-                Storage::disk('s3-private')->delete($library->file_path);
+                $library->deleteStoredLibraryFile();
             }
             $file = $request->file('file');
-            $validated['file_path'] = $file->store('library/files', 's3-private');
+            $validated['file_path'] = $file->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['file_name'] = $file->getClientOriginalName();
             $validated['file_size'] = $file->getSize();
-            $validated['file_format'] = $file->getClientOriginalExtension();
+            $validated['file_type'] = strtolower($file->getClientOriginalExtension());
         }
         unset($validated['file']);
+
+        $validated = $this->applyLibraryItemPricing($validated);
+        $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
+        $validated['is_featured'] = (bool) ($validated['is_featured'] ?? false);
 
         $library->update($validated);
 
@@ -175,11 +209,11 @@ class LibraryController extends Controller
     public function destroy(LibraryItem $library): RedirectResponse
     {
         // Delete files
-        if ($library->cover_image_path) {
-            Storage::disk('public')->delete($library->cover_image_path);
+        if ($library->cover_image) {
+            Storage::disk('public')->delete($library->cover_image);
         }
         if ($library->file_path) {
-            Storage::disk('s3-private')->delete($library->file_path);
+            $library->deleteStoredLibraryFile();
         }
 
         $library->delete();
@@ -200,5 +234,44 @@ class LibraryController extends Controller
         $library->update(['is_featured' => !$library->is_featured]);
 
         return back()->with('success', $library->is_featured ? 'Item featured.' : 'Item unfeatured.');
+    }
+
+    private function validateUploadRules(Request $request, string $type, ?LibraryItem $existingItem = null): void
+    {
+        if (! $request->hasFile('file')) {
+            return;
+        }
+
+        $file = $request->file('file');
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if ($type === 'ebook') {
+            if ($extension !== 'pdf') {
+                throw ValidationException::withMessages([
+                    'file' => 'E-book uploads must be PDF files.',
+                ]);
+            }
+
+            $ebookCount = LibraryItem::query()
+                ->where('type', 'ebook')
+                ->when($existingItem, fn ($query) => $query->where('id', '!=', $existingItem->id))
+                ->count();
+
+            if ($ebookCount >= self::MAX_EBOOK_PDF_UPLOADS) {
+                throw ValidationException::withMessages([
+                    'file' => 'Upload limit reached: only 480 PDF e-books are allowed.',
+                ]);
+            }
+        }
+
+        if ($type !== 'ebook') {
+            $allowedExtensions = LibraryItem::allowedExtensionsFor($type);
+
+            if (! empty($allowedExtensions) && ! in_array($extension, $allowedExtensions, true)) {
+                throw ValidationException::withMessages([
+                    'file' => 'This file type is not supported for the selected content type.',
+                ]);
+            }
+        }
     }
 }

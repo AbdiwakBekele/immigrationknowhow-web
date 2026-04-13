@@ -37,7 +37,8 @@ Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('
 Route::get('/dv-lottery', fn() => redirect('https://dvprogram.state.gov/'))->name('dv-lottery');
 
 Route::prefix('webhooks')->name('webhooks.')->group(function () {
-Route::post('/checkr', \App\Http\Controllers\Webhooks\CheckrWebhookController::class)->name('checkr');
+    Route::post('/checkr', \App\Http\Controllers\Webhooks\CheckrWebhookController::class)->name('checkr');
+    Route::post('/stripe', \App\Http\Controllers\Webhooks\StripeLibraryWebhookController::class)->name('stripe');
 });
 
 /*
@@ -141,8 +142,14 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
         Route::prefix('library')->name('library.')->group(function () {
             Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('ebooks');
             Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('audiobooks');
+            Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
+            Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
+            Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
+                ->middleware('throttle:10,1')
+                ->name('pay');
             Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
             Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
+            Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
             Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
         });
 
@@ -193,6 +200,11 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/messages/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('messages.read');
         Route::post('/messages/{conversation:uuid}/archive', [MessagingController::class, 'archive'])->name('messages.archive');
         Route::post('/messages/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('messages.unarchive');
+
+        // Provider Library (ebooks/audiobooks)
+        Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
+        Route::post('/library', [Provider\LibraryController::class, 'store'])->name('library.store');
+        Route::delete('/library/{library:slug}', [Provider\LibraryController::class, 'destroy'])->name('library.destroy');
         
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility
