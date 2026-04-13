@@ -14,9 +14,17 @@ class VideoEmbed extends Model
 {
     use HasFactory, HasSlug, SoftDeletes;
 
+    public const SOURCE_EMBED = 'embed';
+
+    public const SOURCE_UPLOAD = 'upload';
+
+    /** Stored on disk — never expose as a public URL. */
+    public const VIDEO_UPLOAD_DISK = 'video_uploads';
+
     protected $fillable = [
         'uuid',
         'created_by',
+        'source',
         'title',
         'slug',
         'description',
@@ -25,12 +33,22 @@ class VideoEmbed extends Model
         'video_id',
         'embed_code',
         'thumbnail_url',
+        'file_path',
+        'file_name',
+        'file_mime',
+        'file_size',
         'category',
         'tags',
         'view_count',
         'is_featured',
         'is_active',
         'sort_order',
+        'price',
+        'currency',
+    ];
+
+    protected $hidden = [
+        'file_path',
     ];
 
     protected function casts(): array
@@ -41,6 +59,8 @@ class VideoEmbed extends Model
             'is_active' => 'boolean',
             'view_count' => 'integer',
             'sort_order' => 'integer',
+            'file_size' => 'integer',
+            'price' => 'decimal:2',
         ];
     }
 
@@ -52,11 +72,16 @@ class VideoEmbed extends Model
             if (empty($video->uuid)) {
                 $video->uuid = (string) Str::uuid();
             }
-            // Extract video ID and generate embed code
+            if (($video->source ?? self::SOURCE_EMBED) === self::SOURCE_UPLOAD) {
+                return;
+            }
             $video->extractVideoInfo();
         });
 
         static::updating(function ($video) {
+            if (($video->source ?? self::SOURCE_EMBED) === self::SOURCE_UPLOAD) {
+                return;
+            }
             if ($video->isDirty('video_url')) {
                 $video->extractVideoInfo();
             }
@@ -88,6 +113,7 @@ class VideoEmbed extends Model
             'youtube' => 'play',
             'tiktok' => 'musical-note',
             'vimeo' => 'video-camera',
+            'upload' => 'video-camera',
             default => 'play',
         };
     }
@@ -98,8 +124,14 @@ class VideoEmbed extends Model
             'youtube' => 'YouTube',
             'tiktok' => 'TikTok',
             'vimeo' => 'Vimeo',
-            default => ucfirst($this->platform),
+            'upload' => 'Uploaded file',
+            default => ucfirst((string) $this->platform),
         };
+    }
+
+    public function isUpload(): bool
+    {
+        return $this->source === self::SOURCE_UPLOAD;
     }
 
     public function getEmbedHtmlAttribute(): string
@@ -122,6 +154,7 @@ class VideoEmbed extends Model
                 $this->video_id,
                 $this->video_id
             ),
+            'upload' => '',
             default => '',
         };
     }
@@ -156,12 +189,16 @@ class VideoEmbed extends Model
     public function extractVideoInfo(): void
     {
         $url = $this->video_url;
+        if ($url === null || $url === '') {
+            return;
+        }
 
         // YouTube
         if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
             $this->platform = 'youtube';
             $this->video_id = $matches[1];
             $this->thumbnail_url = "https://img.youtube.com/vi/{$matches[1]}/maxresdefault.jpg";
+
             return;
         }
 
@@ -169,6 +206,7 @@ class VideoEmbed extends Model
         if (preg_match('/vimeo\.com\/(?:video\/)?(\d+)/', $url, $matches)) {
             $this->platform = 'vimeo';
             $this->video_id = $matches[1];
+
             return;
         }
 
@@ -176,6 +214,7 @@ class VideoEmbed extends Model
         if (preg_match('/tiktok\.com\/@[^\/]+\/video\/(\d+)/', $url, $matches)) {
             $this->platform = 'tiktok';
             $this->video_id = $matches[1];
+
             return;
         }
 

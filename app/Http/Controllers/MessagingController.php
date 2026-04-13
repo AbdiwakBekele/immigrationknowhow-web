@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Conversation;
-use App\Models\Message;
 use App\Notifications\NewMessageNotification;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -65,7 +65,7 @@ class MessagingController extends Controller
             'user:id,first_name,last_name,avatar',
             'serviceProvider.user:id,first_name,last_name,avatar',
             'lead:id,service_type,status,message,urgency,created_at',
-            'messages' => fn($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
+            'messages' => fn ($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
         ]);
 
         // Mark all messages as read
@@ -100,7 +100,7 @@ class MessagingController extends Controller
         if ($request->hasFile('attachments')) {
             $attachments = [];
             foreach ($request->file('attachments') as $file) {
-                $path = $file->store('message-attachments/' . $conversation->uuid, 'public');
+                $path = $file->store('message-attachments/'.$conversation->uuid, 'public');
                 $attachments[] = [
                     'path' => $path,
                     'name' => $file->getClientOriginalName(),
@@ -151,7 +151,12 @@ class MessagingController extends Controller
 
         $conversation->unarchive(auth()->user());
 
-        return back()->with('success', 'Conversation restored.');
+        $indexRoute = auth()->user()->serviceProvider
+            ? 'provider.messages.index'
+            : 'messages.index';
+
+        return redirect()->route($indexRoute)
+            ->with('success', 'Conversation restored.');
     }
 
     // Get archived conversations
@@ -162,13 +167,16 @@ class MessagingController extends Controller
         $conversations = Conversation::query()
             ->forServiceInquiries()
             ->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                    ->where('user_archived', true);
-            })
-            ->orWhere(function ($q) use ($user) {
+                $q->where(function ($owningUserQuery) use ($user) {
+                    $owningUserQuery->where('user_id', $user->id)
+                        ->where('user_archived', true);
+                });
+
                 if ($user->serviceProvider) {
-                    $q->where('service_provider_id', $user->serviceProvider->id)
-                        ->where('provider_archived', true);
+                    $q->orWhere(function ($providerQuery) use ($user) {
+                        $providerQuery->where('service_provider_id', $user->serviceProvider->id)
+                            ->where('provider_archived', true);
+                    });
                 }
             })
             ->with([
@@ -184,8 +192,17 @@ class MessagingController extends Controller
         ]);
     }
 
+    public function destroy(Conversation $conversation): RedirectResponse
+    {
+        $this->authorize('update', $conversation);
+
+        $conversation->delete();
+
+        return back()->with('success', 'Conversation deleted.');
+    }
+
     // Get unread count for navbar
-    public function unreadCount(): \Illuminate\Http\JsonResponse
+    public function unreadCount(): JsonResponse
     {
         $user = auth()->user();
 

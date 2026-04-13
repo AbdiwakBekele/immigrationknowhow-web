@@ -19,7 +19,7 @@ class SuperAdminSeeder extends Seeder
             [
                 'first_name' => env('SUPER_ADMIN_FIRST_NAME', 'Super'),
                 'last_name' => env('SUPER_ADMIN_LAST_NAME', 'Admin'),
-                'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'ChangeMe123!')),
+                'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', ''ChangeMe123!)),
                 'email_verified_at' => now(),
                 'is_active' => true,
                 'onboarding_completed' => true,

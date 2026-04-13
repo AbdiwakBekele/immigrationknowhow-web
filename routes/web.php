@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\Affiliate as AffiliatePortal;
 use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
+use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LibraryController;
@@ -11,7 +12,9 @@ use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\User;
-use App\Http\Controllers\AffiliateController;
+use App\Http\Controllers\VideoProductController;
+use App\Http\Controllers\Webhooks\CheckrWebhookController;
+use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +29,11 @@ Route::get('/', WelcomeController::class)->name('home');
 // Public library access
 Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
 
+// Purchasable video files (admin digital products — separate from Library)
+Route::get('/videos', [VideoProductController::class, 'index'])->name('videos.index');
+Route::get('/videos/{video:slug}', [VideoProductController::class, 'show'])->name('videos.show');
+Route::get('/videos/{video:slug}/stream', [VideoProductController::class, 'stream'])->name('videos.stream');
+
 // Marketplace (public)
 Route::get('/providers', [MarketplaceController::class, 'index'])->name('marketplace.index');
 Route::get('/providers/{provider:slug}', [MarketplaceController::class, 'show'])->name('marketplace.show');
@@ -34,11 +42,11 @@ Route::get('/providers/{provider:slug}', [MarketplaceController::class, 'show'])
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
 
 // DV Lottery link
-Route::get('/dv-lottery', fn() => redirect('https://dvprogram.state.gov/'))->name('dv-lottery');
+Route::get('/dv-lottery', fn () => redirect('https://dvprogram.state.gov/'))->name('dv-lottery');
 
 Route::prefix('webhooks')->name('webhooks.')->group(function () {
-    Route::post('/checkr', \App\Http\Controllers\Webhooks\CheckrWebhookController::class)->name('checkr');
-    Route::post('/stripe', \App\Http\Controllers\Webhooks\StripeLibraryWebhookController::class)->name('stripe');
+    Route::post('/checkr', CheckrWebhookController::class)->name('checkr');
+    Route::post('/stripe', StripeLibraryWebhookController::class)->name('stripe');
 });
 
 /*
@@ -113,50 +121,65 @@ Route::middleware(['auth', 'phone.verified'])->group(function () {
 
 // Routes requiring completed onboarding
 Route::middleware(['auth', 'onboarding.complete'])->group(function () {
-        
-        // User Dashboard
-        Route::get('/dashboard', [User\DashboardController::class, 'index'])->name('dashboard');
-        
-        // Profile
-        Route::get('/profile', [User\ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [User\ProfileController::class, 'update'])->name('profile.update');
-        Route::delete('/profile', [User\ProfileController::class, 'destroy'])->name('profile.destroy');
 
-        // Messaging
-        Route::prefix('messages')->name('messages.')->group(function () {
-            Route::get('/', [MessagingController::class, 'index'])->name('index');
-            Route::get('/archived', [MessagingController::class, 'archived'])->name('archived');
-            Route::get('/unread-count', [MessagingController::class, 'unreadCount'])->name('unread-count');
-            Route::get('/{conversation:uuid}', [MessagingController::class, 'show'])->name('show');
-            Route::post('/{conversation:uuid}', [MessagingController::class, 'sendMessage'])->name('send');
-            Route::post('/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('read');
-            Route::post('/{conversation:uuid}/archive', [MessagingController::class, 'archive'])->name('archive');
-            Route::post('/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('unarchive');
-        });
+    // User Dashboard
+    Route::get('/dashboard', [User\DashboardController::class, 'index'])->name('dashboard');
 
-        // Leads (for users - creating inquiries)
-        Route::get('/providers/{provider:slug}/contact', [LeadController::class, 'create'])->name('leads.create');
-        Route::post('/providers/{provider:slug}/contact', [LeadController::class, 'store'])->name('leads.store');
+    // Profile
+    Route::get('/profile', [User\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [User\ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [User\ProfileController::class, 'destroy'])->name('profile.destroy');
 
-        // Digital Library
-        Route::prefix('library')->name('library.')->group(function () {
-            Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('ebooks');
-            Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('audiobooks');
-            Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
-            Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
-            Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
-                ->middleware('throttle:10,1')
-                ->name('pay');
-            Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
-            Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
-            Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
-            Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
-        });
+    // Messaging
+    Route::prefix('messages')->name('messages.')->group(function () {
+        Route::get('/', [MessagingController::class, 'index'])->name('index');
+        Route::get('/archived', [MessagingController::class, 'archived'])->name('archived');
+        Route::get('/unread-count', [MessagingController::class, 'unreadCount'])->name('unread-count');
+        Route::get('/{conversation:uuid}', [MessagingController::class, 'show'])->name('show');
+        Route::post('/{conversation:uuid}', [MessagingController::class, 'sendMessage'])->name('send');
+        Route::post('/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('read');
+        Route::post('/{conversation:uuid}/archive', [MessagingController::class, 'archive'])->name('archive');
+        Route::post('/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('unarchive');
+        Route::delete('/{conversation:uuid}', [MessagingController::class, 'destroy'])->name('destroy');
+    });
 
-        // Reviews
-        Route::get('/reviews', [User\ReviewController::class, 'index'])->name('reviews.index');
-        Route::post('/providers/{provider:slug}/reviews', [User\ReviewController::class, 'store'])->name('reviews.store');
-        Route::post('/reviews/{review:uuid}/helpful', [User\ReviewController::class, 'markHelpful'])->name('reviews.helpful');
+    // Leads (for users - creating inquiries)
+    Route::get('/providers/{provider:slug}/contact', [LeadController::class, 'create'])->name('leads.create');
+    Route::post('/providers/{provider:slug}/contact', [LeadController::class, 'store'])->name('leads.store');
+
+    // Digital Library (e-books & audiobooks only — videos use /videos)
+    Route::prefix('library')->name('library.')->group(function () {
+        Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('ebooks');
+        Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('audiobooks');
+        Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
+        Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
+        Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
+            ->middleware('throttle:10,1')
+            ->name('pay');
+        Route::post('/{item:slug}/manual-payment', [LibraryController::class, 'storeManualPayment'])
+            ->middleware('throttle:10,1')
+            ->name('manual-payment');
+        Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
+        Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
+        Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
+        Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
+    });
+
+    // Video digital products (file downloads / Stripe)
+    Route::prefix('videos')->name('videos.')->group(function () {
+        Route::get('/purchase/cancel/{video:slug}', [VideoProductController::class, 'purchaseCancel'])->name('purchase.cancel');
+        Route::get('/{video:slug}/pay', [VideoProductController::class, 'pay'])
+            ->middleware('throttle:10,1')
+            ->name('pay');
+        Route::get('/{video:slug}/download', [VideoProductController::class, 'download'])->name('download');
+        Route::post('/{video:slug}/purchase', [VideoProductController::class, 'purchase'])->name('purchase');
+        Route::post('/{video:slug}/favorite', [VideoProductController::class, 'toggleFavorite'])->name('favorite');
+    });
+
+    // Reviews
+    Route::get('/reviews', [User\ReviewController::class, 'index'])->name('reviews.index');
+    Route::post('/providers/{provider:slug}/reviews', [User\ReviewController::class, 'store'])->name('reviews.store');
+    Route::post('/reviews/{review:uuid}/helpful', [User\ReviewController::class, 'markHelpful'])->name('reviews.helpful');
 });
 
 /*
@@ -169,17 +192,17 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
     ->prefix('provider')
     ->name('provider.')
     ->group(function () {
-        
+
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/notifications', [Provider\NotificationController::class, 'index'])->name('notifications.index');
-        
+
         // Profile management
         Route::get('/profile', [Provider\ProfileController::class, 'index'])->name('profile.index');
         Route::get('/profile/edit', [Provider\ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [Provider\ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [Provider\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
-        
+
         // Leads
         Route::get('/leads', [Provider\LeadsController::class, 'index'])->name('leads.index');
         Route::get('/leads/{lead}', [Provider\LeadsController::class, 'show'])->name('leads.show');
@@ -187,7 +210,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/leads/{lead}/notes', [Provider\LeadsController::class, 'addNote'])->name('leads.notes');
         Route::post('/leads/{lead}/conversation', [Provider\LeadsController::class, 'createConversation'])->name('leads.conversation');
         Route::post('/leads/{lead}/decline', [Provider\LeadsController::class, 'decline'])->name('leads.decline');
-        
+
         // Reviews
         Route::get('/reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{review:uuid}/respond', [Provider\ReviewController::class, 'respond'])->name('reviews.respond');
@@ -200,22 +223,18 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/messages/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('messages.read');
         Route::post('/messages/{conversation:uuid}/archive', [MessagingController::class, 'archive'])->name('messages.archive');
         Route::post('/messages/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('messages.unarchive');
+        Route::delete('/messages/{conversation:uuid}', [MessagingController::class, 'destroy'])->name('messages.destroy');
 
-        // Provider Library (ebooks/audiobooks)
-        Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
-        Route::post('/library', [Provider\LibraryController::class, 'store'])->name('library.store');
-        Route::delete('/library/{library:slug}', [Provider\LibraryController::class, 'destroy'])->name('library.destroy');
-        
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility
-        Route::get('/verification', fn() => redirect()->route('provider.background-check.index'))->name('verification.index');
-    Route::prefix('background-check')->name('background-check.')->group(function () {
-        Route::get('/', [Provider\BackgroundCheckController::class, 'index'])->name('index');
-        Route::post('/', [Provider\BackgroundCheckController::class, 'store'])->name('store');
-        Route::get('/{backgroundCheck:uuid}', [Provider\BackgroundCheckController::class, 'show'])->name('show');
-        Route::post('/{backgroundCheck:uuid}/refresh', [Provider\BackgroundCheckController::class, 'refresh'])->name('refresh');
-    });
-        
+        Route::get('/verification', fn () => redirect()->route('provider.background-check.index'))->name('verification.index');
+        Route::prefix('background-check')->name('background-check.')->group(function () {
+            Route::get('/', [Provider\BackgroundCheckController::class, 'index'])->name('index');
+            Route::post('/', [Provider\BackgroundCheckController::class, 'store'])->name('store');
+            Route::get('/{backgroundCheck:uuid}', [Provider\BackgroundCheckController::class, 'show'])->name('show');
+            Route::post('/{backgroundCheck:uuid}/refresh', [Provider\BackgroundCheckController::class, 'refresh'])->name('refresh');
+        });
+
         // Analytics
         Route::get('/analytics', [Provider\AnalyticsController::class, 'index'])->name('analytics.index');
     });
@@ -239,7 +258,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
-        
+
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
@@ -247,28 +266,32 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::patch('/profile/password', [Admin\ProfileController::class, 'updatePassword'])->name('profile.password');
         Route::post('/profile/avatar', [Admin\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
         Route::delete('/profile/avatar', [Admin\ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
-        
+
         // Users
         Route::get('/users/check-email', [Admin\UserController::class, 'checkEmail'])->name('users.check-email');
         Route::resource('users', Admin\UserController::class);
-        
+
         // Providers
         Route::resource('providers', Admin\ProviderController::class);
         Route::post('/providers/{provider}/verify', [Admin\ProviderController::class, 'verify'])->name('providers.verify');
-        
+
         // Background Checks
         Route::get('/background-checks', [Admin\BackgroundCheckController::class, 'index'])->name('background-checks.index');
         Route::get('/background-checks/{backgroundCheck:uuid}', [Admin\BackgroundCheckController::class, 'show'])->name('background-checks.show');
-        
+
         // Reviews
         Route::get('/reviews', [Admin\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{review:uuid}/approve', [Admin\ReviewController::class, 'approve'])->name('reviews.approve');
         Route::post('/reviews/{review:uuid}/reject', [Admin\ReviewController::class, 'reject'])->name('reviews.reject');
-        
-        // Library
+
+        // Library (manual payment queue before resource so "library-manual-payments" is not captured as {library})
+        Route::get('/library-manual-payments', [Admin\LibraryManualPaymentController::class, 'index'])
+            ->name('library-manual-payments.index');
+        Route::post('/library-manual-payments/{libraryUserAccess}/approve', [Admin\LibraryManualPaymentController::class, 'approve'])
+            ->name('library-manual-payments.approve');
         Route::resource('library', Admin\LibraryController::class);
         Route::resource('library-categories', Admin\LibraryCategoryController::class);
-        
+
         // Legacy partner links
         Route::resource('partner-links', Admin\AffiliateController::class);
 
@@ -283,19 +306,20 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/affiliates/payouts', [Admin\AffiliatePayoutController::class, 'index'])->name('affiliates.payouts.index');
         Route::post('/affiliates/payouts', [Admin\AffiliatePayoutController::class, 'store'])->name('affiliates.payouts.store');
         Route::resource('affiliates', Admin\AffiliatePartnerController::class);
-        
-        // Videos
-        Route::resource('videos', Admin\VideoController::class);
+
+        // Video embeds + admin file uploads (streamed privately)
+        Route::get('videos/{video}/stream', [Admin\VideoController::class, 'stream'])->name('videos.stream');
+        Route::resource('videos', Admin\VideoController::class)->except(['show']);
         Route::get('/service-types/create', [Admin\ServiceTypeController::class, 'create'])->name('service-types.create');
         Route::get('/service-types', [Admin\ServiceTypeController::class, 'index'])->name('service-types.index');
         Route::post('/service-types', [Admin\ServiceTypeController::class, 'store'])->name('service-types.store');
-        
+
         // Reports
         Route::get('/reports', [Admin\ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/users', [Admin\ReportController::class, 'users'])->name('reports.users');
         Route::get('/reports/leads', [Admin\ReportController::class, 'leads'])->name('reports.leads');
         Route::get('/reports/revenue', [Admin\ReportController::class, 'revenue'])->name('reports.revenue');
-        
+
         // Settings
         Route::middleware('role:super_admin')->group(function () {
             Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');

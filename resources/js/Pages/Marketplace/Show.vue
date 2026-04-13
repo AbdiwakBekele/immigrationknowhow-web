@@ -506,12 +506,12 @@ const resolveAvatar = (person, fallback) => {
                                 <textarea 
                                     v-model="inquiryForm.message"
                                     rows="4"
-                                    minlength="20"
+                                    minlength="2"
                                     class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                     placeholder="Describe what you're looking for, your situation, timeline, etc..."
                                     required
                                 ></textarea>
-                                <p class="mt-1 text-xs text-slate-500">At least 20 characters (required to send).</p>
+                                <p class="mt-1 text-xs text-slate-500">At least 2 characters (required to send).</p>
                                 <p v-if="inquiryForm.errors.message" class="mt-1 text-sm text-red-600">{{ inquiryForm.errors.message }}</p>
                             </div>
 

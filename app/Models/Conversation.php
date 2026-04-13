@@ -87,18 +87,23 @@ class Conversation extends Model
     public function getOtherParticipantAttribute()
     {
         $currentUser = auth()->user();
-        if (!$currentUser) return null;
+        if (! $currentUser) {
+            return null;
+        }
 
         if ($currentUser->id === $this->user_id) {
             return $this->serviceProvider?->user;
         }
+
         return $this->user;
     }
 
     public function getUnreadCountAttribute(): int
     {
         $currentUser = auth()->user();
-        if (!$currentUser) return 0;
+        if (! $currentUser) {
+            return 0;
+        }
 
         return $this->messages()
             ->where('sender_id', '!=', $currentUser->id)
@@ -111,7 +116,9 @@ class Conversation extends Model
     public function getIsArchivedAttribute(): bool
     {
         $currentUser = auth()->user();
-        if (!$currentUser) return false;
+        if (! $currentUser) {
+            return false;
+        }
 
         if ($currentUser->id === $this->user_id) {
             return $this->user_archived;
@@ -128,12 +135,16 @@ class Conversation extends Model
     public function scopeForUser($query, User $user)
     {
         return $query->where(function ($q) use ($user) {
-            $q->where('user_id', $user->id)
-                ->where('user_archived', false);
-        })->orWhere(function ($q) use ($user) {
+            $q->where(function ($owningUserQuery) use ($user) {
+                $owningUserQuery->where('user_id', $user->id)
+                    ->where('user_archived', false);
+            });
+
             if ($user->serviceProvider) {
-                $q->where('service_provider_id', $user->serviceProvider->id)
-                    ->where('provider_archived', false);
+                $q->orWhere(function ($providerQuery) use ($user) {
+                    $providerQuery->where('service_provider_id', $user->serviceProvider->id)
+                        ->where('provider_archived', false);
+                });
             }
         });
     }
@@ -146,7 +157,9 @@ class Conversation extends Model
     public function scopeWithUnread($query)
     {
         $currentUser = auth()->user();
-        if (!$currentUser) return $query;
+        if (! $currentUser) {
+            return $query;
+        }
 
         return $query->whereHas('messages', function ($q) use ($currentUser) {
             $q->where('sender_id', '!=', $currentUser->id)
@@ -157,7 +170,7 @@ class Conversation extends Model
     }
 
     // Methods
-    public function addMessage(User $sender, string $body, array $attachments = null): Message
+    public function addMessage(User $sender, string $body, ?array $attachments = null): Message
     {
         $message = $this->messages()->create([
             'sender_id' => $sender->id,

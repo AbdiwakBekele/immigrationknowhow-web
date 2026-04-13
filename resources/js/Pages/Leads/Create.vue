@@ -66,7 +66,7 @@ const contactMethods = [
 ];
 
 const messageLength = computed(() => form.message.length);
-const isMessageValid = computed(() => form.message.length >= 20);
+const isMessageValid = computed(() => form.message.length >= 2);
 </script>
 
 <template>
@@ -127,7 +127,7 @@ const isMessageValid = computed(() => form.message.length >= 20);
                                     ></textarea>
                                     <div class="flex items-center justify-between mt-2">
                                         <p :class="['text-sm', isMessageValid ? 'text-green-600' : 'text-slate-400']">
-                                            {{ messageLength }}/20 characters minimum
+                                            {{ messageLength }}/2 characters minimum
                                         </p>
                                         <p v-if="!isMessageValid && messageLength > 0" class="text-sm text-amber-600">
                                             Please provide more details

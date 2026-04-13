@@ -87,12 +87,13 @@ class MessageController extends Controller
         $conversations = Conversation::query()
             ->forServiceInquiries()
             ->where(function ($q) use ($user) {
-                $q->where('user_id', $user->id)
-                    ->where('user_archived', true);
-            })
-            ->orWhere(function ($q) use ($user) {
-                $q->where('service_provider_id', $user->serviceProvider->id)
-                    ->where('provider_archived', true);
+                $q->where(function ($owningUserQuery) use ($user) {
+                    $owningUserQuery->where('user_id', $user->id)
+                        ->where('user_archived', true);
+                })->orWhere(function ($providerQuery) use ($user) {
+                    $providerQuery->where('service_provider_id', $user->serviceProvider->id)
+                        ->where('provider_archived', true);
+                });
             })
             ->with([
                 'user:id,first_name,last_name,avatar',

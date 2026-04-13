@@ -16,9 +16,15 @@ class HandleInertiaRequests extends Middleware
 
     /**
      * Determine the current asset version.
+     * Busts Inertia partial reloads when Vite output changes (e.g. after `npm run build`).
      */
     public function version(Request $request): ?string
     {
+        $manifest = public_path('build/manifest.json');
+        if (is_file($manifest)) {
+            return (string) filemtime($manifest);
+        }
+
         return parent::version($request);
     }
 

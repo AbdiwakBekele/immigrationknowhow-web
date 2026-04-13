@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Actions\Library\FulfillLibraryStripeCheckout;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
+use App\Models\LibraryUserAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -117,24 +119,27 @@ class LibraryController extends Controller
             ? $item->userAccess()->where('user_id', auth()->id())->first()
             : null;
         $hasAccess = (bool) $userAccess?->purchased_at;
+        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
 
-        $stripeSecret = config('services.stripe.secret');
-        $stripeKey = config('services.stripe.key');
-        $stripeConfigured = is_string($stripeSecret) && $stripeSecret !== ''
-            && is_string($stripeKey) && $stripeKey !== '';
+        $stripeConfigured = $this->stripeIsConfigured();
 
         $stripeSetupNote = $stripeConfigured
             ? null
-            : (config('app.debug')
-                ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe (test keys are fine on local). If you already added them, run php artisan config:clear so Laravel reloads .env.'
-                : 'Card payments are not available right now. Please try again later or contact support.');
+            : ($this->manualPaymentInstructions() !== ''
+                ? null
+                : (config('app.debug')
+                    ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe, or set MANUAL_PAYMENT_INSTRUCTIONS for manual payments. Run php artisan config:clear after changing .env.'
+                    : 'Online checkout is not available right now. Please try again later or contact support.'));
 
         return Inertia::render('Library/Show', [
             'item' => $item,
             'relatedItems' => $relatedItems,
             'userAccess' => $userAccess,
             'hasAccess' => $hasAccess,
+            'requiresPaidAccess' => $requiresPaidAccess,
             'stripeSetupNote' => $stripeSetupNote,
+            'libraryPaymentMode' => $stripeConfigured ? 'stripe' : 'manual',
+            'manualPaymentPending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
         ]);
     }
 
@@ -187,22 +192,17 @@ class LibraryController extends Controller
     }
 
     /**
-     * Embedded Stripe Checkout — card UI loads on Library/Payment.vue.
+     * Stripe embedded checkout (Library/Payment.vue) or manual instructions (Library/ManualPayment.vue).
      */
     public function pay(LibraryItem $item): Response|RedirectResponse
     {
-        abort_unless($item->is_active && $item->is_premium, 404);
+        abort_unless($item->is_active, 404);
 
-        $secret = config('services.stripe.secret');
-        $publishable = config('services.stripe.key');
-        if (! is_string($secret) || $secret === '' || ! is_string($publishable) || $publishable === '') {
-            $hint = config('app.debug')
-                ? 'Add STRIPE_KEY (or STRIPE_PUBLISHABLE_KEY) and STRIPE_SECRET (or STRIPE_SECRET_KEY) to .env, then run php artisan config:clear.'
-                : 'Card payments are not configured yet. Please contact support.';
-
+        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        if (! $item->is_premium && ! $requiresPaidAccess) {
             return redirect()
                 ->route('library.show', $item)
-                ->with('error', $hint);
+                ->with('info', 'This item is already available for free.');
         }
 
         if ($item->price === null || (float) $item->price <= 0) {
@@ -219,6 +219,13 @@ class LibraryController extends Controller
                 ->route('library.show', $item)
                 ->with('success', 'You already have access to this title.');
         }
+
+        if (! $this->stripeIsConfigured()) {
+            return $this->renderManualPaymentPage($item);
+        }
+
+        $secret = config('services.stripe.secret');
+        $publishable = config('services.stripe.key');
 
         Stripe::setApiKey($secret);
 
@@ -285,6 +292,66 @@ class LibraryController extends Controller
         ]);
     }
 
+    /**
+     * User submits payment reference after paying outside Stripe (bank transfer, PayPal, etc.).
+     */
+    public function storeManualPayment(Request $request, LibraryItem $item): RedirectResponse
+    {
+        abort_unless($item->is_active, 404);
+
+        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        if (! $item->is_premium && ! $requiresPaidAccess) {
+            return redirect()
+                ->route('library.show', $item)
+                ->with('info', 'This item is already available for free.');
+        }
+
+        if ($this->stripeIsConfigured()) {
+            return redirect()
+                ->route('library.pay', $item)
+                ->with('info', 'Use card checkout to complete this purchase.');
+        }
+
+        if ($item->price === null || (float) $item->price <= 0) {
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', 'This item is not available for purchase.');
+        }
+
+        $validated = $request->validate([
+            'manual_payment_reference' => ['required', 'string', 'max:255'],
+            'manual_payment_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        return DB::transaction(function () use ($item, $validated) {
+            /** @var LibraryUserAccess $access */
+            $access = $item->userAccess()->firstOrCreate(
+                [
+                    'user_id' => auth()->id(),
+                ],
+                []
+            );
+
+            $access->refresh();
+
+            if ($access->purchased_at !== null) {
+                return redirect()
+                    ->route('library.show', $item)
+                    ->with('success', 'You already have access to this title.');
+            }
+
+            $access->update([
+                'manual_payment_requested_at' => now(),
+                'manual_payment_reference' => $validated['manual_payment_reference'],
+                'manual_payment_note' => $validated['manual_payment_note'] ?? null,
+            ]);
+
+            return redirect()
+                ->route('library.show', $item)
+                ->with('success', 'Thanks — we received your payment details. An administrator will verify and unlock your download.');
+        });
+    }
+
     public function purchaseReturn(Request $request, FulfillLibraryStripeCheckout $fulfill): RedirectResponse
     {
         $sessionId = $request->query('session_id');
@@ -342,10 +409,10 @@ class LibraryController extends Controller
     {
         abort_unless($item->is_active, 404);
 
-        if ($item->is_premium) {
+        if ($item->is_premium || in_array($item->type, ['audiobook', 'video'], true)) {
             return redirect()
-                ->route('library.show', $item)
-                ->with('info', 'Use Purchase on this page to pay with a card.');
+                ->route('library.pay', $item)
+                ->with('info', 'Use card checkout to unlock this item.');
         }
 
         $access = $item->userAccess()->firstOrCreate([
@@ -381,6 +448,60 @@ class LibraryController extends Controller
         $access->updateProgress($validated['progress']);
 
         return back();
+    }
+
+    private function stripeIsConfigured(): bool
+    {
+        $secret = config('services.stripe.secret');
+        $publishable = config('services.stripe.key');
+
+        return is_string($secret) && $secret !== ''
+            && is_string($publishable) && $publishable !== '';
+    }
+
+    private function manualPaymentInstructions(): string
+    {
+        $custom = config('manual_payment.instructions');
+
+        return is_string($custom) && $custom !== ''
+            ? $custom
+            : (string) config('manual_payment.default_instructions');
+    }
+
+    private function renderManualPaymentPage(LibraryItem $item): Response|RedirectResponse
+    {
+        $instructions = $this->manualPaymentInstructions();
+        if ($instructions === '') {
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', config('app.debug')
+                    ? 'Set MANUAL_PAYMENT_INSTRUCTIONS in .env (or configure Stripe), then run php artisan config:clear.'
+                    : 'Payments are not configured yet. Please contact support.');
+        }
+
+        $access = $item->userAccess()->where('user_id', auth()->id())->first();
+        $pending = $access && $access->manual_payment_requested_at && ! $access->purchased_at;
+
+        return Inertia::render('Library/ManualPayment', [
+            'item' => [
+                'title' => $item->title,
+                'slug' => $item->slug,
+                'price' => $item->price,
+                'currency' => $item->currency ?? 'USD',
+                'type' => $item->type,
+            ],
+            'instructions' => $instructions,
+            'pending' => $pending,
+            'submitted' => $pending ? [
+                'manual_payment_reference' => $access->manual_payment_reference,
+                'manual_payment_note' => $access->manual_payment_note,
+                'manual_payment_requested_at' => $access->manual_payment_requested_at?->toIso8601String(),
+            ] : null,
+            'formDefaults' => [
+                'manual_payment_reference' => $access?->manual_payment_reference ?? '',
+                'manual_payment_note' => $access?->manual_payment_note ?? '',
+            ],
+        ]);
     }
 
     private function buildCategoryGroups(Collection $items): array

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\BackgroundCheckStatus;
 use App\Enums\LeadStatus;
+use App\Enums\ServiceType;
 use App\Http\Controllers\Controller;
 use App\Models\BackgroundCheck;
 use App\Models\Lead;
@@ -89,7 +90,7 @@ class DashboardController extends Controller
             ->groupBy('date')
             ->orderBy('date')
             ->get()
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'date' => $item->date,
                 'count' => $item->count,
             ]);
@@ -97,10 +98,10 @@ class DashboardController extends Controller
         // Service type distribution
         $serviceTypeDistribution = ServiceProvider::active()
             ->get()
-            ->flatMap(fn($p) => $p->service_types)
+            ->flatMap(fn ($p) => $p->service_types)
             ->countBy()
-            ->map(fn($count, $type) => [
-                'type' => \App\Enums\ServiceType::tryFrom($type)?->label() ?? $type,
+            ->map(fn ($count, $type) => [
+                'type' => ServiceType::tryFrom($type)?->label() ?? $type,
                 'count' => $count,
             ])
             ->values()
@@ -125,9 +126,12 @@ class DashboardController extends Controller
     protected function calculateConversionRate(): float
     {
         $total = Lead::count();
-        if ($total === 0) return 0;
+        if ($total === 0) {
+            return 0;
+        }
 
         $converted = Lead::where('status', LeadStatus::CONVERTED)->count();
+
         return round(($converted / $total) * 100, 1);
     }
 }

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import { adminMainNavItems, adminSettingsNavItems } from '@/config/adminSidebarNav.js';
 import { 
     Bars3Icon, 
     HomeIcon,
@@ -10,14 +11,16 @@ import {
     ShieldCheckIcon,
     StarIcon,
     BookOpenIcon,
-    LinkIcon,
     VideoCameraIcon,
+    LinkIcon,
     ChartBarIcon,
     Cog6ToothIcon,
     Squares2X2Icon,
+    BanknotesIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     UserCircleIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -25,35 +28,53 @@ const user = computed(() => page.props.auth?.user);
 const sidebarOpen = ref(false);
 const isSuperAdmin = computed(() => user.value?.roles?.includes('super_admin'));
 
-const navigation = computed(() => [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
-    { name: 'Users', href: '/admin/users', icon: UsersIcon },
-    { name: 'Providers', href: '/admin/providers', icon: BriefcaseIcon },
-    { name: 'Background Checks', href: '/admin/background-checks', icon: ShieldCheckIcon },
-    { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },
-    { name: 'Library', href: '/admin/library', icon: BookOpenIcon },
-    { name: 'Affiliates', href: '/admin/affiliates', icon: LinkIcon },
-    { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },
-    { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
-    { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
-    ...(isSuperAdmin.value
-        ? [{
-            name: 'Settings',
-            icon: Cog6ToothIcon,
-            children: [
-                { name: 'General', href: '/admin/settings' },
-                { name: 'Category Create', href: '/admin/library-categories/create' },
-            ],
-        }]
-        : []),
-]);
+/** Flat list — Library is one link (no Videos / no “Library items” sub-rows). */
+const mainNavigation = computed(() =>
+    adminMainNavItems({
+        HomeIcon,
+        UsersIcon,
+        BriefcaseIcon,
+        ShieldCheckIcon,
+        StarIcon,
+        BookOpenIcon,
+        VideoCameraIcon,
+        LinkIcon,
+        Squares2X2Icon,
+        ChartBarIcon,
+        BanknotesIcon,
+    }),
+);
+
+const settingsNavigation = computed(() => (isSuperAdmin.value ? adminSettingsNavItems() : []));
 
 const logout = () => {
     router.post('/logout');
 };
 
 const isActive = (href) => {
-    return page.url.startsWith(href);
+    const path = page.url.split('?')[0] ?? '';
+    if (href === '/admin/library-manual-payments') {
+        return path.startsWith('/admin/library-manual-payments');
+    }
+    if (href === '/admin/library') {
+        if (path.startsWith('/admin/library-manual-payments')) {
+            return false;
+        }
+        if (path === '/admin/library') {
+            return true;
+        }
+        if (path.startsWith('/admin/library-categories')) {
+            return false;
+        }
+        return path.startsWith('/admin/library/');
+    }
+    if (href.startsWith('/admin/library-categories')) {
+        return path.startsWith('/admin/library-categories');
+    }
+    if (href === '/admin/videos') {
+        return path === '/admin/videos' || path.startsWith('/admin/videos/');
+    }
+    return path.startsWith(href);
 };
 
 const unreadNotificationsCount = computed(
@@ -80,74 +101,92 @@ const unreadNotificationsCount = computed(
         </Transition>
 
         <!-- Sidebar -->
-        <aside 
+        <aside
+            data-admin-sidebar="flat-main-nav"
             :class="[
-                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col bg-white border-r border-slate-200 shadow-sm transform transition-transform duration-300 lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col border-r border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 shadow-[4px_0_32px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm transform transition-transform duration-300 ease-out lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             ]"
         >
             <!-- Logo -->
-            <div class="flex shrink-0 items-center border-b border-slate-200 px-6 py-5 pb-6">
-                <Link href="/admin/dashboard" class="block w-full">
+            <div class="relative flex shrink-0 flex-col gap-1 border-b border-slate-200/80 px-4 pb-4 pt-5">
+                <button
+                    type="button"
+                    class="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:hidden"
+                    aria-label="Close menu"
+                    @click="sidebarOpen = false"
+                >
+                    <XMarkIcon class="h-5 w-5" />
+                </button>
+                <Link href="/admin/dashboard" class="block w-full pr-8 lg:pr-0" @click="sidebarOpen = false">
                     <BrandLogo
                         context="admin"
                         :show-name="false"
                         container-class="flex items-center"
-                        mark-class="flex h-12 w-full max-w-[180px] items-center justify-start overflow-hidden rounded-none bg-transparent text-slate-900 shadow-none"
+                        mark-class="flex h-11 w-full max-w-[180px] items-center justify-start overflow-hidden rounded-none bg-transparent text-slate-900 shadow-none"
                         image-class="h-full w-full object-contain object-left"
                         initials-class="font-bold text-lg uppercase tracking-wide"
                     />
                 </Link>
+                <p class="pl-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Administration
+                </p>
             </div>
 
             <!-- Navigation -->
-            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-10">
-                <template v-for="item in navigation" :key="item.name">
-                    <div v-if="item.children" class="space-y-1">
-                        <div class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700">
-                            <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-                            {{ item.name }}
-                        </div>
-                        <Link
-                            v-for="child in item.children"
-                            :key="`${item.name}-${child.name}`"
-                            :href="child.href"
-                            :class="[
-                                'ml-8 flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                                isActive(child.href)
-                                    ? 'bg-sky-50 text-sky-700 border border-sky-100'
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                            ]"
-                        >
-                            {{ child.name }}
-                        </Link>
-                    </div>
-                    <Link
-                        v-else
-                        :href="item.href"
+            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-5">
+                <p class="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Menu
+                </p>
+                <Link
+                    v-for="item in mainNavigation"
+                    :key="item.href"
+                    :href="item.href"
+                    :class="[
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                        isActive(item.href)
+                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
+                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                    ]"
+                    @click="sidebarOpen = false"
+                >
+                    <span
                         :class="[
-                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                            'inline-flex rounded-lg p-1.5 transition-colors',
                             isActive(item.href)
-                                ? 'bg-sky-50 text-sky-700 border border-sky-100'
-                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700'
                         ]"
                     >
-                        <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
-                        {{ item.name }}
+                        <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                    </span>
+                    {{ item.name }}
+                </Link>
+
+                <div v-if="settingsNavigation.length" class="mt-3 space-y-1 border-t border-slate-200/80 pt-3">
+                    <div class="flex items-center gap-3 px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <span class="inline-flex rounded-lg bg-slate-100 p-1.5 text-slate-600">
+                            <Cog6ToothIcon class="h-4 w-4 flex-shrink-0" />
+                        </span>
+                        Settings
+                    </div>
+                    <Link
+                        v-for="child in settingsNavigation"
+                        :key="child.href"
+                        :href="child.href"
+                        :class="[
+                            'ml-1 flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150',
+                            isActive(child.href)
+                                ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/25'
+                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                        ]"
+                        @click="sidebarOpen = false"
+                    >
+                        {{ child.name }}
                     </Link>
-                </template>
+                </div>
             </nav>
 
-            <!-- Profile (bottom) -->
-            <div class="shrink-0 border-t border-slate-200 p-3">
-                <Link
-                    href="/admin/profile"
-                    class="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-                >
-                    <UserCircleIcon class="h-5 w-5 flex-shrink-0 text-slate-500" />
-                    <span class="min-w-0 truncate font-medium">{{ user?.full_name || 'Profile' }}</span>
-                </Link>
-            </div>
         </aside>
 
         <!-- Main content -->
