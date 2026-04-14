@@ -6,10 +6,10 @@ use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Review;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
 
 class DashboardController extends Controller
 {
@@ -19,11 +19,12 @@ class DashboardController extends Controller
         $provider = $user->serviceProvider;
 
         // If no provider profile exists, reset onboarding and redirect
-        if (!$provider) {
+        if (! $provider) {
             $user->update([
                 'onboarding_completed' => false,
                 'onboarding_completed_at' => null,
             ]);
+
             return redirect()->route('onboarding.index')
                 ->with('warning', 'Please complete your provider profile setup.');
         }
@@ -33,7 +34,13 @@ class DashboardController extends Controller
 
         // Recent leads
         $recentLeads = Lead::where('service_provider_id', $provider->id)
-            ->with(['user:id,first_name,last_name,avatar,email,phone'])
+            ->whereHas('conversation', function ($q) use ($user) {
+                $q->forUser($user)->forServiceInquiries();
+            })
+            ->with([
+                'user:id,first_name,last_name,avatar,email,phone',
+                'conversation:id,lead_id,uuid',
+            ])
             ->latest()
             ->limit(5)
             ->get();
@@ -60,7 +67,7 @@ class DashboardController extends Controller
             'recentReviews' => $recentReviews,
             'leadsChartData' => $leadsChartData,
             'provider' => $provider->only([
-                'id', 'slug', 'business_name', 'average_rating', 'total_reviews', 
+                'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                 'background_check_status', 'is_featured', 'profile_views',
             ]),
         ]);
@@ -105,8 +112,8 @@ class DashboardController extends Controller
             ->whereBetween('created_at', [$sixtyDaysAgo, $thirtyDaysAgo])
             ->count();
 
-        $leadsTrend = $leadsLastMonth > 0 
-            ? round((($leadsThisMonth - $leadsLastMonth) / $leadsLastMonth) * 100, 1) 
+        $leadsTrend = $leadsLastMonth > 0
+            ? round((($leadsThisMonth - $leadsLastMonth) / $leadsLastMonth) * 100, 1)
             : ($leadsThisMonth > 0 ? 100 : 0);
 
         return [

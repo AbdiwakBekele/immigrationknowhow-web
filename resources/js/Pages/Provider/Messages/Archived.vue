@@ -1,7 +1,7 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
-import { ArrowLeftIcon, InboxIcon } from '@heroicons/vue/24/outline';
+import { ArrowLeftIcon, ArrowPathIcon, InboxIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 defineProps({
     conversations: { type: Object, required: true },
@@ -11,6 +11,22 @@ const formatTime = (date) => {
     if (!date) return '';
     const d = new Date(date);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const recoverConversation = (uuid) => {
+    router.post(route('provider.messages.unarchive', uuid), {}, {
+        preserveScroll: true,
+    });
+};
+
+const deleteConversation = (uuid) => {
+    if (!window.confirm('Delete this conversation permanently?')) {
+        return;
+    }
+
+    router.delete(route('provider.messages.destroy', uuid), {
+        preserveScroll: true,
+    });
 };
 </script>
 
@@ -47,7 +63,25 @@ const formatTime = (date) => {
                         <p class="font-medium text-slate-900 truncate">{{ conversation.user?.full_name || 'Client' }}</p>
                         <p class="text-sm text-slate-500 truncate">{{ conversation.latest_message?.body || 'No preview' }}</p>
                     </div>
-                    <span class="text-xs text-slate-400">{{ formatTime(conversation.last_message_at) }}</span>
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-primary-600"
+                            title="Recover"
+                            @click.prevent="recoverConversation(conversation.uuid)"
+                        >
+                            <ArrowPathIcon class="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-red-600"
+                            title="Delete"
+                            @click.prevent="deleteConversation(conversation.uuid)"
+                        >
+                            <TrashIcon class="h-4 w-4" />
+                        </button>
+                        <span class="text-xs text-slate-400">{{ formatTime(conversation.last_message_at) }}</span>
+                    </div>
                 </Link>
             </div>
 

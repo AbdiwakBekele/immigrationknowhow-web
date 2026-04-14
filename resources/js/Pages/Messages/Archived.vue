@@ -1,7 +1,7 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ArrowLeftIcon, ArchiveBoxIcon, InboxIcon } from '@heroicons/vue/24/outline';
+import { ArrowPathIcon, ArrowLeftIcon, InboxIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 defineProps({
     conversations: { type: Object, required: true },
@@ -23,6 +23,24 @@ const avatarSrc = (conversation) =>
     conversation.service_provider?.user?.avatar
     || conversation.user?.avatar
     || '/images/default-avatar.png';
+
+const recoverConversation = (uuid) => {
+    router.post(route('messages.unarchive', uuid), {}, {
+        preserveScroll: true,
+    });
+};
+
+const deleteConversation = (uuid) => {
+    if (!window.confirm('Delete this conversation permanently?')) {
+        return;
+    }
+
+    router.delete(route('messages.destroy', uuid), {
+        preserveScroll: true,
+    });
+};
+
+const conversationHref = (uuid) => (uuid ? route('messages.show', uuid) : route('messages.index'));
 </script>
 
 <template>
@@ -52,7 +70,7 @@ const avatarSrc = (conversation) =>
                 <Link
                     v-for="conversation in conversations.data"
                     :key="conversation.id"
-                    :href="route('messages.show', conversation.uuid)"
+                    :href="conversationHref(conversation.uuid)"
                     class="flex items-center gap-4 p-4 transition hover:bg-slate-50"
                 >
                     <img
@@ -69,7 +87,22 @@ const avatarSrc = (conversation) =>
                         </p>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
-                        <ArchiveBoxIcon class="h-4 w-4 text-slate-400" aria-hidden="true" />
+                        <button
+                            type="button"
+                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-primary-600"
+                            title="Recover"
+                            @click.prevent="recoverConversation(conversation.uuid)"
+                        >
+                            <ArrowPathIcon class="h-4 w-4" />
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-red-600"
+                            title="Delete"
+                            @click.prevent="deleteConversation(conversation.uuid)"
+                        >
+                            <TrashIcon class="h-4 w-4" />
+                        </button>
                         <span class="text-xs text-slate-400">{{ formatTime(conversation.last_message_at) }}</span>
                     </div>
                 </Link>

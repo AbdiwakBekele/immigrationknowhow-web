@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Affiliates\CreateAffiliateEarningAction;
-use App\Enums\LeadStatus;
 use App\Enums\AffiliateCommissionTrigger;
+use App\Enums\LeadStatus;
 use App\Enums\ServiceType;
 use App\Models\Lead;
 use App\Models\ServiceProvider;
@@ -30,9 +30,9 @@ class LeadController extends Controller
         return Inertia::render('Leads/Create', [
             'provider' => $provider->load('user:id,first_name,last_name,avatar'),
             'serviceTypes' => collect($provider->service_types)
-                ->map(fn($type) => [
+                ->map(fn ($type) => [
                     'value' => $type,
-                    'label' => \App\Enums\ServiceType::tryFrom($type)?->label() ?? $type,
+                    'label' => ServiceType::tryFrom($type)?->label() ?? $type,
                 ])
                 ->toArray(),
         ]);
@@ -49,7 +49,7 @@ class LeadController extends Controller
 
         $validated = $request->validate([
             'service_type' => ['required', 'string', Rule::in($allowedServiceTypes)],
-            'message' => ['required', 'string', 'min:20', 'max:2000'],
+            'message' => ['required', 'string', 'min:2', 'max:2000'],
             'requirements' => ['nullable', 'array'],
             'preferred_contact_method' => ['nullable', 'in:message,email,phone'],
             'preferred_contact_time' => ['nullable', 'string', 'max:255'],
@@ -142,7 +142,7 @@ class LeadController extends Controller
             'leads' => $leads,
             'stats' => $stats,
             'filters' => $request->only(['status', 'service_type', 'from', 'to']),
-            'statuses' => collect(LeadStatus::cases())->map(fn($s) => [
+            'statuses' => collect(LeadStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),
             ])->toArray(),
@@ -169,7 +169,7 @@ class LeadController extends Controller
 
         return Inertia::render('Provider/Leads/Show', [
             'lead' => $lead,
-            'statuses' => collect(LeadStatus::cases())->map(fn($s) => [
+            'statuses' => collect(LeadStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),
                 'color' => $s->color(),
@@ -199,7 +199,7 @@ class LeadController extends Controller
             default => $lead->update(['status' => $status]),
         };
 
-        if (!empty($validated['notes'])) {
+        if (! empty($validated['notes'])) {
             $lead->update(['provider_notes' => $validated['notes']]);
         }
 

@@ -54,9 +54,11 @@ const formatTime = (date) => {
 };
 
 const conversationHref = (conversation) =>
-    props.isProvider
-        ? route('provider.messages.show', conversation.uuid)
-        : route('messages.show', conversation.uuid);
+    conversation?.uuid
+        ? (props.isProvider
+            ? route('provider.messages.show', conversation.uuid)
+            : route('messages.show', conversation.uuid))
+        : (props.isProvider ? route('provider.messages.index') : route('messages.index'));
 
 const archiveConversation = (uuid) => {
     router.post(`/messages/${uuid}/archive`, {}, {

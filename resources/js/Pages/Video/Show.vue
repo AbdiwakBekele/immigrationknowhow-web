@@ -5,6 +5,7 @@ import {
     ArrowDownTrayIcon,
     BookOpenIcon,
     MusicalNoteIcon,
+    VideoCameraIcon,
     ClockIcon,
     DocumentTextIcon,
     HeartIcon,
@@ -23,10 +24,7 @@ const props = defineProps({
     relatedItems: { type: Array, default: () => [] },
     userAccess: { type: Object, default: null },
     hasAccess: { type: Boolean, default: false },
-    requiresPaidAccess: { type: Boolean, default: false },
     stripeSetupNote: { type: String, default: null },
-    libraryPaymentMode: { type: String, default: 'stripe' },
-    manualPaymentPending: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -81,6 +79,47 @@ const progressPercentage = computed(() => {
     }
     return 0;
 });
+
+const typeLabel = computed(() => {
+    const t = props.item.type;
+    if (t === 'ebook') return 'E-Book';
+    if (t === 'audiobook') return 'Audiobook';
+    if (t === 'video') return 'Video';
+    return 'Digital product';
+});
+
+const aboutNoun = computed(() => {
+    const t = props.item.type;
+    if (t === 'ebook') return 'book';
+    if (t === 'video') return 'video';
+    return 'audiobook';
+});
+
+const unlockPhrase = computed(() => {
+    const t = props.item.type;
+    if (t === 'ebook') return 'e-book';
+    if (t === 'video') return 'video';
+    return 'audiobook';
+});
+
+const coverTypeIcon = computed(() => {
+    const t = props.item.type;
+    if (t === 'ebook') return BookOpenIcon;
+    if (t === 'video') return VideoCameraIcon;
+    return MusicalNoteIcon;
+});
+
+function relatedTypeLabel(type) {
+    if (type === 'ebook') return 'E-Book';
+    if (type === 'video') return 'Video';
+    return 'Audio';
+}
+
+function relatedCoverIcon(type) {
+    if (type === 'ebook') return BookOpenIcon;
+    if (type === 'video') return VideoCameraIcon;
+    return MusicalNoteIcon;
+}
 </script>
 
 <template>
@@ -145,11 +184,10 @@ const progressPercentage = computed(() => {
                                                     v-else
                                                     class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800"
                                                 >
-                                                    <BookOpenIcon
-                                                        v-if="item.type === 'ebook'"
+                                                    <component
+                                                        :is="coverTypeIcon"
                                                         class="h-12 w-12 text-white/90 drop-shadow-md"
                                                     />
-                                                    <MusicalNoteIcon v-else class="h-12 w-12 text-white/90 drop-shadow-md" />
                                                 </div>
                                             </div>
                                         </div>
@@ -161,9 +199,8 @@ const progressPercentage = computed(() => {
                                                 <span
                                                     class="inline-flex items-center gap-1.5 rounded-full border border-primary-100 bg-primary-50/90 px-3 py-1 text-xs font-semibold text-primary-700 shadow-sm"
                                                 >
-                                                    <BookOpenIcon v-if="item.type === 'ebook'" class="h-3.5 w-3.5" />
-                                                    <MusicalNoteIcon v-else class="h-3.5 w-3.5" />
-                                                    {{ item.type === 'ebook' ? 'E-Book' : 'Audiobook' }}
+                                                    <component :is="coverTypeIcon" class="h-3.5 w-3.5" />
+                                                    {{ typeLabel }}
                                                 </span>
                                                 <h1
                                                     class="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl xl:text-4xl"
@@ -257,7 +294,7 @@ const progressPercentage = computed(() => {
 
                             <div class="border-t border-slate-100/90 bg-slate-50/40 px-5 py-6 sm:px-8 sm:py-8">
                                 <h2 class="font-display text-lg font-bold text-slate-900 sm:text-xl">
-                                    About this {{ item.type === 'ebook' ? 'book' : 'audiobook' }}
+                                    About this {{ aboutNoun }}
                                 </h2>
                                 <div class="prose prose-slate prose-sm mt-3 max-w-none sm:prose-base prose-p:leading-relaxed">
                                     <p class="whitespace-pre-line text-slate-600">
@@ -350,14 +387,10 @@ const progressPercentage = computed(() => {
                                     Listen now
                                 </button>
 
-                                <div v-if="!hasAccess && (item.is_premium || requiresPaidAccess)" class="space-y-4">
-                                    <p v-if="libraryPaymentMode === 'stripe'" class="text-sm leading-relaxed text-slate-600">
-                                        Unlock this {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} with a secure card
+                                <div v-if="!hasAccess && item.is_premium" class="space-y-4">
+                                    <p class="text-sm leading-relaxed text-slate-600">
+                                        Unlock this {{ unlockPhrase }} with a secure card
                                         checkout powered by Stripe — right on this site.
-                                    </p>
-                                    <p v-else class="text-sm leading-relaxed text-slate-600">
-                                        Unlock this {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} by completing payment
-                                        (bank transfer, PayPal, or another method we support). You will submit a payment reference on the next step.
                                     </p>
                                     <div
                                         v-if="item.price"
@@ -384,40 +417,14 @@ const progressPercentage = computed(() => {
                                     >
                                         {{ stripeSetupNote }}
                                     </p>
-                                    <div
-                                        v-if="manualPaymentPending"
-                                        class="rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950"
-                                    >
-                                        <p class="font-semibold">Payment verification pending</p>
-                                        <p class="mt-1 text-amber-900/90">
-                                            We received your payment details. An administrator will confirm and unlock your download — check back soon.
-                                        </p>
-                                    </div>
                                     <Link
-                                        v-if="!manualPaymentPending"
                                         :href="route('library.pay', item.slug)"
                                         class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/30 transition hover:from-primary-500 hover:to-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                                     >
-                                        <template v-if="libraryPaymentMode === 'stripe'">
-                                            Continue to payment
-                                            <span v-if="item.price" class="opacity-95">· {{ item.currency ?? 'USD' }} {{ item.price }}</span>
-                                        </template>
-                                        <template v-else>
-                                            Continue to pay (manual)
-                                            <span v-if="item.price" class="opacity-95">· {{ item.currency ?? 'USD' }} {{ item.price }}</span>
-                                        </template>
+                                        Continue to payment
+                                        <span v-if="item.price" class="opacity-95">· {{ item.currency ?? 'USD' }} {{ item.price }}</span>
                                     </Link>
-                                    <Link
-                                        v-else
-                                        :href="route('library.pay', item.slug)"
-                                        class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-slate-50"
-                                    >
-                                        View payment instructions
-                                    </Link>
-                                    <p
-                                        v-if="libraryPaymentMode === 'stripe'"
-                                        class="flex items-start gap-2 text-xs leading-relaxed text-slate-500"
-                                    >
+                                    <p class="flex items-start gap-2 text-xs leading-relaxed text-slate-500">
                                         <ShieldCheckIcon class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600/80" />
                                         Apple Pay, Google Pay, and cards show when your browser supports them.
                                     </p>
@@ -425,7 +432,7 @@ const progressPercentage = computed(() => {
 
                                 <div v-else-if="!hasAccess" class="space-y-4 text-center">
                                     <p class="text-sm leading-relaxed text-slate-600">
-                                        This {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} is free — add it to your
+                                        This {{ unlockPhrase }} is free — add it to your
                                         library to download.
                                     </p>
                                     <button
@@ -500,16 +507,12 @@ const progressPercentage = computed(() => {
                                     v-else
                                     class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-500 to-primary-800"
                                 >
-                                    <BookOpenIcon
-                                        v-if="related.type === 'ebook'"
-                                        class="h-10 w-10 text-white/90"
-                                    />
-                                    <MusicalNoteIcon v-else class="h-10 w-10 text-white/90" />
+                                    <component :is="relatedCoverIcon(related.type)" class="h-10 w-10 text-white/90" />
                                 </div>
                                 <span
                                     class="absolute right-2 top-2 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 shadow-sm backdrop-blur-sm"
                                 >
-                                    {{ related.type === 'ebook' ? 'E-Book' : 'Audio' }}
+                                    {{ relatedTypeLabel(related.type) }}
                                 </span>
                             </div>
                             <div class="p-3">

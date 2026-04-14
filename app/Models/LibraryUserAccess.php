@@ -21,6 +21,9 @@ class LibraryUserAccess extends Model
         'purchase_currency',
         'stripe_checkout_session_id',
         'stripe_payment_intent_id',
+        'manual_payment_requested_at',
+        'manual_payment_reference',
+        'manual_payment_note',
     ];
 
     protected function casts(): array
@@ -31,6 +34,7 @@ class LibraryUserAccess extends Model
             'is_favorite' => 'boolean',
             'access_count' => 'integer',
             'purchased_at' => 'datetime',
+            'manual_payment_requested_at' => 'datetime',
             'purchase_amount' => 'decimal:2',
         ];
     }
@@ -54,6 +58,6 @@ class LibraryUserAccess extends Model
 
     public function toggleFavorite(): void
     {
-        $this->update(['is_favorite' => !$this->is_favorite]);
+        $this->update(['is_favorite' => ! $this->is_favorite]);
     }
 }

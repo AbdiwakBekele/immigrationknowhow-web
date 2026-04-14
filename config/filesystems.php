@@ -33,6 +33,17 @@ return [
             'throw' => false,
         ],
 
+        /*
+        |--------------------------------------------------------------------------
+        | Admin-uploaded videos (not publicly linked; streamed via controller)
+        |--------------------------------------------------------------------------
+        */
+        'video_uploads' => [
+            'driver' => 'local',
+            'root' => storage_path('app/video-uploads'),
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
@@ -62,4 +73,9 @@ return [
     'links' => [
         public_path('storage') => storage_path('app/public'),
     ],
+
+    /*
+    | Max upload size for admin video files (kilobytes). PHP upload_max_filesize / post_max_size must allow this.
+    */
+    'video_upload_max_kb' => (int) env('VIDEO_UPLOAD_MAX_KB', 1024000),
 ];

@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import { Transition } from 'vue';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
-import { 
-    Bars3Icon,
+import {
     HomeIcon,
     InboxIcon,
     ChatBubbleLeftRightIcon,
@@ -11,27 +11,21 @@ import {
     UserCircleIcon,
     ShieldCheckIcon,
     ChartBarIcon,
-    BookOpenIcon,
-    ArrowRightOnRectangleIcon,
+    Bars3Icon,
     BellIcon,
+    ArrowRightOnRectangleIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
-const props = defineProps({
-    defaultSidebarMinimized: {
-        type: Boolean,
-        default: false,
-    },
-});
-
 const page = usePage();
-const sidebarOpen = ref(false);
-const desktopSidebarMinimized = ref(props.defaultSidebarMinimized);
+const user = computed(() => page.props.auth?.user);
 
-/** Always resolve a non-empty logo URL (branding can be missing or empty in edge cases). */
 const providerLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
     return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
 });
+
+const sidebarOpen = ref(false);
 
 const unreadNotificationsCount = computed(() => page.props.unread_notifications_count ?? 0);
 
@@ -40,7 +34,6 @@ const navigation = [
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
-    { name: 'Library', href: '/provider/library', icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
@@ -52,13 +45,16 @@ const logout = () => {
 };
 
 const isActive = (href) => {
-    return page.url.startsWith(href);
+    const path = page.url.split('?')[0] ?? '';
+    if (path === href) {
+        return true;
+    }
+    return path.startsWith(`${href}/`);
 };
 </script>
 
 <template>
-    <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/90">
-        <!-- Mobile sidebar backdrop -->
+    <div class="min-h-screen bg-slate-100">
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"
@@ -67,143 +63,147 @@ const isActive = (href) => {
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div 
-                v-if="sidebarOpen" 
-                class="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px] lg:hidden"
+            <div
+                v-if="sidebarOpen"
+                class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
                 @click="sidebarOpen = false"
             ></div>
         </Transition>
 
-        <!-- Sidebar -->
-        <aside 
+        <aside
             :class="[
-                'fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col border-r border-slate-200/80 bg-white/90 shadow-soft-lg backdrop-blur-xl transition-transform duration-300 ease-out lg:translate-x-0 lg:transition-[width]',
-                desktopSidebarMinimized ? 'lg:w-20' : 'lg:w-[17rem]',
-                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col border-r border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 shadow-[4px_0_32px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm transform transition-transform duration-300 ease-out lg:translate-x-0',
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full',
             ]"
         >
-            <!-- Logo only (wordmark from branding; no duplicate name / portal badge) -->
-            <div class="flex shrink-0 border-b border-slate-100/90 px-3 py-3">
-                <Link
-                    href="/"
-                    class="block w-full rounded-lg outline-none ring-offset-2 transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary-400"
+            <div class="relative flex shrink-0 flex-col gap-1 border-b border-slate-200/80 px-4 pb-4 pt-5">
+                <button
+                    type="button"
+                    class="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:hidden"
+                    aria-label="Close menu"
+                    @click="sidebarOpen = false"
                 >
+                    <XMarkIcon class="h-5 w-5" />
+                </button>
+                <Link href="/provider/dashboard" class="block w-full pr-8 lg:pr-0" @click="sidebarOpen = false">
                     <BrandLogo
                         context="site"
                         :mark-src="providerLogoSrc"
                         :show-name="false"
                         container-class="flex items-center"
-                        :mark-class="[
-                            'flex min-h-[2.5rem] w-full items-center justify-center overflow-visible rounded-lg border border-slate-200/80 bg-white px-2 py-1.5 shadow-sm',
-                            desktopSidebarMinimized ? 'lg:max-w-[3.5rem]' : 'max-w-[220px]'
-                        ]"
-                        image-class="block h-8 w-auto max-w-full object-contain object-left"
-                        initials-class="text-xs font-bold uppercase tracking-wide text-slate-600"
+                        mark-class="flex h-11 w-full max-w-[180px] items-center justify-start overflow-hidden rounded-none border-0 bg-transparent text-slate-900 shadow-none"
+                        image-class="h-full w-full object-contain object-left"
+                        initials-class="font-bold text-lg uppercase tracking-wide"
                     />
                 </Link>
+                <p class="pl-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                    Provider portal
+                </p>
             </div>
 
-            <!-- Navigation -->
-            <nav class="flex-1 space-y-1 overflow-y-auto px-2.5 py-3">
+            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-5">
+                <p class="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                    Menu
+                </p>
                 <Link
                     v-for="item in navigation"
-                    :key="item.name"
+                    :key="item.href"
                     :href="item.href"
                     :class="[
-                        'group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200',
-                        desktopSidebarMinimized ? 'lg:justify-center lg:px-2' : '',
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         isActive(item.href)
-                            ? 'bg-primary-50 text-primary-800 shadow-sm ring-1 ring-primary-100/80'
-                            : 'text-slate-600 hover:bg-slate-100/90 hover:text-slate-900'
+                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
+                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
                     ]"
+                    @click="sidebarOpen = false"
                 >
-                    <component
-                        :is="item.icon"
+                    <span
                         :class="[
-                            'h-5 w-5 shrink-0 transition-colors',
-                            isActive(item.href) ? 'text-primary-600' : 'text-slate-400 group-hover:text-slate-600'
+                            'inline-flex rounded-lg p-1.5 transition-colors',
+                            isActive(item.href)
+                                ? 'bg-white/20 text-white'
+                                : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
                         ]"
-                    />
-                    <span :class="desktopSidebarMinimized ? 'lg:hidden' : ''">
-                        {{ item.name }}
+                    >
+                        <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
                     </span>
+                    {{ item.name }}
                 </Link>
             </nav>
 
-            <div :class="['border-t border-slate-100/90 p-3', desktopSidebarMinimized ? 'lg:hidden' : '']">
+            <div class="shrink-0 border-t border-slate-200/80 p-3">
                 <Link
                     href="/provider/profile"
-                    class="flex items-center justify-between rounded-lg border border-dashed border-slate-200/90 bg-slate-50/50 px-2.5 py-2 text-[11px] leading-snug text-slate-500 transition-colors hover:border-primary-200 hover:bg-primary-50/40 hover:text-primary-700"
+                    class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+                    @click="sidebarOpen = false"
                 >
-                    <span class="font-medium">Profile and visibility</span>
-                    <span class="shrink-0 text-primary-600">Manage →</span>
+                    <UserCircleIcon class="h-9 w-9 flex-shrink-0 rounded-full text-slate-400" />
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-semibold text-slate-900">
+                            {{ user?.full_name || user?.first_name || 'Profile' }}
+                        </p>
+                        <p class="truncate text-xs text-slate-500">Provider account</p>
+                    </div>
                 </Link>
             </div>
         </aside>
 
-        <!-- Main content -->
-        <div :class="[desktopSidebarMinimized ? 'lg:pl-20' : 'lg:pl-[17rem]']">
-            <header class="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 shadow-sm backdrop-blur-md">
-                <div class="flex h-[4.25rem] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-                    <div class="flex min-w-0 flex-1 items-center gap-3">
-                        <button
-                            type="button"
-                            @click="sidebarOpen = true"
-                            class="inline-flex rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:hidden"
-                        >
-                            <Bars3Icon class="h-6 w-6" />
-                        </button>
-                        <button
-                            type="button"
-                            @click="desktopSidebarMinimized = !desktopSidebarMinimized"
-                            class="hidden rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:inline-flex"
-                            :title="desktopSidebarMinimized ? 'Expand sidebar' : 'Minimize sidebar'"
-                            :aria-label="desktopSidebarMinimized ? 'Expand sidebar' : 'Minimize sidebar'"
-                        >
-                            <Bars3Icon class="h-6 w-6" />
-                        </button>
-                        <h1 class="truncate text-base font-semibold text-slate-900 lg:hidden">Provider Portal</h1>
-                    </div>
+        <div class="lg:pl-64">
+            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
+                <div class="flex h-16 items-center justify-between px-4 sm:px-6">
+                    <button
+                        type="button"
+                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+                        aria-label="Open menu"
+                        @click="sidebarOpen = true"
+                    >
+                        <Bars3Icon class="h-6 w-6" />
+                    </button>
 
-                    <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+                    <div class="flex-1 lg:flex-none"></div>
+
+                    <div class="flex items-center gap-2 sm:gap-3">
                         <Link
                             :href="route('provider.notifications.index')"
-                            class="relative inline-flex rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                             title="Notifications"
                             aria-label="Notifications"
                         >
-                            <BellIcon class="h-5 w-5" />
+                            <BellIcon class="h-6 w-6" />
                             <span
                                 v-if="unreadNotificationsCount > 0"
-                                class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white"
+                                class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500"
                             />
                         </Link>
                         <Link
                             href="/provider/profile"
-                            class="inline-flex rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                             title="Profile"
                             aria-label="Profile"
+                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                         >
-                            <UserCircleIcon class="h-5 w-5" />
+                            <UserCircleIcon class="h-6 w-6" />
+                        </Link>
+                        <Link
+                            href="/"
+                            class="hidden items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 sm:inline-flex"
+                        >
+                            View Site
                         </Link>
                         <button
                             type="button"
                             title="Sign out"
                             aria-label="Sign out"
-                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50"
+                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                             @click="logout"
                         >
-                            <ArrowRightOnRectangleIcon class="h-4 w-4 text-slate-500" />
-                            <span class="hidden sm:inline">Sign out</span>
+                            <ArrowRightOnRectangleIcon class="h-6 w-6" />
                         </button>
                     </div>
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 lg:p-8 lg:pb-10">
-                <div class="mx-auto max-w-7xl">
-                    <slot />
-                </div>
+            <main class="p-4 sm:p-6 lg:p-8">
+                <slot />
             </main>
         </div>
     </div>

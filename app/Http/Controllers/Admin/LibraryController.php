@@ -79,12 +79,12 @@ class LibraryController extends Controller
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'publisher' => ['nullable', 'string', 'max:255'],
-            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
             'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
-            'file' => ['required', 'file', 'max:102400'], // 100MB
+            'file' => ['required', 'file', 'max:1024000'], // 1000MB
             'is_premium' => ['boolean'],
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
@@ -99,7 +99,7 @@ class LibraryController extends Controller
         $baseSlug = $validated['slug'];
         $counter = 1;
         while (LibraryItem::where('slug', $validated['slug'])->exists()) {
-            $validated['slug'] = $baseSlug . '-' . $counter++;
+            $validated['slug'] = $baseSlug.'-'.$counter++;
         }
 
         // Upload cover image
@@ -147,12 +147,12 @@ class LibraryController extends Controller
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'publisher' => ['nullable', 'string', 'max:255'],
-            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:' . (date('Y') + 1)],
+            'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
             'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
-            'file' => ['nullable', 'file', 'max:102400'],
+            'file' => ['nullable', 'file', 'max:1024000'],
             'is_premium' => ['boolean'],
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
@@ -168,7 +168,7 @@ class LibraryController extends Controller
             $baseSlug = $validated['slug'];
             $counter = 1;
             while (LibraryItem::where('slug', $validated['slug'])->where('id', '!=', $library->id)->exists()) {
-                $validated['slug'] = $baseSlug . '-' . $counter++;
+                $validated['slug'] = $baseSlug.'-'.$counter++;
             }
         }
 
@@ -224,14 +224,14 @@ class LibraryController extends Controller
 
     public function toggleActive(LibraryItem $library): RedirectResponse
     {
-        $library->update(['is_active' => !$library->is_active]);
+        $library->update(['is_active' => ! $library->is_active]);
 
         return back()->with('success', $library->is_active ? 'Item activated.' : 'Item deactivated.');
     }
 
     public function toggleFeatured(LibraryItem $library): RedirectResponse
     {
-        $library->update(['is_featured' => !$library->is_featured]);
+        $library->update(['is_featured' => ! $library->is_featured]);
 
         return back()->with('success', $library->is_featured ? 'Item featured.' : 'Item unfeatured.');
     }

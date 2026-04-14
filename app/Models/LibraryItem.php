@@ -40,6 +40,10 @@ class LibraryItem extends Model
         'file_path',
     ];
 
+    protected $appends = [
+        'cover_image_url',
+    ];
+
     protected $fillable = [
         'uuid',
         'provider_id',
@@ -168,7 +172,7 @@ class LibraryItem extends Model
 
     public function getCoverImageUrlAttribute(): ?string
     {
-        return $this->cover_image ? asset('storage/' . $this->cover_image) : null;
+        return $this->cover_image ? asset('storage/'.$this->cover_image) : null;
     }
 
     /**
@@ -183,20 +187,23 @@ class LibraryItem extends Model
     {
         $bytes = $this->file_size;
         if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 2) . ' GB';
+            return number_format($bytes / 1073741824, 2).' GB';
         }
         if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 2) . ' MB';
+            return number_format($bytes / 1048576, 2).' MB';
         }
         if ($bytes >= 1024) {
-            return number_format($bytes / 1024, 2) . ' KB';
+            return number_format($bytes / 1024, 2).' KB';
         }
-        return $bytes . ' bytes';
+
+        return $bytes.' bytes';
     }
 
     public function getDurationFormattedAttribute(): ?string
     {
-        if (!$this->duration_seconds) return null;
+        if (! $this->duration_seconds) {
+            return null;
+        }
 
         $hours = floor($this->duration_seconds / 3600);
         $minutes = floor(($this->duration_seconds % 3600) / 60);
@@ -204,6 +211,7 @@ class LibraryItem extends Model
         if ($hours > 0) {
             return "{$hours}h {$minutes}m";
         }
+
         return "{$minutes} min";
     }
 

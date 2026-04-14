@@ -1,8 +1,19 @@
 <?php
 
+use App\Http\Middleware\CaptureAffiliateAttribution;
+use App\Http\Middleware\EnsureAffiliatePortalAccess;
+use App\Http\Middleware\EnsureOnboardingComplete;
+use App\Http\Middleware\EnsurePhoneVerified;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Support\UploadLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Symfony\Component\HttpKernel\Exception\PostTooLargeException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,25 +22,41 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-    $middleware->web(append: [
-        \App\Http\Middleware\HandleInertiaRequests::class,
-        \App\Http\Middleware\CaptureAffiliateAttribution::class,
-    ]);
+        $middleware->web(append: [
+            HandleInertiaRequests::class,
+            CaptureAffiliateAttribution::class,
+        ]);
 
-    $middleware->alias([
-        'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-        'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-        'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-        'onboarding.complete' => \App\Http\Middleware\EnsureOnboardingComplete::class,
-        'phone.verified' => \App\Http\Middleware\EnsurePhoneVerified::class,
-        'affiliate.access' => \App\Http\Middleware\EnsureAffiliatePortalAccess::class,
-    ]);
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'onboarding.complete' => EnsureOnboardingComplete::class,
+            'phone.verified' => EnsurePhoneVerified::class,
+            'affiliate.access' => EnsureAffiliatePortalAccess::class,
+        ]);
 
-    // Disable CSRF for webhooks
-    $middleware->validateCsrfTokens(except: [
-        'webhooks/*',
-    ]);
-})
+        // Disable CSRF for webhooks
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/*',
+        ]);
+    })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (PostTooLargeException $exception, Request $request) {
+            $maxMb = UploadLimit::videoMaxMb();
+            $message = 'The uploaded file is too large for the server request limit.';
+            if ($maxMb > 0) {
+                $message .= ' Try a file up to about '.$maxMb.' MB.';
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                ], 413);
+            }
+
+            return back()->withErrors([
+                'video_file' => $message,
+            ]);
+        });
     })->create();

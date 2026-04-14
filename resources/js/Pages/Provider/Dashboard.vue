@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { 
     UserGroupIcon,
@@ -13,6 +13,8 @@ import {
     ExclamationTriangleIcon,
     ClockIcon,
     CurrencyDollarIcon,
+    ArchiveBoxIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid, CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
 import { computed } from 'vue';
@@ -72,13 +74,30 @@ const verificationStatus = computed(() => {
     }
     return { icon: ExclamationTriangleIcon, text: 'Not Verified', color: 'text-red-600 bg-red-50' };
 });
+
+const archiveConversation = (conversationUuid) => {
+    if (!conversationUuid) return;
+
+    router.post(route('provider.messages.archive', conversationUuid), {}, {
+        preserveScroll: true,
+    });
+};
+
+const deleteConversation = (conversationUuid) => {
+    if (!conversationUuid) return;
+    if (!window.confirm('Delete this conversation permanently?')) return;
+
+    router.delete(route('provider.messages.destroy', conversationUuid), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
     <Head title="Provider Dashboard" />
 
-    <ProviderLayout :default-sidebar-minimized="true">
-        <div class="space-y-8">
+    <ProviderLayout>
+        <div class="mx-auto max-w-7xl space-y-5">
             <!-- Background Check Alert Banner -->
             <div v-if="provider.background_check_status !== 'clear'" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
                 <div class="flex items-start gap-4">
@@ -120,96 +139,95 @@ const verificationStatus = computed(() => {
                 </div>
             </div>
 
-            <!-- Header -->
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-primary-600">Overview</p>
-                    <h1 class="mt-1 font-display text-3xl font-bold tracking-tight text-slate-900">
+                    <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Overview</p>
+                    <h1 class="mt-0.5 text-xl font-display font-bold text-slate-900">
                         Welcome back, {{ user.first_name }}
                     </h1>
-                    <p class="mt-2 text-slate-600">
+                    <p class="mt-0.5 text-sm text-slate-500">
                         Here is how your profile is performing.
                     </p>
                 </div>
 
-                <div class="flex items-center gap-3">
-                    <Link 
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
                         :href="route('provider.background-check.index')"
-                        :class="['flex items-center gap-2 px-4 py-2 rounded-xl', verificationStatus.color]"
+                        :class="['flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium', verificationStatus.color]"
                     >
-                        <component :is="verificationStatus.icon" class="w-5 h-5" />
-                        <span class="font-medium">{{ verificationStatus.text }}</span>
+                        <component :is="verificationStatus.icon" class="h-5 w-5" />
+                        {{ verificationStatus.text }}
                     </Link>
                     <Link
                         :href="route('provider.profile.index')"
-                        class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white rounded-xl transition-colors"
+                        class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-sky-700"
                     >
-                        <EyeIcon class="w-5 h-5" />
+                        <EyeIcon class="h-5 w-5" />
                         View Profile
                     </Link>
                 </div>
             </div>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-white rounded-2xl p-6 shadow-soft">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                            <UserGroupIcon class="w-6 h-6 text-primary-600" />
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="rounded-lg bg-blue-100 p-2">
+                            <UserGroupIcon class="h-5 w-5 text-blue-600" />
                         </div>
-                        <div v-if="stats.leadsTrend !== undefined" class="flex items-center gap-1 text-sm">
-                            <component :is="getTrendIcon(stats.leadsTrend)" :class="['w-4 h-4', getTrendColor(stats.leadsTrend)]" />
+                        <div v-if="stats.leadsTrend !== undefined" class="flex items-center gap-1 text-xs font-semibold">
+                            <component :is="getTrendIcon(stats.leadsTrend)" :class="['h-4 w-4', getTrendColor(stats.leadsTrend)]" />
                             <span :class="getTrendColor(stats.leadsTrend)">{{ Math.abs(stats.leadsTrend) }}%</span>
                         </div>
                     </div>
-                    <p class="text-3xl font-bold text-slate-900">{{ stats.totalLeads || 0 }}</p>
-                    <p class="text-sm text-slate-500 mt-1">Total Leads</p>
+                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.totalLeads || 0 }}</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Total Leads</p>
                 </div>
 
-                <div class="bg-white rounded-2xl p-6 shadow-soft">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                            <ChatBubbleLeftRightIcon class="w-6 h-6 text-blue-600" />
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="rounded-lg bg-emerald-100 p-2">
+                            <ChatBubbleLeftRightIcon class="h-5 w-5 text-emerald-600" />
                         </div>
-                        <span class="text-sm text-blue-600 font-medium">{{ stats.newLeads || 0 }} new</span>
+                        <span class="text-xs font-semibold text-emerald-600">{{ stats.newLeads || 0 }} new</span>
                     </div>
-                    <p class="text-3xl font-bold text-slate-900">{{ stats.openLeads || 0 }}</p>
-                    <p class="text-sm text-slate-500 mt-1">Open Leads</p>
+                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.openLeads || 0 }}</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Open Leads</p>
                 </div>
 
-                <div class="bg-white rounded-2xl p-6 shadow-soft">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="w-12 h-12 bg-secondary-100 rounded-xl flex items-center justify-center">
-                            <StarIcon class="w-6 h-6 text-secondary-600" />
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="rounded-lg bg-amber-100 p-2">
+                            <StarIcon class="h-5 w-5 text-amber-600" />
                         </div>
                     </div>
                     <div class="flex items-baseline gap-2">
-                        <p class="text-3xl font-bold text-slate-900">{{ provider.average_rating ? Number(provider.average_rating).toFixed(1) : '–' }}</p>
+                        <p class="text-2xl font-display font-bold text-slate-900">{{ provider.average_rating ? Number(provider.average_rating).toFixed(1) : '–' }}</p>
                         <div class="flex items-center gap-0.5">
                             <StarSolid v-for="i in 5" :key="i" :class="['w-4 h-4', i <= Math.round(Number(provider.average_rating) || 0) ? 'text-secondary-500' : 'text-slate-200']" />
                         </div>
                     </div>
-                    <p class="text-sm text-slate-500 mt-1">{{ provider.total_reviews || 0 }} Reviews</p>
+                    <p class="mt-0.5 text-xs text-slate-500">{{ provider.total_reviews || 0 }} Reviews</p>
                 </div>
 
-                <div class="bg-white rounded-2xl p-6 shadow-soft">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="w-12 h-12 bg-accent-100 rounded-xl flex items-center justify-center">
-                            <EyeIcon class="w-6 h-6 text-accent-600" />
+                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex items-center justify-between">
+                        <div class="rounded-lg bg-violet-100 p-2">
+                            <EyeIcon class="h-5 w-5 text-violet-600" />
                         </div>
-                        <div v-if="stats.viewsTrend !== undefined" class="flex items-center gap-1 text-sm">
-                            <component :is="getTrendIcon(stats.viewsTrend)" :class="['w-4 h-4', getTrendColor(stats.viewsTrend)]" />
+                        <div v-if="stats.viewsTrend !== undefined" class="flex items-center gap-1 text-xs font-semibold">
+                            <component :is="getTrendIcon(stats.viewsTrend)" :class="['h-4 w-4', getTrendColor(stats.viewsTrend)]" />
                             <span :class="getTrendColor(stats.viewsTrend)">{{ Math.abs(stats.viewsTrend) }}%</span>
                         </div>
                     </div>
-                    <p class="text-3xl font-bold text-slate-900">{{ stats.profileViews || 0 }}</p>
-                    <p class="text-sm text-slate-500 mt-1">Profile Views (30d)</p>
+                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.profileViews || 0 }}</p>
+                    <p class="mt-0.5 text-xs text-slate-500">Profile Views (30d)</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
                 <!-- Recent Leads -->
-                <div class="lg:col-span-2 bg-white rounded-2xl shadow-soft overflow-hidden">
+                <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
                     <div class="flex items-center justify-between p-6 border-b border-slate-100">
                         <h2 class="text-lg font-display font-bold text-slate-900">Recent Leads</h2>
                         <Link :href="route('provider.leads.index')" class="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
@@ -245,6 +263,24 @@ const verificationStatus = computed(() => {
                                 <p class="text-sm text-slate-400">{{ formatTimeAgo(lead.created_at) }}</p>
                                 <p v-if="lead.urgency === 'urgent'" class="text-xs text-red-600 font-medium mt-1">Urgent</p>
                             </div>
+                            <div v-if="lead.conversation?.uuid" class="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-primary-600"
+                                    title="Archive"
+                                    @click.prevent.stop="archiveConversation(lead.conversation.uuid)"
+                                >
+                                    <ArchiveBoxIcon class="h-4 w-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-600"
+                                    title="Delete"
+                                    @click.prevent.stop="deleteConversation(lead.conversation.uuid)"
+                                >
+                                    <TrashIcon class="h-4 w-4" />
+                                </button>
+                            </div>
                         </Link>
                     </div>
                     
@@ -258,7 +294,7 @@ const verificationStatus = computed(() => {
                 <!-- Sidebar -->
                 <div class="space-y-6">
                     <!-- Conversion Rate -->
-                    <div class="bg-white rounded-2xl p-6 shadow-soft">
+                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 class="font-semibold text-slate-900 mb-4">Conversion Rate</h3>
                         <div class="relative pt-1">
                             <div class="flex items-center justify-between mb-2">
@@ -279,7 +315,7 @@ const verificationStatus = computed(() => {
                     </div>
 
                     <!-- Recent Reviews -->
-                    <div class="bg-white rounded-2xl shadow-soft overflow-hidden">
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between p-4 border-b border-slate-100">
                             <h3 class="font-semibold text-slate-900">Recent Reviews</h3>
                             <Link :href="route('provider.reviews.index')" class="text-sm text-primary-600 hover:text-primary-700">
@@ -306,7 +342,7 @@ const verificationStatus = computed(() => {
                     </div>
 
                     <!-- Quick Actions -->
-                    <div class="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-6 text-white">
+                    <div class="rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 p-6 text-white shadow-sm">
                         <h3 class="font-semibold mb-4">Quick Actions</h3>
                         <div class="space-y-3">
                             <Link 

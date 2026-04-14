@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { BookOpenIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
+import { BookOpenIcon, DocumentTextIcon, MusicalNoteIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     items: Object,
@@ -97,8 +97,8 @@ const submitUpload = () => {
     <AdminLayout>
         <div class="space-y-6">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">Digital Library Upload</h1>
-                <p class="mt-1 text-gray-500">Upload up to 480 PDF e-books plus audiobook files, organized by category.</p>
+                <h1 class="text-2xl font-bold text-gray-900">Library</h1>
+                <p class="mt-1 text-gray-500">Upload e-books and audiobooks, organized by category.</p>
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -169,7 +169,7 @@ const submitUpload = () => {
                         required
                     >
                     <p class="mt-1 text-xs text-gray-500">
-                        Max 100MB.
+                        Max 1000MB.
                         <span v-if="selectedTypeOption?.value === 'ebook'">E-books must be PDF.</span>
                         <span v-else-if="selectedTypeOption?.value === 'audiobook'">Audiobooks support MP3, M4A, AAC, WAV, OGG.</span>
                     </p>
@@ -227,7 +227,7 @@ const submitUpload = () => {
                         class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
                         :disabled="uploadForm.processing"
                     >
-                        {{ uploadForm.processing ? 'Uploading...' : 'Upload Library Item' }}
+                        {{ uploadForm.processing ? 'Uploading...' : 'Upload to library' }}
                     </button>
                 </div>
             </form>
@@ -241,19 +241,49 @@ const submitUpload = () => {
                             <span class="text-xs text-gray-500">{{ group.items.length }} item(s)</span>
                         </div>
                         <div class="space-y-2">
-                            <div v-for="item in group.items" :key="item.id" class="flex items-center justify-between rounded-md bg-gray-50 px-3 py-2 text-sm">
-                                <div>
-                                    <p class="font-medium text-gray-900">{{ item.title }}</p>
-                                    <p class="text-xs text-gray-500">
-                                        {{ types.find((typeOption) => typeOption.value === item.type)?.label ?? item.type }}
-                                    </p>
+                            <div
+                                v-for="item in group.items"
+                                :key="item.id"
+                                class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2 text-sm"
+                            >
+                                <div class="flex min-w-0 flex-1 items-center gap-3">
+                                    <div
+                                        class="relative h-11 w-8 shrink-0 overflow-hidden rounded-md bg-gray-200 ring-1 ring-gray-200/80"
+                                    >
+                                        <img
+                                            v-if="item.cover_image_url"
+                                            :src="item.cover_image_url"
+                                            :alt="item.title"
+                                            class="absolute inset-0 h-full w-full object-cover object-top"
+                                        />
+                                        <div
+                                            v-else
+                                            class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
+                                        >
+                                            <BookOpenIcon
+                                                v-if="item.type === 'ebook'"
+                                                class="h-5 w-5 text-white/90"
+                                            />
+                                            <MusicalNoteIcon
+                                                v-else-if="item.type === 'audiobook'"
+                                                class="h-5 w-5 text-white/90"
+                                            />
+                                            <DocumentTextIcon v-else class="h-5 w-5 text-white/90" />
+                                        </div>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="truncate font-medium text-gray-900">{{ item.title }}</p>
+                                        <p class="text-xs text-gray-500">
+                                            {{ types.find((typeOption) => typeOption.value === item.type)?.label ?? item.type }}
+                                        </p>
+                                    </div>
                                 </div>
-                                <Link :href="route('library.show', item.slug)" class="text-indigo-600 hover:text-indigo-500">View</Link>
+                                <Link :href="route('library.show', item.slug)" class="shrink-0 text-indigo-600 hover:text-indigo-500">View</Link>
                             </div>
                         </div>
                     </div>
                 </div>
-                <p v-else class="text-sm text-gray-500">No library items yet.</p>
+                <p v-else class="text-sm text-gray-500">No content in the library yet.</p>
             </div>
         </div>
     </AdminLayout>

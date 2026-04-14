@@ -65,13 +65,18 @@ class ProviderController extends Controller
             'providers' => $providers,
             'filters' => $request->only(['search', 'service_type', 'verified', 'active', 'sort', 'dir']),
             'serviceTypes' => ServiceTypeOptions::selectOptions(),
+            'stats' => [
+                'total' => ServiceProvider::query()->count(),
+                'verified' => ServiceProvider::query()->where('is_verified', true)->count(),
+                'active' => ServiceProvider::query()->where('is_active', true)->count(),
+            ],
         ]);
     }
 
     public function create(): Response
     {
         return Inertia::render('Admin/Providers/Create', [
-            'serviceTypes' => collect(ServiceType::cases())->map(fn($t) => ['value' => $t->value, 'label' => $t->label()]),
+            'serviceTypes' => collect(ServiceType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
         ]);
     }
 
@@ -178,8 +183,8 @@ class ProviderController extends Controller
     {
         $provider->load([
             'user:id,first_name,last_name,email,phone,avatar,created_at',
-            'reviews' => fn($q) => $q->latest()->limit(5)->with('user:id,first_name,last_name'),
-            'backgroundChecks' => fn($q) => $q->latest(),
+            'reviews' => fn ($q) => $q->latest()->limit(5)->with('user:id,first_name,last_name'),
+            'backgroundChecks' => fn ($q) => $q->latest(),
         ]);
 
         return Inertia::render('Admin/Providers/Show', [
@@ -197,7 +202,7 @@ class ProviderController extends Controller
     {
         return Inertia::render('Admin/Providers/Edit', [
             'provider' => $provider->load('user'),
-            'serviceTypes' => collect(ServiceType::cases())->map(fn($t) => ['value' => $t->value, 'label' => $t->label()]),
+            'serviceTypes' => collect(ServiceType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
         ]);
     }
 
@@ -261,10 +266,10 @@ class ProviderController extends Controller
 
     public function toggleFeatured(ServiceProvider $provider): RedirectResponse
     {
-        $provider->update(['is_featured' => !$provider->is_featured]);
+        $provider->update(['is_featured' => ! $provider->is_featured]);
 
-        return back()->with('success', $provider->is_featured 
-            ? 'Provider is now featured.' 
+        return back()->with('success', $provider->is_featured
+            ? 'Provider is now featured.'
             : 'Provider is no longer featured.');
     }
 
@@ -291,15 +296,15 @@ class ProviderController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="providers-' . now()->format('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="providers-'.now()->format('Y-m-d').'.csv"',
         ];
 
         $callback = function () use ($providers) {
             $file = fopen('php://output', 'w');
-            
+
             fputcsv($file, [
                 'ID', 'Business Name', 'Owner Name', 'Email', 'Service Type',
-                'Verified', 'Active', 'Rating', 'Reviews', 'Created At'
+                'Verified', 'Active', 'Rating', 'Reviews', 'Created At',
             ]);
 
             foreach ($providers as $p) {
