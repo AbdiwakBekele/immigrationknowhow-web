@@ -13,6 +13,7 @@ import {
     ArchiveBoxIcon,
     InformationCircleIcon,
 } from '@heroicons/vue/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
@@ -24,10 +25,17 @@ const props = defineProps({
 const messagesContainer = ref(null);
 const fileInput = ref(null);
 const showLeadInfo = ref(false);
+const showCloseModal = ref(false);
 
 const form = useForm({
     body: '',
     attachments: [],
+});
+
+const closeContractForm = useForm({
+    reason: '',
+    review_rating: 5,
+    review_comment: '',
 });
 
 const attachmentPreviews = ref([]);
@@ -200,6 +208,37 @@ const sendOffer = () => {
     if (!lead?.uuid) return;
     router.patch(route('contracts.send', lead.uuid), {}, {
         preserveScroll: true,
+    });
+};
+
+const canCloseContract = computed(() => {
+    const lead = props.conversation?.lead;
+    if (!lead || props.isProvider) return false;
+    return ['in_progress', 'converted'].includes(lead.status);
+});
+
+const openCloseContractModal = () => {
+    closeContractForm.reset();
+    closeContractForm.clearErrors();
+    closeContractForm.review_rating = 5;
+    showCloseModal.value = true;
+};
+
+const closeCloseContractModal = () => {
+    showCloseModal.value = false;
+    closeContractForm.reset();
+    closeContractForm.clearErrors();
+};
+
+const submitCloseContract = () => {
+    const lead = props.conversation?.lead;
+    if (!lead?.uuid) return;
+
+    closeContractForm.patch(route('contracts.end', lead.uuid), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeCloseContractModal();
+        },
     });
 };
 
@@ -447,6 +486,17 @@ const getInitials = (person) => {
                             Click Give Offer to send your contract offer.
                         </p>
                         <button
+                            v-if="canCloseContract"
+                            type="button"
+                            class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                            @click="openCloseContractModal"
+                        >
+                            Close Contract
+                        </button>
+                        <p v-if="canCloseContract" class="mt-2 text-xs text-slate-500">
+                            Closing requires leaving a review.
+                        </p>
+                        <button
                             v-if="isProvider && canProviderAcceptOffer"
                             type="button"
                             class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
@@ -460,6 +510,95 @@ const getInitials = (person) => {
                     </aside>
                 </div>
             </div>
+
+            <Teleport to="body">
+                <div v-if="showCloseModal" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-full items-end justify-center p-4 sm:items-center">
+                        <div class="fixed inset-0 bg-black/50" @click="closeCloseContractModal"></div>
+                        <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                            <button
+                                type="button"
+                                class="absolute right-4 top-4 text-slate-400 transition-colors hover:text-slate-600"
+                                @click="closeCloseContractModal"
+                            >
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                            <h3 class="text-lg font-semibold text-slate-900">Close contract and leave review</h3>
+                            <p class="mt-1 text-sm text-slate-600">
+                                Your review will be shown on the provider profile for other users.
+                            </p>
+
+                            <div class="mt-5 space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700">Star rating</label>
+                                    <div class="mt-2 flex items-center gap-2">
+                                        <button
+                                            v-for="star in 5"
+                                            :key="star"
+                                            type="button"
+                                            class="rounded-md p-1 transition hover:bg-slate-100"
+                                            @click="closeContractForm.review_rating = star"
+                                        >
+                                            <StarSolid
+                                                class="h-7 w-7"
+                                                :class="star <= closeContractForm.review_rating ? 'text-yellow-400' : 'text-slate-300'"
+                                            />
+                                        </button>
+                                    </div>
+                                    <p v-if="closeContractForm.errors.review_rating" class="mt-1 text-sm text-rose-600">
+                                        {{ closeContractForm.errors.review_rating }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700">Review description</label>
+                                    <textarea
+                                        v-model="closeContractForm.review_comment"
+                                        rows="4"
+                                        minlength="10"
+                                        class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                        placeholder="Describe your experience with this provider..."
+                                    />
+                                    <p v-if="closeContractForm.errors.review_comment" class="mt-1 text-sm text-rose-600">
+                                        {{ closeContractForm.errors.review_comment }}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700">Optional closing note</label>
+                                    <textarea
+                                        v-model="closeContractForm.reason"
+                                        rows="2"
+                                        class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                        placeholder="Why are you closing this contract?"
+                                    />
+                                    <p v-if="closeContractForm.errors.reason" class="mt-1 text-sm text-rose-600">
+                                        {{ closeContractForm.errors.reason }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                    @click="closeCloseContractModal"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                                    :disabled="closeContractForm.processing"
+                                    @click="submitCloseContract"
+                                >
+                                    {{ closeContractForm.processing ? 'Submitting...' : 'Close and submit review' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Teleport>
 
             <!-- Message Input -->
             <div class="flex-shrink-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">

@@ -9,7 +9,7 @@ import {
     TrashIcon,
     ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/vue';
 
 const props = defineProps({
@@ -56,6 +56,12 @@ const deleteForm = useForm({
 const avatarInput = ref(null);
 const showDeleteConfirm = ref(false);
 const avatarTypeError = ref('');
+const avatarUploading = ref(false);
+const hasAvatar = computed(() => Boolean(props.user?.avatar_url));
+const avatarInitial = computed(() => {
+    const source = props.user?.first_name || props.user?.last_name || 'U';
+    return source.trim().charAt(0).toUpperCase();
+});
 
 const languageOptions = [
     'English', 'Spanish', 'Mandarin', 'Hindi', 'Arabic', 'Portuguese', 
@@ -98,9 +104,11 @@ const uploadAvatar = (event) => {
     const formData = new FormData();
     formData.append('avatar', file);
 
+    avatarUploading.value = true;
     router.post('/profile/avatar', formData, {
         preserveScroll: true,
         onFinish: () => {
+            avatarUploading.value = false;
             event.target.value = '';
         },
         onSuccess: () => {
@@ -164,13 +172,22 @@ const toggleLanguage = (lang) => {
                             <!-- Avatar Section -->
                             <div class="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100">
                                 <div class="relative">
-                                    <img 
-                                        :src="user.avatar_url || '/images/default-avatar.png'" 
+                                    <img
+                                        v-if="hasAvatar"
+                                        :src="user.avatar_url"
                                         class="h-24 w-24 rounded-full object-cover"
-                                        alt=""
+                                        alt="User profile photo"
                                     />
+                                    <div
+                                        v-else
+                                        class="flex h-24 w-24 items-center justify-center rounded-full bg-primary-600 text-3xl font-bold text-white"
+                                        aria-hidden="true"
+                                    >
+                                        {{ avatarInitial }}
+                                    </div>
                                     <button 
                                         @click="avatarInput?.click()"
+                                        :disabled="avatarUploading"
                                         class="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-50"
                                     >
                                         <CameraIcon class="h-4 w-4 text-gray-600" />
@@ -180,6 +197,7 @@ const toggleLanguage = (lang) => {
                                         type="file" 
                                         accept="image/jpeg,image/png,.jpg,.jpeg,.png"
                                         class="hidden" 
+                                        :disabled="avatarUploading"
                                         @change="uploadAvatar"
                                     />
                                 </div>
@@ -188,10 +206,10 @@ const toggleLanguage = (lang) => {
                                     <p class="text-sm text-gray-500 mb-2">JPG or PNG. Max 2MB.</p>
                                     <p v-if="avatarTypeError" class="text-sm text-red-600 mb-2">{{ avatarTypeError }}</p>
                                     <div class="flex gap-2">
-                                        <button @click="avatarInput?.click()" class="btn-secondary btn-sm">
-                                            Upload
+                                        <button @click="avatarInput?.click()" :disabled="avatarUploading" class="btn-secondary btn-sm">
+                                            {{ avatarUploading ? 'Uploading...' : (hasAvatar ? 'Change photo' : 'Upload photo') }}
                                         </button>
-                                        <button v-if="user.avatar" @click="deleteAvatar" class="btn-ghost btn-sm text-red-600">
+                                        <button v-if="hasAvatar" @click="deleteAvatar" class="btn-ghost btn-sm text-red-600">
                                             Remove
                                         </button>
                                     </div>

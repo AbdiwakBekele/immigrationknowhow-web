@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
@@ -17,6 +18,12 @@ const props = defineProps({
     provider: { type: Object, default: () => ({}) },
 });
 
+const hasAvatar = computed(() => Boolean(props.user?.avatar_url));
+const avatarInitial = computed(() => {
+    const source = props.provider?.business_name || props.user?.first_name || 'P';
+    return source.trim().charAt(0).toUpperCase();
+});
+
 const formatCurrency = (value) => {
     if (value === null || value === undefined || value === '') return 'Not set';
     return `$${Number(value).toFixed(2)}`;
@@ -32,10 +39,18 @@ const formatCurrency = (value) => {
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="flex items-center gap-4">
                         <img
-                            :src="user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(provider?.business_name || user?.first_name || 'P')}&background=3B95F3&color=fff&size=120`"
+                            v-if="hasAvatar"
+                            :src="user?.avatar_url"
                             class="h-20 w-20 rounded-2xl bg-slate-100 object-cover ring-1 ring-slate-200/80"
-                            alt=""
+                            alt="Provider profile photo"
                         />
+                        <div
+                            v-else
+                            class="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-600 text-2xl font-bold text-white ring-1 ring-primary-500/60"
+                            aria-hidden="true"
+                        >
+                            {{ avatarInitial }}
+                        </div>
                         <div>
                             <h1 class="text-2xl font-display font-bold text-slate-900">
                                 {{ provider?.business_name || 'Provider Profile' }}

@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,22 +34,28 @@ class MessagingController extends Controller
                     });
             }])
             ->orderByDesc('last_message_at')
-            ->paginate(20);
+            ->get();
 
-        // Get total unread count
-        $totalUnread = Conversation::query()
-            ->forUser($user)
-            ->forServiceInquiries()
-            ->whereHas('messages', function ($q) use ($user) {
-                $q->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($rq) use ($user) {
-                        $rq->where('user_id', $user->id);
-                    });
-            })
-            ->count();
+        $mergedConversations = $this->mergeByParticipants($conversations);
+        $perPage = 20;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $items = $mergedConversations->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $paginatedConversations = new LengthAwarePaginator(
+            $items,
+            $mergedConversations->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $totalUnread = $mergedConversations->sum('unread_count');
 
         return Inertia::render('Messages/Index', [
-            'conversations' => $conversations,
+            'conversations' => $paginatedConversations,
             'totalUnread' => $totalUnread,
             'isProvider' => (bool) $user->serviceProvider,
         ]);
@@ -222,17 +230,34 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
 
-        $count = Conversation::query()
+        $conversations = Conversation::query()
             ->forUser($user)
             ->forServiceInquiries()
-            ->whereHas('messages', function ($q) use ($user) {
+            ->withCount(['messages as unread_count' => function ($q) use ($user) {
                 $q->where('sender_id', '!=', $user->id)
                     ->whereDoesntHave('reads', function ($rq) use ($user) {
                         $rq->where('user_id', $user->id);
                     });
-            })
-            ->count();
+            }])
+            ->get();
+
+        $count = $this->mergeByParticipants($conversations)->sum('unread_count');
 
         return response()->json(['count' => $count]);
+    }
+
+    protected function mergeByParticipants(Collection $conversations): Collection
+    {
+        return $conversations
+            ->groupBy(fn (Conversation $conversation) => $conversation->user_id.'-'.$conversation->service_provider_id)
+            ->map(function (Collection $group) {
+                /** @var Conversation $latest */
+                $latest = $group->sortByDesc('last_message_at')->first();
+                $latest->setAttribute('unread_count', (int) $group->sum('unread_count'));
+
+                return $latest;
+            })
+            ->sortByDesc('last_message_at')
+            ->values();
     }
 }

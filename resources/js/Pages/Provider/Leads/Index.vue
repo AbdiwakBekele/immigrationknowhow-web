@@ -103,6 +103,23 @@ const formatDate = (date) => {
         minute: '2-digit',
     });
 };
+
+const resolveAvatar = (person) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
+
+const firstInitial = (...values) => {
+    for (const value of values) {
+        const text = (value || '').trim();
+        if (text) return text.charAt(0).toUpperCase();
+    }
+    return 'U';
+};
 </script>
 
 <template>
@@ -196,10 +213,19 @@ const formatDate = (date) => {
                             >
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
-                                        <img 
-                                            :src="lead.user?.avatar || '/images/default-avatar.png'" 
-                                            class="h-10 w-10 rounded-full"
+                                        <img
+                                            v-if="resolveAvatar(lead.user)"
+                                            :src="resolveAvatar(lead.user)"
+                                            class="h-10 w-10 rounded-full object-cover"
+                                            alt="Lead user avatar"
                                         />
+                                        <div
+                                            v-else
+                                            class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white"
+                                            aria-hidden="true"
+                                        >
+                                            {{ firstInitial(lead.user?.first_name, lead.user?.last_name, lead.user?.full_name) }}
+                                        </div>
                                         <div>
                                             <div class="font-medium text-gray-900">{{ lead.user?.full_name || 'Anonymous' }}</div>
                                             <div class="text-sm text-gray-500">{{ lead.user?.email }}</div>
