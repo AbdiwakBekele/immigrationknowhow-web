@@ -1,12 +1,14 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import {
     Squares2X2Icon,
     PlusIcon,
     CheckCircleIcon,
     XCircleIcon,
+    PencilIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
 
 defineProps({
@@ -15,6 +17,15 @@ defineProps({
 
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
+
+const deleteType = (type) => {
+    if (!window.confirm(`Delete "${type.label}"?`)) return;
+    router.delete(route('admin.service-types.destroy', type.id));
+};
+
+const toggleActive = (type) => {
+    router.patch(route('admin.service-types.toggle-active', type.id), {}, { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -62,6 +73,7 @@ const flashSuccess = computed(() => page.props.flash?.success);
                                 <th class="px-4 py-2.5">Users</th>
                                 <th class="px-4 py-2.5">Providers</th>
                                 <th class="px-4 py-2.5">Status</th>
+                                <th class="px-4 py-2.5 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -94,6 +106,32 @@ const flashSuccess = computed(() => page.props.flash?.success);
                                     >
                                         {{ type.is_active ? 'Active' : 'Inactive' }}
                                     </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                            @click="toggleActive(type)"
+                                        >
+                                            {{ type.is_active ? 'Set Inactive' : 'Set Active' }}
+                                        </button>
+                                        <Link
+                                            :href="route('admin.service-types.edit', type.id)"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50"
+                                        >
+                                            <PencilIcon class="h-3.5 w-3.5" />
+                                            Edit
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                            @click="deleteType(type)"
+                                        >
+                                            <TrashIcon class="h-3.5 w-3.5" />
+                                            Delete
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

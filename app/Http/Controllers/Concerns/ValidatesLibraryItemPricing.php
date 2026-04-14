@@ -12,13 +12,13 @@ trait ValidatesLibraryItemPricing
      */
     protected function applyLibraryItemPricing(array $validated): array
     {
-        $validated['is_premium'] = (bool) ($validated['is_premium'] ?? false);
         $validated['currency'] = strtoupper((string) ($validated['currency'] ?? 'USD'));
         $validated['price'] = round((float) $validated['price'], 2);
+        $validated['is_premium'] = $validated['price'] > 0;
 
-        if ($validated['is_premium'] && $validated['price'] < 0.01) {
+        if ($validated['price'] < 0) {
             throw ValidationException::withMessages([
-                'price' => 'One-time purchase items must have a price of at least 0.01.',
+                'price' => 'Price cannot be negative.',
             ]);
         }
 

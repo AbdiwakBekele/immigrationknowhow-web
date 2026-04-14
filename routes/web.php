@@ -147,6 +147,13 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
     Route::get('/providers/{provider:slug}/contact', [LeadController::class, 'create'])->name('leads.create');
     Route::post('/providers/{provider:slug}/contact', [LeadController::class, 'store'])->name('leads.store');
 
+    // User Contracts (service provider acceptance and contract lifecycle)
+    Route::prefix('contracts')->name('contracts.')->group(function () {
+        Route::get('/', [User\ContractController::class, 'index'])->name('index');
+        Route::patch('/{lead}/send', [User\ContractController::class, 'send'])->name('send');
+        Route::patch('/{lead}/end', [User\ContractController::class, 'end'])->name('end');
+    });
+
     // Digital Library (e-books & audiobooks only — videos use /videos)
     Route::prefix('library')->name('library.')->group(function () {
         Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('ebooks');
@@ -167,6 +174,7 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
 
     // Video digital products (file downloads / Stripe)
     Route::prefix('videos')->name('videos.')->group(function () {
+        Route::get('/purchase/return', [VideoProductController::class, 'purchaseReturn'])->name('purchase.return');
         Route::get('/purchase/cancel/{video:slug}', [VideoProductController::class, 'purchaseCancel'])->name('purchase.cancel');
         Route::get('/{video:slug}/pay', [VideoProductController::class, 'pay'])
             ->middleware('throttle:10,1')
@@ -270,6 +278,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         // Users
         Route::get('/users/check-email', [Admin\UserController::class, 'checkEmail'])->name('users.check-email');
         Route::resource('users', Admin\UserController::class);
+        Route::get('/subscribers', [Admin\SubscriberController::class, 'index'])->name('subscribers.index');
 
         // Providers
         Route::resource('providers', Admin\ProviderController::class);
@@ -313,6 +322,10 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/service-types/create', [Admin\ServiceTypeController::class, 'create'])->name('service-types.create');
         Route::get('/service-types', [Admin\ServiceTypeController::class, 'index'])->name('service-types.index');
         Route::post('/service-types', [Admin\ServiceTypeController::class, 'store'])->name('service-types.store');
+        Route::get('/service-types/{serviceType}/edit', [Admin\ServiceTypeController::class, 'edit'])->name('service-types.edit');
+        Route::patch('/service-types/{serviceType}', [Admin\ServiceTypeController::class, 'update'])->name('service-types.update');
+        Route::delete('/service-types/{serviceType}', [Admin\ServiceTypeController::class, 'destroy'])->name('service-types.destroy');
+        Route::patch('/service-types/{serviceType}/toggle-active', [Admin\ServiceTypeController::class, 'toggleActive'])->name('service-types.toggle-active');
 
         // Reports
         Route::get('/reports', [Admin\ReportController::class, 'index'])->name('reports.index');

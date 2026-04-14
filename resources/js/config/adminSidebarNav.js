@@ -18,6 +18,7 @@ export function adminMainNavItems({
     return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
         { name: 'Users', href: '/admin/users', icon: UsersIcon },
+        { name: 'Subscribers', href: '/admin/subscribers', icon: UsersIcon },
         { name: 'Providers', href: '/admin/providers', icon: BriefcaseIcon },
         { name: 'Background Checks', href: '/admin/background-checks', icon: ShieldCheckIcon },
         { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },

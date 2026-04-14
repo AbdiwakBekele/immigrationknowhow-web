@@ -64,7 +64,7 @@ class MessagingController extends Controller
         $conversation->load([
             'user:id,first_name,last_name,avatar',
             'serviceProvider.user:id,first_name,last_name,avatar',
-            'lead:id,service_type,status,message,urgency,created_at',
+            'lead:id,uuid,service_type,status,message,urgency,created_at,contract_sent_at,contract_accepted_at',
             'messages' => fn ($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
         ]);
 
@@ -73,6 +73,22 @@ class MessagingController extends Controller
 
         // Determine the other participant
         $isProvider = $user->serviceProvider?->id === $conversation->service_provider_id;
+        $messageSenderIds = $conversation->messages->pluck('sender_id')->unique();
+        $providerUserId = $conversation->serviceProvider?->user_id;
+        $hasExchangedMessages = $providerUserId
+            ? $messageSenderIds->contains($conversation->user_id) && $messageSenderIds->contains($providerUserId)
+            : false;
+
+        $conversation->setAttribute('has_exchanged_messages', $hasExchangedMessages);
+
+        if ($conversation->lead) {
+            $conversation->lead->setAttribute(
+                'can_send_offer',
+                ! $isProvider
+                    && in_array($conversation->lead->status, ['new', 'contacted'], true)
+                    && is_null($conversation->lead->contract_sent_at)
+            );
+        }
 
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,

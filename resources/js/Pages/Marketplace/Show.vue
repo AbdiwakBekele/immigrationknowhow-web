@@ -34,6 +34,7 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
 const showInquiryModal = ref(false);
+const inquiryIntent = ref('inquiry');
 
 const inquiryForm = useForm({
     service_type: props.provider.service_types?.[0] || 'other',
@@ -49,6 +50,7 @@ const submitInquiry = () => {
         preserveScroll: true,
         onSuccess: () => {
             showInquiryModal.value = false;
+            inquiryIntent.value = 'inquiry';
             inquiryForm.reset();
         },
     });
@@ -381,6 +383,14 @@ const resolveAvatar = (person, fallback) => {
                                 <ChatBubbleLeftRightIcon class="h-5 w-5" />
                                 Send Inquiry
                             </button>
+                            <button
+                                v-if="canContactProvider"
+                                @click="showInquiryModal = true; inquiryIntent = 'offer'"
+                                class="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+                            >
+                                <CurrencyDollarIcon class="h-5 w-5" />
+                                Give Offer
+                            </button>
                             <Link 
                                 v-else-if="!user"
                                 :href="route('login')"
@@ -479,10 +489,12 @@ const resolveAvatar = (person, fallback) => {
                         </button>
                         
                         <h3 class="text-xl font-display font-bold text-slate-900 mb-2">
-                            Send Inquiry
+                            {{ inquiryIntent === 'offer' ? 'Start Offer Conversation' : 'Send Inquiry' }}
                         </h3>
                         <p class="text-slate-600 mb-6">
-                            Get in touch with {{ provider.business_name }}
+                            {{ inquiryIntent === 'offer'
+                                ? 'Send your first message. You can submit your offer in chat after both sides exchange messages.'
+                                : `Get in touch with ${provider.business_name}` }}
                         </p>
                         
                         <form @submit.prevent="submitInquiry" class="space-y-4">

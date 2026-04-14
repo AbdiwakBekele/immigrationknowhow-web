@@ -22,6 +22,7 @@ const props = defineProps({
 const search = ref(props.filters.search || '');
 const roleFilter = ref(props.filters.role || '');
 const statusFilter = ref(props.filters.status || '');
+const backgroundCheckFilter = ref(props.filters.background_check || '');
 
 let searchTimeout;
 watch(search, (value) => {
@@ -29,13 +30,14 @@ watch(search, (value) => {
     searchTimeout = setTimeout(() => applyFilters(), 300);
 });
 
-watch([roleFilter, statusFilter], () => applyFilters());
+watch([roleFilter, statusFilter, backgroundCheckFilter], () => applyFilters());
 
 const applyFilters = () => {
     router.get('/admin/users', {
         search: search.value || undefined,
         role: roleFilter.value || undefined,
         status: statusFilter.value || undefined,
+        background_check: backgroundCheckFilter.value || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -67,6 +69,29 @@ const formatDate = (date) => {
 const getInitial = (user) => {
     const value = (user?.first_name || '?').trim();
     return value ? value.charAt(0).toUpperCase() : '?';
+};
+
+const getBackgroundCheckLabel = (user) => {
+    const status = user?.service_provider?.background_check_status;
+
+    if (!status) return 'N/A';
+    if (status === 'clear') return 'Cleared';
+    if (status === 'pending') return 'Pending';
+    if (status === 'invited') return 'Invitation Sent';
+
+    return status
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getBackgroundCheckClass = (user) => {
+    const status = user?.service_provider?.background_check_status;
+
+    if (status === 'clear') return 'bg-green-100 text-green-700';
+    if (status === 'pending') return 'bg-yellow-100 text-yellow-700';
+    if (status === 'invited') return 'bg-blue-100 text-blue-700';
+
+    return 'bg-slate-100 text-slate-700';
 };
 </script>
 
@@ -110,6 +135,17 @@ const getInitial = (user) => {
                         <option value="verified">Verified</option>
                         <option value="unverified">Unverified</option>
                     </select>
+                    <select v-model="backgroundCheckFilter" class="input w-full sm:w-44">
+                        <option value="">All Background Checks</option>
+                        <option value="pending">Pending</option>
+                        <option value="invited">Invitation Sent</option>
+                        <option value="completed">Review in Progress</option>
+                        <option value="clear">Cleared</option>
+                        <option value="consider">Review Required</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="dispute">Under Dispute</option>
+                        <option value="expired">Expired</option>
+                    </select>
                 </div>
             </div>
 
@@ -122,6 +158,7 @@ const getInitial = (user) => {
                                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">User</th>
                                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Role</th>
                                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Status</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Background Check</th>
                                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Joined</th>
                                 <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Activity</th>
                                 <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Actions</th>
@@ -165,6 +202,14 @@ const getInitial = (user) => {
                                             Unverified
                                         </span>
                                     </div>
+                                </td>
+                                <td class="px-3 py-2.5">
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-xs font-medium"
+                                        :class="getBackgroundCheckClass(user)"
+                                    >
+                                        {{ getBackgroundCheckLabel(user) }}
+                                    </span>
                                 </td>
                                 <td class="px-3 py-2.5 text-xs text-slate-500">
                                     {{ formatDate(user.created_at) }}

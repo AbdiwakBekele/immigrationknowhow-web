@@ -11,7 +11,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('affiliates', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliates')) {
+            Schema::create('affiliates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
             $table->string('code')->unique();
@@ -33,9 +34,11 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['status', 'created_at']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_invites', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_invites')) {
+            Schema::create('affiliate_invites', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_id')->nullable()->constrained('affiliates')->nullOnDelete();
             $table->foreignId('invited_by')->nullable()->constrained('users')->nullOnDelete();
@@ -53,9 +56,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['email', 'accepted_at']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_referral_visits', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_referral_visits')) {
+            Schema::create('affiliate_referral_visits', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_id')->constrained('affiliates')->cascadeOnDelete();
             $table->string('affiliate_code');
@@ -76,9 +81,11 @@ return new class extends Migration
             $table->index(['affiliate_id', 'visited_at']);
             $table->index(['fingerprint_hash', 'affiliate_id']);
             $table->index(['registered_user_id', 'visited_at']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_referrals', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_referrals')) {
+            Schema::create('affiliate_referrals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_id')->constrained('affiliates')->cascadeOnDelete();
             $table->foreignId('referred_user_id')->unique()->constrained('users')->cascadeOnDelete();
@@ -92,9 +99,11 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['affiliate_id', 'registered_at']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_commission_rules', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_commission_rules')) {
+            Schema::create('affiliate_commission_rules', function (Blueprint $table) {
             $table->id();
             $table->string('scope');
             $table->string('trigger_event');
@@ -114,9 +123,11 @@ return new class extends Migration
             $table->index(['scope', 'trigger_event', 'is_active']);
             $table->index(['affiliate_id', 'trigger_event']);
             $table->index(['referred_user_id', 'trigger_event']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_earnings', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_earnings')) {
+            Schema::create('affiliate_earnings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_id')->constrained('affiliates')->cascadeOnDelete();
             $table->foreignId('referred_user_id')->nullable()->constrained('users')->nullOnDelete();
@@ -144,9 +155,11 @@ return new class extends Migration
             $table->unique(['affiliate_id', 'event_type', 'source_type', 'source_id'], 'affiliate_earnings_unique_event');
             $table->index(['affiliate_id', 'status', 'created_at']);
             $table->index(['referred_user_id', 'status']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_payouts', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_payouts')) {
+            Schema::create('affiliate_payouts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_id')->constrained('affiliates')->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
@@ -162,9 +175,11 @@ return new class extends Migration
 
             $table->index(['affiliate_id', 'payout_date']);
             $table->index(['status', 'payout_date']);
-        });
+            });
+        }
 
-        Schema::create('affiliate_payout_items', function (Blueprint $table) {
+        if (! Schema::hasTable('affiliate_payout_items')) {
+            Schema::create('affiliate_payout_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('affiliate_payout_id')->constrained('affiliate_payouts')->cascadeOnDelete();
             $table->foreignId('affiliate_earning_id')->constrained('affiliate_earnings')->cascadeOnDelete();
@@ -172,7 +187,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['affiliate_payout_id', 'affiliate_earning_id']);
-        });
+            });
+        }
     }
 
     public function down(): void

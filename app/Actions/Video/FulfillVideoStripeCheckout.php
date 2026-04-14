@@ -1,22 +1,20 @@
 <?php
 
-namespace App\Actions\Library;
+namespace App\Actions\Video;
 
-use App\Models\LibraryItem;
-use App\Models\LibraryUserAccess;
+use App\Models\VideoEmbed;
+use App\Models\VideoUserAccess;
 use Illuminate\Support\Facades\DB;
 use Stripe\Checkout\Session;
 
-final class FulfillLibraryStripeCheckout
+final class FulfillVideoStripeCheckout
 {
     /**
-     * Record purchase after Stripe reports payment succeeded (success redirect or webhook).
-     *
-     * @return bool True when access was granted or was already granted.
+     * Record video purchase after Stripe reports payment succeeded.
      */
     public function __invoke(Session $session): bool
     {
-        if (($session->metadata['app'] ?? '') !== 'library') {
+        if (($session->metadata['app'] ?? '') !== 'video') {
             return false;
         }
 
@@ -24,40 +22,38 @@ final class FulfillLibraryStripeCheckout
             return false;
         }
 
-        $itemId = (int) ($session->metadata['library_item_id'] ?? 0);
+        $videoId = (int) ($session->metadata['video_id'] ?? 0);
         $userId = (int) ($session->metadata['user_id'] ?? 0);
 
-        if ($itemId < 1 || $userId < 1) {
+        if ($videoId < 1 || $userId < 1) {
             return false;
         }
 
-        $item = LibraryItem::query()
-            ->whereKey($itemId)
+        $video = VideoEmbed::query()
+            ->whereKey($videoId)
             ->where('is_active', true)
             ->first();
 
-        $requiresPaidAccess = $item && (
-            $item->is_premium
-            || in_array($item->type, ['audiobook', 'video'], true)
-            || ((float) ($item->price ?? 0) > 0)
-        );
-
-        if (! $item || ! $requiresPaidAccess) {
+        if (! $video) {
             return false;
         }
 
-        return DB::transaction(function () use ($item, $userId, $session) {
-            /** @var LibraryUserAccess $access */
-            $access = LibraryUserAccess::query()->firstOrCreate(
+        $price = $video->price !== null ? (float) $video->price : 0.0;
+        if ($price <= 0) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($video, $userId, $session) {
+            /** @var VideoUserAccess $access */
+            $access = VideoUserAccess::query()->firstOrCreate(
                 [
                     'user_id' => $userId,
-                    'library_item_id' => $item->id,
+                    'video_embed_id' => $video->id,
                 ],
                 []
             );
 
             $access->refresh();
-
             if ($access->purchased_at !== null) {
                 return true;
             }
@@ -65,9 +61,9 @@ final class FulfillLibraryStripeCheckout
             $amountTotal = $session->amount_total;
             $amount = $amountTotal !== null
                 ? round(((int) $amountTotal) / 100, 2)
-                : (float) $item->price;
+                : $price;
 
-            $currency = strtoupper((string) ($session->currency ?? $item->currency ?? 'USD'));
+            $currency = strtoupper((string) ($session->currency ?? $video->currency ?? 'USD'));
 
             $paymentIntentId = $session->payment_intent;
             if (is_object($paymentIntentId) && isset($paymentIntentId->id)) {
@@ -86,3 +82,4 @@ final class FulfillLibraryStripeCheckout
         });
     }
 }
+

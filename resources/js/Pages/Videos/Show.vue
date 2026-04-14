@@ -1,12 +1,19 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 defineProps({
     video: { type: Object, required: true },
     streamUrl: { type: String, default: null },
     relatedVideos: { type: Array, default: () => [] },
+    hasAccess: { type: Boolean, default: false },
+    requiresPaidAccess: { type: Boolean, default: false },
+    stripeSetupNote: { type: String, default: null },
 });
+
+const purchaseFreeVideo = (slug) => {
+    router.post(route('videos.purchase', slug), {}, { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -46,11 +53,47 @@ defineProps({
                     >
                         Open video source
                     </a>
+                    <div
+                        v-else
+                        class="p-6 text-center text-sm font-medium text-white/90"
+                    >
+                        Purchase this video to watch it.
+                    </div>
                 </div>
 
                 <p v-if="video.description" class="mt-4 whitespace-pre-line text-sm text-slate-700">
                     {{ video.description }}
                 </p>
+
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    <template v-if="requiresPaidAccess && !hasAccess">
+                        <p v-if="stripeSetupNote" class="rounded-md bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+                            {{ stripeSetupNote }}
+                        </p>
+                        <Link
+                            :href="route('videos.pay', video.slug)"
+                            class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                        >
+                            Pay {{ video.currency ?? 'USD' }} {{ video.price }}
+                        </Link>
+                    </template>
+                    <template v-else-if="!requiresPaidAccess && !hasAccess">
+                        <button
+                            type="button"
+                            class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                            @click="purchaseFreeVideo(video.slug)"
+                        >
+                            Add to library
+                        </button>
+                    </template>
+                    <Link
+                        v-if="hasAccess"
+                        :href="route('videos.download', video.slug)"
+                        class="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                    >
+                        Download video
+                    </Link>
+                </div>
             </div>
 
             <div v-if="relatedVideos.length" class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

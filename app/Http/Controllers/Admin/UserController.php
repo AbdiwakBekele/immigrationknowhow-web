@@ -34,6 +34,7 @@ class UserController extends Controller
     {
         $query = User::query()
             ->with('roles:id,name')
+            ->with('serviceProvider:id,user_id,background_check_status')
             ->withCount(['leads', 'reviews']);
 
         // Search
@@ -60,6 +61,17 @@ class UserController extends Controller
             }
         }
 
+        // Filter by background check status
+        if ($request->filled('background_check')) {
+            $status = $request->string('background_check')->toString();
+            $normalizedStatus = $status === 'invitation_sent' ? 'invited' : $status;
+
+            $query->whereHas(
+                'serviceProvider',
+                fn ($q) => $q->where('background_check_status', $normalizedStatus)
+            );
+        }
+
         // Sort
         $sortBy = $request->get('sort', 'created_at');
         $sortDir = $request->get('dir', 'desc');
@@ -69,7 +81,7 @@ class UserController extends Controller
 
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search', 'role', 'status', 'sort', 'dir']),
+            'filters' => $request->only(['search', 'role', 'status', 'background_check', 'sort', 'dir']),
             'roles' => collect(UserRole::cases())->map(fn($r) => ['value' => $r->value, 'label' => $r->label()]),
         ]);
     }

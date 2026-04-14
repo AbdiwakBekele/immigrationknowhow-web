@@ -9,6 +9,7 @@ import {
     MagnifyingGlassIcon,
     ChatBubbleLeftRightIcon,
     BookOpenIcon,
+    ClipboardDocumentListIcon,
     VideoCameraIcon,
     StarIcon,
     ArrowRightOnRectangleIcon,
@@ -35,6 +36,8 @@ const navigation = [
 
 const userNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Find Providers', href: '/providers', icon: MagnifyingGlassIcon },
+    { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Library', href: '/library', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
@@ -142,6 +145,7 @@ const userAvatarSrc = computed(() => {
                     </span>
                     {{ item.name }}
                 </Link>
+
             </nav>
 
             <div class="shrink-0 border-t border-slate-200/80 p-3">

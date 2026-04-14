@@ -1,0 +1,241 @@
+<script setup>
+import { computed, ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import {
+    MagnifyingGlassIcon,
+    CheckCircleIcon,
+    XCircleIcon,
+    ClipboardDocumentListIcon,
+    ChatBubbleLeftRightIcon,
+    ArrowTopRightOnSquareIcon,
+} from '@heroicons/vue/24/outline';
+
+const props = defineProps({
+    leads: { type: Object, required: true },
+    stats: { type: Object, default: () => ({}) },
+    filters: { type: Object, default: () => ({}) },
+});
+
+const search = ref(props.filters.search || '');
+const status = ref(props.filters.status || '');
+
+const statusOptions = [
+    { value: '', label: 'All statuses' },
+    { value: 'new', label: 'New' },
+    { value: 'contacted', label: 'Contacted' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'converted', label: 'Completed' },
+    { value: 'closed', label: 'Ended' },
+    { value: 'declined', label: 'Declined' },
+];
+
+const applyFilters = () => {
+    router.get(route('contracts.index'), {
+        search: search.value || undefined,
+        status: status.value || undefined,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+let searchTimeout;
+watch(search, () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 300);
+});
+watch(status, applyFilters);
+
+const statusClasses = (currentStatus) => {
+    const map = {
+        new: 'bg-blue-100 text-blue-700',
+        contacted: 'bg-indigo-100 text-indigo-700',
+        in_progress: 'bg-amber-100 text-amber-700',
+        converted: 'bg-emerald-100 text-emerald-700',
+        closed: 'bg-slate-100 text-slate-700',
+        declined: 'bg-rose-100 text-rose-700',
+    };
+    return map[currentStatus] || 'bg-slate-100 text-slate-700';
+};
+
+const humanStatus = (currentStatus) => currentStatus?.replace('_', ' ');
+const titleCase = (value) => (value ? value.split(' ').map((v) => v.charAt(0).toUpperCase() + v.slice(1)).join(' ') : '');
+
+const offerStage = (lead) => {
+    if (lead.contract_accepted_at) return 'Active contract';
+    if (lead.contract_sent_at) return 'Offer sent';
+    if (lead.has_exchanged_messages) return 'Ready to send offer';
+    return 'Awaiting message exchange';
+};
+
+const offerStageClasses = (lead) => {
+    if (lead.contract_accepted_at) return 'bg-emerald-100 text-emerald-700';
+    if (lead.contract_sent_at) return 'bg-indigo-100 text-indigo-700';
+    if (lead.has_exchanged_messages) return 'bg-sky-100 text-sky-700';
+    return 'bg-slate-100 text-slate-600';
+};
+
+const canSendContract = (lead) => Boolean(lead.can_send_contract);
+const canEnd = (lead) => lead.status === 'in_progress';
+
+const sendContract = (lead) => {
+    router.patch(route('contracts.send', lead.uuid), {}, { preserveScroll: true });
+};
+
+const endContract = (lead) => {
+    if (!window.confirm('End this contract? This will mark it as closed.')) return;
+    router.patch(route('contracts.end', lead.uuid), { reason: 'Ended by service needer' }, { preserveScroll: true });
+};
+
+const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
+</script>
+
+<template>
+    <Head title="Contracts" />
+
+    <AppLayout>
+        <div class="mx-auto max-w-7xl space-y-5">
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-6 text-white shadow-sm">
+                <h1 class="text-2xl font-display font-bold">Contracts</h1>
+                <p class="mt-1 text-sm text-slate-200">
+                    Manage offers and contracts in one place. Send offer, wait for acceptance, then track active work.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p class="text-xs text-slate-500">Total</p>
+                    <p class="mt-1 text-xl font-semibold text-slate-900">{{ stats.total || 0 }}</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p class="text-xs text-slate-500">Active</p>
+                    <p class="mt-1 text-xl font-semibold text-amber-700">{{ stats.active || 0 }}</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p class="text-xs text-slate-500">Completed</p>
+                    <p class="mt-1 text-xl font-semibold text-emerald-700">{{ stats.completed || 0 }}</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p class="text-xs text-slate-500">Ended</p>
+                    <p class="mt-1 text-xl font-semibold text-slate-700">{{ stats.ended || 0 }}</p>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <div class="relative flex-1">
+                        <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                        <input
+                            v-model="search"
+                            type="text"
+                            placeholder="Search by provider or message..."
+                            class="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-3 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                        />
+                    </div>
+                    <select
+                        v-model="status"
+                        class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                    >
+                        <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+                            {{ option.label }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div v-if="hasLeads" class="grid gap-4">
+                <div
+                    v-for="lead in leads.data"
+                    :key="lead.uuid"
+                    class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                >
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0">
+                            <p class="text-lg font-semibold text-slate-900">
+                                {{ lead.service_provider?.business_name || 'Provider' }}
+                            </p>
+                            <p class="mt-1 text-sm text-slate-500">
+                                {{ lead.message || 'No message provided.' }}
+                            </p>
+
+                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                                <span
+                                    class="rounded-full px-2.5 py-1 text-xs font-medium"
+                                    :class="statusClasses(lead.status)"
+                                >
+                                    {{ titleCase(humanStatus(lead.status)) }}
+                                </span>
+                                <span
+                                    class="rounded-full px-2.5 py-1 text-xs font-medium"
+                                    :class="offerStageClasses(lead)"
+                                >
+                                    {{ offerStage(lead) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                            <Link
+                                v-if="lead.conversation?.uuid"
+                                :href="route('messages.show', lead.conversation.uuid)"
+                                class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                                <ChatBubbleLeftRightIcon class="h-4 w-4" />
+                                Open chat
+                                <ArrowTopRightOnSquareIcon class="h-3.5 w-3.5" />
+                            </Link>
+                            <button
+                                v-if="canSendContract(lead)"
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700"
+                                @click="sendContract(lead)"
+                            >
+                                <CheckCircleIcon class="h-4 w-4" />
+                                Send contract
+                            </button>
+                            <button
+                                v-if="canEnd(lead)"
+                                type="button"
+                                class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                                @click="endContract(lead)"
+                            >
+                                <XCircleIcon class="h-4 w-4" />
+                                End contract
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else class="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                <ClipboardDocumentListIcon class="mx-auto h-10 w-10 text-slate-300" />
+                <p class="mt-3 text-sm text-slate-500">No contracts yet.</p>
+            </div>
+
+            <div v-if="leads.links?.length > 3" class="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <template v-for="link in leads.links" :key="link.label">
+                    <Link
+                        v-if="link.url"
+                        :href="link.url"
+                        :class="[
+                            'rounded-lg px-3 py-2 text-sm transition-colors',
+                            link.active
+                                ? 'bg-primary-600 text-white'
+                                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                        ]"
+                        v-html="link.label"
+                        preserve-scroll
+                    />
+                    <span
+                        v-else
+                        class="cursor-not-allowed rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-400"
+                        v-html="link.label"
+                    />
+                </template>
+            </div>
+        </div>
+    </AppLayout>
+</template>
+

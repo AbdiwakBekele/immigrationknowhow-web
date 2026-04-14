@@ -21,7 +21,6 @@ const props = defineProps({
     isProvider: Boolean,
     otherParticipant: Object,
 });
-
 const messagesContainer = ref(null);
 const fileInput = ref(null);
 const showLeadInfo = ref(false);
@@ -181,16 +180,70 @@ const getStatusColor = (status) => {
     };
     return colors[status] || 'bg-slate-100 text-slate-700';
 };
+
+const offerStage = computed(() => {
+    const lead = props.conversation?.lead;
+    if (!lead) return 'No offer yet';
+    if (lead.contract_accepted_at) return 'Offer accepted - Contract active';
+    if (lead.contract_sent_at) return 'Offer sent - Waiting provider acceptance';
+    if (props.conversation?.has_exchanged_messages) return 'Ready to send offer';
+    return 'Exchange messages first';
+});
+
+const canSendOffer = computed(() => {
+    const lead = props.conversation?.lead;
+    return Boolean(lead) && !props.isProvider;
+});
+
+const sendOffer = () => {
+    const lead = props.conversation?.lead;
+    if (!lead?.uuid) return;
+    router.patch(route('contracts.send', lead.uuid), {}, {
+        preserveScroll: true,
+    });
+};
+
+const canProviderAcceptOffer = computed(() => {
+    const lead = props.conversation?.lead;
+    if (!lead || !props.isProvider) return false;
+    return Boolean(lead.contract_sent_at) && !lead.contract_accepted_at && ['new', 'contacted'].includes(lead.status);
+});
+
+const acceptOffer = () => {
+    const lead = props.conversation?.lead;
+    if (!lead?.uuid) return;
+    router.patch(route('provider.leads.status', lead.uuid), { status: 'in_progress' }, {
+        preserveScroll: true,
+    });
+};
+
+const getAvatarSrc = (person) => {
+    const raw = person?.avatar || '';
+    if (!raw) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+    return `/storage/${raw}`;
+};
+
+const getInitials = (person) => {
+    const first = (person?.first_name || '').trim();
+    const last = (person?.last_name || '').trim();
+    if (first || last) {
+        return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
+    }
+    return '?';
+};
 </script>
 
 <template>
     <Head :title="`Chat with ${otherParticipant.first_name}`" />
 
     <component :is="layoutComponent" :fullWidth="true" :noPadding="true">
-        <div class="h-[calc(100vh-4rem)] flex flex-col bg-slate-50">
+        <div class="flex h-[calc(100vh-4rem)] flex-col bg-gradient-to-b from-slate-50 to-slate-100/60">
             <!-- Header -->
-            <div class="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3">
-                <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex-shrink-0 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur">
+                <div class="mx-auto flex max-w-6xl items-center justify-between">
                     <div class="flex items-center gap-4">
                         <Link 
                             :href="messagesIndexHref"
@@ -200,11 +253,18 @@ const getStatusColor = (status) => {
                         </Link>
                         
                         <div class="flex items-center gap-3">
-                            <img 
-                                :src="otherParticipant.avatar || '/img/default-avatar.png'"
+                            <img
+                                v-if="getAvatarSrc(otherParticipant)"
+                                :src="getAvatarSrc(otherParticipant)"
                                 :alt="otherParticipant.first_name"
-                                class="w-10 h-10 rounded-full object-cover"
+                                class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200"
                             />
+                            <div
+                                v-else
+                                class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-sm font-semibold text-white ring-1 ring-slate-200"
+                            >
+                                {{ getInitials(otherParticipant) }}
+                            </div>
                             <div>
                                 <h1 class="font-semibold text-slate-900">
                                     {{ otherParticipant.first_name }} {{ otherParticipant.last_name }}
@@ -285,9 +345,11 @@ const getStatusColor = (status) => {
                 </div>
             </Transition>
 
-            <!-- Messages -->
-            <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-6">
-                <div class="max-w-4xl mx-auto space-y-8">
+            <!-- Messages + Offer Sidebar -->
+            <div class="flex-1 overflow-hidden px-4 py-4">
+                <div class="mx-auto grid h-full w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div ref="messagesContainer" class="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm">
+                        <div class="space-y-8">
                     <div v-for="group in groupedMessages" :key="group.date" class="space-y-4">
                         <!-- Date Separator -->
                         <div class="flex items-center justify-center">
@@ -306,18 +368,24 @@ const getStatusColor = (status) => {
                             ]"
                         >
                             <div :class="['flex gap-3 max-w-[75%]', message.is_mine && 'flex-row-reverse']">
-                                <img 
-                                    v-if="!message.is_mine"
-                                    :src="message.sender?.avatar || '/img/default-avatar.png'"
+                                <img
+                                    v-if="!message.is_mine && getAvatarSrc(message.sender)"
+                                    :src="getAvatarSrc(message.sender)"
                                     :alt="message.sender?.first_name"
-                                    class="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                    class="h-8 w-8 flex-shrink-0 rounded-full object-cover ring-1 ring-slate-200"
                                 />
+                                <div
+                                    v-else-if="!message.is_mine"
+                                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-xs font-semibold text-white ring-1 ring-slate-200"
+                                >
+                                    {{ getInitials(message.sender) }}
+                                </div>
                                 
                                 <div :class="[
                                     'rounded-2xl px-4 py-3',
-                                    message.is_mine 
-                                        ? 'bg-primary-600 text-white rounded-br-md' 
-                                        : 'bg-white text-slate-900 shadow-sm rounded-bl-md'
+                                    message.is_mine
+                                        ? 'rounded-br-md bg-primary-600 text-white shadow-sm'
+                                        : 'rounded-bl-md border border-slate-200 bg-slate-50 text-slate-900'
                                 ]">
                                     <!-- System message -->
                                     <p v-if="message.is_system_message" class="text-sm italic opacity-80">
@@ -357,9 +425,45 @@ const getStatusColor = (status) => {
                 </div>
             </div>
 
+                    <aside class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:block">
+                        <h3 class="text-sm font-semibold text-slate-900">Offer Stage</h3>
+                        <p class="mt-2 text-sm text-slate-600">{{ offerStage }}</p>
+                        <div v-if="conversation.lead" class="mt-3">
+                            <span :class="['rounded-full px-2 py-1 text-xs font-medium', getStatusColor(conversation.lead.status)]">
+                                {{ conversation.lead.status }}
+                            </span>
+                        </div>
+                        <button
+                            v-if="!isProvider"
+                            type="button"
+                            class="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
+                            :class="canSendOffer ? 'bg-primary-600 text-white hover:bg-primary-500' : 'cursor-not-allowed bg-slate-100 text-slate-400'"
+                            :disabled="false"
+                            @click="sendOffer"
+                        >
+                            Give Offer
+                        </button>
+                        <p v-if="!isProvider" class="mt-2 text-xs text-slate-500">
+                            Click Give Offer to send your contract offer.
+                        </p>
+                        <button
+                            v-if="isProvider && canProviderAcceptOffer"
+                            type="button"
+                            class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                            @click="acceptOffer"
+                        >
+                            Accept Offer
+                        </button>
+                        <p v-if="isProvider && !canProviderAcceptOffer" class="mt-2 text-xs text-slate-500">
+                            Waiting for a user offer before acceptance.
+                        </p>
+                    </aside>
+                </div>
+            </div>
+
             <!-- Message Input -->
-            <div class="flex-shrink-0 bg-white border-t border-slate-200 px-4 py-4">
-                <div class="max-w-4xl mx-auto">
+            <div class="flex-shrink-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
+                <div class="mx-auto max-w-6xl">
                     <!-- Attachment Previews -->
                     <div v-if="attachmentPreviews.length" class="flex flex-wrap gap-2 mb-3">
                         <div 
@@ -393,10 +497,10 @@ const getStatusColor = (status) => {
                             @change="handleFileSelect"
                         />
                         
-                        <button 
+                        <button
                             type="button"
                             @click="triggerFileInput"
-                            class="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                            class="rounded-xl p-3 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                         >
                             <PaperClipIcon class="w-5 h-5" />
                         </button>
@@ -407,7 +511,7 @@ const getStatusColor = (status) => {
                                 @keydown="handleKeydown"
                                 placeholder="Type your message..."
                                 rows="1"
-                                class="w-full px-4 py-3 bg-slate-100 border-0 rounded-2xl text-slate-900 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                class="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 style="min-height: 48px; max-height: 120px;"
                             ></textarea>
                         </div>

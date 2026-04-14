@@ -75,6 +75,10 @@ const verificationStatus = computed(() => {
     return { icon: ExclamationTriangleIcon, text: 'Not Verified', color: 'text-red-600 bg-red-50' };
 });
 
+const canStartBackgroundCheck = computed(() => {
+    return !['clear', 'invited', 'completed'].includes(props.provider.background_check_status);
+});
+
 const archiveConversation = (conversationUuid) => {
     if (!conversationUuid) return;
 
@@ -157,6 +161,14 @@ const deleteConversation = (conversationUuid) => {
                     >
                         <component :is="verificationStatus.icon" class="h-5 w-5" />
                         {{ verificationStatus.text }}
+                    </Link>
+                    <Link
+                        v-if="canStartBackgroundCheck"
+                        :href="route('provider.background-check.index')"
+                        class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
+                    >
+                        <CheckBadgeIcon class="h-5 w-5" />
+                        Start Background Check
                     </Link>
                     <Link
                         :href="route('provider.profile.index')"
