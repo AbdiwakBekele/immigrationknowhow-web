@@ -62,7 +62,7 @@ class MessageController extends Controller
         $conversation->load([
             'user:id,first_name,last_name,avatar',
             'serviceProvider.user:id,first_name,last_name,avatar',
-            'lead:id,service_type,status,message,urgency,created_at',
+            'lead:id,uuid,service_type,status,message,urgency,created_at,contract_sent_at,contract_accepted_at',
             'messages' => fn ($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
         ]);
 

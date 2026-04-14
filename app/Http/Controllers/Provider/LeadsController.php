@@ -120,6 +120,18 @@ class LeadsController extends Controller
 
         $updates = ['status' => $newStatus];
 
+        if ($newStatus === LeadStatus::IN_PROGRESS) {
+            if (! $lead->contract_sent_at) {
+                return back()->with('error', 'User must send a contract before you can accept it.');
+            }
+
+            if (! in_array($lead->status, [LeadStatus::CONTACTED, LeadStatus::NEW], true)) {
+                return back()->with('error', 'Only pending contracts can be accepted.');
+            }
+
+            $updates['contract_accepted_at'] = now();
+        }
+
         // Update timestamps based on status
         if ($newStatus === LeadStatus::CONTACTED && ! $lead->responded_at) {
             $updates['responded_at'] = now();

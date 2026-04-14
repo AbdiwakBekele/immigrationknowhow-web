@@ -31,6 +31,8 @@ class Lead extends Model
         'budget_range',
         'viewed_at',
         'responded_at',
+        'contract_sent_at',
+        'contract_accepted_at',
         'converted_at',
         'closed_at',
         'provider_notes',
@@ -48,6 +50,8 @@ class Lead extends Model
             'needed_by' => 'date',
             'viewed_at' => 'datetime',
             'responded_at' => 'datetime',
+            'contract_sent_at' => 'datetime',
+            'contract_accepted_at' => 'datetime',
             'converted_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -203,7 +207,7 @@ class Lead extends Model
         ]);
     }
 
-    public function decline(string $reason = null): void
+    public function decline(?string $reason = null): void
     {
         $this->update([
             'status' => LeadStatus::DECLINED,

@@ -141,6 +141,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(LibraryUserAccess::class);
     }
 
+    public function videoAccess(): HasMany
+    {
+        return $this->hasMany(VideoUserAccess::class);
+    }
+
     public function referredByAffiliate(): BelongsTo
     {
         return $this->belongsTo(Affiliate::class, 'referred_by_affiliate_id');

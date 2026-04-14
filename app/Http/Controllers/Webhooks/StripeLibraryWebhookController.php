@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Actions\Video\FulfillVideoStripeCheckout;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -11,7 +12,11 @@ use Stripe\Webhook;
 
 class StripeLibraryWebhookController extends Controller
 {
-    public function __invoke(Request $request, FulfillLibraryStripeCheckout $fulfill): Response
+    public function __invoke(
+        Request $request,
+        FulfillLibraryStripeCheckout $fulfillLibrary,
+        FulfillVideoStripeCheckout $fulfillVideo
+    ): Response
     {
         $secret = config('services.stripe.webhook_secret');
         if (! is_string($secret) || $secret === '') {
@@ -34,7 +39,12 @@ class StripeLibraryWebhookController extends Controller
         if ($event->type === 'checkout.session.completed') {
             $session = $event->data->object;
             if ($session instanceof \Stripe\Checkout\Session) {
-                $fulfill($session);
+                $app = (string) ($session->metadata['app'] ?? '');
+                if ($app === 'video') {
+                    $fulfillVideo($session);
+                } else {
+                    $fulfillLibrary($session);
+                }
             }
         }
 

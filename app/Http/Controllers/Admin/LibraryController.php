@@ -85,7 +85,6 @@ class LibraryController extends Controller
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['required', 'file', 'max:1024000'], // 1000MB
-            'is_premium' => ['boolean'],
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'is_active' => ['boolean'],
@@ -153,7 +152,6 @@ class LibraryController extends Controller
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['nullable', 'file', 'max:1024000'],
-            'is_premium' => ['boolean'],
             'price' => ['required', 'numeric', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
             'is_active' => ['boolean'],

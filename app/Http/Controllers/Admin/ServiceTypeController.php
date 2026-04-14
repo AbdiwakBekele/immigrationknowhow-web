@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceTypeOption;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,5 +68,71 @@ class ServiceTypeController extends Controller
         return redirect()
             ->route('admin.service-types.index')
             ->with('success', 'Service type created successfully.');
+    }
+
+    public function edit(ServiceTypeOption $serviceType): Response
+    {
+        return Inertia::render('Admin/ServiceTypes/Edit', [
+            'serviceType' => $serviceType,
+        ]);
+    }
+
+    public function update(Request $request, ServiceTypeOption $serviceType): RedirectResponse
+    {
+        if ($request->input('sort_order') === '' || $request->input('sort_order') === null) {
+            $request->merge(['sort_order' => null]);
+        }
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:120'],
+            'value' => [
+                'required',
+                'string',
+                'max:120',
+                'alpha_dash',
+                Rule::unique('service_type_options', 'value')->ignore($serviceType->id),
+            ],
+            'icon' => ['nullable', 'string', 'max:120'],
+            'for_user' => ['boolean'],
+            'for_provider' => ['boolean'],
+            'is_active' => ['boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
+        ]);
+
+        if (! ($validated['for_user'] ?? false) && ! ($validated['for_provider'] ?? false)) {
+            return back()->withErrors(['audience' => 'Choose at least one audience: users and/or providers.']);
+        }
+
+        $serviceType->update([
+            'label' => $validated['label'],
+            'value' => $validated['value'],
+            'icon' => $validated['icon'] ?? null,
+            'for_user' => (bool) ($validated['for_user'] ?? false),
+            'for_provider' => (bool) ($validated['for_provider'] ?? false),
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+            'sort_order' => array_key_exists('sort_order', $validated) ? $validated['sort_order'] : $serviceType->sort_order,
+        ]);
+
+        return redirect()
+            ->route('admin.service-types.index')
+            ->with('success', 'Service type updated successfully.');
+    }
+
+    public function destroy(ServiceTypeOption $serviceType): RedirectResponse
+    {
+        $serviceType->delete();
+
+        return redirect()
+            ->route('admin.service-types.index')
+            ->with('success', 'Service type deleted successfully.');
+    }
+
+    public function toggleActive(ServiceTypeOption $serviceType): RedirectResponse
+    {
+        $serviceType->update([
+            'is_active' => ! $serviceType->is_active,
+        ]);
+
+        return back()->with('success', 'Service type status updated.');
     }
 }

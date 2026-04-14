@@ -244,7 +244,7 @@ class LibraryController extends Controller
         }
 
         $session = StripeCheckoutSession::create([
-            'ui_mode' => 'embedded',
+            'ui_mode' => 'embedded_page',
             'mode' => 'payment',
             'customer_email' => auth()->user()->email,
             'client_reference_id' => (string) auth()->id(),
