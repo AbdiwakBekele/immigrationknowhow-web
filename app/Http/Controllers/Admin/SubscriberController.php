@@ -17,7 +17,7 @@ class SubscriberController extends Controller
         $query = Lead::query()
             ->with([
                 'user:id,first_name,last_name,email',
-                'serviceProvider:id,user_id,business_name,service_types',
+                'serviceProvider:id,user_id,business_name,slug,service_types',
                 'serviceProvider.user:id,first_name,last_name,email',
             ]);
 

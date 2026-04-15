@@ -5,6 +5,7 @@ import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { adminMainNavItems, adminSettingsNavItems } from '@/config/adminSidebarNav.js';
 import {
     Bars3Icon,
+    HomeIcon,
     UsersIcon,
     BriefcaseIcon,
     ShieldCheckIcon,
@@ -31,6 +32,7 @@ const isSuperAdmin = computed(() => user.value?.roles?.includes('super_admin'));
 
 const mainNavigation = computed(() =>
     adminMainNavItems({
+        HomeIcon,
         UsersIcon,
         BriefcaseIcon,
         ShieldCheckIcon,
@@ -45,7 +47,14 @@ const mainNavigation = computed(() =>
     }),
 );
 
-const settingsNavigation = computed(() => (isSuperAdmin.value ? adminSettingsNavItems() : []));
+const settingsNavigation = computed(() => {
+    if (!isSuperAdmin.value) return [];
+
+    return adminSettingsNavItems().flatMap((group) => {
+        if (Array.isArray(group?.children)) return group.children;
+        return group?.href ? [group] : [];
+    });
+});
 const settingsOpen = ref(true);
 
 const unreadNotificationsCount = computed(() => page.props.unread_notifications_count ?? 0);
@@ -55,6 +64,8 @@ const logout = () => {
 };
 
 const isActive = (href) => {
+    if (!href || typeof href !== 'string') return false;
+
     const path = page.url.split('?')[0] ?? '';
 
     if (href === '/admin/library-manual-payments') {

@@ -41,15 +41,30 @@ const submit = () => {
     <Head :title="isEdit ? 'Edit Subscription Plan' : 'New Subscription Plan'" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-4xl space-y-6">
-            <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold text-slate-900">{{ isEdit ? 'Edit Plan' : 'Create Plan' }}</h1>
-                <Link :href="route('admin.subscription-plans.index')" class="text-sm font-medium text-slate-600 hover:text-slate-800">
-                    Back to plans
-                </Link>
-            </div>
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Subscription management
+                        </p>
+                        <h1 class="mt-2 admin-title">
+                            {{ isEdit ? 'Edit Plan' : 'Create Plan' }}
+                        </h1>
+                        <p class="admin-subtitle">
+                            Configure plan pricing, billing cycle, feature list, and affiliate commission behavior.
+                        </p>
+                    </div>
 
-            <form class="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" @submit.prevent="submit">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <Link :href="route('admin.subscription-plans.index')" class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                            Back to plans
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <form class="space-y-5 admin-panel" @submit.prevent="submit">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <Input v-model="form.name" label="Plan name" :error="form.errors.name" required />
                     <Input v-model="form.slug" label="Slug (optional)" :error="form.errors.slug" placeholder="auto-generated-if-empty" />
@@ -59,8 +74,8 @@ const submit = () => {
                     <Input v-model="form.price_cents" type="number" min="0" label="Price (cents)" :error="form.errors.price_cents" required />
                     <Input v-model="form.currency" label="Currency" :error="form.errors.currency" required />
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Billing cycle</label>
-                        <select v-model="form.billing_cycle" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <label class="admin-label">Billing cycle</label>
+                        <select v-model="form.billing_cycle" class="admin-select">
                             <option value="monthly">Monthly</option>
                             <option value="quarterly">Quarterly</option>
                             <option value="yearly">Yearly</option>
@@ -70,21 +85,21 @@ const submit = () => {
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-700">Description</label>
-                    <textarea v-model="form.description" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                    <label class="admin-label">Description</label>
+                    <textarea v-model="form.description" rows="3" class="admin-textarea" />
                     <p v-if="form.errors.description" class="text-xs text-rose-600">{{ form.errors.description }}</p>
                 </div>
 
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-700">Features (one per line)</label>
-                    <textarea v-model="form.features" rows="5" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Featured listing&#10;Priority lead routing&#10;Analytics dashboard" />
+                    <label class="admin-label">Features (one per line)</label>
+                    <textarea v-model="form.features" rows="5" class="admin-textarea" placeholder="Featured listing&#10;Priority lead routing&#10;Analytics dashboard" />
                     <p v-if="form.errors.features" class="text-xs text-rose-600">{{ form.errors.features }}</p>
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Status</label>
-                        <select v-model="form.status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <label class="admin-label">Status</label>
+                        <select v-model="form.status" class="admin-select">
                             <option value="draft">Draft</option>
                             <option value="active">Active</option>
                             <option value="archived">Archived</option>
@@ -99,8 +114,8 @@ const submit = () => {
 
                 <div class="grid gap-4 sm:grid-cols-4">
                     <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Commission type</label>
-                        <select v-model="form.commission_type" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                        <label class="admin-label">Commission type</label>
+                        <select v-model="form.commission_type" class="admin-select">
                             <option value="percentage">Percentage</option>
                             <option value="fixed">Fixed</option>
                         </select>
@@ -113,11 +128,11 @@ const submit = () => {
                     </label>
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2">
-                    <Link :href="route('admin.subscription-plans.index')" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <div class="flex justify-end gap-3 pt-2">
+                    <Link :href="route('admin.subscription-plans.index')" class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                         Cancel
                     </Link>
-                    <button type="submit" :disabled="form.processing" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:opacity-60">
+                    <button type="submit" :disabled="form.processing" class="inline-flex items-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
                         {{ isEdit ? 'Update Plan' : 'Create Plan' }}
                     </button>
                 </div>

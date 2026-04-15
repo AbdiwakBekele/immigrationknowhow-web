@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -202,7 +203,16 @@ class UserController extends Controller
             'role' => ['required', Rule::enum(UserRole::class)],
             'email_verified' => ['boolean'],
             'is_active' => ['boolean'],
+            'avatar' => ['nullable', 'image', 'max:2048'],
         ]);
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar && ! str_starts_with($user->avatar, 'http')) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $validated['avatar'] = $request->file('avatar')->store('avatars/users', 'public');
+        }
 
         $user->update([
             'first_name' => $validated['first_name'],
@@ -220,6 +230,7 @@ class UserController extends Controller
                 ? ($user->email_verified_at ?? now())
                 : null,
             'is_active' => $validated['is_active'] ?? true,
+            'avatar' => $validated['avatar'] ?? $user->avatar,
         ]);
 
         $user->syncRoles([$validated['role']]);

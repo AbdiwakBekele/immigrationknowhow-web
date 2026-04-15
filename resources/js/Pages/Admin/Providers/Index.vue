@@ -6,7 +6,9 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import {
     BriefcaseIcon,
     CheckBadgeIcon,
+    EyeIcon,
     MagnifyingGlassIcon,
+    PencilSquareIcon,
     PlusIcon,
     Squares2X2Icon,
     StarIcon,
@@ -122,56 +124,56 @@ const avatarUrl = (provider) => {
     <Head title="Providers" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-5">
-            <div
-                class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5"
-            >
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                        Directory
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Provider management
                     </p>
-                    <h1 class="text-xl font-display font-bold text-slate-900">Providers</h1>
-                    <p class="mt-0.5 text-sm text-slate-500">
+                    <h1 class="mt-2 admin-title">Providers</h1>
+                    <p class="admin-subtitle">
                         Manage provider profiles, verification, and activity.
                     </p>
                 </div>
                 <Link
                     href="/admin/providers/create"
-                    class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-sky-700"
+                    class="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_-18px_rgba(37,99,235,0.75)] transition hover:bg-blue-700"
                 >
-                    <PlusIcon class="h-5 w-5" />
+                    <PlusIcon class="h-4 w-4" />
                     Add Provider
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div class="mb-3 inline-flex rounded-lg bg-sky-100 p-2">
                         <BriefcaseIcon class="h-5 w-5 text-sky-600" />
                     </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.total }}</p>
-                    <p class="text-xs text-slate-500">Total providers</p>
+                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.total }}</p>
+                    <p class="text-sm text-slate-500">Total providers</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div class="mb-3 inline-flex rounded-lg bg-emerald-100 p-2">
                         <CheckBadgeIcon class="h-5 w-5 text-emerald-600" />
                     </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.verified }}</p>
-                    <p class="text-xs text-slate-500">Verified</p>
+                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.verified }}</p>
+                    <p class="text-sm text-slate-500">Verified</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div class="mb-3 inline-flex rounded-lg bg-indigo-100 p-2">
                         <Squares2X2Icon class="h-5 w-5 text-indigo-600" />
                     </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.active }}</p>
-                    <p class="text-xs text-slate-500">Active listings</p>
+                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.active }}</p>
+                    <p class="text-sm text-slate-500">Active listings</p>
                 </div>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section class="admin-panel">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
                     <div class="min-w-0 flex-1">
-                        <label class="mb-1 block text-xs font-medium text-slate-500">Search</label>
+                        <label class="admin-label">Search</label>
                         <div class="relative">
                             <MagnifyingGlassIcon
                                 class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -181,16 +183,16 @@ const avatarUrl = (provider) => {
                                 type="search"
                                 autocomplete="off"
                                 placeholder="Business name, contact, email…"
-                                class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                class="admin-input pl-10"
                             />
                         </div>
                     </div>
                     <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-3 lg:w-auto lg:min-w-[42rem]">
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-500">Service type</label>
+                            <label class="admin-label">Service type</label>
                             <select
                                 v-model="serviceType"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                class="admin-select"
                             >
                                 <option value="">All types</option>
                                 <option v-for="t in serviceTypes" :key="t.value" :value="t.value">
@@ -199,10 +201,10 @@ const avatarUrl = (provider) => {
                             </select>
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-500">Verification</label>
+                            <label class="admin-label">Verification</label>
                             <select
                                 v-model="verified"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                class="admin-select"
                             >
                                 <option value="">All</option>
                                 <option value="yes">Verified</option>
@@ -210,10 +212,10 @@ const avatarUrl = (provider) => {
                             </select>
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-500">Status</label>
+                            <label class="admin-label">Status</label>
                             <select
                                 v-model="active"
-                                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                                class="admin-select"
                             >
                                 <option value="">All</option>
                                 <option value="yes">Active</option>
@@ -222,24 +224,28 @@ const avatarUrl = (provider) => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
                     <Squares2X2Icon class="h-5 w-5 text-slate-500" />
                     <h2 class="text-sm font-semibold text-slate-900">On this page — by category</h2>
                 </div>
-                <div v-if="categoryCards.length" class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                    <div
-                        v-for="category in categoryCards"
-                        :key="category.key"
-                        class="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 transition-colors hover:border-sky-200 hover:bg-sky-50/50"
-                    >
-                        <p class="truncate text-xs font-medium text-slate-600">
-                            {{ category.label || categoryLabel(category.key) }}
-                        </p>
-                        <p class="mt-1 font-display text-xl font-bold text-slate-900">{{ category.count }}</p>
-                    </div>
+                <div v-if="categoryCards.length" class="overflow-hidden rounded-xl border border-slate-100">
+                    <ul class="divide-y divide-slate-100">
+                        <li
+                            v-for="category in categoryCards"
+                            :key="category.key"
+                            class="flex items-center justify-between bg-white px-4 py-3 transition-colors hover:bg-slate-50"
+                        >
+                            <p class="truncate text-sm font-medium text-slate-700">
+                                {{ category.label || categoryLabel(category.key) }}
+                            </p>
+                            <span class="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                {{ category.count }}
+                            </span>
+                        </li>
+                    </ul>
                 </div>
                 <p v-else class="text-sm text-slate-500">No category data on this page.</p>
             </div>
@@ -251,81 +257,97 @@ const avatarUrl = (provider) => {
                         {{ providers.total }} total
                     </span>
                 </div>
-                <div v-if="providerRows.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <div
-                        v-for="provider in providerRows"
-                        :key="provider.id"
-                        class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-sky-200/80 hover:shadow-md"
-                    >
-                        <div class="flex items-start gap-3">
-                            <div
-                                class="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 text-sm font-bold text-sky-800 ring-2 ring-white"
+                <div v-if="providerRows.length" class="admin-table-wrap">
+                    <table class="min-w-full">
+                        <thead class="admin-table-head">
+                            <tr>
+                                <th class="admin-table-th">Provider</th>
+                                <th class="admin-table-th">Service Type</th>
+                                <th class="admin-table-th">Verification</th>
+                                <th class="admin-table-th">Leads</th>
+                                <th class="admin-table-th">Reviews</th>
+                                <th class="admin-table-th text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr
+                                v-for="provider in providerRows"
+                                :key="provider.id"
+                                class="transition hover:bg-slate-50/80"
                             >
-                                <img
-                                    v-if="avatarUrl(provider)"
-                                    :src="avatarUrl(provider)"
-                                    alt=""
-                                    class="h-full w-full object-cover"
-                                />
-                                <span v-else>{{ initial(provider) }}</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="truncate font-semibold text-slate-900">
-                                    {{ provider.business_name }}
-                                </p>
-                                <p class="truncate text-xs text-slate-500">
-                                    {{ provider.user?.first_name }} {{ provider.user?.last_name }}
-                                </p>
-                                <p class="truncate text-xs text-slate-400">
-                                    {{ provider.user?.email }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="mt-3 flex flex-wrap items-center gap-1.5">
-                            <span
-                                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
-                            >
-                                {{ serviceTypeLabelForValue(primaryServiceValue(provider)) }}
-                            </span>
-                            <span
-                                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                                :class="
-                                    provider.is_verified
-                                        ? 'bg-emerald-100 text-emerald-800'
-                                        : 'bg-amber-100 text-amber-800'
-                                "
-                            >
-                                {{ provider.is_verified ? 'Verified' : 'Pending' }}
-                            </span>
-                            <span
-                                class="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800"
-                            >
-                                {{ provider.leads_count || 0 }} leads
-                            </span>
-                            <span
-                                class="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
-                            >
-                                <StarIcon class="h-3 w-3" />
-                                {{ provider.reviews_count || 0 }}
-                            </span>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                            <Link
-                                :href="`/admin/providers/${provider.slug}`"
-                                class="inline-flex flex-1 items-center justify-center rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700 sm:flex-none"
-                            >
-                                View
-                            </Link>
-                            <Link
-                                :href="`/admin/providers/${provider.slug}/edit`"
-                                class="inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:flex-none"
-                            >
-                                Edit
-                            </Link>
-                        </div>
-                    </div>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-sky-100 to-indigo-100 text-sm font-bold text-sky-800"
+                                        >
+                                            <img
+                                                v-if="avatarUrl(provider)"
+                                                :src="avatarUrl(provider)"
+                                                alt=""
+                                                class="h-full w-full object-cover"
+                                            />
+                                            <span v-else>{{ initial(provider) }}</span>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="truncate text-sm font-semibold text-slate-900">
+                                                {{ provider.business_name }}
+                                            </p>
+                                            <p class="truncate text-sm text-slate-500">
+                                                {{ provider.user?.first_name }} {{ provider.user?.last_name }}
+                                            </p>
+                                            <p class="truncate text-xs text-slate-400">
+                                                {{ provider.user?.email }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-700">
+                                    {{ serviceTypeLabelForValue(primaryServiceValue(provider)) }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span
+                                        class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                        :class="
+                                            provider.is_verified
+                                                ? 'bg-emerald-100 text-emerald-800'
+                                                : 'bg-amber-100 text-amber-800'
+                                        "
+                                    >
+                                        {{ provider.is_verified ? 'Verified' : 'Pending' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm font-medium text-slate-700">
+                                    {{ provider.leads_count || 0 }}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                                        <StarIcon class="h-3.5 w-3.5" />
+                                        {{ provider.reviews_count || 0 }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="inline-flex items-center gap-2">
+                                        <Link
+                                            :href="`/admin/providers/${provider.slug}`"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                            title="View provider"
+                                            aria-label="View provider"
+                                        >
+                                            <EyeIcon class="h-5 w-5" />
+                                        </Link>
+                                        <Link
+                                            :href="`/admin/providers/${provider.slug}/edit`"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                            title="Edit provider"
+                                            aria-label="Edit provider"
+                                        >
+                                            <PencilSquareIcon class="h-5 w-5" />
+                                        </Link>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
                 <div
                     v-else
