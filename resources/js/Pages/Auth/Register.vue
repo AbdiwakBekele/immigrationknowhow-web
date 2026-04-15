@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, watch } from 'vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -10,9 +10,18 @@ import { UserIcon, BriefcaseIcon } from '@heroicons/vue/24/outline';
 import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
-    roles: Array,
-    initialRole: String,
-    serviceTypes: Array,
+    roles: {
+        type: Array,
+        default: () => [],
+    },
+    initialRole: {
+        type: String,
+        default: 'user',
+    },
+    serviceTypes: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const form = useForm({
@@ -25,40 +34,22 @@ const form = useForm({
     service_type: '',
 });
 
-const authImage = ref('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1400&q=80');
-const fallbackImage = ref(false);
-
-const handleImageError = () => {
-    fallbackImage.value = true;
-};
-
-const submit = () => {
-    const selectedRole = form.role;
-
-    form.post(route('register'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            if (selectedRole === 'provider') {
-                router.visit(route('address-detail'));
-            }
-        },
-        onFinish: () => form.reset('password', 'password_confirmation'),
-    });
-};
-
-const goBack = () => {
-    if (window.history.length > 1) {
-        window.history.back();
-        return;
-    }
-
-    window.location.href = route('home');
-};
-
 const roleOptions = [
-    { value: 'user', label: 'I need services', icon: UserIcon },
-    { value: 'provider', label: 'I provide services', icon: BriefcaseIcon },
+    {
+        value: 'user',
+        label: 'I need services',
+        description: 'Create an account to request help and continue onboarding.',
+        icon: UserIcon,
+    },
+    {
+        value: 'provider',
+        label: 'I provide services',
+        description: 'Create an account to offer services and continue setup.',
+        icon: BriefcaseIcon,
+    },
 ];
+
+const totalSteps = computed(() => (form.role === 'user' ? 3 : 5));
 
 const serviceTypeLabel = computed(() =>
     form.role === 'provider' ? 'Service you provide' : 'Service you need'
@@ -75,11 +66,10 @@ const filteredServiceTypes = computed(() =>
         if (form.role === 'provider') {
             return type.for_provider ?? true;
         }
+
         return type.for_user ?? true;
     })
 );
-
-const totalSteps = computed(() => (form.role === 'user' ? 3 : 5));
 
 watch(
     () => form.role,
@@ -87,110 +77,134 @@ watch(
         form.service_type = '';
     }
 );
+
+const submit = () => {
+    form.post(route('register'), {
+        preserveScroll: true,
+        onFinish: () => form.reset('password', 'password_confirmation'),
+    });
+};
+
+const goBack = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    window.location.href = route('home');
+};
 </script>
 
 <template>
     <Head title="Create account" />
 
-    <GuestLayout>
+    <GuestLayout
+        panel-badge="Account setup"
+        panel-title="Create your account with a cleaner, more comfortable experience."
+        panel-description="This redesign keeps the current registration flow working while making it easier to read, easier to scan, and easier to complete."
+        :panel-points="[
+            'Larger forms with better spacing',
+            'Softer colors and less visual noise',
+            'The same role-based backend flow you already use',
+        ]"
+    >
         <template #title>Create your account</template>
-        <template #subtitle />
+        <template #subtitle>
+            Start with your basic details below. Your next steps will continue based on the role you choose.
+        </template>
+
         <template #progress>
             <AuthFlowProgress :current-step="1" :total-steps="totalSteps" />
         </template>
-        <template #side-image>
-            <div class="relative h-full w-full overflow-hidden">
-                <img
-                    v-if="!fallbackImage"
-                    :src="authImage"
-                    alt="Customer support illustration"
-                    class="h-full w-full object-cover"
-                    @error="handleImageError"
-                />
-                <div
-                    v-if="!fallbackImage"
-                    class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"
-                />
-                <div v-if="!fallbackImage" class="pointer-events-none absolute bottom-0 left-0 right-0 p-6 text-white">
-                    <p class="mb-2 inline-flex rounded-full bg-emerald-500/70 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
-                        Immigration Support
-                    </p>
-                    <h3 class="text-2xl font-bold leading-tight">Your journey. Our guidance.</h3>
-                    <p class="mt-2 text-sm text-white/90">
-                        Create your account and connect with trusted experts.
-                    </p>
-                </div>
-                <div
-                    v-else
-                    class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 via-white to-primary-200 px-6 text-center text-sm font-medium text-primary-700"
-                >
-                    Side image unavailable right now.
-                </div>
-            </div>
-        </template>
 
-        <form @submit.prevent="submit" class="space-y-2.5">
-            <div class="space-y-1.5">
-                <p class="text-sm font-medium text-neutral-700 sm:max-w-md sm:mx-auto">I am joining as</p>
-                <div class="grid grid-cols-2 gap-2 sm:max-w-md sm:mx-auto">
+        <form @submit.prevent="submit" class="space-y-7">
+            <div class="space-y-4">
+                <div>
+                    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">
+                        Join as
+                    </p>
+                    <p class="mt-1 text-sm leading-6 text-stone-600">
+                        Choose the option that best matches how you will use the platform.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <button
                         v-for="option in roleOptions"
                         :key="option.value"
                         type="button"
                         @click="form.role = option.value"
                         :class="[
-                            'flex min-h-[42px] flex-col items-center justify-center rounded-md border px-1 py-1 text-center transition-colors duration-200',
+                            'group rounded-2xl border p-5 text-left transition-all duration-200',
                             form.role === option.value
-                                ? 'border-primary-600 bg-primary-600 shadow-md'
-                                : 'border-neutral-200 bg-white',
+                                ? 'border-primary-500 bg-primary-50 shadow-sm ring-2 ring-primary-200'
+                                : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50',
                         ]"
                     >
-                        <component
-                            :is="option.icon"
-                            :class="[
-                                'mb-0.5 h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5',
-                                form.role === option.value ? 'text-white' : 'text-primary-500/80',
-                            ]"
-                        />
-                        <span
-                            :class="[
-                                'text-center text-[10px] font-semibold leading-tight',
-                                form.role === option.value ? 'text-white' : 'text-neutral-800',
-                            ]"
-                        >
-                            {{ option.label }}
-                        </span>
+                        <div class="flex items-start gap-4">
+                            <div
+                                :class="[
+                                    'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-colors',
+                                    form.role === option.value
+                                        ? 'border-primary-200 bg-white text-primary-700'
+                                        : 'border-stone-200 bg-stone-50 text-stone-600 group-hover:bg-white',
+                                ]"
+                            >
+                                <component :is="option.icon" class="h-5 w-5" />
+                            </div>
+
+                            <div class="min-w-0">
+                                <p
+                                    :class="[
+                                        'text-base font-semibold',
+                                        form.role === option.value ? 'text-primary-900' : 'text-stone-900',
+                                    ]"
+                                >
+                                    {{ option.label }}
+                                </p>
+                                <p class="mt-1 text-sm leading-6 text-stone-600">
+                                    {{ option.description }}
+                                </p>
+                            </div>
+                        </div>
                     </button>
                 </div>
-                <p v-if="form.errors.role" class="text-xs text-red-600">{{ form.errors.role }}</p>
+
+                <p v-if="form.errors.role" class="text-sm text-red-600">
+                    {{ form.errors.role }}
+                </p>
             </div>
 
-            <Select
+            <div
                 v-if="form.role === 'provider'"
-                v-model="form.service_type"
-                :options="filteredServiceTypes"
-                :label="serviceTypeLabel"
-                :placeholder="serviceTypePlaceholder"
-                :error="form.errors.service_type"
-                size="compact"
-                required
-            />
+                class="rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5"
+            >
+                <Select
+                    v-model="form.service_type"
+                    :options="filteredServiceTypes"
+                    :label="serviceTypeLabel"
+                    :placeholder="serviceTypePlaceholder"
+                    :error="form.errors.service_type"
+                    required
+                />
+            </div>
 
-            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Input
                     v-model="form.first_name"
                     label="First name"
                     placeholder="Jane"
+                    autocomplete="given-name"
                     :error="form.errors.first_name"
-                    size="compact"
                     required
                 />
+
                 <Input
                     v-model="form.last_name"
                     label="Last name"
                     placeholder="Doe"
+                    autocomplete="family-name"
                     :error="form.errors.last_name"
-                    size="compact"
                     required
                 />
             </div>
@@ -198,52 +212,54 @@ watch(
             <Input
                 v-model="form.email"
                 type="email"
-                label="Email"
+                label="Email address"
                 placeholder="you@example.com"
+                autocomplete="email"
                 :error="form.errors.email"
-                size="compact"
                 required
             />
 
-            <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Input
                     v-model="form.password"
                     type="password"
                     label="Password"
-                    placeholder="••••••••"
-                    helper="At least 8 characters"
+                    placeholder="Create a password"
+                    autocomplete="new-password"
+                    helper="Use at least 8 characters."
                     :error="form.errors.password"
-                    size="compact"
                     required
                 />
+
                 <Input
                     v-model="form.password_confirmation"
                     type="password"
                     label="Confirm password"
-                    placeholder="••••••••"
+                    placeholder="Re-enter your password"
+                    autocomplete="new-password"
                     :error="form.errors.password_confirmation"
-                    size="compact"
                     required
                 />
             </div>
 
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    class="!rounded-md border border-neutral-200 bg-white !px-2.5 !py-1.5 !text-xs text-neutral-700 hover:bg-neutral-50"
+                    size="md"
+                    class="justify-center border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 sm:justify-start"
                     @click="goBack"
                 >
-                    <ArrowLeftIcon class="h-3.5 w-3.5" />
+                    <ArrowLeftIcon class="h-4 w-4" />
                     Back
                 </Button>
+
                 <Button
                     type="submit"
                     variant="primary"
-                    size="sm"
+                    size="lg"
                     :loading="form.processing"
-                    class="min-w-[10rem] !py-1.5 !text-xs !rounded-md"
+                    class="w-full sm:w-auto sm:min-w-[13rem]"
                 >
                     Continue
                 </Button>
@@ -251,8 +267,11 @@ watch(
         </form>
 
         <template #footer>
-            <span class="inline-block pt-1">Already have an account?</span>
-            <Link :href="route('login')" class="ml-1 font-semibold text-primary-600 hover:text-primary-500">
+            Already have an account?
+            <Link
+                :href="route('login')"
+                class="ml-1 font-semibold text-primary-700 transition hover:text-primary-800"
+            >
                 Sign in
             </Link>
         </template>

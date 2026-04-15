@@ -1,5 +1,4 @@
 <script setup>
-import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -8,7 +7,6 @@ import Button from '@/Components/ui/Button.vue';
 defineProps({
     canResetPassword: Boolean,
     status: String,
-    /** Present when a session already exists (e.g. user opened Sign in while logged in). */
     authenticatedUser: {
         type: Object,
         default: null,
@@ -21,13 +19,6 @@ const form = useForm({
     remember: false,
 });
 
-const authImage = ref('https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1400&q=80');
-const fallbackImage = ref(false);
-
-const handleImageError = () => {
-    fallbackImage.value = true;
-};
-
 const submit = () => {
     form.post(route('login'), {
         onFinish: () => form.reset('password'),
@@ -38,64 +29,59 @@ const submit = () => {
 <template>
     <Head title="Sign In" />
 
-    <GuestLayout>
+    <GuestLayout
+        panel-badge="Trusted Support"
+        panel-title="Starting fresh shouldn’t mean starting alone!"
+        panel-description="Access a network of verified service providers who share your language and cultural understanding—built to support you every step of the way."
+    >
         <template #title>Welcome back</template>
-        <template #subtitle>Sign in to your account to continue</template>
-        <template #side-image>
-            <div class="h-full w-full">
-                <img
-                    v-if="!fallbackImage"
-                    :src="authImage"
-                    alt="Customer support illustration"
-                    class="h-full w-full object-cover"
-                    @error="handleImageError"
-                />
-                <div
-                    v-else
-                    class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 via-white to-primary-200 px-6 text-center text-sm font-medium text-primary-700"
-                >
-                    Side image unavailable right now.
-                </div>
-            </div>
+        <template #subtitle>
+            Sign in to access your account, forms, dashboard, and next steps.
         </template>
 
-        <div v-if="status" class="mb-4 p-4 rounded-xl bg-emerald-50 text-sm font-medium text-emerald-600">
+        <div
+            v-if="status"
+            class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+        >
             {{ status }}
         </div>
 
         <div
             v-if="authenticatedUser"
-            class="mb-5 space-y-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-950"
+            class="mb-6 rounded-2xl border border-primary-200 bg-primary-50 px-5 py-4 text-sm text-primary-950"
         >
-            <p>
-                <span class="font-medium">You are already signed in</span>
+            <p class="leading-6">
+                <span class="font-semibold">You are already signed in</span>
                 <span class="text-primary-800"> as {{ authenticatedUser.email }}</span>
             </p>
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+
+            <div class="mt-3 flex flex-wrap items-center gap-3">
                 <Link
                     :href="authenticatedUser.continueUrl"
-                    class="font-semibold text-primary-700 underline decoration-primary-400 underline-offset-2 hover:text-primary-900"
+                    class="inline-flex items-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                 >
                     Continue to your account
                 </Link>
+
                 <Link
                     :href="route('logout')"
                     method="post"
                     as="button"
                     type="button"
-                    class="text-sm font-semibold text-neutral-600 underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900"
+                    class="inline-flex items-center rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:bg-stone-50"
                 >
                     Sign out
                 </Link>
             </div>
         </div>
 
-        <form @submit.prevent="submit" class="space-y-5">
+        <form @submit.prevent="submit" class="space-y-6">
             <Input
                 v-model="form.email"
                 type="email"
                 label="Email address"
                 placeholder="you@example.com"
+                autocomplete="email"
                 :error="form.errors.email"
                 required
             />
@@ -104,46 +90,47 @@ const submit = () => {
                 v-model="form.password"
                 type="password"
                 label="Password"
-                placeholder="••••••••"
+                placeholder="Enter your password"
+                autocomplete="current-password"
                 :error="form.errors.password"
                 required
             />
 
-            <div class="flex items-center justify-between">
-                <label class="flex items-center gap-2 cursor-pointer">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label class="inline-flex cursor-pointer items-center gap-3">
                     <input
                         v-model="form.remember"
                         type="checkbox"
-                        class="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+                        class="h-4 w-4 rounded border-stone-300 text-primary-600 focus:ring-primary-500"
                     />
-                    <span class="text-sm text-neutral-600">Remember me</span>
+                    <span class="text-sm font-medium text-stone-600">Remember me</span>
                 </label>
 
-                <Link
+                <p
                     v-if="canResetPassword"
-                    href="#"
-                    class="text-sm font-medium text-primary-600 hover:text-primary-500"
+                    class="text-sm text-stone-500"
                 >
-                    Forgot password?
-                </Link>
+                    Need help signing in? Contact support.
+                </p>
             </div>
 
-            <div class="flex justify-center">
-                <Button
-                    type="submit"
-                    variant="primary"
-                    size="sm"
-                    :loading="form.processing"
-                    class="min-w-[12rem] !py-1.5 !text-xs"
-                >
-                    Sign in
-                </Button>
-            </div>
+            <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                :loading="form.processing"
+                class="w-full"
+            >
+                Sign in
+            </Button>
         </form>
 
         <template #footer>
-            Don't have an account?
-            <Link :href="route('register')" class="font-semibold text-primary-600 hover:text-primary-500 ml-1">
+            Don’t have an account?
+            <Link
+                :href="route('register')"
+                class="ml-1 font-semibold text-primary-700 transition hover:text-primary-800"
+            >
                 Create one now
             </Link>
         </template>
