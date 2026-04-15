@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -26,7 +26,7 @@ class UserController extends Controller
         $exists = User::whereRaw('LOWER(email) = ?', [$email])->exists();
 
         return response()->json([
-            'available' => !$exists,
+            'available' => ! $exists,
         ]);
     }
 
@@ -34,25 +34,23 @@ class UserController extends Controller
     {
         $query = User::query()
             ->with('roles:id,name')
-            ->with('serviceProvider:id,user_id,background_check_status')
             ->withCount(['leads', 'reviews']);
 
-        // Search
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = $request->string('search')->toString();
+
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
-        // Filter by role
         if ($request->filled('role')) {
-            $query->whereHas('roles', fn($q) => $q->where('name', $request->role));
+            $query->whereHas('roles', fn ($q) => $q->where('name', $request->role));
         }
 
-        // Filter by status
         if ($request->filled('status')) {
             if ($request->status === 'verified') {
                 $query->whereNotNull('email_verified_at');
@@ -61,28 +59,51 @@ class UserController extends Controller
             }
         }
 
-        // Filter by background check status
-        if ($request->filled('background_check')) {
-            $status = $request->string('background_check')->toString();
-            $normalizedStatus = $status === 'invitation_sent' ? 'invited' : $status;
-
-            $query->whereHas(
-                'serviceProvider',
-                fn ($q) => $q->where('background_check_status', $normalizedStatus)
-            );
-        }
-
-        // Sort
+        $allowedSorts = ['created_at', 'first_name', 'email', 'last_login_at'];
         $sortBy = $request->get('sort', 'created_at');
         $sortDir = $request->get('dir', 'desc');
+
+        if (! in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'created_at';
+        }
+
+        if (! in_array($sortDir, ['asc', 'desc'], true)) {
+            $sortDir = 'desc';
+        }
+
         $query->orderBy($sortBy, $sortDir);
 
         $users = $query->paginate(20)->withQueryString();
 
+        $selectedUser = null;
+
+        if ($request->filled('view')) {
+            $selectedUser = User::query()
+                ->with(['roles:id,name', 'serviceProvider', 'leads', 'reviews'])
+                ->withCount(['leads', 'reviews'])
+                ->find($request->integer('view'));
+
+            if ($selectedUser) {
+                $selectedUser->setAttribute('role_name', optional($selectedUser->roles->first())->name);
+            }
+        }
+
+        $stats = [
+            'total' => User::count(),
+            'verified' => User::whereNotNull('email_verified_at')->count(),
+            'unverified' => User::whereNull('email_verified_at')->count(),
+            'new_today' => User::where('created_at', '>=', now()->startOfDay())->count(),
+        ];
+
         return Inertia::render('Admin/Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search', 'role', 'status', 'background_check', 'sort', 'dir']),
-            'roles' => collect(UserRole::cases())->map(fn($r) => ['value' => $r->value, 'label' => $r->label()]),
+            'selectedUser' => $selectedUser,
+            'stats' => $stats,
+            'filters' => $request->only(['search', 'role', 'status', 'sort', 'dir', 'view']),
+            'roles' => collect(UserRole::cases())->map(fn ($r) => [
+                'value' => $r->value,
+                'label' => $r->label(),
+            ]),
         ]);
     }
 
@@ -103,19 +124,31 @@ class UserController extends Controller
     public function create(): Response
     {
         return Inertia::render('Admin/Users/Create', [
-            'roles' => collect(UserRole::cases())->map(fn($r) => ['value' => $r->value, 'label' => $r->label()]),
+            'roles' => collect(UserRole::cases())->map(fn ($r) => [
+                'value' => $r->value,
+                'label' => $r->label(),
+            ]),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Password::defaults()],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'state' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'preferred_language' => ['nullable', 'string', 'max:255'],
+            'timezone' => ['nullable', 'string', 'max:255'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'email_verified' => ['boolean'],
+            'is_active' => ['boolean'],
         ]);
 
         $user = User::create([
@@ -123,7 +156,16 @@ class UserController extends Controller
             'last_name' => $validated['last_name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'email_verified_at' => $validated['email_verified'] ? now() : null,
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'city' => $validated['city'] ?? null,
+            'state' => $validated['state'] ?? null,
+            'postal_code' => $validated['postal_code'] ?? null,
+            'country' => $validated['country'] ?? null,
+            'preferred_language' => $validated['preferred_language'] ?? 'en',
+            'timezone' => $validated['timezone'] ?? 'America/New_York',
+            'email_verified_at' => ($validated['email_verified'] ?? false) ? now() : null,
+            'is_active' => $validated['is_active'] ?? true,
         ]);
 
         $user->assignRole($validated['role']);
@@ -136,25 +178,48 @@ class UserController extends Controller
     {
         return Inertia::render('Admin/Users/Edit', [
             'user' => $user->load('roles'),
-            'roles' => collect(UserRole::cases())->map(fn($r) => ['value' => $r->value, 'label' => $r->label()]),
+            'roles' => collect(UserRole::cases())->map(fn ($r) => [
+                'value' => $r->value,
+                'label' => $r->label(),
+            ]),
         ]);
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
         $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'state' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'max:255'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'preferred_language' => ['nullable', 'string', 'max:255'],
+            'timezone' => ['nullable', 'string', 'max:255'],
             'role' => ['required', Rule::enum(UserRole::class)],
             'email_verified' => ['boolean'],
+            'is_active' => ['boolean'],
         ]);
 
         $user->update([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'email' => $validated['email'],
-            'email_verified_at' => $validated['email_verified'] ? ($user->email_verified_at ?? now()) : null,
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'city' => $validated['city'] ?? null,
+            'state' => $validated['state'] ?? null,
+            'postal_code' => $validated['postal_code'] ?? null,
+            'country' => $validated['country'] ?? null,
+            'preferred_language' => $validated['preferred_language'] ?? 'en',
+            'timezone' => $validated['timezone'] ?? 'America/New_York',
+            'email_verified_at' => ($validated['email_verified'] ?? false)
+                ? ($user->email_verified_at ?? now())
+                : null,
+            'is_active' => $validated['is_active'] ?? true,
         ]);
 
         $user->syncRoles([$validated['role']]);
@@ -164,13 +229,11 @@ class UserController extends Controller
 
     public function destroy(User $user): RedirectResponse
     {
-        // Prevent self-deletion
         if ($user->id === auth()->id()) {
             return back()->withErrors(['error' => 'You cannot delete your own account.']);
         }
 
-        // Prevent deleting super admins (unless you're a super admin)
-        if ($user->hasRole('super_admin') && !auth()->user()->hasRole('super_admin')) {
+        if ($user->hasRole('super_admin') && ! auth()->user()->hasRole('super_admin')) {
             return back()->withErrors(['error' => 'You cannot delete a super admin.']);
         }
 
@@ -182,12 +245,10 @@ class UserController extends Controller
 
     public function impersonate(User $user): RedirectResponse
     {
-        // Only super admins can impersonate
-        if (!auth()->user()->hasRole('super_admin')) {
+        if (! auth()->user()->hasRole('super_admin')) {
             abort(403);
         }
 
-        // Can't impersonate self
         if ($user->id === auth()->id()) {
             return back()->withErrors(['error' => 'You cannot impersonate yourself.']);
         }
@@ -209,23 +270,5 @@ class UserController extends Controller
 
         return redirect()->route('admin.dashboard')
             ->with('success', 'Stopped impersonating.');
-    }
-
-    public function ban(User $user): RedirectResponse
-    {
-        if ($user->id === auth()->id()) {
-            return back()->withErrors(['error' => 'You cannot ban yourself.']);
-        }
-
-        $user->update(['banned_at' => now()]);
-
-        return back()->with('success', 'User has been banned.');
-    }
-
-    public function unban(User $user): RedirectResponse
-    {
-        $user->update(['banned_at' => null]);
-
-        return back()->with('success', 'User has been unbanned.');
     }
 }

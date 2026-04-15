@@ -185,8 +185,10 @@ return new class extends Migration
             $table->foreignId('affiliate_earning_id')->constrained('affiliate_earnings')->cascadeOnDelete();
             $table->decimal('amount_paid', 10, 2);
             $table->timestamps();
-
-            $table->unique(['affiliate_payout_id', 'affiliate_earning_id']);
+            $table->unique(
+                ['affiliate_payout_id', 'affiliate_earning_id'],
+                'aff_payout_items_payout_earning_uq'
+            );
             });
         }
     }
