@@ -45,6 +45,40 @@ class ReviewController extends Controller
 
         $query->orderByDesc('created_at');
 
+        $reviewsByRating = collect([5, 4, 3, 2, 1])->map(function (int $rating) use ($query) {
+            $items = (clone $query)
+                ->where('rating', $rating)
+                ->limit(100)
+                ->get()
+                ->map(function (Review $review) {
+                    return [
+                        'id' => $review->id,
+                        'uuid' => $review->uuid,
+                        'rating' => $review->rating,
+                        'comment' => $review->comment,
+                        'is_approved' => (bool) $review->is_approved,
+                        'created_at' => $review->created_at,
+                        'user' => [
+                            'id' => $review->user?->id,
+                            'name' => trim(($review->user?->first_name ?? '').' '.($review->user?->last_name ?? '')),
+                            'email' => $review->user?->email,
+                        ],
+                        'provider' => [
+                            'id' => $review->serviceProvider?->id,
+                            'business_name' => $review->serviceProvider?->business_name,
+                            'slug' => $review->serviceProvider?->slug,
+                        ],
+                    ];
+                })
+                ->values();
+
+            return [
+                'rating' => $rating,
+                'count' => $items->count(),
+                'reviews' => $items,
+            ];
+        })->values();
+
         $reviews = $query->paginate(20)->withQueryString();
 
         // Stats (no is_flagged column — use unapproved as "needs attention")
@@ -59,6 +93,7 @@ class ReviewController extends Controller
             'reviews' => $reviews,
             'filters' => $request->only(['flagged', 'rating', 'search']),
             'stats' => $stats,
+            'reviewsByRating' => $reviewsByRating,
         ]);
     }
 

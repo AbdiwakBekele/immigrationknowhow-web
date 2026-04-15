@@ -86,6 +86,23 @@ const formatDate = (date, full = false) => {
         : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
     return new Date(date).toLocaleDateString('en-US', options);
 };
+
+const resolveAvatar = (person) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
+
+const firstInitial = (...values) => {
+    for (const value of values) {
+        const text = (value || '').trim();
+        if (text) return text.charAt(0).toUpperCase();
+    }
+    return 'U';
+};
 </script>
 
 <template>
@@ -106,10 +123,19 @@ const formatDate = (date, full = false) => {
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center gap-4">
-                                <img 
-                                    :src="lead.user?.avatar || '/images/default-avatar.png'" 
-                                    class="h-16 w-16 rounded-full"
+                                <img
+                                    v-if="resolveAvatar(lead.user)"
+                                    :src="resolveAvatar(lead.user)"
+                                    class="h-16 w-16 rounded-full object-cover"
+                                    alt="Lead user avatar"
                                 />
+                                <div
+                                    v-else
+                                    class="flex h-16 w-16 items-center justify-center rounded-full bg-primary-600 text-xl font-bold text-white"
+                                    aria-hidden="true"
+                                >
+                                    {{ firstInitial(lead.user?.first_name, lead.user?.last_name, lead.user?.full_name) }}
+                                </div>
                                 <div>
                                     <h1 class="text-xl font-display font-bold text-gray-900">
                                         {{ lead.user?.full_name || 'Anonymous' }}

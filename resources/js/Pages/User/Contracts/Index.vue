@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     MagnifyingGlassIcon,
@@ -10,6 +10,7 @@ import {
     ChatBubbleLeftRightIcon,
     ArrowTopRightOnSquareIcon,
 } from '@heroicons/vue/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 
 const props = defineProps({
     leads: { type: Object, required: true },
@@ -78,15 +79,44 @@ const offerStageClasses = (lead) => {
 };
 
 const canSendContract = (lead) => Boolean(lead.can_send_contract);
-const canEnd = (lead) => lead.status === 'in_progress';
+const canEnd = (lead) => ['in_progress', 'converted'].includes(lead.status);
+const showEndModal = ref(false);
+const selectedLead = ref(null);
+
+const endForm = useForm({
+    reason: '',
+    review_rating: 5,
+    review_comment: '',
+});
 
 const sendContract = (lead) => {
     router.patch(route('contracts.send', lead.uuid), {}, { preserveScroll: true });
 };
 
-const endContract = (lead) => {
-    if (!window.confirm('End this contract? This will mark it as closed.')) return;
-    router.patch(route('contracts.end', lead.uuid), { reason: 'Ended by service needer' }, { preserveScroll: true });
+const openEndModal = (lead) => {
+    selectedLead.value = lead;
+    endForm.reset();
+    endForm.clearErrors();
+    endForm.review_rating = 5;
+    showEndModal.value = true;
+};
+
+const closeEndModal = () => {
+    showEndModal.value = false;
+    selectedLead.value = null;
+    endForm.reset();
+    endForm.clearErrors();
+};
+
+const submitEndContract = () => {
+    if (!selectedLead.value) return;
+
+    endForm.patch(route('contracts.end', selectedLead.value.uuid), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeEndModal();
+        },
+    });
 };
 
 const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
@@ -199,10 +229,10 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
                                 v-if="canEnd(lead)"
                                 type="button"
                                 class="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
-                                @click="endContract(lead)"
+                                @click="openEndModal(lead)"
                             >
                                 <XCircleIcon class="h-4 w-4" />
-                                End contract
+                                Close contract
                             </button>
                         </div>
                     </div>
@@ -236,6 +266,82 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
                 </template>
             </div>
         </div>
+
+        <Teleport to="body">
+            <div v-if="showEndModal" class="fixed inset-0 z-50 overflow-y-auto">
+                <div class="flex min-h-full items-end justify-center p-4 sm:items-center">
+                    <div class="fixed inset-0 bg-black/50" @click="closeEndModal"></div>
+                    <div class="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                        <h3 class="text-lg font-semibold text-slate-900">Close contract and leave review</h3>
+                        <p class="mt-1 text-sm text-slate-600">
+                            Your rating and review will appear on the provider profile for other users.
+                        </p>
+
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Star rating</label>
+                                <div class="mt-2 flex items-center gap-2">
+                                    <button
+                                        v-for="star in 5"
+                                        :key="star"
+                                        type="button"
+                                        class="rounded-md p-1 transition hover:bg-slate-100"
+                                        @click="endForm.review_rating = star"
+                                    >
+                                        <StarSolid
+                                            class="h-7 w-7"
+                                            :class="star <= endForm.review_rating ? 'text-yellow-400' : 'text-slate-300'"
+                                        />
+                                    </button>
+                                </div>
+                                <p v-if="endForm.errors.review_rating" class="mt-1 text-sm text-rose-600">{{ endForm.errors.review_rating }}</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Review description</label>
+                                <textarea
+                                    v-model="endForm.review_comment"
+                                    rows="4"
+                                    minlength="10"
+                                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                    placeholder="Describe your experience with this provider..."
+                                />
+                                <p v-if="endForm.errors.review_comment" class="mt-1 text-sm text-rose-600">{{ endForm.errors.review_comment }}</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Optional ending note</label>
+                                <textarea
+                                    v-model="endForm.reason"
+                                    rows="2"
+                                    class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                    placeholder="Why are you ending this contract?"
+                                />
+                                <p v-if="endForm.errors.reason" class="mt-1 text-sm text-rose-600">{{ endForm.errors.reason }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex items-center gap-3">
+                            <button
+                                type="button"
+                                class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                @click="closeEndModal"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                class="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
+                                :disabled="endForm.processing"
+                                @click="submitEndContract"
+                            >
+                                {{ endForm.processing ? 'Submitting...' : 'Close and submit review' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </AppLayout>
 </template>
 

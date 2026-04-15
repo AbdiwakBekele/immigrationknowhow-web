@@ -64,9 +64,22 @@ const isActive = (href) => {
 
 const userAvatarSrc = computed(() => {
     const u = user.value;
-    if (!u) return '/img/default-avatar.png';
-    const url = u.avatar_url;
-    return typeof url === 'string' && url.trim() !== '' ? url : '/img/default-avatar.png';
+    if (!u) return '';
+    const candidate = (u.avatar_url || u.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+});
+
+const hasUserAvatar = computed(() => Boolean(userAvatarSrc.value));
+const userAvatarInitial = computed(() => {
+    const first = (user.value?.first_name || '').trim();
+    const last = (user.value?.last_name || '').trim();
+    if (first) return first.charAt(0).toUpperCase();
+    if (last) return last.charAt(0).toUpperCase();
+    return 'U';
 });
 </script>
 
@@ -156,10 +169,18 @@ const userAvatarSrc = computed(() => {
                     @click="sidebarOpen = false"
                 >
                     <img
+                        v-if="hasUserAvatar"
                         :src="userAvatarSrc"
-                        alt=""
+                        alt="User profile photo"
                         class="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
                     />
+                    <div
+                        v-else
+                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white ring-1 ring-primary-500/50"
+                        aria-hidden="true"
+                    >
+                        {{ userAvatarInitial }}
+                    </div>
                     <div class="min-w-0 flex-1">
                         <p class="truncate font-semibold text-slate-900">
                             {{ user?.first_name?.trim() || 'Profile' }}

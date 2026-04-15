@@ -5,8 +5,12 @@ namespace App\Http\Controllers\User;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
+use App\Models\Review;
+use App\Notifications\NewReviewNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +26,7 @@ class ContractController extends Controller
             ->with([
                 'serviceProvider:id,slug,business_name',
                 'serviceProvider.user:id,first_name,last_name,email,avatar',
+                'review:id,lead_id,user_id,rating,comment',
                 'conversation' => fn ($q) => $q->select('id', 'uuid', 'lead_id')
                     ->with(['messages:id,conversation_id,sender_id']),
             ]);
@@ -62,6 +67,7 @@ class ContractController extends Controller
                 in_array($lead->status, [LeadStatus::NEW, LeadStatus::CONTACTED], true)
                     && $lead->contract_sent_at === null
             );
+            $lead->setAttribute('has_review', (bool) $lead->review);
 
             return $lead;
         });
@@ -121,28 +127,55 @@ class ContractController extends Controller
 
         $validated = $request->validate([
             'reason' => ['nullable', 'string', 'max:500', Rule::notIn(['null', 'undefined'])],
+            'review_rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'review_comment' => ['required', 'string', 'min:10', 'max:2000'],
         ]);
 
         if (in_array($lead->status, [LeadStatus::CLOSED, LeadStatus::DECLINED], true)) {
             return back()->with('success', 'This contract has already ended.');
         }
 
-        if ($lead->status !== LeadStatus::IN_PROGRESS) {
-            return back()->with('error', 'Only active contracts can be ended.');
+        if (! in_array($lead->status, [LeadStatus::IN_PROGRESS, LeadStatus::CONVERTED], true)) {
+            return back()->with('error', 'Only active or completed contracts can be closed.');
         }
 
-        $lead->update([
-            'status' => LeadStatus::CLOSED,
-            'closed_at' => now(),
-            'provider_notes' => trim(collect([
-                $lead->provider_notes,
-                '['.now()->toDateTimeString().'] Contract ended by service needer'.(
-                    ! empty($validated['reason']) ? ' - '.$validated['reason'] : ''
-                ),
-            ])->filter()->implode(PHP_EOL)),
-        ]);
+        DB::transaction(function () use ($lead, $request, $validated) {
+            $lead->update([
+                'status' => LeadStatus::CLOSED,
+                'closed_at' => now(),
+                'provider_notes' => trim(collect([
+                    $lead->provider_notes,
+                    '['.now()->toDateTimeString().'] Contract ended by service needer'.(
+                        ! empty($validated['reason']) ? ' - '.$validated['reason'] : ''
+                    ),
+                ])->filter()->implode(PHP_EOL)),
+            ]);
 
-        return back()->with('success', 'Contract ended successfully.');
+            $review = Review::firstOrNew([
+                'lead_id' => $lead->id,
+                'user_id' => $request->user()->id,
+            ]);
+            $review->fill([
+                'service_provider_id' => $lead->service_provider_id,
+                'rating' => $validated['review_rating'],
+                'comment' => $validated['review_comment'],
+                'communication_rating' => $validated['review_rating'],
+                'expertise_rating' => $validated['review_rating'],
+                'value_rating' => $validated['review_rating'],
+            ]);
+
+            if (! $review->exists) {
+                $review->uuid = (string) Str::uuid();
+            }
+
+            $review->save();
+
+            if ($review->wasRecentlyCreated) {
+                $lead->serviceProvider?->user?->notify(new NewReviewNotification($review));
+            }
+        });
+
+        return back()->with('success', 'Contract ended and review submitted successfully.');
     }
 }
 

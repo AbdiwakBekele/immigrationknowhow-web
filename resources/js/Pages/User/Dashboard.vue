@@ -75,6 +75,23 @@ const conversationHref = (conversationUuid) => (
         : route('messages.index')
 );
 
+const resolveAvatar = (person) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
+
+const firstInitial = (...values) => {
+    for (const value of values) {
+        const text = (value || '').trim();
+        if (text) return text.charAt(0).toUpperCase();
+    }
+    return 'U';
+};
+
 /** First featured library item cover for the Library shortcut “avatar”. */
 const libraryShortcutCoverUrl = computed(() => {
     for (const item of props.libraryItems ?? []) {
@@ -217,11 +234,19 @@ const purchaseRowPrice = (purchase) => {
                                     :href="conversationHref(lead.conversation?.uuid)"
                                     class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
                                 >
-                                    <img 
-                                        :src="lead.service_provider?.user?.avatar || '/img/default-avatar.png'"
+                                    <img
+                                        v-if="resolveAvatar(lead.service_provider?.user)"
+                                        :src="resolveAvatar(lead.service_provider?.user)"
                                         :alt="lead.service_provider?.business_name"
                                         class="w-12 h-12 rounded-xl object-cover"
                                     />
+                                    <div
+                                        v-else
+                                        class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 text-sm font-bold text-white"
+                                        aria-hidden="true"
+                                    >
+                                        {{ firstInitial(lead.service_provider?.business_name, lead.service_provider?.user?.first_name) }}
+                                    </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center gap-2 mb-1">
                                             <h3 class="font-semibold text-slate-900 truncate">
@@ -288,11 +313,19 @@ const purchaseRowPrice = (purchase) => {
                                     :href="route('marketplace.show', provider.slug)"
                                     class="flex items-start gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                                 >
-                                    <img 
-                                        :src="provider.user?.avatar || '/img/default-avatar.png'"
+                                    <img
+                                        v-if="resolveAvatar(provider.user)"
+                                        :src="resolveAvatar(provider.user)"
                                         :alt="provider.business_name"
                                         class="w-14 h-14 rounded-xl object-cover"
                                     />
+                                    <div
+                                        v-else
+                                        class="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-600 text-lg font-bold text-white"
+                                        aria-hidden="true"
+                                    >
+                                        {{ firstInitial(provider.business_name, provider.user?.first_name) }}
+                                    </div>
                                     <div class="flex-1 min-w-0">
                                         <h3 class="font-semibold text-slate-900 truncate">
                                             {{ provider.business_name }}
@@ -332,11 +365,19 @@ const purchaseRowPrice = (purchase) => {
                                     :href="conversationHref(message.conversation_uuid)"
                                     class="flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors"
                                 >
-                                    <img 
-                                        :src="message.sender?.avatar || '/img/default-avatar.png'"
+                                    <img
+                                        v-if="resolveAvatar(message.sender)"
+                                        :src="resolveAvatar(message.sender)"
                                         :alt="message.sender?.first_name"
                                         class="w-10 h-10 rounded-full object-cover"
                                     />
+                                    <div
+                                        v-else
+                                        class="flex h-10 w-10 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white"
+                                        aria-hidden="true"
+                                    >
+                                        {{ firstInitial(message.sender?.first_name, message.sender?.last_name) }}
+                                    </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-sm font-medium text-slate-900 truncate">
                                             {{ message.sender?.first_name }}

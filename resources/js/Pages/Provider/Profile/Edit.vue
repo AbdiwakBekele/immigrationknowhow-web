@@ -25,6 +25,11 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+const hasAvatar = computed(() => Boolean(user.value?.avatar_url));
+const avatarInitial = computed(() => {
+    const source = form.business_name || user.value?.first_name || 'P';
+    return source.trim().charAt(0).toUpperCase();
+});
 
 const form = useForm({
     // Business Info
@@ -247,11 +252,19 @@ const verificationStatusLabel = computed(() => {
                         <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Profile Photo</h2>
                         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                             <div class="relative shrink-0">
-                                <img 
-                                    :src="user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(form.business_name || 'P')}&background=3B95F3&color=fff&size=96`" 
+                                <img
+                                    v-if="hasAvatar"
+                                    :src="user?.avatar_url"
                                     class="h-24 w-24 rounded-2xl object-cover bg-slate-100 ring-1 ring-slate-200/80"
-                                    alt=""
+                                    alt="Provider profile photo"
                                 />
+                                <div
+                                    v-else
+                                    class="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary-600 text-3xl font-bold text-white ring-1 ring-primary-500/60"
+                                    aria-hidden="true"
+                                >
+                                    {{ avatarInitial }}
+                                </div>
                                 <button 
                                     type="button"
                                     :disabled="avatarUploading"
@@ -280,7 +293,7 @@ const verificationStatusLabel = computed(() => {
                                         class="btn btn-outline btn-sm"
                                         @click="avatarInput?.click()"
                                     >
-                                        {{ avatarUploading ? 'Uploading…' : 'Choose image' }}
+                                        {{ avatarUploading ? 'Uploading…' : (hasAvatar ? 'Change photo' : 'Upload photo') }}
                                     </button>
                                 </div>
                                 <p v-if="avatarClientError" class="text-sm text-red-600">{{ avatarClientError }}</p>

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,21 +35,28 @@ class MessageController extends Controller
                     });
             }])
             ->orderByDesc('last_message_at')
-            ->paginate(20);
+            ->get();
 
-        $totalUnread = Conversation::query()
-            ->forUser($user)
-            ->forServiceInquiries()
-            ->whereHas('messages', function ($q) use ($user) {
-                $q->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($rq) use ($user) {
-                        $rq->where('user_id', $user->id);
-                    });
-            })
-            ->count();
+        $mergedConversations = $this->mergeByParticipants($conversations);
+        $perPage = 20;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $items = $mergedConversations->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $paginatedConversations = new LengthAwarePaginator(
+            $items,
+            $mergedConversations->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        $totalUnread = $mergedConversations->sum('unread_count');
 
         return Inertia::render('Provider/Messages/Index', [
-            'conversations' => $conversations,
+            'conversations' => $paginatedConversations,
             'totalUnread' => $totalUnread,
         ]);
     }
@@ -106,5 +115,20 @@ class MessageController extends Controller
         return Inertia::render('Provider/Messages/Archived', [
             'conversations' => $conversations,
         ]);
+    }
+
+    protected function mergeByParticipants(Collection $conversations): Collection
+    {
+        return $conversations
+            ->groupBy(fn (Conversation $conversation) => $conversation->user_id.'-'.$conversation->service_provider_id)
+            ->map(function (Collection $group) {
+                /** @var Conversation $latest */
+                $latest = $group->sortByDesc('last_message_at')->first();
+                $latest->setAttribute('unread_count', (int) $group->sum('unread_count'));
+
+                return $latest;
+            })
+            ->sortByDesc('last_message_at')
+            ->values();
     }
 }
