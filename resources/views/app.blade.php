@@ -15,7 +15,12 @@
 
         <!-- Scripts -->
         @routes
-        @vite(['resources/js/app.js'])
+        @if(app()->environment('local'))
+            <script type="module" src="http://127.0.0.1:5173/@@vite/client"></script>
+            <script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>
+        @else
+            @vite(['resources/js/app.js'])
+        @endif
         @inertiaHead
     </head>
     <body class="font-sans antialiased bg-gray-50 text-gray-900">

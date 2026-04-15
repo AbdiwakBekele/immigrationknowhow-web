@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', WelcomeController::class)->name('home');
+Route::get('/favicon.ico', fn () => redirect('/favicon.svg', 301));
 
 // Public library access
 Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
@@ -272,6 +273,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
     ->name('admin.')
     ->group(function () {
 
+        Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('index');
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');

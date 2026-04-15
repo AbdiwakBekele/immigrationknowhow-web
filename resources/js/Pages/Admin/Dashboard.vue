@@ -171,17 +171,17 @@ const accentMap = {
     <Head title="Admin Dashboard" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-6">
-            <section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                             Platform overview
                         </p>
-                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                        <h1 class="mt-2 admin-title">
                             Dashboard
                         </h1>
-                        <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                        <p class="admin-subtitle">
                             Track platform growth, provider activity, verifications, sales, and recent user activity from one place.
                         </p>
                     </div>

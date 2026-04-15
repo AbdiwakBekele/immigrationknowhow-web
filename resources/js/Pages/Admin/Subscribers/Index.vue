@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
+import { EyeIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     subscribers: { type: Object, required: true },
@@ -64,6 +64,19 @@ const statusClasses = (status) => {
     };
 
     return classes[status] || 'bg-slate-100 text-slate-700';
+};
+
+const deleteProvider = (lead) => {
+    const slug = lead?.service_provider?.slug;
+    const providerName = lead?.service_provider?.business_name || 'this provider';
+
+    if (!slug) return;
+    if (!confirm(`Are you sure you want to delete ${providerName}?`)) return;
+
+    router.delete(`/admin/providers/${slug}`, {
+        preserveScroll: true,
+        onSuccess: () => applyFilters(),
+    });
 };
 </script>
 
@@ -146,13 +159,33 @@ const statusClasses = (status) => {
                                 <td class="px-3 py-2.5 text-xs text-slate-500">{{ formatDate(lead.contract_accepted_at) }}</td>
                                 <td class="px-3 py-2.5 text-xs text-slate-500">{{ formatDate(lead.created_at) }}</td>
                                 <td class="px-3 py-2.5 text-right">
-                                    <Link
-                                        v-if="lead.service_provider?.slug"
-                                        :href="`/admin/providers/${lead.service_provider.slug}`"
-                                        class="inline-flex rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                                    >
-                                        View Provider
-                                    </Link>
+                                    <div v-if="lead.service_provider?.slug" class="inline-flex items-center gap-2">
+                                        <Link
+                                            :href="`/admin/providers/${lead.service_provider.slug}`"
+                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                            title="View provider"
+                                            aria-label="View provider"
+                                        >
+                                            <EyeIcon class="h-4 w-4" />
+                                        </Link>
+                                        <Link
+                                            :href="`/admin/providers/${lead.service_provider.slug}/edit`"
+                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                            title="Edit provider"
+                                            aria-label="Edit provider"
+                                        >
+                                            <PencilSquareIcon class="h-4 w-4" />
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-white text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+                                            title="Delete provider"
+                                            aria-label="Delete provider"
+                                            @click="deleteProvider(lead)"
+                                        >
+                                            <TrashIcon class="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="!rows.length">

@@ -12,12 +12,21 @@ import AppFeedback from './Components/App/AppFeedback.vue';
 const appName = import.meta.env.VITE_APP_NAME || 'ImmigrationKnowHow';
 
 const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
+const normalizedPageEntries = Object.entries(pages).map(([key, value]) => [
+    key.replace(/\\/g, '/').toLowerCase(),
+    value,
+]);
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) => {
         const path = `./Pages/${name}.vue`;
-        const page = pages[path];
+        let page = pages[path];
+        if (!page) {
+            const normalizedPath = path.replace(/\\/g, '/').toLowerCase();
+            const match = normalizedPageEntries.find(([entryPath]) => entryPath === normalizedPath);
+            page = match?.[1];
+        }
         if (!page) {
             throw new Error(`Missing Inertia page: "${name}" (expected ${path}).`);
         }

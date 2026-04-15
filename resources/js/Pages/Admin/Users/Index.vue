@@ -1,7 +1,6 @@
 <script setup>
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SlideOver from '@/Components/ui/SlideOver.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -16,7 +15,6 @@ import {
     SparklesIcon,
     FunnelIcon,
     XMarkIcon,
-    EllipsisVerticalIcon,
     UsersIcon,
     ShieldExclamationIcon,
     EnvelopeIcon,
@@ -41,6 +39,7 @@ const statusFilter = ref(props.filters.status || '');
 const sort = ref(props.filters.sort || 'created_at');
 const dir = ref(props.filters.dir || 'desc');
 const isEditMode = ref(false);
+const avatarPreviewUrl = ref(null);
 
 let searchTimeout;
 
@@ -79,9 +78,15 @@ const form = useForm({
     role: '',
     email_verified: false,
     is_active: true,
+    avatar: null,
 });
 
 function syncFormFromUser(user) {
+    if (avatarPreviewUrl.value) {
+        URL.revokeObjectURL(avatarPreviewUrl.value);
+        avatarPreviewUrl.value = null;
+    }
+
     form.defaults({
         first_name: user?.first_name || '',
         last_name: user?.last_name || '',
@@ -97,6 +102,7 @@ function syncFormFromUser(user) {
         role: user?.role_name || user?.roles?.[0]?.name || 'user',
         email_verified: !!user?.email_verified_at,
         is_active: user?.is_active ?? true,
+        avatar: null,
     });
 
     form.reset();
@@ -189,12 +195,27 @@ const submitEdit = () => {
     if (!props.selectedUser) return;
 
     form.patch(`/admin/users/${props.selectedUser.id}`, {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             isEditMode.value = false;
             openDrawer(props.selectedUser.id, false);
         },
     });
+};
+
+const onAvatarSelected = (event) => {
+    const [file] = event.target.files || [];
+    form.avatar = file ?? null;
+
+    if (avatarPreviewUrl.value) {
+        URL.revokeObjectURL(avatarPreviewUrl.value);
+        avatarPreviewUrl.value = null;
+    }
+
+    if (file) {
+        avatarPreviewUrl.value = URL.createObjectURL(file);
+    }
 };
 
 const formatDate = (date) => {
@@ -361,17 +382,17 @@ const fullAddress = computed(() => {
     <Head title="Manage Users" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-6">
-            <section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                             User management
                         </p>
-                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                        <h1 class="mt-2 admin-title">
                             Users
                         </h1>
-                        <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                        <p class="admin-subtitle">
                             Search, review, and manage platform users, roles, verification status, and account activity from one place.
                         </p>
                     </div>
@@ -443,14 +464,14 @@ const fullAddress = computed(() => {
                         <input
                             v-model="search"
                             type="text"
-                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pl-11 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                            class="admin-input pl-11"
                             placeholder="Search by name, email, or phone..."
                         />
                     </div>
 
                     <select
                         v-model="roleFilter"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        class="admin-select"
                     >
                         <option value="">All Roles</option>
                         <option
@@ -464,7 +485,7 @@ const fullAddress = computed(() => {
 
                     <select
                         v-model="statusFilter"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        class="admin-select"
                     >
                         <option value="">All Status</option>
                         <option value="verified">Verified</option>
@@ -473,7 +494,7 @@ const fullAddress = computed(() => {
 
                     <select
                         v-model="sort"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        class="admin-select"
                     >
                         <option value="created_at">Newest</option>
                         <option value="first_name">First name</option>
@@ -483,7 +504,7 @@ const fullAddress = computed(() => {
 
                     <select
                         v-model="dir"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                        class="admin-select"
                     >
                         <option value="desc">Descending</option>
                         <option value="asc">Ascending</option>
@@ -579,49 +600,35 @@ const fullAddress = computed(() => {
                                 </td>
 
                                 <td class="px-6 py-4 text-right">
-                                    <Menu as="div" class="relative inline-block text-left">
-                                        <MenuButton class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
-                                            <EllipsisVerticalIcon class="h-5 w-5" />
-                                        </MenuButton>
-
-                                        <MenuItems class="absolute right-0 z-20 mt-2 w-52 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-xl focus:outline-none">
-                                            <MenuItem v-slot="{ active }">
-                                                <button
-                                                    type="button"
-                                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700"
-                                                    :class="active ? 'bg-slate-50' : ''"
-                                                    @click="openDrawer(user.id)"
-                                                >
-                                                    <EyeIcon class="h-4 w-4" />
-                                                    View user
-                                                </button>
-                                            </MenuItem>
-
-                                            <MenuItem v-slot="{ active }">
-                                                <button
-                                                    type="button"
-                                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700"
-                                                    :class="active ? 'bg-slate-50' : ''"
-                                                    @click="openDrawer(user.id, true)"
-                                                >
-                                                    <PencilSquareIcon class="h-4 w-4" />
-                                                    Edit user
-                                                </button>
-                                            </MenuItem>
-
-                                            <MenuItem v-slot="{ active }">
-                                                <button
-                                                    type="button"
-                                                    class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-rose-700"
-                                                    :class="active ? 'bg-rose-50' : ''"
-                                                    @click="deleteUser(user)"
-                                                >
-                                                    <TrashIcon class="h-4 w-4" />
-                                                    Delete user
-                                                </button>
-                                            </MenuItem>
-                                        </MenuItems>
-                                    </Menu>
+                                    <div class="inline-flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                            title="View user"
+                                            aria-label="View user"
+                                            @click="openDrawer(user.id)"
+                                        >
+                                            <EyeIcon class="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                            title="Edit user"
+                                            aria-label="Edit user"
+                                            @click="openDrawer(user.id, true)"
+                                        >
+                                            <PencilSquareIcon class="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+                                            title="Delete user"
+                                            aria-label="Delete user"
+                                            @click="deleteUser(user)"
+                                        >
+                                            <TrashIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
 
@@ -664,49 +671,35 @@ const fullAddress = computed(() => {
                                 </div>
                             </div>
 
-                            <Menu as="div" class="relative inline-block text-left">
-                                <MenuButton class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
-                                    <EllipsisVerticalIcon class="h-5 w-5" />
-                                </MenuButton>
-
-                                <MenuItems class="absolute right-0 z-20 mt-2 w-52 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-xl focus:outline-none">
-                                    <MenuItem v-slot="{ active }">
-                                        <button
-                                            type="button"
-                                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700"
-                                            :class="active ? 'bg-slate-50' : ''"
-                                            @click="openDrawer(user.id)"
-                                        >
-                                            <EyeIcon class="h-4 w-4" />
-                                            View user
-                                        </button>
-                                    </MenuItem>
-
-                                    <MenuItem v-slot="{ active }">
-                                        <button
-                                            type="button"
-                                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700"
-                                            :class="active ? 'bg-slate-50' : ''"
-                                            @click="openDrawer(user.id, true)"
-                                        >
-                                            <PencilSquareIcon class="h-4 w-4" />
-                                            Edit user
-                                        </button>
-                                    </MenuItem>
-
-                                    <MenuItem v-slot="{ active }">
-                                        <button
-                                            type="button"
-                                            class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-rose-700"
-                                            :class="active ? 'bg-rose-50' : ''"
-                                            @click="deleteUser(user)"
-                                        >
-                                            <TrashIcon class="h-4 w-4" />
-                                            Delete user
-                                        </button>
-                                    </MenuItem>
-                                </MenuItems>
-                            </Menu>
+                            <div class="inline-flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                    title="View user"
+                                    aria-label="View user"
+                                    @click="openDrawer(user.id)"
+                                >
+                                    <EyeIcon class="h-5 w-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                                    title="Edit user"
+                                    aria-label="Edit user"
+                                    @click="openDrawer(user.id, true)"
+                                >
+                                    <PencilSquareIcon class="h-5 w-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-rose-600 transition hover:bg-rose-50 hover:text-rose-700"
+                                    title="Delete user"
+                                    aria-label="Delete user"
+                                    @click="deleteUser(user)"
+                                >
+                                    <TrashIcon class="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
 
                         <div class="mt-4 flex flex-wrap gap-2">
@@ -790,51 +783,62 @@ const fullAddress = computed(() => {
             :open="!!selectedUser"
             :title="drawerTitle"
             :description="drawerDescription"
-            width-class="max-w-[50vw]"
+            width-class="max-w-[40vw]"
             @close="closeDrawer"
         >
-            <div v-if="selectedUser" class="space-y-6 px-6 py-6 sm:px-8">
+            <div v-if="selectedUser" class="space-y-4 px-5 py-5 sm:px-6">
                 <template v-if="!isEditMode">
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-blue-50 text-lg font-semibold text-blue-700">
-                            {{ getInitial(selectedUser) }}
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex min-w-0 items-start gap-4">
+                            <img
+                                v-if="selectedUser.avatar_url"
+                                :src="selectedUser.avatar_url"
+                                alt=""
+                                class="h-16 w-16 rounded-[1.5rem] object-cover"
+                            />
+                            <div
+                                v-else
+                                class="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-blue-50 text-lg font-semibold text-blue-700"
+                            >
+                                {{ getInitial(selectedUser) }}
+                            </div>
+
+                            <div class="min-w-0">
+                                <h3 class="text-xl font-semibold text-slate-900">
+                                    {{ fullName(selectedUser) }}
+                                </h3>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    {{ selectedUser.email }}
+                                </p>
+                            </div>
                         </div>
 
-                        <div class="min-w-0">
-                            <h3 class="text-xl font-semibold text-slate-900">
-                                {{ fullName(selectedUser) }}
-                            </h3>
-                            <p class="mt-1 text-sm text-slate-500">
-                                {{ selectedUser.email }}
-                            </p>
+                        <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                            <span
+                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                :class="roleMeta(selectedUser).classes"
+                            >
+                                {{ roleMeta(selectedUser).label }}
+                            </span>
 
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                                    :class="roleMeta(selectedUser).classes"
-                                >
-                                    {{ roleMeta(selectedUser).label }}
-                                </span>
+                            <span
+                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                :class="statusMeta(selectedUser).classes"
+                            >
+                                {{ statusMeta(selectedUser).label }}
+                            </span>
 
-                                <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                                    :class="statusMeta(selectedUser).classes"
-                                >
-                                    {{ statusMeta(selectedUser).label }}
-                                </span>
-
-                                <span
-                                    class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
-                                    :class="activeMeta(selectedUser).classes"
-                                >
-                                    {{ activeMeta(selectedUser).label }}
-                                </span>
-                            </div>
+                            <span
+                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                :class="activeMeta(selectedUser).classes"
+                            >
+                                {{ activeMeta(selectedUser).label }}
+                            </span>
                         </div>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div class="grid gap-1.5 md:grid-cols-2">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <UserCircleIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -844,7 +848,7 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <UserCircleIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -854,7 +858,7 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <EnvelopeIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -864,7 +868,7 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <PhoneIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -874,7 +878,7 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <GlobeAltIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -884,7 +888,7 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div class="flex items-center gap-3">
                                 <ClockIcon class="h-5 w-5 text-slate-400" />
                                 <div>
@@ -894,63 +898,63 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Joined</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ formatDate(selectedUser.created_at) }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Last login</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ formatDateTime(selectedUser.last_login_at) }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Email verified</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.email_verified_at ? formatDateTime(selectedUser.email_verified_at) : 'No' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Phone verified</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.phone_verified_at ? formatDateTime(selectedUser.phone_verified_at) : 'No' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Onboarding completed</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.onboarding_completed ? 'Yes' : 'No' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Onboarding completed at</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.onboarding_completed_at ? formatDateTime(selectedUser.onboarding_completed_at) : '—' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Leads</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.leads_count || 0 }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Reviews</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.reviews_count || 0 }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 md:col-span-2">
                             <div class="flex items-start gap-3">
                                 <MapPinIcon class="mt-0.5 h-5 w-5 text-slate-400" />
                                 <div>
@@ -960,21 +964,21 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Latitude</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.latitude ?? '—' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Longitude</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.longitude ?? '—' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4 md:col-span-2">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 md:col-span-2">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Languages</p>
                                 <div class="mt-2 flex flex-wrap gap-2">
@@ -990,14 +994,14 @@ const fullAddress = computed(() => {
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Referred by affiliate ID</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.referred_by_affiliate_id ?? '—' }}</p>
                             </div>
                         </div>
 
-                        <div class="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
                             <div>
                                 <p class="text-xs uppercase tracking-wide text-slate-500">Affiliate referral ID</p>
                                 <p class="mt-1 font-medium text-slate-900">{{ selectedUser.affiliate_referral_id ?? '—' }}</p>
@@ -1032,6 +1036,40 @@ const fullAddress = computed(() => {
                 <template v-else>
                     <form class="space-y-5" @submit.prevent="submitEdit">
                         <div class="grid gap-4 md:grid-cols-2">
+                            <div class="md:col-span-2">
+                                <label class="mb-2 block text-sm font-medium text-slate-700">Profile photo</label>
+                                <div class="flex items-center gap-3">
+                                    <img
+                                        v-if="avatarPreviewUrl"
+                                        :src="avatarPreviewUrl"
+                                        alt=""
+                                        class="h-14 w-14 rounded-2xl object-cover"
+                                    />
+                                    <img
+                                        v-else-if="selectedUser.avatar_url"
+                                        :src="selectedUser.avatar_url"
+                                        alt=""
+                                        class="h-14 w-14 rounded-2xl object-cover"
+                                    />
+                                    <div
+                                        v-else
+                                        class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-sm font-semibold text-blue-700"
+                                    >
+                                        {{ getInitial(selectedUser) }}
+                                    </div>
+
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-2xl file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                                        @change="onAvatarSelected"
+                                    />
+                                </div>
+                                <p v-if="form.errors.avatar" class="mt-2 text-sm font-medium text-red-600">
+                                    {{ form.errors.avatar }}
+                                </p>
+                            </div>
+
                             <Input
                                 v-model="form.first_name"
                                 label="First name"
@@ -1103,13 +1141,13 @@ const fullAddress = computed(() => {
                             />
 
                             <div>
-                                <label class="mb-3 block text-base font-medium text-slate-700">
+                                <label class="mb-2 block text-sm font-medium text-slate-700">
                                     Role
                                 </label>
 
                                 <select
                                     v-model="form.role"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                                 >
                                     <option
                                         v-for="role in roles"
@@ -1126,22 +1164,22 @@ const fullAddress = computed(() => {
                             </div>
 
                             <div class="grid gap-4">
-                                <label class="flex min-h-[58px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                                <label class="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <input
                                         v-model="form.email_verified"
                                         type="checkbox"
                                         class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                     />
-                                    <span class="text-base text-slate-700">Email is verified</span>
+                                    <span class="text-sm text-slate-700">Email is verified</span>
                                 </label>
 
-                                <label class="flex min-h-[58px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                                <label class="flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
                                     <input
                                         v-model="form.is_active"
                                         type="checkbox"
                                         class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                     />
-                                    <span class="text-base text-slate-700">Account is active</span>
+                                    <span class="text-sm text-slate-700">Account is active</span>
                                 </label>
                             </div>
                         </div>
