@@ -68,6 +68,10 @@ class ServiceProvider extends Model
         'accepting_clients',
         'subscription_plan',
         'subscription_expires_at',
+        'stripe_customer_id',
+        'stripe_subscription_id',
+        'stripe_subscription_status',
+        'stripe_current_period_end',
         'background_check_status',
         'background_check_verified_at',
     ];
@@ -93,6 +97,7 @@ class ServiceProvider extends Model
             'license_expiry' => 'date',
             'verified_at' => 'datetime',
             'subscription_expires_at' => 'datetime',
+            'stripe_current_period_end' => 'datetime',
             'verification_status' => VerificationStatus::class,
         ];
     }
@@ -287,10 +292,23 @@ class ServiceProvider extends Model
         return $this->hasMany(\App\Models\BackgroundCheck::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(ProviderSubscription::class, 'service_provider_id');
+    }
+
+    public function currentSubscription()
+    {
+        return $this->hasOne(ProviderSubscription::class, 'service_provider_id')
+            ->whereIn('status', ['trialing', 'active', 'past_due'])
+            ->latestOfMany();
+    }
+
     public function hasActiveSubscription(): bool
     {
-        return $this->subscription_plan && 
-               (!$this->subscription_expires_at || $this->subscription_expires_at->isFuture());
+        return in_array((string) $this->stripe_subscription_status, ['active', 'trialing', 'past_due'], true)
+            || ($this->subscription_plan &&
+                (! $this->subscription_expires_at || $this->subscription_expires_at->isFuture()));
     }
 
     public function incrementProfileViews(): void

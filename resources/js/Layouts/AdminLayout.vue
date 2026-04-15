@@ -16,10 +16,12 @@ import {
     Cog6ToothIcon,
     Squares2X2Icon,
     BanknotesIcon,
+    CreditCardIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     UserCircleIcon,
     XMarkIcon,
+    ChevronDownIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -39,10 +41,12 @@ const mainNavigation = computed(() =>
         Squares2X2Icon,
         ChartBarIcon,
         BanknotesIcon,
+        CreditCardIcon,
     }),
 );
 
 const settingsNavigation = computed(() => (isSuperAdmin.value ? adminSettingsNavItems() : []));
+const settingsOpen = ref(true);
 
 const unreadNotificationsCount = computed(() => page.props.unread_notifications_count ?? 0);
 
@@ -74,6 +78,7 @@ const isActive = (href) => {
 
     return path.startsWith(href);
 };
+
 </script>
 
 <template>
@@ -135,6 +140,8 @@ const isActive = (href) => {
                     Main navigation
                 </p>
 
+
+             
                 <div class="space-y-1.5">
                     <Link
                         v-for="item in mainNavigation"

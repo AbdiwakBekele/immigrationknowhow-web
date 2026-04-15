@@ -14,6 +14,7 @@ export function adminMainNavItems({
     Squares2X2Icon,
     ChartBarIcon,
     BanknotesIcon,
+    CreditCardIcon,
 }) {
     return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
@@ -26,6 +27,8 @@ export function adminMainNavItems({
         { name: 'Pending payments', href: '/admin/library-manual-payments', icon: BanknotesIcon },
         { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },
         { name: 'Affiliates', href: '/admin/affiliates', icon: LinkIcon },
+        { name: 'Subscription Plans', href: '/admin/subscription-plans', icon: CreditCardIcon },
+        { name: 'Subscription Reports', href: '/admin/subscriptions/reports', icon: ChartBarIcon },
         { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
         { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
     ];
@@ -33,7 +36,12 @@ export function adminMainNavItems({
 
 export function adminSettingsNavItems() {
     return [
-        { name: 'General', href: '/admin/settings' },
-        { name: 'Library categories', href: '/admin/library-categories/create' },
+        {
+            name: 'General',
+            children: [
+                { name: 'General settings', href: '/admin/settings' },
+                { name: 'Library categories', href: '/admin/library-categories/create' },
+            ],
+        },
     ];
 }

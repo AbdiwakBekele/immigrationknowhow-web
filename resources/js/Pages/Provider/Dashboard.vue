@@ -156,6 +156,13 @@ const deleteConversation = (conversationUuid) => {
 
                 <div class="flex flex-wrap items-center gap-2">
                     <Link
+                        :href="route('provider.subscriptions.index')"
+                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    >
+                        <CurrencyDollarIcon class="h-5 w-5" />
+                        Subscription Plans
+                    </Link>
+                    <Link
                         :href="route('provider.background-check.index')"
                         :class="['flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium', verificationStatus.color]"
                     >

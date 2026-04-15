@@ -11,6 +11,7 @@ import {
     UserCircleIcon,
     ShieldCheckIcon,
     ChartBarIcon,
+    CreditCardIcon,
     Bars3Icon,
     BellIcon,
     ArrowRightOnRectangleIcon,
@@ -36,6 +37,7 @@ const navigation = [
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
+    { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
     { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
 ];

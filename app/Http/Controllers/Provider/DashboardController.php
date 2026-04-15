@@ -6,6 +6,7 @@ use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Review;
+use App\Models\SubscriptionPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -61,14 +62,23 @@ class DashboardController extends Controller
             ->orderBy('date')
             ->get();
 
+        $stripeSecret = config('services.stripe.secret');
+        $hasActivePlan = SubscriptionPlan::query()
+            ->active()
+            ->whereNotNull('stripe_price_id')
+            ->exists();
+        $isSubscriptionCheckoutConfigured = is_string($stripeSecret) && $stripeSecret !== '' && $hasActivePlan;
+
         return Inertia::render('Provider/Dashboard', [
             'stats' => $stats,
             'recentLeads' => $recentLeads,
             'recentReviews' => $recentReviews,
             'leadsChartData' => $leadsChartData,
+            'subscriptionCheckoutConfigured' => $isSubscriptionCheckoutConfigured,
             'provider' => $provider->only([
                 'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                 'background_check_status', 'is_featured', 'profile_views',
+                'subscription_plan', 'subscription_expires_at', 'stripe_subscription_status',
             ]),
         ]);
     }
