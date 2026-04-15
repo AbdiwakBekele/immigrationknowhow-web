@@ -1,31 +1,42 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { 
+import {
     UsersIcon,
     UserGroupIcon,
     ShieldCheckIcon,
-    PlusIcon,
-    StarIcon,
+    BookOpenIcon,
     ChatBubbleLeftRightIcon,
     ArrowTrendingUpIcon,
-    EyeIcon,
     CheckCircleIcon,
-    ExclamationTriangleIcon
+    ExclamationTriangleIcon,
+    PlusIcon,
+    EyeIcon,
+    StarIcon,
+    CurrencyDollarIcon,
+    ClockIcon,
 } from '@heroicons/vue/24/outline';
 
-defineProps({
+const props = defineProps({
     userStats: { type: Object, default: () => ({}) },
     providerStats: { type: Object, default: () => ({}) },
     backgroundCheckStats: { type: Object, default: () => ({}) },
     leadStats: { type: Object, default: () => ({}) },
+    reviewStats: { type: Object, default: () => ({}) },
+    libraryStats: { type: Object, default: () => ({}) },
     recentUsers: { type: Array, default: () => [] },
     pendingBackgroundChecks: { type: Array, default: () => [] },
     recentReviews: { type: Array, default: () => [] },
+    recentLeads: { type: Array, default: () => [] },
+    leadsChartData: { type: Array, default: () => [] },
+    serviceTypeDistribution: { type: Array, default: () => [] },
 });
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
+const formatDateTime = (value) => {
+    if (!value) return '—';
+
+    return new Date(value).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
@@ -33,12 +44,126 @@ const formatDate = (date) => {
     });
 };
 
+const formatMoney = (value) => {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+};
+
 const getInitial = (user) => {
     const firstName = (user?.first_name || '').trim();
-    if (firstName) return firstName.charAt(0).toUpperCase();
+    const lastName = (user?.last_name || '').trim();
+
+    if (firstName || lastName) {
+        return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim().toUpperCase() || '?';
+    }
 
     const fullName = (user?.full_name || '').trim();
     return fullName ? fullName.charAt(0).toUpperCase() : '?';
+};
+
+const statCards = computed(() => [
+    {
+        title: 'Total Users',
+        value: props.userStats.total || 0,
+        sublabel: `${props.userStats.this_month || 0} new this month`,
+        accent: 'blue',
+        icon: UsersIcon,
+        chip: `${props.userStats.today || 0} today`,
+    },
+    {
+        title: 'Service Providers',
+        value: props.providerStats.total || 0,
+        sublabel: `${props.providerStats.verified || 0} verified`,
+        accent: 'emerald',
+        icon: UserGroupIcon,
+        chip: `${props.providerStats.today || 0} new today`,
+    },
+    {
+        title: 'Pending Verifications',
+        value: props.backgroundCheckStats.pending || 0,
+        sublabel: `${props.backgroundCheckStats.needs_review || 0} need review`,
+        accent: 'amber',
+        icon: ShieldCheckIcon,
+        chip: (props.backgroundCheckStats.pending || 0) > 0 ? 'Action needed' : 'Up to date',
+    },
+    {
+        title: 'Total Leads',
+        value: props.leadStats.total || 0,
+        sublabel: `${props.leadStats.conversion_rate || 0}% conversion rate`,
+        accent: 'violet',
+        icon: ChatBubbleLeftRightIcon,
+        chip: `${props.leadStats.today || 0} today`,
+    },
+    {
+        title: 'New Providers Today',
+        value: props.providerStats.today || 0,
+        sublabel: 'Created in the last 24 hours',
+        accent: 'cyan',
+        icon: PlusIcon,
+        chip: 'Daily',
+    },
+    {
+        title: 'New Users Today',
+        value: props.userStats.today || 0,
+        sublabel: 'Created in the last 24 hours',
+        accent: 'sky',
+        icon: UsersIcon,
+        chip: 'Daily',
+    },
+    {
+        title: 'Sold eBooks Today',
+        value: props.libraryStats.ebooks_sold_today || 0,
+        sublabel: `${formatMoney(props.libraryStats.ebook_revenue_today || 0)} revenue`,
+        accent: 'indigo',
+        icon: BookOpenIcon,
+        chip: 'Sales',
+    },
+    {
+        title: 'Active Providers Today',
+        value: props.providerStats.active_today || 0,
+        sublabel: `${props.providerStats.active || 0} active & accepting overall`,
+        accent: 'teal',
+        icon: ClockIcon,
+        chip: 'Logged in today',
+    },
+]);
+
+const accentMap = {
+    blue: {
+        box: 'bg-blue-50 text-blue-700',
+        chip: 'bg-blue-100 text-blue-700',
+    },
+    emerald: {
+        box: 'bg-emerald-50 text-emerald-700',
+        chip: 'bg-emerald-100 text-emerald-700',
+    },
+    amber: {
+        box: 'bg-amber-50 text-amber-700',
+        chip: 'bg-amber-100 text-amber-700',
+    },
+    violet: {
+        box: 'bg-violet-50 text-violet-700',
+        chip: 'bg-violet-100 text-violet-700',
+    },
+    cyan: {
+        box: 'bg-cyan-50 text-cyan-700',
+        chip: 'bg-cyan-100 text-cyan-700',
+    },
+    sky: {
+        box: 'bg-sky-50 text-sky-700',
+        chip: 'bg-sky-100 text-sky-700',
+    },
+    indigo: {
+        box: 'bg-indigo-50 text-indigo-700',
+        chip: 'bg-indigo-100 text-indigo-700',
+    },
+    teal: {
+        box: 'bg-teal-50 text-teal-700',
+        chip: 'bg-teal-100 text-teal-700',
+    },
 };
 </script>
 
@@ -46,203 +171,306 @@ const getInitial = (user) => {
     <Head title="Admin Dashboard" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-5">
-            <!-- Header -->
-            <div class="flex items-end justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <div>
-                    <h1 class="text-xl font-display font-bold text-slate-900">Dashboard</h1>
-                    <p class="mt-0.5 text-sm text-slate-500">Overview of platform activity and metrics</p>
-                </div>
-                <span class="hidden rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 sm:inline-flex">
-                    Live overview
-                </span>
-            </div>
+        <div class="mx-auto max-w-7xl space-y-6">
+            <section class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Platform overview
+                        </p>
+                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                            Dashboard
+                        </h1>
+                        <p class="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                            Track platform growth, provider activity, verifications, sales, and recent user activity from one place.
+                        </p>
+                    </div>
 
-            <!-- Stats Grid -->
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="p-2 bg-blue-100 rounded-lg">
-                            <UsersIcon class="h-5 w-5 text-blue-600" />
-                        </div>
-                        <span class="flex items-center text-xs font-semibold text-emerald-600">
-                            <ArrowTrendingUpIcon class="h-4 w-4 mr-1" />
-                            {{ userStats.this_month || 0 }} new
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="inline-flex rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
+                            Live overview
                         </span>
-                    </div>
-                    <div class="text-2xl font-display font-bold text-slate-900">{{ userStats.total || 0 }}</div>
-                    <div class="mt-0.5 text-xs text-slate-500">Total Users</div>
-                </div>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="p-2 bg-green-100 rounded-lg">
-                            <UserGroupIcon class="h-5 w-5 text-green-600" />
-                        </div>
-                    </div>
-                    <div class="text-2xl font-display font-bold text-slate-900">{{ providerStats.total || 0 }}</div>
-                    <div class="mt-0.5 text-xs text-slate-500">Service Providers</div>
-                </div>
-
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="p-2 bg-yellow-100 rounded-lg">
-                            <ShieldCheckIcon class="h-5 w-5 text-yellow-600" />
-                        </div>
-                        <span v-if="backgroundCheckStats.pending > 0" class="flex items-center text-xs font-semibold text-orange-600">
-                            <ExclamationTriangleIcon class="h-4 w-4 mr-1" />
-                            Action needed
-                        </span>
-                    </div>
-                    <div class="text-2xl font-display font-bold text-slate-900">{{ backgroundCheckStats.pending || 0 }}</div>
-                    <div class="mt-0.5 text-xs text-slate-500">Pending Verifications</div>
-                </div>
-
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="p-2 bg-purple-100 rounded-lg">
-                            <ChatBubbleLeftRightIcon class="h-5 w-5 text-purple-600" />
-                        </div>
-                    </div>
-                    <div class="text-2xl font-display font-bold text-slate-900">{{ leadStats.total || 0 }}</div>
-                    <div class="mt-0.5 text-xs text-slate-500">Total Leads</div>
-                </div>
-            </div>
-
-            <div class="grid gap-4 lg:grid-cols-2">
-                <!-- Pending Verifications -->
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <h2 class="text-base font-semibold text-slate-900">Pending Verifications</h2>
-                        <Link href="/admin/background-checks" class="text-xs font-semibold text-sky-600 hover:text-sky-700">
-                            View all →
-                        </Link>
-                    </div>
-                    <div v-if="pendingBackgroundChecks.length" class="space-y-2">
-                        <Link 
-                            v-for="verification in pendingBackgroundChecks" 
-                            :key="verification.id"
-                            :href="`/admin/background-checks/${verification.uuid}`"
-                            class="flex items-center gap-3 rounded-lg border border-transparent p-2.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
+                        <Link
+                            href="/admin/reports"
+                            class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                         >
-                            <img 
-                                :src="verification.service_provider?.user?.avatar || '/images/default-avatar.png'" 
-                                class="h-9 w-9 rounded-full"
-                            />
-                            <div class="flex-1 min-w-0">
-                                <div class="truncate text-sm font-semibold text-slate-900">
-                                    {{ verification.service_provider?.business_name }}
-                                </div>
-                                <div class="text-xs text-slate-500">
-                                    {{ verification.document_type }} · {{ formatDate(verification.created_at) }}
-                                </div>
-                            </div>
-                            <span class="rounded-md bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
-                                {{ verification.status }}
-                            </span>
+                            View reports
                         </Link>
                     </div>
-                    <div v-else class="py-6 text-center text-slate-500">
-                        <CheckCircleIcon class="mx-auto mb-2 h-10 w-10 text-emerald-300" />
-                        <p class="text-sm">All verifications reviewed!</p>
-                    </div>
                 </div>
+            </section>
 
-                <!-- Recent Users -->
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <h2 class="text-base font-semibold text-slate-900">Recent Users</h2>
-                        <div class="flex items-center gap-3">
-                            <Link href="/admin/users/create" class="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 hover:text-sky-700">
-                                <PlusIcon class="h-4 w-4" />
-                                Add User
-                            </Link>
-                            <Link href="/admin/users" class="text-xs font-semibold text-sky-600 hover:text-sky-700">
+            <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <article
+                    v-for="card in statCards"
+                    :key="card.title"
+                    class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div
+                            class="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                            :class="accentMap[card.accent].box"
+                        >
+                            <component :is="card.icon" class="h-6 w-6" />
+                        </div>
+
+                        <span
+                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                            :class="accentMap[card.accent].chip"
+                        >
+                            {{ card.chip }}
+                        </span>
+                    </div>
+
+                    <div class="mt-5">
+                        <p class="text-sm font-medium text-slate-500">
+                            {{ card.title }}
+                        </p>
+                        <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                            {{ card.value }}
+                        </p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">
+                            {{ card.sublabel }}
+                        </p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                <div class="space-y-6">
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="mb-5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-slate-900">Pending Verifications</h2>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    Providers waiting on review or background check progress.
+                                </p>
+                            </div>
+                            <Link
+                                href="/admin/background-checks"
+                                class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            >
                                 View all →
                             </Link>
                         </div>
-                    </div>
-                    <div v-if="recentUsers.length" class="space-y-2">
-                        <Link 
-                            v-for="user in recentUsers" 
-                            :key="user.id"
-                            :href="`/admin/users/${user.id}`"
-                            class="flex items-center gap-3 rounded-lg border border-transparent p-2.5 transition-colors hover:border-slate-200 hover:bg-slate-50"
-                        >
-                            <div class="flex h-9 w-9 items-center justify-center rounded-full bg-sky-100 text-sm font-semibold text-sky-700">
-                                {{ getInitial(user) }}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="truncate text-sm font-semibold text-slate-900">
-                                    {{ user.full_name }}
-                                </div>
-                                <div class="text-xs text-slate-500">
-                                    {{ user.email }}
-                                </div>
-                            </div>
-                            <span 
-                                class="rounded-md px-2 py-0.5 text-xs font-medium"
-                                :class="user.roles?.[0]?.name === 'provider' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'"
-                            >
-                                {{ user.roles?.[0]?.name || 'user' }}
-                            </span>
-                        </Link>
-                    </div>
-                    <div v-else class="py-6 text-center text-sm text-slate-500">
-                        <p>No recent users</p>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Recent Reviews -->
-            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-base font-semibold text-slate-900">Recent Reviews</h2>
-                    <Link href="/admin/reviews" class="text-xs font-semibold text-sky-600 hover:text-sky-700">
-                        View all →
-                    </Link>
-                </div>
-                <div v-if="recentReviews.length" class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="border-b border-slate-200">
-                            <tr>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Reviewer</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Provider</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Rating</th>
-                                <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Date</th>
-                                <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <tr v-for="review in recentReviews" :key="review.id" class="hover:bg-slate-50">
-                                <td class="px-3 py-2.5">
-                                    <div class="text-sm font-medium text-slate-900">{{ review.user?.full_name }}</div>
-                                </td>
-                                <td class="px-3 py-2.5">
-                                    <div class="text-sm text-slate-600">{{ review.service_provider?.business_name }}</div>
-                                </td>
-                                <td class="px-3 py-2.5">
-                                    <div class="flex items-center gap-1">
-                                        <StarIcon class="h-4 w-4 text-yellow-500 fill-current" />
-                                        <span class="text-sm">{{ review.rating }}</span>
+                        <div v-if="pendingBackgroundChecks.length" class="space-y-3">
+                            <Link
+                                v-for="verification in pendingBackgroundChecks"
+                                :key="verification.id"
+                                :href="`/admin/background-checks/${verification.uuid}`"
+                                class="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-slate-50"
+                            >
+                                <img
+                                    :src="verification.service_provider?.user?.avatar || '/images/default-avatar.png'"
+                                    alt=""
+                                    class="h-12 w-12 rounded-2xl object-cover"
+                                />
+
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-semibold text-slate-900">
+                                        {{ verification.service_provider?.business_name || 'Service Provider' }}
+                                    </p>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        {{ verification.document_type || 'Background check' }} · {{ formatDateTime(verification.created_at) }}
+                                    </p>
+                                </div>
+
+                                <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                                    {{ verification.status }}
+                                </span>
+                            </Link>
+                        </div>
+
+                        <div v-else class="rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center">
+                            <CheckCircleIcon class="mx-auto h-10 w-10 text-emerald-400" />
+                            <p class="mt-3 text-sm font-medium text-slate-700">All caught up</p>
+                            <p class="mt-1 text-sm text-slate-500">There are no pending verifications right now.</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="mb-5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-slate-900">Recent Reviews</h2>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    Latest feedback submitted on the platform.
+                                </p>
+                            </div>
+                            <Link
+                                href="/admin/reviews"
+                                class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                            >
+                                View all →
+                            </Link>
+                        </div>
+
+                        <div v-if="recentReviews.length" class="space-y-3">
+                            <div
+                                v-for="review in recentReviews"
+                                :key="review.id"
+                                class="rounded-2xl border border-slate-200 p-4"
+                            >
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">
+                                            {{ review.service_provider?.business_name || 'Provider' }}
+                                        </p>
+                                        <p class="mt-1 text-sm text-slate-500">
+                                            by {{ review.user?.first_name }} {{ review.user?.last_name }}
+                                        </p>
                                     </div>
-                                </td>
-                                <td class="px-3 py-2.5 text-xs text-slate-500">
-                                    {{ formatDate(review.created_at) }}
-                                </td>
-                                <td class="px-3 py-2.5 text-right">
-                                    <Link :href="`/admin/reviews/${review.uuid}`" class="text-sky-600 hover:text-sky-700">
-                                        <EyeIcon class="h-4 w-4" />
-                                    </Link>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                                    <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">
+                                        <StarIcon class="h-4 w-4" />
+                                        {{ review.rating ?? '—' }}
+                                    </div>
+                                </div>
+
+                                <p class="mt-3 line-clamp-2 text-sm leading-6 text-slate-600">
+                                    {{ review.comment || 'No comment provided.' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div v-else class="rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500">
+                            No recent reviews yet.
+                        </div>
+                    </div>
                 </div>
-                <div v-else class="py-6 text-center text-sm text-slate-500">
-                    <p>No recent reviews</p>
+
+                <div class="space-y-6">
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="mb-5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-slate-900">Recent Users</h2>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    Newest accounts added to the platform.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <Link
+                                    href="/admin/users/create"
+                                    class="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                >
+                                    <PlusIcon class="h-4 w-4" />
+                                    Add User
+                                </Link>
+                                <Link
+                                    href="/admin/users"
+                                    class="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                >
+                                    View all →
+                                </Link>
+                            </div>
+                        </div>
+
+                        <div v-if="recentUsers.length" class="space-y-3">
+                            <Link
+                                v-for="user in recentUsers"
+                                :key="user.id"
+                                :href="`/admin/users/${user.id}`"
+                                class="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-slate-50"
+                            >
+                                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-sm font-semibold text-blue-700">
+                                    {{ getInitial(user) }}
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-semibold text-slate-900">
+                                        {{ user.full_name }}
+                                    </p>
+                                    <p class="truncate text-sm text-slate-500">
+                                        {{ user.email }}
+                                    </p>
+                                </div>
+
+                                <span class="text-xs font-medium text-slate-500">
+                                    {{ formatDateTime(user.created_at) }}
+                                </span>
+                            </Link>
+                        </div>
+
+                        <div v-else class="rounded-2xl border border-dashed border-slate-200 px-6 py-10 text-center text-sm text-slate-500">
+                            No recent users yet.
+                        </div>
+                    </div>
+
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="mb-5 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-semibold text-slate-900">Quick Overview</h2>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    A few extra health indicators for the platform.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                                        <ArrowTrendingUpIcon class="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">Lead conversion rate</p>
+                                        <p class="text-sm text-slate-500">Converted leads vs total leads</p>
+                                    </div>
+                                </div>
+                                <p class="text-lg font-semibold text-slate-900">
+                                    {{ leadStats.conversion_rate || 0 }}%
+                                </p>
+                            </div>
+
+                            <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                                        <StarIcon class="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">Average review rating</p>
+                                        <p class="text-sm text-slate-500">Across approved platform reviews</p>
+                                    </div>
+                                </div>
+                                <p class="text-lg font-semibold text-slate-900">
+                                    {{ reviewStats.average_rating || 0 }}
+                                </p>
+                            </div>
+
+                            <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700">
+                                        <CurrencyDollarIcon class="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">eBook revenue today</p>
+                                        <p class="text-sm text-slate-500">From completed eBook purchases</p>
+                                    </div>
+                                </div>
+                                <p class="text-lg font-semibold text-slate-900">
+                                    {{ formatMoney(libraryStats.ebook_revenue_today || 0) }}
+                                </p>
+                            </div>
+
+                            <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
+                                        <ExclamationTriangleIcon class="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">Pending moderation</p>
+                                        <p class="text-sm text-slate-500">Reviews awaiting approval</p>
+                                    </div>
+                                </div>
+                                <p class="text-lg font-semibold text-slate-900">
+                                    {{ reviewStats.pending_moderation || 0 }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

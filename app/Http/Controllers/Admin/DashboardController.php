@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BackgroundCheck;
 use App\Models\Lead;
 use App\Models\LibraryItem;
+use App\Models\LibraryUserAccess;
 use App\Models\Review;
 use App\Models\ServiceProvider;
 use App\Models\User;
@@ -20,71 +21,116 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        // User stats
+        $today = now()->startOfDay();
+        $monthStart = now()->startOfMonth();
+
         $userStats = [
             'total' => User::count(),
-            'this_month' => User::whereMonth('created_at', now()->month)->count(),
+            'this_month' => User::where('created_at', '>=', $monthStart)->count(),
+            'today' => User::where('created_at', '>=', $today)->count(),
             'verified' => User::verified()->count(),
             'active' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
         ];
 
-        // Provider stats
         $providerStats = [
             'total' => ServiceProvider::count(),
+            'today' => ServiceProvider::where('created_at', '>=', $today)->count(),
             'verified' => BackgroundCheck::where('status', BackgroundCheckStatus::CLEAR)
                 ->distinct('service_provider_id')
                 ->count('service_provider_id'),
-            'pending_verification' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::INVITED, BackgroundCheckStatus::COMPLETED])
-                ->distinct('service_provider_id')
-                ->count('service_provider_id'),
+            'pending_verification' => BackgroundCheck::whereIn('status', [
+                BackgroundCheckStatus::INVITED,
+                BackgroundCheckStatus::COMPLETED,
+                BackgroundCheckStatus::PENDING,
+                BackgroundCheckStatus::CONSIDER,
+            ])->distinct('service_provider_id')->count('service_provider_id'),
             'active' => ServiceProvider::active()->acceptingClients()->count(),
+            'active_today' => ServiceProvider::query()
+                ->where('is_active', true)
+                ->where('accepting_clients', true)
+                ->whereHas('user', function ($query) use ($today) {
+                    $query->where('last_login_at', '>=', $today);
+                })
+                ->count(),
         ];
 
-        // Background check stats
         $backgroundCheckStats = [
-            'pending' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::PENDING, BackgroundCheckStatus::INVITED])->count(),
+            'pending' => BackgroundCheck::whereIn('status', [
+                BackgroundCheckStatus::PENDING,
+                BackgroundCheckStatus::INVITED,
+            ])->count(),
             'in_progress' => BackgroundCheck::where('status', BackgroundCheckStatus::COMPLETED)->count(),
             'cleared' => BackgroundCheck::where('status', BackgroundCheckStatus::CLEAR)->count(),
-            'needs_review' => BackgroundCheck::whereIn('status', [BackgroundCheckStatus::CONSIDER, BackgroundCheckStatus::SUSPENDED])->count(),
+            'needs_review' => BackgroundCheck::whereIn('status', [
+                BackgroundCheckStatus::CONSIDER,
+                BackgroundCheckStatus::SUSPENDED,
+            ])->count(),
         ];
 
-        // Lead stats
         $leadStats = [
             'total' => Lead::count(),
-            'this_month' => Lead::whereMonth('created_at', now()->month)->count(),
+            'this_month' => Lead::where('created_at', '>=', $monthStart)->count(),
+            'today' => Lead::where('created_at', '>=', $today)->count(),
             'open' => Lead::open()->count(),
             'converted' => Lead::where('status', LeadStatus::CONVERTED)->count(),
             'conversion_rate' => $this->calculateConversionRate(),
         ];
 
-        // Review stats
         $reviewStats = [
             'total' => Review::count(),
             'pending_moderation' => Review::where('is_approved', false)->count(),
-            'average_rating' => round(Review::avg('rating'), 1),
+            'average_rating' => round((float) Review::avg('rating'), 1),
         ];
 
-        // Library stats
         $libraryStats = [
             'total_items' => LibraryItem::count(),
             'ebooks' => LibraryItem::where('type', 'ebook')->count(),
             'audiobooks' => LibraryItem::where('type', 'audiobook')->count(),
             'total_downloads' => LibraryItem::sum('download_count'),
+            'ebooks_sold_today' => LibraryUserAccess::query()
+                ->whereNotNull('purchased_at')
+                ->where('purchased_at', '>=', $today)
+                ->whereHas('libraryItem', function ($query) {
+                    $query->where('type', 'ebook');
+                })
+                ->count(),
+            'ebook_revenue_today' => (float) LibraryUserAccess::query()
+                ->whereNotNull('purchased_at')
+                ->where('purchased_at', '>=', $today)
+                ->whereHas('libraryItem', function ($query) {
+                    $query->where('type', 'ebook');
+                })
+                ->sum('purchase_amount'),
         ];
 
-        // Recent activity
-        $recentUsers = User::latest()->limit(5)->get(['id', 'first_name', 'last_name', 'email', 'created_at']);
+        $recentUsers = User::latest()
+            ->limit(6)
+            ->get(['id', 'first_name', 'last_name', 'email', 'created_at']);
+
         $recentLeads = Lead::with(['user:id,first_name,last_name', 'serviceProvider:id,business_name'])
             ->latest()
             ->limit(5)
             ->get();
+
         $pendingBackgroundChecks = BackgroundCheck::with(['serviceProvider.user:id,first_name,last_name,email'])
-            ->whereIn('status', [BackgroundCheckStatus::INVITED, BackgroundCheckStatus::COMPLETED, BackgroundCheckStatus::CONSIDER])
+            ->whereIn('status', [
+                BackgroundCheckStatus::INVITED,
+                BackgroundCheckStatus::COMPLETED,
+                BackgroundCheckStatus::CONSIDER,
+                BackgroundCheckStatus::PENDING,
+            ])
+            ->latest()
+            ->limit(6)
+            ->get();
+
+        $recentReviews = Review::with([
+                'user:id,first_name,last_name',
+                'serviceProvider:id,business_name',
+            ])
             ->latest()
             ->limit(5)
             ->get();
 
-        // Chart data - leads by day for last 30 days
         $leadsChartData = Lead::selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->where('created_at', '>=', now()->subDays(30))
             ->groupBy('date')
@@ -95,10 +141,9 @@ class DashboardController extends Controller
                 'count' => $item->count,
             ]);
 
-        // Service type distribution
         $serviceTypeDistribution = ServiceProvider::active()
             ->get()
-            ->flatMap(fn ($p) => $p->service_types)
+            ->flatMap(fn ($provider) => $provider->service_types)
             ->countBy()
             ->map(fn ($count, $type) => [
                 'type' => ServiceType::tryFrom($type)?->label() ?? $type,
@@ -106,7 +151,8 @@ class DashboardController extends Controller
             ])
             ->values()
             ->sortByDesc('count')
-            ->take(10);
+            ->take(10)
+            ->values();
 
         return Inertia::render('Admin/Dashboard', [
             'userStats' => $userStats,
@@ -118,6 +164,7 @@ class DashboardController extends Controller
             'recentUsers' => $recentUsers,
             'recentLeads' => $recentLeads,
             'pendingBackgroundChecks' => $pendingBackgroundChecks,
+            'recentReviews' => $recentReviews,
             'leadsChartData' => $leadsChartData,
             'serviceTypeDistribution' => $serviceTypeDistribution,
         ]);
@@ -126,6 +173,7 @@ class DashboardController extends Controller
     protected function calculateConversionRate(): float
     {
         $total = Lead::count();
+
         if ($total === 0) {
             return 0;
         }
