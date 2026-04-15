@@ -202,6 +202,11 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
     ->group(function () {
 
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/subscriptions', [Provider\SubscriptionController::class, 'index'])->name('subscriptions.index');
+        Route::post('/subscriptions/checkout/{plan:uuid}', [Provider\SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
+        Route::post('/subscriptions/{subscription:uuid}/cancel', [Provider\SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
+        Route::post('/subscriptions/{subscription:uuid}/resume', [Provider\SubscriptionController::class, 'resume'])->name('subscriptions.resume');
+        Route::post('/subscriptions/{subscription:uuid}/change-plan/{plan:uuid}', [Provider\SubscriptionController::class, 'changePlan'])->name('subscriptions.change-plan');
 
         Route::get('/notifications', [Provider\NotificationController::class, 'index'])->name('notifications.index');
 
@@ -337,6 +342,13 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::middleware('role:super_admin')->group(function () {
             Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
             Route::patch('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+            Route::get('/subscription-plans', [Admin\SubscriptionPlanController::class, 'index'])->name('subscription-plans.index');
+            Route::get('/subscription-plans/create', [Admin\SubscriptionPlanController::class, 'create'])->name('subscription-plans.create');
+            Route::post('/subscription-plans', [Admin\SubscriptionPlanController::class, 'store'])->name('subscription-plans.store');
+            Route::get('/subscription-plans/{subscriptionPlan:uuid}/edit', [Admin\SubscriptionPlanController::class, 'edit'])->name('subscription-plans.edit');
+            Route::patch('/subscription-plans/{subscriptionPlan:uuid}', [Admin\SubscriptionPlanController::class, 'update'])->name('subscription-plans.update');
+            Route::delete('/subscription-plans/{subscriptionPlan:uuid}', [Admin\SubscriptionPlanController::class, 'destroy'])->name('subscription-plans.destroy');
+            Route::get('/subscriptions/reports', [Admin\SubscriptionReportController::class, 'index'])->name('subscriptions.reports');
         });
 
     });

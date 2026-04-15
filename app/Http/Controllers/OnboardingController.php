@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
+use App\Models\SubscriptionPlan;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,8 +32,16 @@ class OnboardingController extends Controller
         }
         $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
         $initialStep = $isProvider
-            ? max(4, min(5, $requestedStep))
+            ? max(4, min(6, $requestedStep))
             : max(2, min(3, $requestedStep));
+
+        $subscriptionPlans = $isProvider
+            ? SubscriptionPlan::query()
+                ->active()
+                ->orderByDesc('is_featured')
+                ->orderBy('sort_order')
+                ->get(['id', 'uuid', 'name', 'description', 'price_cents', 'currency', 'billing_cycle', 'features', 'is_featured', 'stripe_price_id'])
+            : collect();
 
         return Inertia::render('Onboarding/Index', [
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'country', 'preferred_language']),
@@ -43,6 +54,7 @@ class OnboardingController extends Controller
             'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
+            'subscriptionPlans' => $subscriptionPlans,
         ]);
     }
 
@@ -60,6 +72,7 @@ class OnboardingController extends Controller
             ['key' => 'business', 'title' => 'Business', 'description' => 'Tell clients about your practice'],
             ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'How you charge'],
             ['key' => 'service-area', 'title' => 'Service area', 'description' => 'How you meet clients'],
+            ['key' => 'subscription', 'title' => 'Subscription', 'description' => 'Pick your provider plan'],
             ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
     }
@@ -91,7 +104,13 @@ class OnboardingController extends Controller
 
         DB::transaction(function () use ($user, $request, $isProvider) {
             $data = $request->all();
-            $onboardingData = $user->onboarding_data ?? [];
+            $onboardingData = array_merge($user->onboarding_data ?? [], [
+                'business' => array_merge($user->onboarding_data['business'] ?? [], $data['business'] ?? []),
+                'services' => array_merge($user->onboarding_data['services'] ?? [], $data['services'] ?? []),
+                'pricing' => array_merge($user->onboarding_data['pricing'] ?? [], $data['pricing'] ?? []),
+                'service-area' => array_merge($user->onboarding_data['service-area'] ?? [], $data['service-area'] ?? []),
+                'subscription' => array_merge($user->onboarding_data['subscription'] ?? [], $data['subscription'] ?? []),
+            ]);
 
             $user->update([
                 'city' => $data['city'] ?? $onboardingData['location']['city'] ?? $user->city,
@@ -110,13 +129,40 @@ class OnboardingController extends Controller
                 $servicesData = array_merge($onboardingData['services'] ?? [], $data['services'] ?? []);
                 $pricingData = $onboardingData['pricing'] ?? [];
                 $serviceAreaData = $onboardingData['service-area'] ?? [];
+                $subscriptionData = $onboardingData['subscription'] ?? [];
+
+                $planUuid = (string) ($subscriptionData['plan_uuid'] ?? '');
+                $hasSelectablePlans = SubscriptionPlan::query()
+                    ->active()
+                    ->where(function ($query) {
+                        $query->where('price_cents', '<=', 0)
+                            ->orWhereNotNull('stripe_price_id');
+                    })
+                    ->exists();
+                if ($hasSelectablePlans && $planUuid === '') {
+                    throw ValidationException::withMessages([
+                        'subscription.plan_uuid' => 'Please choose a subscription plan to continue.',
+                    ]);
+                }
+
+                $selectedPlan = $planUuid !== ''
+                    ? SubscriptionPlan::query()
+                        ->active()
+                        ->where('uuid', $planUuid)
+                        ->first()
+                    : null;
+                if ($hasSelectablePlans && ! $selectedPlan) {
+                    throw ValidationException::withMessages([
+                        'subscription.plan_uuid' => 'The selected plan is not available. Please choose another plan.',
+                    ]);
+                }
 
                 $serviceTypes = $servicesData['types'] ?? [];
                 if ($serviceTypes === [] && ! empty($onboardingData['registration']['service_type'])) {
                     $serviceTypes = [$onboardingData['registration']['service_type']];
                 }
 
-                ServiceProvider::create([
+                $serviceProvider = ServiceProvider::create([
                     'user_id' => $user->id,
                     'business_name' => $businessData['business_name'] ?? $user->full_name,
                     'bio' => $businessData['bio'] ?? null,
@@ -139,6 +185,28 @@ class OnboardingController extends Controller
                     'license_number' => $businessData['license_number'] ?? null,
                     'years_experience' => $businessData['years_experience'] ?? null,
                 ]);
+
+                if ($selectedPlan) {
+                    ProviderSubscription::query()->create([
+                        'service_provider_id' => $serviceProvider->id,
+                        'subscription_plan_id' => $selectedPlan->id,
+                        'status' => (int) $selectedPlan->price_cents <= 0 ? 'active' : 'incomplete',
+                        'started_at' => (int) $selectedPlan->price_cents <= 0 ? now() : null,
+                        'current_period_start' => (int) $selectedPlan->price_cents <= 0 ? now() : null,
+                        'affiliate_id' => $user->referred_by_affiliate_id,
+                        'affiliate_referral_id' => $user->affiliate_referral_id,
+                        'affiliate_attribution_type' => 'first_touch',
+                        'meta' => ['source' => 'onboarding'],
+                    ]);
+
+                    if ((int) $selectedPlan->price_cents <= 0) {
+                        $serviceProvider->update([
+                            'subscription_plan' => $selectedPlan->name,
+                            'subscription_expires_at' => null,
+                            'stripe_subscription_status' => 'active',
+                        ]);
+                    }
+                }
             }
         });
 

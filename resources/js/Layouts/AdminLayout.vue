@@ -17,10 +17,12 @@ import {
     Cog6ToothIcon,
     Squares2X2Icon,
     BanknotesIcon,
+    CreditCardIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     UserCircleIcon,
     XMarkIcon,
+    ChevronDownIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -42,10 +44,12 @@ const mainNavigation = computed(() =>
         Squares2X2Icon,
         ChartBarIcon,
         BanknotesIcon,
+        CreditCardIcon,
     }),
 );
 
 const settingsNavigation = computed(() => (isSuperAdmin.value ? adminSettingsNavItems() : []));
+const settingsOpen = ref(true);
 
 const logout = () => {
     router.post('/logout');
@@ -80,6 +84,16 @@ const isActive = (href) => {
 const unreadNotificationsCount = computed(
     () => page.props.unread_notifications_count ?? 0,
 );
+
+const hasActiveSettingsChild = computed(() =>
+    settingsNavigation.value.some((group) =>
+        (group.children || []).some((child) => isActive(child.href))
+    )
+);
+
+if (hasActiveSettingsChild.value) {
+    settingsOpen.value = true;
+}
 </script>
 
 <template>
@@ -170,20 +184,37 @@ const unreadNotificationsCount = computed(
                         </span>
                         Settings
                     </div>
-                    <Link
-                        v-for="child in settingsNavigation"
-                        :key="child.href"
-                        :href="child.href"
-                        :class="[
-                            'ml-1 flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150',
-                            isActive(child.href)
-                                ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/25'
-                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
-                        ]"
-                        @click="sidebarOpen = false"
-                    >
-                        {{ child.name }}
-                    </Link>
+                    <div v-for="group in settingsNavigation" :key="group.name" class="space-y-1">
+                        <button
+                            type="button"
+                            class="ml-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition-all duration-150 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                            @click="settingsOpen = !settingsOpen"
+                        >
+                            <span>{{ group.name }}</span>
+                            <ChevronDownIcon
+                                :class="[
+                                    'h-4 w-4 transition-transform duration-150',
+                                    settingsOpen ? 'rotate-180' : 'rotate-0',
+                                ]"
+                            />
+                        </button>
+                        <div v-if="settingsOpen" class="space-y-1 pl-3">
+                            <Link
+                                v-for="child in (group.children || [])"
+                                :key="child.href"
+                                :href="child.href"
+                                :class="[
+                                    'ml-1 flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150',
+                                    isActive(child.href)
+                                        ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/25'
+                                        : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                                ]"
+                                @click="sidebarOpen = false"
+                            >
+                                {{ child.name }}
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </nav>
 
