@@ -40,6 +40,8 @@ const sort = ref(props.filters.sort || 'created_at');
 const dir = ref(props.filters.dir || 'desc');
 const isEditMode = ref(false);
 const avatarPreviewUrl = ref(null);
+const avatarInput = ref(null);
+const selectedUserAvatarLoadFailed = ref(false);
 
 let searchTimeout;
 
@@ -107,6 +109,7 @@ function syncFormFromUser(user) {
 
     form.reset();
     form.clearErrors();
+    selectedUserAvatarLoadFailed.value = false;
 }
 
 const applyFilters = () => {
@@ -216,6 +219,14 @@ const onAvatarSelected = (event) => {
     if (file) {
         avatarPreviewUrl.value = URL.createObjectURL(file);
     }
+};
+
+const triggerAvatarPicker = () => {
+    avatarInput.value?.click();
+};
+
+const onSelectedUserAvatarError = () => {
+    selectedUserAvatarLoadFailed.value = true;
 };
 
 const formatDate = (date) => {
@@ -791,10 +802,11 @@ const fullAddress = computed(() => {
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex min-w-0 items-start gap-4">
                             <img
-                                v-if="selectedUser.avatar_url"
+                                v-if="selectedUser.avatar_url && !selectedUserAvatarLoadFailed"
                                 :src="selectedUser.avatar_url"
                                 alt=""
                                 class="h-16 w-16 rounded-[1.5rem] object-cover"
+                                @error="onSelectedUserAvatarError"
                             />
                             <div
                                 v-else
@@ -1039,29 +1051,42 @@ const fullAddress = computed(() => {
                             <div class="md:col-span-2">
                                 <label class="mb-2 block text-sm font-medium text-slate-700">Profile photo</label>
                                 <div class="flex items-center gap-3">
-                                    <img
-                                        v-if="avatarPreviewUrl"
-                                        :src="avatarPreviewUrl"
-                                        alt=""
-                                        class="h-14 w-14 rounded-2xl object-cover"
-                                    />
-                                    <img
-                                        v-else-if="selectedUser.avatar_url"
-                                        :src="selectedUser.avatar_url"
-                                        alt=""
-                                        class="h-14 w-14 rounded-2xl object-cover"
-                                    />
-                                    <div
-                                        v-else
-                                        class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-sm font-semibold text-blue-700"
-                                    >
-                                        {{ getInitial(selectedUser) }}
+                                    <div class="relative">
+                                        <img
+                                            v-if="avatarPreviewUrl"
+                                            :src="avatarPreviewUrl"
+                                            alt=""
+                                            class="h-14 w-14 rounded-2xl object-cover"
+                                        />
+                                        <img
+                                            v-else-if="selectedUser.avatar_url && !selectedUserAvatarLoadFailed"
+                                            :src="selectedUser.avatar_url"
+                                            alt=""
+                                            class="h-14 w-14 rounded-2xl object-cover"
+                                            @error="onSelectedUserAvatarError"
+                                        />
+                                        <div
+                                            v-else
+                                            class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-sm font-semibold text-blue-700"
+                                        >
+                                            {{ getInitial(selectedUser) }}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            class="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white bg-blue-600 text-white shadow-sm transition hover:bg-blue-700"
+                                            aria-label="Change profile photo"
+                                            @click="triggerAvatarPicker"
+                                        >
+                                            <PencilSquareIcon class="h-4 w-4" />
+                                        </button>
                                     </div>
 
                                     <input
+                                        ref="avatarInput"
                                         type="file"
                                         accept="image/*"
-                                        class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-2xl file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+                                        class="hidden"
                                         @change="onAvatarSelected"
                                     />
                                 </div>
