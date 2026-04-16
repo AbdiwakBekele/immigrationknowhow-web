@@ -147,25 +147,25 @@ const avatarUrl = (provider) => {
             </section>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-sky-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-sky-100 p-1.5">
                         <BriefcaseIcon class="h-5 w-5 text-sky-600" />
                     </div>
-                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.total }}</p>
+                    <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.total }}</p>
                     <p class="text-sm text-slate-500">Total providers</p>
                 </div>
-                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-emerald-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-emerald-100 p-1.5">
                         <CheckBadgeIcon class="h-5 w-5 text-emerald-600" />
                     </div>
-                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.verified }}</p>
+                    <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.verified }}</p>
                     <p class="text-sm text-slate-500">Verified</p>
                 </div>
-                <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-indigo-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-indigo-100 p-1.5">
                         <Squares2X2Icon class="h-5 w-5 text-indigo-600" />
                     </div>
-                    <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ stats.active }}</p>
+                    <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.active }}</p>
                     <p class="text-sm text-slate-500">Active listings</p>
                 </div>
             </div>

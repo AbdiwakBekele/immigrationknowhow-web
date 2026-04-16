@@ -38,19 +38,19 @@ defineProps({
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="admin-panel-compact">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Total Plans</p>
-                    <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ metrics.total_plans ?? 0 }}</p>
+                    <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">{{ metrics.total_plans ?? 0 }}</p>
                 </div>
                 <div class="admin-panel-compact">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Active Subs</p>
-                    <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ metrics.active_subscriptions ?? 0 }}</p>
+                    <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">{{ metrics.active_subscriptions ?? 0 }}</p>
                 </div>
                 <div class="admin-panel-compact">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Revenue</p>
-                    <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">${{ ((metrics.total_revenue_cents ?? 0) / 100).toFixed(2) }}</p>
+                    <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">${{ ((metrics.total_revenue_cents ?? 0) / 100).toFixed(2) }}</p>
                 </div>
                 <div class="admin-panel-compact">
                     <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Affiliate Commissions</p>
-                    <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">${{ Number(metrics.total_commissions ?? 0).toFixed(2) }}</p>
+                    <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">${{ Number(metrics.total_commissions ?? 0).toFixed(2) }}</p>
                 </div>
             </div>
 

@@ -72,22 +72,25 @@ const leadStatus = (lead) => {
     <Head title="Messages" />
 
     <ProviderLayout>
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="flex items-center justify-between mb-6">
+        <div class="admin-page-container">
+            <section class="admin-hero-card mb-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-display font-bold text-gray-900">Client messages</h1>
-                    <p class="text-gray-500 mt-1">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Messaging</p>
+                    <h1 class="mt-2 admin-title">Client messages</h1>
+                    <p class="admin-subtitle">
                         {{ totalUnread > 0 ? `${totalUnread} unread message${totalUnread > 1 ? 's' : ''}` : 'All caught up!' }}
                     </p>
                     <p class="text-sm text-slate-500 mt-2 max-w-xl">
                         One-on-one threads linked to service inquiries. Not a public forum — only clients who contacted you appear here.
                     </p>
                 </div>
-                <Link :href="route('provider.messages.archived')" class="btn-secondary btn-sm">
+                <Link :href="route('provider.messages.archived')" class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                     <ArchiveBoxIcon class="h-4 w-4 mr-2" />
                     Archived
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <div class="mb-6">
                 <div class="relative">

@@ -32,22 +32,27 @@ const toggleActive = (type) => {
     <Head title="Service Types" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-6xl space-y-5">
-            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-xl font-display font-bold text-slate-900">Service types</h1>
-                    <p class="mt-0.5 text-sm text-slate-500">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Service configuration
+                    </p>
+                    <h1 class="mt-2 admin-title">Service types</h1>
+                    <p class="admin-subtitle">
                         Options in <code class="rounded bg-slate-100 px-1 font-mono text-xs">service_type_options</code> — used for onboarding, provider profiles, and filters.
                     </p>
                 </div>
                 <Link
                     href="/admin/service-types/create"
-                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700"
+                    class="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                 >
                     <PlusIcon class="h-5 w-5" />
                     Add service type
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <div
                 v-if="flashSuccess"
@@ -56,7 +61,7 @@ const toggleActive = (type) => {
                 {{ flashSuccess }}
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="admin-table-wrap">
                 <div class="flex items-center gap-2 border-b border-slate-200 px-4 py-3">
                     <Squares2X2Icon class="h-5 w-5 text-sky-600" />
                     <p class="font-semibold text-slate-900">All types ({{ serviceTypes.length }})</p>
@@ -143,7 +148,7 @@ const toggleActive = (type) => {
                         Add the first one
                     </Link>
                 </div>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

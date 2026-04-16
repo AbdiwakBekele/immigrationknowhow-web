@@ -96,15 +96,15 @@ const maxDob = computed(() => {
     <Head title="Background Check" />
 
     <ProviderLayout>
-        <div class="mx-auto max-w-3xl space-y-6 pb-4">
+        <div class="admin-page-container">
             <!-- Header -->
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-primary-600">Trust and safety</p>
-                <h1 class="mt-1 font-display text-3xl font-bold tracking-tight text-slate-900">Background check</h1>
-                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Trust and safety</p>
+                <h1 class="mt-2 admin-title">Background check</h1>
+                <p class="admin-subtitle">
                     Complete a background check to become a verified provider and build trust with clients.
                 </p>
-            </div>
+            </section>
 
             <div v-if="form.errors.error" class="card border-red-200/80 bg-red-50/90 p-4">
                 <div class="flex items-center gap-3">

@@ -112,12 +112,13 @@ const ratingDistribution = computed(() => {
     <Head title="Reviews" />
 
     <ProviderLayout>
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="admin-page-container">
             <!-- Header -->
-            <div class="mb-6">
-                <h1 class="text-2xl font-display font-bold text-gray-900">Reviews</h1>
-                <p class="text-gray-500 mt-1">Manage and respond to client reviews</p>
-            </div>
+            <section class="admin-hero-card mb-6">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Reputation management</p>
+                <h1 class="mt-2 admin-title">Reviews</h1>
+                <p class="admin-subtitle">Manage and respond to client reviews from one place.</p>
+            </section>
 
             <!-- Stats Overview -->
             <div class="grid sm:grid-cols-4 gap-4 mb-6">

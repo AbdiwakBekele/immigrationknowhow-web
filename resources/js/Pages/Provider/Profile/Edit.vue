@@ -215,10 +215,10 @@ const verificationStatusLabel = computed(() => {
     <Head title="Edit Profile" />
 
     <ProviderLayout>
-        <div class="min-h-screen bg-slate-50">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="admin-page-container">
                 <!-- Header -->
-                <div class="flex items-center justify-between mb-6">
+                <section class="admin-hero-card mb-6">
+                    <div class="flex items-center justify-between">
                     <div>
                         <div class="flex items-center gap-2">
                             <Link
@@ -230,7 +230,7 @@ const verificationStatusLabel = computed(() => {
                             </Link>
                             <h1 class="text-2xl font-display font-bold text-slate-900">Edit Profile</h1>
                         </div>
-                        <p class="text-slate-500 mt-1">Update your business information and settings</p>
+                        <p class="admin-subtitle mt-2">Update your business information and settings.</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <span :class="['px-3 py-1 rounded-full text-sm font-medium', verificationStatusLabel.class]">
@@ -244,7 +244,8 @@ const verificationStatusLabel = computed(() => {
                             Preview
                         </Link>
                     </div>
-                </div>
+                    </div>
+                </section>
 
                 <form @submit.prevent="updateProfile" class="space-y-6">
                     <!-- Profile Photo -->
@@ -740,7 +741,6 @@ const verificationStatusLabel = computed(() => {
                         </button>
                     </div>
                 </form>
-            </div>
         </div>
     </ProviderLayout>
 </template>

@@ -38,17 +38,20 @@ const changePlan = (planUuid) => {
     <Head title="Subscriptions" />
 
     <ProviderLayout>
-        <div class="mx-auto max-w-7xl space-y-6">
-            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-xl font-bold text-slate-900">Subscription Plans</h1>
-                    <p class="text-sm text-slate-500">Choose, upgrade, downgrade, or cancel your provider subscription.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Billing</p>
+                    <h1 class="mt-2 admin-title">Subscription Plans</h1>
+                    <p class="admin-subtitle">Choose, upgrade, downgrade, or cancel your provider subscription.</p>
                 </div>
                 <div v-if="currentSubscription" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                     <p class="font-semibold text-slate-900">Current: {{ currentSubscription.plan?.name ?? 'Active plan' }}</p>
                     <p class="text-slate-500">Status: {{ currentSubscription.status }}</p>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div v-for="plan in plans" :key="plan.uuid" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

@@ -17,8 +17,6 @@ import {
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'vue-chartjs';
 import {
-    ArrowTrendingDownIcon,
-    ArrowTrendingUpIcon,
     ChartBarIcon,
     ChatBubbleLeftRightIcon,
     ShieldCheckIcon,
@@ -53,19 +51,6 @@ const props = defineProps({
         }),
     },
 });
-
-const trend = (current, previous) => {
-    const c = Number(current) || 0;
-    const p = Number(previous) || 0;
-    if (p === 0) {
-        return { pct: c > 0 ? 100 : 0, up: c >= p };
-    }
-    const pct = Math.round(((c - p) / p) * 100);
-    return { pct: Math.abs(pct), up: c >= p };
-};
-
-const userTrend = computed(() => trend(props.stats.users_last_30, props.stats.users_prev_30));
-const leadTrend = computed(() => trend(props.stats.leads_last_30, props.stats.leads_prev_30));
 
 const chartFont = {
     family: 'ui-sans-serif, system-ui, sans-serif',
@@ -238,70 +223,63 @@ const ratingsChartData = computed(() => ({
 }));
 
 const kpiCardClass =
-    'block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/5 transition duration-200 hover:border-sky-300/60 hover:shadow-md hover:ring-sky-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2';
+    'block rounded-[1.1rem] border border-slate-200/80 bg-white p-3 shadow-sm ring-1 ring-slate-900/5 transition duration-200 hover:border-sky-300/60 hover:shadow-md hover:ring-sky-900/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2';
 </script>
 
 <template>
     <Head title="Reports" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h1 class="text-2xl font-display font-bold tracking-tight text-slate-900">Reports</h1>
-                    <p class="mt-1 max-w-xl text-sm text-slate-500">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Platform analytics
+                        </p>
+                        <h1 class="mt-2 admin-title">Reports</h1>
+                        <p class="admin-subtitle">
                         Live metrics from your database — signups, providers, leads, and reviews over the last twelve months.
-                    </p>
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <Link
+                            href="/admin/users"
+                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            Users
+                        </Link>
+                        <Link
+                            href="/admin/providers"
+                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            Providers
+                        </Link>
+                        <Link
+                            href="/admin/reviews"
+                            class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            Reviews
+                        </Link>
+                    </div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <Link
-                        href="/admin/users"
-                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    >
-                        Users
-                    </Link>
-                    <Link
-                        href="/admin/providers"
-                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    >
-                        Providers
-                    </Link>
-                    <Link
-                        href="/admin/reviews"
-                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                    >
-                        Reviews
-                    </Link>
-                </div>
-            </div>
+            </section>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Link href="/admin/users" :class="kpiCardClass" title="Open users">
-                    <div class="mb-3 inline-flex rounded-xl bg-sky-100 p-2.5">
+                    <div class="mb-2 inline-flex rounded-lg bg-sky-100 p-1.5">
                         <UsersIcon class="h-5 w-5 text-sky-700" />
                     </div>
-                    <p class="text-3xl font-bold tabular-nums text-slate-900">{{ stats.users ?? 0 }}</p>
+                    <p class="text-xl font-bold tabular-nums text-slate-900">{{ stats.users ?? 0 }}</p>
                     <p class="text-xs font-medium text-slate-500">Total users</p>
-                    <div class="mt-3 flex items-center gap-1 text-xs">
-                        <ArrowTrendingUpIcon v-if="userTrend.up" class="h-4 w-4 text-emerald-600" />
-                        <ArrowTrendingDownIcon v-else class="h-4 w-4 text-rose-600" />
-                        <span :class="userTrend.up ? 'text-emerald-700' : 'text-rose-700'">
-                            {{ userTrend.pct }}% vs prior 30 days
-                        </span>
-                        <span class="text-slate-400">· {{ stats.users_last_30 ?? 0 }} new</span>
-                    </div>
                 </Link>
 
                 <Link href="/admin/providers" :class="kpiCardClass" title="Open providers">
-                    <div class="mb-3 inline-flex rounded-xl bg-violet-100 p-2.5">
+                    <div class="mb-2 inline-flex rounded-lg bg-violet-100 p-1.5">
                         <UserGroupIcon class="h-5 w-5 text-violet-700" />
                     </div>
-                    <p class="text-3xl font-bold tabular-nums text-slate-900">{{ stats.providers ?? 0 }}</p>
+                    <p class="text-xl font-bold tabular-nums text-slate-900">{{ stats.providers ?? 0 }}</p>
                     <p class="text-xs font-medium text-slate-500">Service providers</p>
-                    <p class="mt-3 text-xs text-slate-500">
-                        <span class="font-semibold text-slate-700">{{ stats.providers_verified ?? 0 }}</span>
-                        verified
-                    </p>
                 </Link>
 
                 <Link
@@ -309,31 +287,19 @@ const kpiCardClass =
                     :class="kpiCardClass"
                     title="View leads on this report"
                 >
-                    <div class="mb-3 inline-flex rounded-xl bg-emerald-100 p-2.5">
+                    <div class="mb-2 inline-flex rounded-lg bg-emerald-100 p-1.5">
                         <ChartBarIcon class="h-5 w-5 text-emerald-700" />
                     </div>
-                    <p class="text-3xl font-bold tabular-nums text-slate-900">{{ stats.leads ?? 0 }}</p>
+                    <p class="text-xl font-bold tabular-nums text-slate-900">{{ stats.leads ?? 0 }}</p>
                     <p class="text-xs font-medium text-slate-500">Total leads</p>
-                    <div class="mt-3 flex items-center gap-1 text-xs">
-                        <ArrowTrendingUpIcon v-if="leadTrend.up" class="h-4 w-4 text-emerald-600" />
-                        <ArrowTrendingDownIcon v-else class="h-4 w-4 text-rose-600" />
-                        <span :class="leadTrend.up ? 'text-emerald-700' : 'text-rose-700'">
-                            {{ leadTrend.pct }}% vs prior 30 days
-                        </span>
-                        <span class="text-slate-400">· {{ stats.leads_last_30 ?? 0 }} new</span>
-                    </div>
                 </Link>
 
                 <Link href="/admin/reviews" :class="kpiCardClass" title="Open reviews">
-                    <div class="mb-3 inline-flex rounded-xl bg-amber-100 p-2.5">
+                    <div class="mb-2 inline-flex rounded-lg bg-amber-100 p-1.5">
                         <ChatBubbleLeftRightIcon class="h-5 w-5 text-amber-700" />
                     </div>
-                    <p class="text-3xl font-bold tabular-nums text-slate-900">{{ stats.reviews ?? 0 }}</p>
+                    <p class="text-xl font-bold tabular-nums text-slate-900">{{ stats.reviews ?? 0 }}</p>
                     <p class="text-xs font-medium text-slate-500">Reviews</p>
-                    <p class="mt-3 text-xs text-slate-500">
-                        <span class="font-semibold text-slate-700">{{ stats.reviews_approved ?? 0 }}</span>
-                        approved
-                    </p>
                 </Link>
             </div>
 

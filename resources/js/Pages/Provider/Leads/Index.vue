@@ -126,14 +126,17 @@ const firstInitial = (...values) => {
     <Head title="Manage Leads" />
 
     <ProviderLayout>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="admin-page-container">
             <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <section class="admin-hero-card mb-6">
+                <div class="flex flex-col gap-4">
                 <div>
-                    <h1 class="text-2xl font-display font-bold text-gray-900">Leads</h1>
-                    <p class="text-gray-500 mt-1">Manage your incoming service inquiries</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Lead management</p>
+                    <h1 class="mt-2 admin-title">Leads</h1>
+                    <p class="admin-subtitle">Manage your incoming service inquiries and update status quickly.</p>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">

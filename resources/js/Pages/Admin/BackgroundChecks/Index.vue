@@ -77,59 +77,57 @@ const getStatusClasses = (status) => {
     <Head title="Background Checks" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Background Checks</h1>
-                    <p class="text-gray-500 mt-1">Monitor and review Checkr background check results</p>
-                </div>
-            </div>
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Compliance and screening
+                </p>
+                <h1 class="mt-2 admin-title">Background Checks</h1>
+                <p class="admin-subtitle">Monitor and review Checkr background check results for providers.</p>
+            </section>
 
-            <!-- Stats -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-gray-900">{{ stats.total }}</p>
-                    <p class="text-sm text-gray-500">Total</p>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-blue-600">{{ stats.pending }}</p>
-                    <p class="text-sm text-gray-500">Pending</p>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-amber-600">{{ stats.in_progress }}</p>
-                    <p class="text-sm text-gray-500">In Progress</p>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-emerald-600">{{ stats.cleared }}</p>
-                    <p class="text-sm text-gray-500">Cleared</p>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-orange-600">{{ stats.needs_review }}</p>
-                    <p class="text-sm text-gray-500">Needs Review</p>
-                </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <p class="text-2xl font-bold text-gray-500">{{ stats.expired }}</p>
-                    <p class="text-sm text-gray-500">Expired</p>
-                </div>
-            </div>
+            <section class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.total }}</p>
+                    <p class="text-xs text-slate-500">Total</p>
+                </article>
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-blue-600">{{ stats.pending }}</p>
+                    <p class="text-xs text-slate-500">Pending</p>
+                </article>
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-amber-600">{{ stats.in_progress }}</p>
+                    <p class="text-xs text-slate-500">In Progress</p>
+                </article>
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-emerald-600">{{ stats.cleared }}</p>
+                    <p class="text-xs text-slate-500">Cleared</p>
+                </article>
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-orange-600">{{ stats.needs_review }}</p>
+                    <p class="text-xs text-slate-500">Needs Review</p>
+                </article>
+                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <p class="text-xl font-semibold tracking-tight text-slate-500">{{ stats.expired }}</p>
+                    <p class="text-xs text-slate-500">Expired</p>
+                </article>
+            </section>
 
-            <!-- Filters -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <section class="admin-panel">
                 <div class="flex flex-col sm:flex-row gap-4">
                     <div class="flex-1 relative">
-                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         <input
                             v-model="search"
                             type="text"
                             placeholder="Search by name, email, or business..."
-                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            class="admin-input pl-10"
                         />
                     </div>
                     <div class="sm:w-48">
                         <select
                             v-model="status"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                            class="admin-select"
                         >
                             <option value="">All Statuses</option>
                             <option v-for="s in statuses" :key="s.value" :value="s.value">
@@ -138,52 +136,51 @@ const getStatusClasses = (status) => {
                         </select>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <section class="admin-table-wrap">
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-gray-50 border-b border-gray-200">
+                        <thead class="admin-table-head border-b border-slate-200">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th">
                                     Provider
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th">
                                     Candidate
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th">
                                     Status
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th">
                                     Initiated
                                 </th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th">
                                     Expires
                                 </th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th class="admin-table-th text-right">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            <tr v-for="check in backgroundChecks.data" :key="check.id" class="hover:bg-gray-50">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="check in backgroundChecks.data" :key="check.id" class="hover:bg-slate-50">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div v-if="check.service_provider">
-                                        <div class="font-medium text-gray-900">
+                                        <div class="font-medium text-slate-900">
                                             {{ check.service_provider.business_name }}
                                         </div>
-                                        <div class="text-sm text-gray-500">
+                                        <div class="text-sm text-slate-500">
                                             {{ check.service_provider.user?.first_name }} {{ check.service_provider.user?.last_name }}
                                         </div>
                                     </div>
-                                    <span v-else class="text-gray-400">—</span>
+                                    <span v-else class="text-slate-400">—</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="font-medium text-gray-900">
+                                    <div class="font-medium text-slate-900">
                                         {{ check.first_name }} {{ check.last_name }}
                                     </div>
-                                    <div class="text-sm text-gray-500">{{ check.email }}</div>
+                                    <div class="text-sm text-slate-500">{{ check.email }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', getStatusClasses(check.status)]">
@@ -191,19 +188,19 @@ const getStatusClasses = (status) => {
                                         {{ check.status_display?.label || check.status }}
                                     </span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                                     {{ new Date(check.created_at).toLocaleDateString() }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                                     <span v-if="check.expires_at">
                                         {{ new Date(check.expires_at).toLocaleDateString() }}
                                     </span>
-                                    <span v-else class="text-gray-400">—</span>
+                                    <span v-else class="text-slate-400">—</span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right">
                                     <Link
                                         :href="`/admin/background-checks/${check.uuid}`"
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors"
+                                        class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
                                     >
                                         <EyeIcon class="w-4 h-4" />
                                         View
@@ -211,8 +208,8 @@ const getStatusClasses = (status) => {
                                 </td>
                             </tr>
                             <tr v-if="!backgroundChecks.data?.length">
-                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
-                                    <ShieldCheckIcon class="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                                <td colspan="6" class="px-6 py-12 text-center text-slate-500">
+                                    <ShieldCheckIcon class="mx-auto mb-3 h-12 w-12 text-slate-300" />
                                     <p>No background checks found</p>
                                 </td>
                             </tr>
@@ -220,9 +217,8 @@ const getStatusClasses = (status) => {
                     </table>
                 </div>
 
-                <!-- Pagination -->
-                <div v-if="backgroundChecks.links?.length > 3" class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                    <p class="text-sm text-gray-500">
+                <div v-if="backgroundChecks.links?.length > 3" class="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+                    <p class="text-sm text-slate-500">
                         Showing {{ backgroundChecks.from }} to {{ backgroundChecks.to }} of {{ backgroundChecks.total }} results
                     </p>
                     <div class="flex gap-2">
@@ -231,15 +227,15 @@ const getStatusClasses = (status) => {
                             :key="link.label"
                             :href="link.url"
                             :class="[
-                                'px-3 py-1 rounded text-sm',
-                                link.active ? 'bg-sky-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                                'rounded-lg px-3 py-1 text-sm',
+                                link.active ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200',
                                 !link.url && 'opacity-50 cursor-not-allowed'
                             ]"
                             v-html="link.label"
                         />
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

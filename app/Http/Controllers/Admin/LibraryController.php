@@ -75,6 +75,8 @@ class LibraryController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
+            'regions' => ['nullable', 'array'],
+            'regions.*' => ['string', Rule::in(LibraryItem::supportedRegions())],
             'category_id' => ['nullable', 'exists:library_categories,id'],
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
@@ -142,6 +144,8 @@ class LibraryController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
+            'regions' => ['nullable', 'array'],
+            'regions.*' => ['string', Rule::in(LibraryItem::supportedRegions())],
             'category_id' => ['nullable', 'exists:library_categories,id'],
             'author' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],

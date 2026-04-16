@@ -67,79 +67,90 @@ const isActive = (href) => {
         >
             <div
                 v-if="sidebarOpen"
-                class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+                class="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] lg:hidden"
                 @click="sidebarOpen = false"
-            ></div>
+            />
         </Transition>
 
         <aside
             :class="[
-                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col border-r border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 shadow-[4px_0_32px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm transform transition-transform duration-300 ease-out lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white/95 shadow-[8px_0_32px_-20px_rgba(15,23,42,0.18)] backdrop-blur transition-transform duration-300 lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full',
             ]"
         >
-            <div class="relative flex shrink-0 flex-col gap-1 border-b border-slate-200/80 px-4 pb-4 pt-5">
+            <div class="relative border-b border-slate-200 px-5 pb-5 pt-6">
                 <button
                     type="button"
-                    class="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 lg:hidden"
+                    class="absolute right-4 top-4 rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
                     aria-label="Close menu"
                     @click="sidebarOpen = false"
                 >
                     <XMarkIcon class="h-5 w-5" />
                 </button>
-                <Link href="/provider/dashboard" class="block w-full pr-8 lg:pr-0" @click="sidebarOpen = false">
+                <Link href="/provider/dashboard" class="block pr-10 lg:pr-0" @click="sidebarOpen = false">
                     <BrandLogo
                         context="site"
                         :mark-src="providerLogoSrc"
                         :show-name="false"
                         container-class="flex items-center"
-                        mark-class="flex h-11 w-full max-w-[180px] items-center justify-start overflow-hidden rounded-none border-0 bg-transparent text-slate-900 shadow-none"
+                        mark-class="flex h-12 w-full max-w-[190px] items-center justify-start overflow-hidden rounded-none bg-transparent text-slate-900 shadow-none"
                         image-class="h-full w-full object-contain object-left"
                         initials-class="font-bold text-lg uppercase tracking-wide"
                     />
                 </Link>
-                <p class="pl-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                    Provider portal
-                </p>
+
+                <div class="mt-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Provider portal
+                    </p>
+                    <p class="mt-1 text-sm text-slate-500">
+                        Manage leads, messages, profile visibility, and subscriptions.
+                    </p>
+                </div>
             </div>
 
-            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-5">
-                <p class="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    Menu
+            <nav class="flex-1 overflow-y-auto px-4 py-5">
+                <p class="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Main navigation
                 </p>
+
+                <div class="space-y-1.5">
                 <Link
                     v-for="item in navigation"
                     :key="item.href"
                     :href="item.href"
                     :class="[
-                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                        'group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all duration-150',
                         isActive(item.href)
-                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
-                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
+                            ? 'bg-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.65)]'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                     ]"
                     @click="sidebarOpen = false"
                 >
                     <span
                         :class="[
-                            'inline-flex rounded-lg p-1.5 transition-colors',
+                            'inline-flex h-10 w-10 items-center justify-center rounded-2xl transition-colors',
                             isActive(item.href)
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
+                                ? 'bg-white/18 text-white'
+                                : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700',
                         ]"
                     >
-                        <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                        <component :is="item.icon" class="h-5 w-5" />
                     </span>
-                    {{ item.name }}
+                    <span class="truncate">{{ item.name }}</span>
                 </Link>
+                </div>
             </nav>
 
-            <div class="shrink-0 border-t border-slate-200/80 p-3">
+            <div class="shrink-0 border-t border-slate-200 p-4">
                 <Link
                     href="/provider/profile"
-                    class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
+                    class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
                     @click="sidebarOpen = false"
                 >
-                    <UserCircleIcon class="h-9 w-9 flex-shrink-0 rounded-full text-slate-400" />
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                        <UserCircleIcon class="h-6 w-6" />
+                    </span>
                     <div class="min-w-0 flex-1">
                         <p class="truncate font-semibold text-slate-900">
                             {{ user?.full_name || user?.first_name || 'Profile' }}
@@ -150,44 +161,53 @@ const isActive = (href) => {
             </div>
         </aside>
 
-        <div class="lg:pl-64">
-            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
-                <div class="flex h-16 items-center justify-between px-4 sm:px-6">
+        <div class="lg:pl-72">
+            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+                <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center gap-3">
                     <button
                         type="button"
-                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+                        class="rounded-2xl p-2.5 text-slate-500 hover:bg-slate-100 lg:hidden"
                         aria-label="Open menu"
                         @click="sidebarOpen = true"
                     >
                         <Bars3Icon class="h-6 w-6" />
                     </button>
 
-                    <div class="flex-1 lg:flex-none"></div>
+                        <div class="hidden sm:block">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                Provider portal
+                            </p>
+                            <h1 class="text-lg font-semibold text-slate-900">
+                                Welcome back
+                            </h1>
+                        </div>
+                    </div>
 
                     <div class="flex items-center gap-2 sm:gap-3">
                         <Link
                             :href="route('provider.notifications.index')"
-                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            class="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
                             title="Notifications"
                             aria-label="Notifications"
                         >
-                            <BellIcon class="h-6 w-6" />
+                            <BellIcon class="h-5 w-5" />
                             <span
                                 v-if="unreadNotificationsCount > 0"
-                                class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500"
+                                class="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-rose-500"
                             />
                         </Link>
                         <Link
                             href="/provider/profile"
                             title="Profile"
                             aria-label="Profile"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
                         >
                             <UserCircleIcon class="h-6 w-6" />
                         </Link>
                         <Link
                             href="/"
-                            class="hidden items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 sm:inline-flex"
+                            class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >
                             View Site
                         </Link>
@@ -195,10 +215,10 @@ const isActive = (href) => {
                             type="button"
                             title="Sign out"
                             aria-label="Sign out"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
                             @click="logout"
                         >
-                            <ArrowRightOnRectangleIcon class="h-6 w-6" />
+                            <ArrowRightOnRectangleIcon class="h-5 w-5" />
                         </button>
                     </div>
                 </div>

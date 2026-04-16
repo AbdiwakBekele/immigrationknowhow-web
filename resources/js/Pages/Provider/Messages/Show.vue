@@ -214,7 +214,7 @@ const acceptOffer = () => {
     <ProviderLayout>
         <div class="h-[calc(100vh-4rem)] flex flex-col bg-slate-50">
             <div class="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3">
-                <div class="max-w-4xl mx-auto flex items-center justify-between">
+                <div class="mx-auto flex w-full max-w-7xl items-center justify-between">
                     <div class="flex items-center gap-4">
                         <Link
                             :href="route('provider.messages.index')"
@@ -286,7 +286,7 @@ const acceptOffer = () => {
                 leave-to-class="opacity-0 -translate-y-2"
             >
                 <div v-if="showLeadInfo && conversation.lead" class="flex-shrink-0 bg-primary-50 border-b border-primary-100 px-4 py-4">
-                    <div class="max-w-4xl mx-auto">
+                    <div class="mx-auto w-full max-w-7xl">
                         <div class="flex flex-wrap items-center gap-4 text-sm">
                             <div>
                                 <span class="text-primary-600 font-medium">Status:</span>
@@ -311,7 +311,7 @@ const acceptOffer = () => {
             </Transition>
 
             <div class="flex-1 overflow-hidden px-4 py-4">
-                <div class="mx-auto grid h-full w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div class="mx-auto grid h-full w-full max-w-7xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div ref="messagesContainer" class="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white px-4 py-6">
                         <div class="space-y-8">
                     <div v-if="form.errors.body" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -411,7 +411,7 @@ const acceptOffer = () => {
             </div>
 
             <div class="flex-shrink-0 bg-white border-t border-slate-200 px-4 py-4">
-                <div class="mx-auto max-w-6xl">
+                <div class="mx-auto w-full max-w-7xl">
                     <div v-if="attachmentPreviews.length" class="flex flex-wrap gap-2 mb-3">
                         <div
                             v-for="(preview, index) in attachmentPreviews"

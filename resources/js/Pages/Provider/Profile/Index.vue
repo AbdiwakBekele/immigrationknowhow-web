@@ -34,8 +34,8 @@ const formatCurrency = (value) => {
     <Head title="My Profile" />
 
     <ProviderLayout>
-        <div class="max-w-5xl mx-auto space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="flex items-center gap-4">
                         <img
@@ -71,7 +71,7 @@ const formatCurrency = (value) => {
                         Edit Profile
                     </Link>
                 </div>
-            </div>
+            </section>
 
             <div class="grid md:grid-cols-3 gap-6">
                 <div class="bg-white rounded-2xl border border-slate-200 p-5">

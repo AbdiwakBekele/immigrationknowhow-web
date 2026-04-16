@@ -31,11 +31,13 @@ const props = defineProps({
     stats: { type: Object, default: () => ({}) },
     filters: { type: Object, default: () => ({}) },
     roles: { type: Array, default: () => [] },
+    backgroundCheckStatuses: { type: Array, default: () => [] },
 });
 
 const search = ref(props.filters.search || '');
 const roleFilter = ref(props.filters.role || '');
 const statusFilter = ref(props.filters.status || '');
+const backgroundCheckFilter = ref(props.filters.background_check || '');
 const sort = ref(props.filters.sort || 'created_at');
 const dir = ref(props.filters.dir || 'desc');
 const isEditMode = ref(false);
@@ -50,7 +52,7 @@ watch(search, () => {
     searchTimeout = setTimeout(() => applyFilters(), 350);
 });
 
-watch([roleFilter, statusFilter, sort, dir], () => {
+watch([roleFilter, statusFilter, backgroundCheckFilter, sort, dir], () => {
     applyFilters();
 });
 
@@ -119,6 +121,7 @@ const applyFilters = () => {
             search: search.value || undefined,
             role: roleFilter.value || undefined,
             status: statusFilter.value || undefined,
+            background_check: backgroundCheckFilter.value || undefined,
             sort: sort.value || undefined,
             dir: dir.value || undefined,
             view: props.filters.view || undefined,
@@ -135,6 +138,7 @@ const resetFilters = () => {
     search.value = '';
     roleFilter.value = '';
     statusFilter.value = '';
+    backgroundCheckFilter.value = '';
     sort.value = 'created_at';
     dir.value = 'desc';
 };
@@ -296,11 +300,40 @@ const activeMeta = (user) => {
         : { label: 'Inactive', classes: 'bg-slate-200 text-slate-700' };
 };
 
+const backgroundCheckMeta = (user) => {
+    const status = user?.service_provider?.background_check_status;
+    if (!status) {
+        return { label: 'No check', classes: 'bg-slate-100 text-slate-600' };
+    }
+
+    switch (status) {
+        case 'clear':
+            return { label: 'Cleared', classes: 'bg-emerald-100 text-emerald-800' };
+        case 'pending':
+            return { label: 'Pending', classes: 'bg-slate-100 text-slate-700' };
+        case 'invited':
+            return { label: 'Invited', classes: 'bg-blue-100 text-blue-800' };
+        case 'completed':
+            return { label: 'In review', classes: 'bg-amber-100 text-amber-800' };
+        case 'consider':
+            return { label: 'Review required', classes: 'bg-orange-100 text-orange-800' };
+        case 'suspended':
+            return { label: 'Suspended', classes: 'bg-red-100 text-red-800' };
+        case 'dispute':
+            return { label: 'Dispute', classes: 'bg-purple-100 text-purple-800' };
+        case 'expired':
+            return { label: 'Expired', classes: 'bg-slate-100 text-slate-500' };
+        default:
+            return { label: status, classes: 'bg-slate-100 text-slate-700' };
+    }
+};
+
 const hasActiveFilters = computed(() => {
     return Boolean(
         search.value ||
         roleFilter.value ||
         statusFilter.value ||
+        backgroundCheckFilter.value ||
         sort.value !== 'created_at' ||
         dir.value !== 'desc'
     );
@@ -424,28 +457,21 @@ const fullAddress = computed(() => {
                 <article
                     v-for="card in summaryCards"
                     :key="card.title"
-                    class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                    <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
                         <div
-                            class="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg"
                             :class="card.box"
                         >
-                            <component :is="card.icon" class="h-6 w-6" />
+                            <component :is="card.icon" class="h-4 w-4" />
                         </div>
-
-                        <span
-                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                            :class="card.chipClass"
-                        >
-                            {{ card.chip }}
-                        </span>
                     </div>
 
-                    <div class="mt-5">
-                        <p class="text-sm font-medium text-slate-500">{{ card.title }}</p>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{{ card.value }}</p>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">{{ card.subtitle }}</p>
+                    <div class="mt-3">
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ card.title }}</p>
+                        <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">{{ card.value }}</p>
+                        <p class="mt-1 line-clamp-1 text-xs text-slate-500">{{ card.subtitle }}</p>
                     </div>
                 </article>
             </section>
@@ -469,20 +495,20 @@ const fullAddress = computed(() => {
                     </div>
                 </div>
 
-                <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_repeat(4,minmax(0,0.7fr))]">
+                <div class="mt-6 flex flex-wrap items-end gap-4">
                     <div class="relative">
                         <MagnifyingGlassIcon class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                         <input
                             v-model="search"
                             type="text"
-                            class="admin-input pl-11"
+                            class="admin-input !w-[280px] pl-11"
                             placeholder="Search by name, email, or phone..."
                         />
                     </div>
 
                     <select
                         v-model="roleFilter"
-                        class="admin-select"
+                        class="admin-select !w-auto min-w-[160px]"
                     >
                         <option value="">All Roles</option>
                         <option
@@ -496,7 +522,7 @@ const fullAddress = computed(() => {
 
                     <select
                         v-model="statusFilter"
-                        class="admin-select"
+                        class="admin-select !w-auto min-w-[160px]"
                     >
                         <option value="">All Status</option>
                         <option value="verified">Verified</option>
@@ -504,8 +530,23 @@ const fullAddress = computed(() => {
                     </select>
 
                     <select
+                        v-model="backgroundCheckFilter"
+                        class="admin-select !w-auto min-w-[200px]"
+                    >
+                        <option value="">All background checks</option>
+                        <option
+                            v-for="bc in backgroundCheckStatuses"
+                            :key="bc.value"
+                            :value="bc.value"
+                        >
+                            {{ bc.label }}
+                        </option>
+                        <option value="none">No background check</option>
+                    </select>
+
+                    <select
                         v-model="sort"
-                        class="admin-select"
+                        class="admin-select !w-auto min-w-[160px]"
                     >
                         <option value="created_at">Newest</option>
                         <option value="first_name">First name</option>
@@ -515,7 +556,7 @@ const fullAddress = computed(() => {
 
                     <select
                         v-model="dir"
-                        class="admin-select"
+                        class="admin-select !w-auto min-w-[140px]"
                     >
                         <option value="desc">Descending</option>
                         <option value="asc">Ascending</option>
@@ -549,6 +590,7 @@ const fullAddress = computed(() => {
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Status</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Joined</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Last Login</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Background Check</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Activity</th>
                                 <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Actions</th>
                             </tr>
@@ -604,6 +646,15 @@ const fullAddress = computed(() => {
                                 </td>
 
                                 <td class="px-6 py-4">
+                                    <span
+                                        class="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+                                        :class="backgroundCheckMeta(user).classes"
+                                    >
+                                        {{ backgroundCheckMeta(user).label }}
+                                    </span>
+                                </td>
+
+                                <td class="px-6 py-4">
                                     <div class="space-y-1 text-sm text-slate-600">
                                         <p>{{ user.leads_count || 0 }} leads</p>
                                         <p>{{ user.reviews_count || 0 }} reviews</p>
@@ -644,7 +695,7 @@ const fullAddress = computed(() => {
                             </tr>
 
                             <tr v-if="!users.data.length">
-                                <td colspan="7" class="px-6 py-16 text-center">
+                                <td colspan="8" class="px-6 py-16 text-center">
                                     <div class="mx-auto max-w-md">
                                         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                             <UsersIcon class="h-7 w-7" />

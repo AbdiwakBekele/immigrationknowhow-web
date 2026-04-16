@@ -20,11 +20,38 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LibraryController extends Controller
 {
+    private function regionForCurrentUser(): ?string
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return null;
+        }
+
+        return LibraryItem::regionForCountry($user->country ?? null);
+    }
+
+    private function abortIfNotAvailableInUserRegion(LibraryItem $item): void
+    {
+        $region = $this->regionForCurrentUser();
+        if ($region === null) {
+            return;
+        }
+
+        $regions = $item->regions ?? null;
+        if (! is_array($regions) || count($regions) === 0) {
+            return;
+        }
+
+        abort_unless(in_array($region, $regions, true), 404);
+    }
+
     public function index(Request $request): Response
     {
         $query = LibraryItem::query()
             ->with('category')
             ->active();
+
+        $query->availableInRegion($this->regionForCurrentUser());
 
         // Apply filters
         if ($request->filled('search')) {
@@ -99,6 +126,7 @@ class LibraryController extends Controller
     public function show(LibraryItem $item): Response
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         $item->load('category');
         $item->incrementViews();
@@ -146,6 +174,7 @@ class LibraryController extends Controller
     public function download(LibraryItem $item): StreamedResponse|RedirectResponse
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         $userId = auth()->id();
         $hasPurchased = $userId
@@ -197,6 +226,7 @@ class LibraryController extends Controller
     public function pay(LibraryItem $item): Response|RedirectResponse
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
         if (! $item->is_premium && ! $requiresPaidAccess) {
@@ -298,6 +328,7 @@ class LibraryController extends Controller
     public function storeManualPayment(Request $request, LibraryItem $item): RedirectResponse
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
         if (! $item->is_premium && ! $requiresPaidAccess) {
@@ -395,6 +426,7 @@ class LibraryController extends Controller
     public function purchaseCancel(LibraryItem $item): RedirectResponse
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         return redirect()
             ->route('library.show', $item)
@@ -408,6 +440,7 @@ class LibraryController extends Controller
     public function purchase(LibraryItem $item): RedirectResponse
     {
         abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
 
         if ($item->is_premium || in_array($item->type, ['audiobook', 'video'], true)) {
             return redirect()
@@ -434,6 +467,7 @@ class LibraryController extends Controller
 
     public function updateProgress(Request $request, LibraryItem $item): RedirectResponse
     {
+        $this->abortIfNotAvailableInUserRegion($item);
         $validated = $request->validate([
             'progress' => ['required', 'array'],
             'progress.page' => ['nullable', 'integer', 'min:0'],

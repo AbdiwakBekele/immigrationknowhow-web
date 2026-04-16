@@ -24,59 +24,60 @@ const formatDate = (value) => {
     <Head title="Pending library payments" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Pending library payments</h1>
-                    <p class="mt-1 text-sm text-gray-600">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Library operations
+                </p>
+                <h1 class="mt-2 admin-title">Pending library payments</h1>
+                <p class="admin-subtitle">
                         Users paid manually (no Stripe). Approve after you confirm the payment in your bank or PayPal.
-                    </p>
-                </div>
-            </div>
+                </p>
+            </section>
 
             <div
                 v-if="!pending?.data?.length"
-                class="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white py-16 text-center"
+                class="flex flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-slate-200 bg-white py-16 text-center"
             >
-                <BanknotesIcon class="h-10 w-10 text-gray-300" />
-                <p class="mt-3 text-sm font-medium text-gray-700">No pending requests</p>
-                <p class="mt-1 max-w-sm text-sm text-gray-500">
+                <BanknotesIcon class="h-10 w-10 text-slate-300" />
+                <p class="mt-3 text-sm font-medium text-slate-700">No pending requests</p>
+                <p class="mt-1 max-w-sm text-sm text-slate-500">
                     When a user submits payment details from the library pay page, their request appears here.
                 </p>
             </div>
 
-            <div v-else class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div v-else class="admin-table-wrap">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                        <thead class="admin-table-head">
                             <tr>
-                                <th class="px-4 py-3 font-semibold text-gray-700">Requested</th>
-                                <th class="px-4 py-3 font-semibold text-gray-700">User</th>
-                                <th class="px-4 py-3 font-semibold text-gray-700">Item</th>
-                                <th class="px-4 py-3 font-semibold text-gray-700">Reference</th>
-                                <th class="px-4 py-3 font-semibold text-gray-700">Note</th>
-                                <th class="px-4 py-3 font-semibold text-gray-700" />
+                                <th class="admin-table-th">Requested</th>
+                                <th class="admin-table-th">User</th>
+                                <th class="admin-table-th">Item</th>
+                                <th class="admin-table-th">Reference</th>
+                                <th class="admin-table-th">Note</th>
+                                <th class="admin-table-th" />
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <tr v-for="row in pending.data" :key="row.id" class="hover:bg-gray-50/80">
-                                <td class="whitespace-nowrap px-4 py-3 text-gray-600">
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="row in pending.data" :key="row.id" class="hover:bg-slate-50/80">
+                                <td class="whitespace-nowrap px-4 py-3 text-slate-600">
                                     {{ formatDate(row.manual_payment_requested_at) }}
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-gray-900">{{ row.user?.name ?? '—' }}</div>
-                                    <div class="text-xs text-gray-500">{{ row.user?.email ?? '' }}</div>
+                                    <div class="font-medium text-slate-900">{{ row.user?.name ?? '—' }}</div>
+                                    <div class="text-xs text-slate-500">{{ row.user?.email ?? '' }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="font-medium text-gray-900">{{ row.library_item?.title ?? '—' }}</div>
-                                    <div class="text-xs text-gray-500">
+                                    <div class="font-medium text-slate-900">{{ row.library_item?.title ?? '—' }}</div>
+                                    <div class="text-xs text-slate-500">
                                         {{ row.library_item?.currency }} {{ row.library_item?.price }}
                                     </div>
                                 </td>
-                                <td class="max-w-[12rem] break-words px-4 py-3 text-gray-700">
+                                <td class="max-w-[12rem] break-words px-4 py-3 text-slate-700">
                                     {{ row.manual_payment_reference || '—' }}
                                 </td>
-                                <td class="max-w-[14rem] break-words px-4 py-3 text-gray-600">
+                                <td class="max-w-[14rem] break-words px-4 py-3 text-slate-600">
                                     {{ row.manual_payment_note || '—' }}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
@@ -92,7 +93,7 @@ const formatDate = (value) => {
                         </tbody>
                     </table>
                 </div>
-                <div v-if="pending.links?.length > 3" class="border-t border-gray-100 px-3 py-2.5">
+                <div v-if="pending.links?.length > 3" class="border-t border-slate-100 px-3 py-2.5">
                     <nav class="flex justify-center gap-1">
                         <Link
                             v-for="link in pending.links"

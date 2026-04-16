@@ -127,11 +127,11 @@ class AnalyticsController extends Controller
 
     private function getAverageResponseTime(int $providerId, Carbon $startDate): string
     {
-        // Calculate average time between lead creation and first message
+        // Calculate average time between lead creation and first provider response.
         $avg = Lead::where('service_provider_id', $providerId)
             ->where('created_at', '>=', $startDate)
-            ->whereNotNull('contacted_at')
-            ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, contacted_at)) as avg_hours')
+            ->whereNotNull('responded_at')
+            ->selectRaw('AVG(TIMESTAMPDIFF(HOUR, created_at, responded_at)) as avg_hours')
             ->value('avg_hours');
 
         if (!$avg) {
@@ -164,7 +164,7 @@ class AnalyticsController extends Controller
 
         $contacted = Lead::where('service_provider_id', $providerId)
             ->where('created_at', '>=', $startDate)
-            ->whereNotNull('contacted_at')
+            ->whereNotNull('responded_at')
             ->count();
 
         $inProgress = Lead::where('service_provider_id', $providerId)
