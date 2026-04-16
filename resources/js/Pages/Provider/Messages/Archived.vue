@@ -28,6 +28,36 @@ const deleteConversation = (uuid) => {
         preserveScroll: true,
     });
 };
+
+const getAvatarSrc = (person) => {
+    if (!person) {
+        return null;
+    }
+    const fromUrl = String(person.avatar_url ?? '').trim();
+    if (fromUrl) {
+        return fromUrl;
+    }
+    const raw = String(person.avatar ?? '').trim();
+    if (!raw) {
+        return null;
+    }
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+    return `/storage/${raw}`;
+};
+
+const getAvatarInitial = (person) => {
+    const first = (person?.first_name || '').trim();
+    if (first) {
+        return first.charAt(0).toUpperCase();
+    }
+    const last = (person?.last_name || '').trim();
+    if (last) {
+        return last.charAt(0).toUpperCase();
+    }
+    return '?';
+};
 </script>
 
 <template>
@@ -59,9 +89,17 @@ const deleteConversation = (uuid) => {
                     class="flex items-center gap-4 p-4 hover:bg-slate-50"
                 >
                     <img
-                        :src="conversation.user?.avatar || '/images/default-avatar.png'"
-                        class="h-10 w-10 rounded-full object-cover"
+                        v-if="getAvatarSrc(conversation.user)"
+                        :src="getAvatarSrc(conversation.user)"
+                        alt=""
+                        class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200"
                     />
+                    <div
+                        v-else
+                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
+                    >
+                        {{ getAvatarInitial(conversation.user) }}
+                    </div>
                     <div class="flex-1 min-w-0">
                         <p class="font-medium text-slate-900 truncate">{{ conversation.user?.full_name || 'Client' }}</p>
                         <p class="text-sm text-slate-500 truncate">{{ conversation.latest_message?.body || 'No preview' }}</p>

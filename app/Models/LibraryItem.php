@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,10 +46,12 @@ class LibraryItem extends Model
      */
     protected $hidden = [
         'file_path',
+        'audio_file_path',
     ];
 
     protected $appends = [
         'cover_image_url',
+        'has_audio_companion',
     ];
 
     protected $fillable = [
@@ -60,7 +63,7 @@ class LibraryItem extends Model
         'type',
         'regions',
         'description',
-        'author',
+        'author_id',
         'publisher',
         'publication_year',
         'isbn',
@@ -69,6 +72,10 @@ class LibraryItem extends Model
         'file_name',
         'file_size',
         'file_type',
+        'audio_file_path',
+        'audio_file_name',
+        'audio_file_size',
+        'audio_file_type',
         'cover_image',
         'duration_seconds',
         'narrator',
@@ -93,6 +100,7 @@ class LibraryItem extends Model
             'is_featured' => 'boolean',
             'is_active' => 'boolean',
             'file_size' => 'integer',
+            'audio_file_size' => 'integer',
             'duration_seconds' => 'integer',
             'download_count' => 'integer',
             'view_count' => 'integer',
@@ -140,6 +148,24 @@ class LibraryItem extends Model
         return null;
     }
 
+    /**
+     * Optional audiobook file bundled with an e-book (same purchase / access).
+     */
+    public function resolveAudioFileDisk(): ?string
+    {
+        if (! $this->audio_file_path) {
+            return null;
+        }
+        if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->audio_file_path)) {
+            return self::LIBRARY_MEDIA_DISK;
+        }
+        if (Storage::disk('public')->exists($this->audio_file_path)) {
+            return 'public';
+        }
+
+        return null;
+    }
+
     public function deleteStoredLibraryFile(): void
     {
         if (! $this->file_path) {
@@ -152,15 +178,37 @@ class LibraryItem extends Model
         }
     }
 
+    public function deleteStoredAudioFile(): void
+    {
+        if (! $this->audio_file_path) {
+            return;
+        }
+        foreach ([self::LIBRARY_MEDIA_DISK, 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($this->audio_file_path)) {
+                Storage::disk($disk)->delete($this->audio_file_path);
+            }
+        }
+    }
+
     // Relationships
     public function category(): BelongsTo
     {
         return $this->belongsTo(LibraryCategory::class, 'category_id');
     }
 
+    public function libraryAuthor(): BelongsTo
+    {
+        return $this->belongsTo(LibraryAuthor::class, 'author_id');
+    }
+
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ServiceProvider::class, 'provider_id');
+    }
+
+    protected function author(): Attribute
+    {
+        return Attribute::get(fn () => $this->libraryAuthor?->name);
     }
 
     public function userAccess(): HasMany
@@ -182,6 +230,11 @@ class LibraryItem extends Model
     public function getCoverImageUrlAttribute(): ?string
     {
         return $this->cover_image ? asset('storage/'.$this->cover_image) : null;
+    }
+
+    public function getHasAudioCompanionAttribute(): bool
+    {
+        return $this->type === 'ebook' && filled($this->audio_file_path);
     }
 
     /**
@@ -259,8 +312,10 @@ class LibraryItem extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
-                ->orWhere('author', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhereHas('libraryAuthor', function ($authorQuery) use ($search) {
+                    $authorQuery->where('name', 'like', "%{$search}%");
+                });
         });
     }
 

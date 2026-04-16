@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Message;
 use App\Models\PlatformSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -61,6 +62,13 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 return $request->user()->unreadNotifications()->count();
+            },
+            'unreadMessages' => function () use ($request) {
+                if (! $request->user()) {
+                    return 0;
+                }
+
+                return Message::unreadIncomingCountFor($request->user());
             },
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

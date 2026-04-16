@@ -42,10 +42,15 @@ class SubscriptionController extends Controller
             ->limit(12)
             ->get();
 
+        $stripeSecret = config('services.stripe.secret');
+        $stripeBillingConfigured = is_string($stripeSecret) && trim($stripeSecret) !== '';
+
         return Inertia::render('Provider/Subscriptions/Index', [
             'plans' => $plans,
             'currentSubscription' => $currentSubscription,
             'subscriptionHistory' => $history,
+            'stripeBillingConfigured' => $stripeBillingConfigured,
+            'showStripeSetupHints' => (bool) config('app.debug'),
         ]);
     }
 

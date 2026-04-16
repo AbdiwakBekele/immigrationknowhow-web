@@ -11,7 +11,7 @@ import {
     ArchiveBoxIcon,
     InformationCircleIcon,
 } from '@heroicons/vue/24/outline';
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
 const props = defineProps({
@@ -87,8 +87,25 @@ const scrollToBottom = () => {
     });
 };
 
+let pollTimer = null;
+const pollConversation = () => {
+    if (document.visibilityState !== 'visible') {
+        return;
+    }
+    router.reload({ only: ['conversation'], preserveScroll: true });
+};
+
 onMounted(() => {
     scrollToBottom();
+    pollTimer = window.setInterval(pollConversation, 4000);
+    document.addEventListener('visibilitychange', pollConversation);
+});
+
+onUnmounted(() => {
+    if (pollTimer !== null) {
+        clearInterval(pollTimer);
+    }
+    document.removeEventListener('visibilitychange', pollConversation);
 });
 
 watch(() => props.conversation?.messages, () => {
@@ -100,6 +117,8 @@ const sendMessage = () => {
 
     form.post(route('provider.messages.send', props.conversation.uuid), {
         preserveScroll: true,
+        preserveState: false,
+        forceFormData: form.attachments.length > 0,
         onSuccess: () => {
             form.reset();
             attachmentPreviews.value = [];
@@ -171,6 +190,8 @@ const getServiceTypeLabel = (type) => {
         tutor: 'Tutoring',
         translator: 'Translation',
         real_estate: 'Real Estate',
+        driving_instructor: 'Driving Instruction',
+        business_consultant: 'Business Consulting',
     };
     return labels[type] || type;
 };
@@ -206,6 +227,37 @@ const acceptOffer = () => {
     if (!lead?.uuid) return;
     router.patch(route('provider.leads.status', lead.uuid), { status: 'in_progress' }, { preserveScroll: true });
 };
+
+const getAvatarSrc = (person) => {
+    if (!person) {
+        return null;
+    }
+    const fromUrl = String(person.avatar_url ?? '').trim();
+    if (fromUrl) {
+        return fromUrl;
+    }
+    const raw = String(person.avatar ?? '').trim();
+    if (!raw) {
+        return null;
+    }
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+    return `/storage/${raw}`;
+};
+
+/** Single visible letter when no photo (matches client list pattern). */
+const getAvatarInitial = (person) => {
+    const first = (person?.first_name || '').trim();
+    if (first) {
+        return first.charAt(0).toUpperCase();
+    }
+    const last = (person?.last_name || '').trim();
+    if (last) {
+        return last.charAt(0).toUpperCase();
+    }
+    return '?';
+};
 </script>
 
 <template>
@@ -225,10 +277,17 @@ const acceptOffer = () => {
 
                         <div class="flex items-center gap-3">
                             <img
-                                :src="otherParticipant.avatar || '/img/default-avatar.png'"
-                                :alt="otherParticipant.first_name"
-                                class="w-10 h-10 rounded-full object-cover"
+                                v-if="getAvatarSrc(otherParticipant)"
+                                :src="getAvatarSrc(otherParticipant)"
+                                alt=""
+                                class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200"
                             />
+                            <div
+                                v-else
+                                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-sm font-semibold text-white ring-1 ring-slate-200"
+                            >
+                                {{ getAvatarInitial(otherParticipant) }}
+                            </div>
                             <div>
                                 <h1 class="font-semibold text-slate-900">
                                     {{ otherParticipant.first_name }} {{ otherParticipant.last_name }}
@@ -340,11 +399,17 @@ const acceptOffer = () => {
                         >
                             <div :class="['flex gap-3 max-w-[75%]', isFromMe(message) && 'flex-row-reverse']">
                                 <img
-                                    v-if="!isFromMe(message)"
-                                    :src="message.sender?.avatar || '/img/default-avatar.png'"
-                                    :alt="message.sender?.first_name"
-                                    class="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                    v-if="!isFromMe(message) && getAvatarSrc(message.sender)"
+                                    :src="getAvatarSrc(message.sender)"
+                                    alt=""
+                                    class="h-8 w-8 flex-shrink-0 rounded-full object-cover ring-1 ring-slate-200"
                                 />
+                                <div
+                                    v-else-if="!isFromMe(message)"
+                                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-xs font-semibold text-white ring-1 ring-slate-200"
+                                >
+                                    {{ getAvatarInitial(message.sender) }}
+                                </div>
 
                                 <div :class="[
                                     'rounded-2xl px-4 py-3',

@@ -15,6 +15,7 @@ class ServiceTypeOption extends Model
         'icon',
         'for_user',
         'for_provider',
+        'include_certificate',
         'is_active',
         'sort_order',
     ];
@@ -22,6 +23,7 @@ class ServiceTypeOption extends Model
     protected $casts = [
         'for_user' => 'boolean',
         'for_provider' => 'boolean',
+        'include_certificate' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

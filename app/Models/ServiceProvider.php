@@ -6,21 +6,17 @@ use App\Enums\ServiceType;
 use App\Enums\VerificationStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
 
 class ServiceProvider extends Model
 {
     use HasFactory, HasSlug, SoftDeletes;
-
-    protected $appends = [
-        'primary_service_type',
-    ];
 
     protected $fillable = [
         'user_id',
@@ -33,7 +29,6 @@ class ServiceProvider extends Model
         'business_phone',
         'website',
         'service_types',
-        'primary_service_type',
         'specializations',
         'languages_offered',
         'pricing_model',
@@ -49,6 +44,7 @@ class ServiceProvider extends Model
         'license_state',
         'license_expiry',
         'certifications',
+        'health_certificates',
         'years_experience',
         'linkedin_url',
         'facebook_url',
@@ -84,6 +80,7 @@ class ServiceProvider extends Model
             'languages_offered' => 'array',
             'service_areas' => 'array',
             'certifications' => 'array',
+            'health_certificates' => 'array',
             'hourly_rate' => 'decimal:2',
             'consultation_fee' => 'decimal:2',
             'average_rating' => 'decimal:2',
@@ -194,6 +191,7 @@ class ServiceProvider extends Model
             $this->user->city,
             $this->user->state,
         ]);
+
         return implode(', ', $parts) ?: 'Location not specified';
     }
 
@@ -202,7 +200,8 @@ class ServiceProvider extends Model
         if ($this->total_reviews === 0) {
             return 'No reviews yet';
         }
-        return number_format($this->average_rating, 1) . ' (' . $this->total_reviews . ' reviews)';
+
+        return number_format($this->average_rating, 1).' ('.$this->total_reviews.' reviews)';
     }
 
     // Scopes
@@ -229,6 +228,7 @@ class ServiceProvider extends Model
     public function scopeByServiceType($query, string|ServiceType $type)
     {
         $value = $type instanceof ServiceType ? $type->value : $type;
+
         return $query->whereJsonContains('service_types', $value);
     }
 
@@ -237,7 +237,7 @@ class ServiceProvider extends Model
         return $query->whereJsonContains('languages_offered', $language);
     }
 
-    public function scopeServesLocation($query, string $city = null, string $state = null)
+    public function scopeServesLocation($query, ?string $city = null, ?string $state = null)
     {
         return $query->where(function ($q) use ($city, $state) {
             $q->where('serves_remote', true)
@@ -268,9 +268,9 @@ class ServiceProvider extends Model
     // Helper Methods
     public function isVerified(): bool
     {
-        return $this->background_check_status === 'clear' 
-            && $this->background_check_verified_at 
-            && (!$this->latestBackgroundCheck()?->is_expired ?? true);
+        return $this->background_check_status === 'clear'
+            && $this->background_check_verified_at
+            && (! $this->latestBackgroundCheck()?->is_expired ?? true);
     }
 
     public function hasValidBackgroundCheck(): bool
@@ -282,14 +282,14 @@ class ServiceProvider extends Model
 
     public function latestBackgroundCheck()
     {
-        return $this->hasMany(\App\Models\BackgroundCheck::class)
+        return $this->hasMany(BackgroundCheck::class)
             ->latest()
             ->first();
     }
 
     public function backgroundChecks()
     {
-        return $this->hasMany(\App\Models\BackgroundCheck::class);
+        return $this->hasMany(BackgroundCheck::class);
     }
 
     public function subscriptions(): HasMany

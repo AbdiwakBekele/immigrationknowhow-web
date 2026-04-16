@@ -19,14 +19,14 @@ class ReviewController extends Controller
     {
         // Check if user can review this provider
         $user = auth()->user();
-        
+
         // Must have had at least one converted lead with this provider
         $canReview = $user->leads()
             ->where('service_provider_id', $provider->id)
             ->where('status', 'converted')
             ->exists();
 
-        if (!$canReview) {
+        if (! $canReview) {
             return redirect()->route('marketplace.show', $provider)
                 ->with('error', 'You must have used this provider\'s services before leaving a review.');
         }
@@ -52,7 +52,7 @@ class ReviewController extends Controller
             ->where('status', 'converted')
             ->exists();
 
-        if (!$hasUsedService) {
+        if (! $hasUsedService) {
             return back()->withErrors(['error' => 'You must have used this provider\'s services to leave a review.']);
         }
 
@@ -128,7 +128,7 @@ class ReviewController extends Controller
         $user = auth()->user();
 
         $reviews = Review::where('user_id', $user->id)
-            ->with('serviceProvider:id,slug,business_name,primary_service_type')
+            ->with('serviceProvider:id,slug,business_name,service_types')
             ->latest()
             ->paginate(10);
 
@@ -142,7 +142,7 @@ class ReviewController extends Controller
         $this->authorize('update', $review);
 
         return Inertia::render('Reviews/Edit', [
-            'review' => $review->load('serviceProvider:id,slug,business_name'),
+            'review' => $review->load('serviceProvider:id,slug,business_name,service_types'),
         ]);
     }
 

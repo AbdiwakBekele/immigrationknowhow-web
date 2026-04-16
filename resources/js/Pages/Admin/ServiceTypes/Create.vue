@@ -13,6 +13,7 @@ const form = useForm({
     icon: '',
     for_user: true,
     for_provider: true,
+    include_certificate: false,
     is_active: true,
     sort_order: props.suggested_sort_order,
 });
@@ -115,6 +116,10 @@ const fillValueFromLabel = () => {
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.for_provider" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
                             <span class="text-sm text-slate-700">Show to providers (offer services)</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input v-model="form.include_certificate" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                            <span class="text-sm text-slate-700">Include certificate upload for providers using this service type</span>
                         </label>
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />

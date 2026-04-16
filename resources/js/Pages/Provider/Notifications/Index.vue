@@ -1,9 +1,9 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
-import { BellIcon } from '@heroicons/vue/24/outline';
 
-defineProps({
+const props = defineProps({
     notifications: {
         type: Object,
         required: true,
@@ -13,6 +13,12 @@ defineProps({
         default: false,
     },
 });
+
+const hasUnread = computed(
+    () =>
+        !props.notifications_table_missing &&
+        (props.notifications.data ?? []).some((r) => !r.read_at),
+);
 
 const formatDate = (iso) => {
     return new Date(iso).toLocaleString('en-US', {
@@ -29,11 +35,57 @@ const summary = (row) => {
     if (typeof d.message === 'string') {
         return d.message;
     }
+    if (d.type === 'new_message' && typeof d.sender_name === 'string') {
+        const preview = typeof d.message_preview === 'string' ? d.message_preview : '';
+        return preview ? `Message from ${d.sender_name}` : `New message from ${d.sender_name}`;
+    }
     if (typeof d.title === 'string') {
         return d.title;
     }
     const base = row.type?.split('\\').pop() || 'Notification';
     return base.replace(/([A-Z])/g, ' $1').trim();
+};
+
+const detailLine = (row) => {
+    const d = row.data || {};
+    if (d.type === 'new_message' && typeof d.message_preview === 'string') {
+        return d.message_preview;
+    }
+    if (typeof d.reason === 'string' && d.reason.trim()) {
+        return d.reason;
+    }
+    return null;
+};
+
+const notificationHref = (row) => {
+    const d = row.data || {};
+    if (d.lead_uuid) {
+        return route('provider.leads.show', d.lead_uuid);
+    }
+    if (d.conversation_uuid) {
+        return route('provider.messages.show', d.conversation_uuid);
+    }
+    if (d.type === 'new_review') {
+        return '/provider/reviews';
+    }
+    if (d.type === 'verification_approved' || d.type === 'verification_rejected') {
+        return '/provider/profile';
+    }
+    return null;
+};
+
+const markAsRead = (row) => {
+    if (props.notifications_table_missing || row.read_at) {
+        return;
+    }
+    router.post(route('provider.notifications.read', row.id), {}, { preserveScroll: true });
+};
+
+const markAllAsRead = () => {
+    if (props.notifications_table_missing || !hasUnread.value) {
+        return;
+    }
+    router.post(route('provider.notifications.read-all'), {}, { preserveScroll: true });
 };
 </script>
 
@@ -43,18 +95,24 @@ const summary = (row) => {
     <ProviderLayout>
         <div class="admin-page-container">
             <section class="admin-hero-card">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Alerts</p>
-                    <h1 class="mt-2 admin-title">Notifications</h1>
-                    <p class="admin-subtitle">In-app alerts for your provider account.</p>
-                </div>
-                <Link
-                    :href="route('provider.dashboard')"
-                    class="text-sm font-semibold text-primary-600 hover:text-primary-700"
-                >
-                    ← Dashboard
-                </Link>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Alerts
+                        </p>
+                        <h1 class="mt-2 admin-title">Notifications</h1>
+                        <p class="admin-subtitle">In-app alerts for your provider account.</p>
+                    </div>
+                    <div class="flex shrink-0 flex-wrap items-center gap-3 sm:pt-0.5">
+                        <button
+                            v-if="!notifications_table_missing && hasUnread"
+                            type="button"
+                            class="text-sm font-semibold text-primary-600 hover:text-primary-700"
+                            @click="markAllAsRead"
+                        >
+                            Mark all as read
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -78,17 +136,34 @@ const summary = (row) => {
                         class="flex gap-3 px-4 py-3"
                         :class="row.read_at ? 'bg-white' : 'bg-primary-50/50'"
                     >
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                            <BellIcon class="h-5 w-5" />
-                        </div>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-medium text-slate-900">{{ summary(row) }}</p>
+                            <p v-if="detailLine(row)" class="mt-0.5 line-clamp-2 text-xs text-slate-600">
+                                {{ detailLine(row) }}
+                            </p>
                             <p class="mt-0.5 text-xs text-slate-500">{{ formatDate(row.created_at) }}</p>
+                        </div>
+                        <div class="flex shrink-0 flex-col items-end justify-center gap-2">
+                            <button
+                                v-if="!row.read_at"
+                                type="button"
+                                class="text-xs font-semibold text-primary-600 hover:text-primary-700"
+                                @click="markAsRead(row)"
+                            >
+                                Mark read
+                            </button>
+                            <Link
+                                v-if="notificationHref(row)"
+                                :href="notificationHref(row)"
+                                class="text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-primary-600"
+                                @click="markAsRead(row)"
+                            >
+                                View
+                            </Link>
                         </div>
                     </li>
                 </ul>
                 <div v-else class="flex flex-col items-center justify-center px-4 py-14 text-center">
-                    <BellIcon class="mb-3 h-12 w-12 text-slate-300" />
                     <p class="text-sm font-medium text-slate-700">No notifications yet</p>
                     <p class="mt-1 max-w-sm text-sm text-slate-500">
                         When the system sends in-app notifications to your account, they will appear here.

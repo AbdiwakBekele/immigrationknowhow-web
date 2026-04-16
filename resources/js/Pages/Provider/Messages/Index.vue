@@ -66,6 +66,36 @@ const leadStatus = (lead) => {
     const s = lead.status;
     return typeof s === 'object' && s?.value != null ? s.value : s;
 };
+
+const getAvatarSrc = (person) => {
+    if (!person) {
+        return null;
+    }
+    const fromUrl = String(person.avatar_url ?? '').trim();
+    if (fromUrl) {
+        return fromUrl;
+    }
+    const raw = String(person.avatar ?? '').trim();
+    if (!raw) {
+        return null;
+    }
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+    return `/storage/${raw}`;
+};
+
+const getAvatarInitial = (person) => {
+    const first = (person?.first_name || '').trim();
+    if (first) {
+        return first.charAt(0).toUpperCase();
+    }
+    const last = (person?.last_name || '').trim();
+    if (last) {
+        return last.charAt(0).toUpperCase();
+    }
+    return '?';
+};
 </script>
 
 <template>
@@ -113,9 +143,17 @@ const leadStatus = (lead) => {
                 >
                     <div class="relative flex-shrink-0">
                         <img
-                            :src="conversation.user?.avatar || '/images/default-avatar.png'"
-                            class="h-12 w-12 rounded-full object-cover"
+                            v-if="getAvatarSrc(conversation.user)"
+                            :src="getAvatarSrc(conversation.user)"
+                            alt=""
+                            class="h-12 w-12 rounded-full object-cover ring-1 ring-gray-200"
                         />
+                        <div
+                            v-else
+                            class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700 ring-1 ring-gray-200"
+                        >
+                            {{ getAvatarInitial(conversation.user) }}
+                        </div>
                         <div
                             v-if="conversation.unread_count > 0"
                             class="absolute -top-1 -right-1 h-5 w-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center"

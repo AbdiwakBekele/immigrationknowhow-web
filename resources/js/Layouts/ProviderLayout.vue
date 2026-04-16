@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
-import { Transition } from 'vue';
+import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import {
     HomeIcon,
+    MagnifyingGlassIcon,
     InboxIcon,
     ChatBubbleLeftRightIcon,
     StarIcon,
@@ -30,8 +31,35 @@ const sidebarOpen = ref(false);
 
 const unreadNotificationsCount = computed(() => page.props.unread_notifications_count ?? 0);
 
+const liveUnreadOverride = ref(null);
+
+const unreadMessages = computed(() => {
+    if (typeof liveUnreadOverride.value === 'number' && !Number.isNaN(liveUnreadOverride.value)) {
+        return liveUnreadOverride.value;
+    }
+    return Number(page.props.unreadMessages ?? 0) || 0;
+});
+
+watch(
+    () => page.props.unreadMessages,
+    () => {
+        liveUnreadOverride.value = null;
+    },
+);
+const unreadMessagesLabel = computed(() => {
+    const n = unreadMessages.value;
+    if (n < 1) {
+        return '';
+    }
+    if (n > 9999) {
+        return '9999+';
+    }
+    return String(n);
+});
+
 const navigation = [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
+    { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
@@ -48,11 +76,71 @@ const logout = () => {
 
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
-    if (path === href) {
+    let target = typeof href === 'string' ? href : '';
+    if (target.startsWith('http://') || target.startsWith('https://')) {
+        try {
+            target = new URL(target).pathname;
+        } catch {
+            /* keep target as-is */
+        }
+    }
+    if (path === target) {
         return true;
     }
-    return path.startsWith(`${href}/`);
+    return path.startsWith(`${target}/`);
 };
+
+const readXsrfCookie = () => {
+    const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : '';
+};
+
+const pollUnreadMessages = async () => {
+    try {
+        const res = await fetch('/messages/unread-count', {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': readXsrfCookie(),
+            },
+            credentials: 'same-origin',
+        });
+        if (!res.ok) {
+            return;
+        }
+        const data = await res.json();
+        if (typeof data.count === 'number') {
+            liveUnreadOverride.value = data.count;
+        }
+    } catch {
+        /* ignore */
+    }
+};
+
+let unreadPollTimer = null;
+
+const onVisibilityForUnread = () => {
+    if (document.visibilityState === 'visible') {
+        pollUnreadMessages();
+    }
+};
+
+onMounted(() => {
+    pollUnreadMessages();
+    unreadPollTimer = window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            pollUnreadMessages();
+        }
+    }, 12000);
+    document.addEventListener('visibilitychange', onVisibilityForUnread);
+});
+
+onUnmounted(() => {
+    if (unreadPollTimer !== null) {
+        clearInterval(unreadPollTimer);
+    }
+    document.removeEventListener('visibilitychange', onVisibilityForUnread);
+});
 </script>
 
 <template>
@@ -119,8 +207,9 @@ const isActive = (href) => {
                     v-for="item in navigation"
                     :key="item.href"
                     :href="item.href"
+                    :aria-label="item.name === 'Messages' && unreadMessages > 0 ? `${item.name}, ${unreadMessages} unread` : item.name"
                     :class="[
-                        'group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all duration-150',
+                        'group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all duration-150',
                         isActive(item.href)
                             ? 'bg-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.65)]'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
@@ -129,15 +218,21 @@ const isActive = (href) => {
                 >
                     <span
                         :class="[
-                            'inline-flex h-10 w-10 items-center justify-center rounded-2xl transition-colors',
+                            'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-colors',
                             isActive(item.href)
                                 ? 'bg-white/18 text-white'
                                 : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700',
                         ]"
                     >
                         <component :is="item.icon" class="h-5 w-5" />
+                        <span
+                            v-if="item.name === 'Messages' && unreadMessages > 0"
+                            class="absolute -right-0.5 -top-0.5 z-10 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                        >
+                            {{ unreadMessagesLabel }}
+                        </span>
                     </span>
-                    <span class="truncate">{{ item.name }}</span>
+                    <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
                 </Link>
                 </div>
             </nav>

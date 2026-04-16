@@ -28,6 +28,19 @@ const formatCurrency = (value) => {
     if (value === null || value === undefined || value === '') return 'Not set';
     return `$${Number(value).toFixed(2)}`;
 };
+
+const formatDate = (value) => {
+    if (!value) return 'No expiration';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString();
+};
+
+const healthCertificateFileUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `/storage/${path}`;
+};
 </script>
 
 <template>
@@ -172,6 +185,32 @@ const formatCurrency = (value) => {
                         </div>
                     </div>
                     <p v-else class="text-sm text-slate-500">No certifications added.</p>
+                </div>
+
+                <div class="mt-5">
+                    <h3 class="font-semibold text-slate-900 mb-2">Health-Related Certificates</h3>
+                    <div v-if="provider?.health_certificates?.length" class="space-y-2">
+                        <div
+                            v-for="(certificate, index) in provider.health_certificates"
+                            :key="`health-cert-${index}`"
+                            class="text-sm text-slate-700 p-3 rounded-lg bg-slate-50"
+                        >
+                            <p class="font-medium text-slate-900">{{ certificate.name || 'Untitled certificate' }}</p>
+                            <p v-if="certificate.issuing_authority" class="text-slate-600 mt-0.5">
+                                Issued by {{ certificate.issuing_authority }}
+                            </p>
+                            <p class="text-slate-600 mt-0.5">Expiration: {{ formatDate(certificate.expiration_date) }}</p>
+                            <a
+                                v-if="certificate.file_path"
+                                :href="healthCertificateFileUrl(certificate.file_path)"
+                                target="_blank"
+                                class="inline-block mt-1 text-primary-600 hover:text-primary-700 underline"
+                            >
+                                {{ certificate.original_name || 'View document' }}
+                            </a>
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-slate-500">No health-related certificates added.</p>
                 </div>
             </div>
 

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
@@ -63,12 +62,13 @@ class DashboardController extends Controller
         // Featured library items
         $libraryItems = LibraryItem::active()
             ->featured()
+            ->with('libraryAuthor')
             ->limit(3)
             ->get([
                 'uuid',
                 'slug',
                 'title',
-                'author',
+                'author_id',
                 'type',
                 'cover_image',
                 'is_premium',
@@ -80,7 +80,7 @@ class DashboardController extends Controller
         $purchasedItems = LibraryUserAccess::query()
             ->where('user_id', $user->id)
             ->whereNotNull('purchased_at')
-            ->with(['libraryItem'])
+            ->with(['libraryItem.libraryAuthor'])
             ->latest('purchased_at')
             ->limit(5)
             ->get()
@@ -123,15 +123,7 @@ class DashboardController extends Controller
 
     protected function getUnreadMessageCount($user): int
     {
-        return Conversation::forUser($user)
-            ->forServiceInquiries()
-            ->whereHas('messages', function ($q) use ($user) {
-                $q->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($rq) use ($user) {
-                        $rq->where('user_id', $user->id);
-                    });
-            })
-            ->count();
+        return Message::unreadIncomingCountFor($user);
     }
 
     protected function calculateProfileCompletion($user): int

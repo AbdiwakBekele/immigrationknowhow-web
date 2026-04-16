@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import { Transition } from 'vue';
 import {
@@ -18,7 +19,32 @@ import {
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const unreadMessages = computed(() => page.props.unreadMessages || 0);
+/** Live override so the sidebar badge can update without a full navigation (same count as server share). */
+const liveUnreadOverride = ref(null);
+
+const unreadMessages = computed(() => {
+    if (typeof liveUnreadOverride.value === 'number' && !Number.isNaN(liveUnreadOverride.value)) {
+        return liveUnreadOverride.value;
+    }
+    return Number(page.props.unreadMessages ?? 0) || 0;
+});
+
+watch(
+    () => page.props.unreadMessages,
+    () => {
+        liveUnreadOverride.value = null;
+    },
+);
+const unreadMessagesLabel = computed(() => {
+    const n = unreadMessages.value;
+    if (n < 1) {
+        return '';
+    }
+    if (n > 9999) {
+        return '9999+';
+    }
+    return String(n);
+});
 const userLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
     return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
@@ -29,14 +55,14 @@ const scrolled = ref(false);
 
 const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Find Services', href: '/providers', icon: MagnifyingGlassIcon },
+    { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Library', href: '/library', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
 ];
 
 const userNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'Find Providers', href: '/providers', icon: MagnifyingGlassIcon },
+    { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'Library', href: '/library', icon: BookOpenIcon },
@@ -44,10 +70,60 @@ const userNavigation = [
     { name: 'Reviews', href: '/reviews', icon: StarIcon },
 ];
 
+const readXsrfCookie = () => {
+    const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : '';
+};
+
+const pollUnreadMessages = async () => {
+    try {
+        const res = await fetch('/messages/unread-count', {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': readXsrfCookie(),
+            },
+            credentials: 'same-origin',
+        });
+        if (!res.ok) {
+            return;
+        }
+        const data = await res.json();
+        if (typeof data.count === 'number') {
+            liveUnreadOverride.value = data.count;
+        }
+    } catch {
+        /* ignore */
+    }
+};
+
+let unreadPollTimer = null;
+
+const onVisibilityForUnread = () => {
+    if (document.visibilityState === 'visible') {
+        pollUnreadMessages();
+    }
+};
+
 onMounted(() => {
     window.addEventListener('scroll', () => {
         scrolled.value = window.scrollY > 20;
     });
+
+    pollUnreadMessages();
+    unreadPollTimer = window.setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            pollUnreadMessages();
+        }
+    }, 12000);
+    document.addEventListener('visibilitychange', onVisibilityForUnread);
+});
+
+onUnmounted(() => {
+    if (unreadPollTimer !== null) {
+        clearInterval(unreadPollTimer);
+    }
+    document.removeEventListener('visibilitychange', onVisibilityForUnread);
 });
 
 const logout = () => {
@@ -56,10 +132,18 @@ const logout = () => {
 
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
-    if (path === href) {
+    let target = typeof href === 'string' ? href : '';
+    if (target.startsWith('http://') || target.startsWith('https://')) {
+        try {
+            target = new URL(target).pathname;
+        } catch {
+            /* keep target as-is */
+        }
+    }
+    if (path === target) {
         return true;
     }
-    return path.startsWith(`${href}/`);
+    return path.startsWith(`${target}/`);
 };
 
 const userAvatarSrc = computed(() => {
@@ -138,8 +222,9 @@ const userAvatarInitial = computed(() => {
                     v-for="item in userNavigation"
                     :key="item.name + item.href"
                     :href="item.href"
+                    :aria-label="item.name === 'Messages' && unreadMessages > 0 ? `${item.name}, ${unreadMessages} unread` : item.name"
                     :class="[
-                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                        'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         isActive(item.href)
                             ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
                             : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
@@ -148,15 +233,21 @@ const userAvatarInitial = computed(() => {
                 >
                     <span
                         :class="[
-                            'inline-flex rounded-lg p-1.5 transition-colors',
+                            'relative inline-flex rounded-lg p-1.5 transition-colors',
                             isActive(item.href)
                                 ? 'bg-white/20 text-white'
                                 : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
                         ]"
                     >
                         <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                        <span
+                            v-if="item.name === 'Messages' && unreadMessages > 0"
+                            class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                        >
+                            {{ unreadMessagesLabel }}
+                        </span>
                     </span>
-                    {{ item.name }}
+                    <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
                 </Link>
 
             </nav>
@@ -215,9 +306,9 @@ const userAvatarInitial = computed(() => {
                             <ChatBubbleLeftRightIcon class="h-6 w-6" />
                             <span
                                 v-if="unreadMessages > 0"
-                                class="absolute -top-0.5 -right-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white"
+                                class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
                             >
-                                {{ unreadMessages > 9 ? '9+' : unreadMessages }}
+                                {{ unreadMessagesLabel }}
                             </span>
                         </Link>
                         <Link

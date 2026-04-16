@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
@@ -42,5 +43,30 @@ class NotificationController extends Controller
             'notifications' => $notifications,
             'notifications_table_missing' => false,
         ]);
+    }
+
+    public function markAsRead(Request $request, string $notification): RedirectResponse
+    {
+        if (! Schema::hasTable('notifications')) {
+            return back();
+        }
+
+        $request->user()
+            ->unreadNotifications()
+            ->where('id', $notification)
+            ->update(['read_at' => now()]);
+
+        return back();
+    }
+
+    public function markAllAsRead(Request $request): RedirectResponse
+    {
+        if (! Schema::hasTable('notifications')) {
+            return back();
+        }
+
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+
+        return back();
     }
 }

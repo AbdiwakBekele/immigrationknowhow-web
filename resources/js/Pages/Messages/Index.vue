@@ -71,6 +71,11 @@ const markAsRead = (uuid) => {
         preserveScroll: true,
     });
 };
+
+const getInitial = (name) => {
+    const first = (name || '').trim();
+    return first ? first.charAt(0).toUpperCase() : '?';
+};
 </script>
 
 <template>
@@ -118,10 +123,17 @@ const markAsRead = (uuid) => {
                 >
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
-                        <img 
-                            :src="(conversation.service_provider?.user?.avatar || conversation.user?.avatar) || '/images/default-avatar.png'"
+                        <img
+                            v-if="conversation.service_provider?.user?.avatar || conversation.user?.avatar"
+                            :src="conversation.service_provider?.user?.avatar || conversation.user?.avatar"
                             class="h-12 w-12 rounded-full object-cover"
                         />
+                        <div
+                            v-else
+                            class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"
+                        >
+                            {{ getInitial(conversation.service_provider?.user?.first_name || conversation.user?.first_name || conversation.user?.full_name) }}
+                        </div>
                         <div 
                             v-if="conversation.unread_count > 0"
                             class="absolute -top-1 -right-1 h-5 w-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center"

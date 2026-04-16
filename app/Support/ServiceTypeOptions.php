@@ -28,7 +28,7 @@ class ServiceTypeOptions
                 $query->where('for_provider', true);
             }
 
-            $rows = $query->get(['value', 'label', 'icon', 'for_user', 'for_provider']);
+            $rows = $query->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate']);
             if ($rows->isNotEmpty()) {
                 return $rows->map(fn ($row) => [
                     'value' => $row->value,
@@ -36,6 +36,7 @@ class ServiceTypeOptions
                     'icon' => $row->icon,
                     'for_user' => (bool) $row->for_user,
                     'for_provider' => (bool) $row->for_provider,
+                    'include_certificate' => (bool) $row->include_certificate,
                 ])->toArray();
             }
         } catch (Throwable) {
@@ -68,7 +69,7 @@ class ServiceTypeOptions
                     ->active()
                     ->orderBy('sort_order')
                     ->orderBy('label')
-                    ->get(['value', 'label', 'icon', 'for_user', 'for_provider']);
+                    ->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate']);
 
                 foreach ($rows as $row) {
                     $index[$row->value] = [
@@ -77,6 +78,7 @@ class ServiceTypeOptions
                         'icon' => $row->icon,
                         'for_user' => (bool) $row->for_user,
                         'for_provider' => (bool) $row->for_provider,
+                        'include_certificate' => (bool) $row->include_certificate,
                     ];
                 }
             } catch (Throwable) {
@@ -110,6 +112,7 @@ class ServiceTypeOptions
                             'icon' => null,
                             'for_user' => true,
                             'for_provider' => true,
+                            'include_certificate' => false,
                         ];
                     }
                 }

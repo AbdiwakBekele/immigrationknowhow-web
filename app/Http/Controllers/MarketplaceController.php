@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ServiceType;
-use App\Enums\VerificationStatus;
 use App\Models\ServiceProvider;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,15 +67,20 @@ class MarketplaceController extends Controller
 
         // Sorting
         $sortBy = $request->input('sort', 'rating');
-        $query->when($sortBy === 'rating', fn($q) => $q->orderByDesc('average_rating')->orderByDesc('total_reviews'))
-            ->when($sortBy === 'reviews', fn($q) => $q->orderByDesc('total_reviews'))
-            ->when($sortBy === 'newest', fn($q) => $q->orderByDesc('created_at'))
-            ->when($sortBy === 'experience', fn($q) => $q->orderByDesc('years_experience'));
+        $query->when($sortBy === 'rating', fn ($q) => $q->orderByDesc('average_rating')->orderByDesc('total_reviews'))
+            ->when($sortBy === 'reviews', fn ($q) => $q->orderByDesc('total_reviews'))
+            ->when($sortBy === 'newest', fn ($q) => $q->orderByDesc('created_at'))
+            ->when($sortBy === 'experience', fn ($q) => $q->orderByDesc('years_experience'));
 
         // Featured providers first
         $query->orderByDesc('is_featured');
 
         $providers = $query->paginate(12)->withQueryString();
+        $providers->setCollection(
+            $providers->getCollection()->map(
+                fn (ServiceProvider $p) => $p->append('primary_service_type')
+            )
+        );
 
         return Inertia::render('Marketplace/Index', [
             'providers' => $providers,
@@ -99,7 +103,7 @@ class MarketplaceController extends Controller
 
         $provider->load([
             'user:id,first_name,last_name,avatar,city,state,country',
-            'reviews' => fn($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
+            'reviews' => fn ($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
         ]);
 
         if (! $isOwner) {
@@ -107,15 +111,17 @@ class MarketplaceController extends Controller
         }
 
         // Get similar providers
-        $similarProviders = $this->getSimilarProviders($provider);
+        $similarProviders = $this->getSimilarProviders($provider)->map(
+            fn (ServiceProvider $p) => $p->append('primary_service_type')
+        );
 
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
             'similarProviders' => $similarProviders,
-            'canContactProvider' => auth()->check() && !auth()->user()->isProvider(),
+            'canContactProvider' => auth()->check() && ! auth()->user()->isProvider(),
             'isOwnListingPreview' => $isOwner,
             'serviceTypeLabels' => collect($provider->service_types ?? [])
-                ->map(fn($type) => ServiceType::tryFrom($type)?->label() ?? $type)
+                ->map(fn ($type) => ServiceType::tryFrom($type)?->label() ?? $type)
                 ->toArray(),
         ]);
     }
@@ -129,7 +135,8 @@ class MarketplaceController extends Controller
             ->verified()
             ->featured()
             ->limit(6)
-            ->get();
+            ->get()
+            ->map(fn (ServiceProvider $p) => $p->append('primary_service_type'));
     }
 
     protected function getSimilarProviders(ServiceProvider $provider)
@@ -147,6 +154,7 @@ class MarketplaceController extends Controller
             })
             ->orderByDesc('average_rating')
             ->limit(4)
-            ->get();
+            ->get()
+            ->map(fn (ServiceProvider $p) => $p->append('primary_service_type'));
     }
 }
