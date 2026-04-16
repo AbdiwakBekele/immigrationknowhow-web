@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import {
@@ -62,6 +62,34 @@ const getInitial = (user) => {
 
     const fullName = (user?.full_name || '').trim();
     return fullName ? fullName.charAt(0).toUpperCase() : '?';
+};
+
+const failedVerificationAvatars = ref({});
+
+const getVerificationAvatar = (verification) => {
+    const user = verification?.service_provider?.user;
+    const candidate = (user?.avatar_url || user?.avatar || '').trim();
+    return candidate || null;
+};
+
+const hasVerificationAvatar = (verification) => {
+    const avatar = getVerificationAvatar(verification);
+    return Boolean(avatar) && !failedVerificationAvatars.value[verification.id];
+};
+
+const onVerificationAvatarError = (verificationId) => {
+    failedVerificationAvatars.value = {
+        ...failedVerificationAvatars.value,
+        [verificationId]: true,
+    };
+};
+
+const getVerificationInitial = (verification) => {
+    const user = verification.service_provider?.user;
+    if (user) return getInitial(user);
+
+    const businessName = (verification.service_provider?.business_name || '').trim();
+    return businessName ? businessName.charAt(0).toUpperCase() : '?';
 };
 
 const statCards = computed(() => [
@@ -263,10 +291,18 @@ const accentMap = {
                                 class="flex items-center gap-4 rounded-2xl border border-slate-200 p-4 transition hover:border-blue-200 hover:bg-slate-50"
                             >
                                 <img
-                                    :src="verification.service_provider?.user?.avatar || '/images/default-avatar.png'"
+                                    v-if="hasVerificationAvatar(verification)"
+                                    :src="getVerificationAvatar(verification)"
                                     alt=""
                                     class="h-12 w-12 rounded-2xl object-cover"
+                                    @error="onVerificationAvatarError(verification.id)"
                                 />
+                                <div
+                                    v-else
+                                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-sm font-semibold text-blue-700"
+                                >
+                                    {{ getVerificationInitial(verification) }}
+                                </div>
 
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-sm font-semibold text-slate-900">

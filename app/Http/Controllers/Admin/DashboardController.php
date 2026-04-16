@@ -105,14 +105,14 @@ class DashboardController extends Controller
 
         $recentUsers = User::latest()
             ->limit(6)
-            ->get(['id', 'first_name', 'last_name', 'email', 'created_at']);
+            ->get(['id', 'first_name', 'last_name', 'email', 'avatar', 'created_at']);
 
         $recentLeads = Lead::with(['user:id,first_name,last_name', 'serviceProvider:id,business_name'])
             ->latest()
             ->limit(5)
             ->get();
 
-        $pendingBackgroundChecks = BackgroundCheck::with(['serviceProvider.user:id,first_name,last_name,email'])
+        $pendingBackgroundChecks = BackgroundCheck::with(['serviceProvider.user:id,first_name,last_name,email,avatar'])
             ->whereIn('status', [
                 BackgroundCheckStatus::INVITED,
                 BackgroundCheckStatus::COMPLETED,
