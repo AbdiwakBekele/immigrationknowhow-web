@@ -48,12 +48,14 @@ const formatChange = (change) => {
     <Head title="Analytics" />
 
     <ProviderLayout>
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="admin-page-container">
             <!-- Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <section class="admin-hero-card mb-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-display font-bold text-gray-900">Analytics</h1>
-                    <p class="text-gray-500 mt-1">Track your performance and growth</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Performance overview</p>
+                    <h1 class="mt-2 admin-title">Analytics</h1>
+                    <p class="admin-subtitle">Track your growth, lead trends, and conversion funnel.</p>
                 </div>
                 <div class="flex gap-2">
                     <button 
@@ -68,7 +70,8 @@ const formatChange = (change) => {
                         {{ opt.label }}
                     </button>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <!-- Stats Cards -->
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

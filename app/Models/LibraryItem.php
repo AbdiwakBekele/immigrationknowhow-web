@@ -32,6 +32,13 @@ class LibraryItem extends Model
         ],
     ];
 
+    public const REGION_DEFINITIONS = [
+        'usa' => 'USA',
+        'canada' => 'Canada',
+        'great_britain' => 'Great Britain',
+        'europe' => 'Europe',
+    ];
+
     /**
      * Stored on disk but must never be exposed to the browser — otherwise files
      * can be downloaded directly from /storage/... without going through access checks.
@@ -51,6 +58,7 @@ class LibraryItem extends Model
         'title',
         'slug',
         'type',
+        'regions',
         'description',
         'author',
         'publisher',
@@ -79,6 +87,7 @@ class LibraryItem extends Model
     {
         return [
             'tags' => 'array',
+            'regions' => 'array',
             'is_premium' => 'boolean',
             'price' => 'decimal:2',
             'is_featured' => 'boolean',
@@ -258,6 +267,68 @@ class LibraryItem extends Model
     public function scopeInCategory($query, $categoryId)
     {
         return $query->where('category_id', $categoryId);
+    }
+
+    public function scopeAvailableInRegion($query, ?string $region)
+    {
+        if (! is_string($region) || $region === '') {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($region) {
+            $q->whereNull('regions')
+                ->orWhereJsonLength('regions', 0)
+                ->orWhereJsonContains('regions', $region);
+        });
+    }
+
+    public static function supportedRegions(): array
+    {
+        return array_keys(static::REGION_DEFINITIONS);
+    }
+
+    public static function regionOptions(): array
+    {
+        return collect(static::REGION_DEFINITIONS)
+            ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+            ->values()
+            ->all();
+    }
+
+    public static function regionForCountry(?string $country): ?string
+    {
+        $country = is_string($country) ? trim($country) : '';
+        if ($country === '') {
+            return null;
+        }
+
+        $normalized = strtolower(preg_replace('/\s+/', ' ', $country));
+
+        if (in_array($normalized, ['united states', 'united states of america', 'usa', 'us', 'u.s.', 'u.s.a.'], true)) {
+            return 'usa';
+        }
+
+        if ($normalized === 'canada') {
+            return 'canada';
+        }
+
+        if (in_array($normalized, ['united kingdom', 'uk', 'u.k.', 'great britain', 'britain', 'england', 'scotland', 'wales', 'northern ireland'], true)) {
+            return 'great_britain';
+        }
+
+        // EU + a few common European countries (best-effort mapping from free-text country field).
+        $europe = [
+            'austria', 'belgium', 'bulgaria', 'croatia', 'cyprus', 'czech republic', 'czechia', 'denmark',
+            'estonia', 'finland', 'france', 'germany', 'greece', 'hungary', 'ireland', 'italy', 'latvia',
+            'lithuania', 'luxembourg', 'malta', 'netherlands', 'poland', 'portugal', 'romania', 'slovakia',
+            'slovenia', 'spain', 'sweden', 'norway', 'switzerland', 'iceland',
+        ];
+
+        if (in_array($normalized, $europe, true)) {
+            return 'europe';
+        }
+
+        return null;
     }
 
     // Methods

@@ -39,21 +39,26 @@ const resendInvite = (inviteId) => {
     <Head title="Affiliates" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Affiliate program</h1>
-                    <p class="mt-1 text-sm text-slate-500">Manage invites, referrals, commissions, payouts, and partner performance.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Partner management
+                    </p>
+                    <h1 class="mt-2 admin-title">Affiliate program</h1>
+                    <p class="admin-subtitle">Manage invites, referrals, commissions, payouts, and partner performance.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link :href="route('admin.affiliates.invite.create')" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">Invite affiliate</Link>
-                    <Link :href="route('admin.affiliates.commissions.index')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Commission rules</Link>
-                    <Link :href="route('admin.affiliates.payouts.index')" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Payouts</Link>
+                    <Link :href="route('admin.affiliates.invite.create')" class="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Invite affiliate</Link>
+                    <Link :href="route('admin.affiliates.commissions.index')" class="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Commission rules</Link>
+                    <Link :href="route('admin.affiliates.payouts.index')" class="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Payouts</Link>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm" v-for="item in [
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm" v-for="item in [
                     { label: 'Total affiliates', value: stats.totalAffiliates },
                     { label: 'Active affiliates', value: stats.activeAffiliates },
                     { label: 'Invited / pending', value: stats.invitedAffiliates },
@@ -62,13 +67,13 @@ const resendInvite = (inviteId) => {
                     { label: 'Paid commissions', value: `$${stats.paidCommissions}` },
                     { label: 'Total payouts', value: `$${stats.payoutTotals}` },
                 ]" :key="item.label">
-                    <p class="text-sm text-slate-500">{{ item.label }}</p>
-                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ item.value }}</p>
+                    <p class="text-xs text-slate-500">{{ item.label }}</p>
+                    <p class="mt-1 text-xl font-semibold text-slate-900">{{ item.value }}</p>
                 </div>
             </div>
 
             <div class="grid gap-4 xl:grid-cols-[2fr,1fr]">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="admin-panel">
                     <div class="flex flex-col gap-3 md:flex-row">
                         <Input v-model="searchValue" label="Search" placeholder="Affiliate code, name, email" />
                         <Select v-model="statusValue" :options="[{ value: '', label: 'All statuses' }, ...statuses]" label="Status" />
@@ -109,7 +114,7 @@ const resendInvite = (inviteId) => {
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="admin-panel">
                     <h2 class="text-base font-semibold text-slate-900">Top affiliates</h2>
                     <div class="mt-4 space-y-3">
                         <div v-for="affiliate in topAffiliates" :key="affiliate.id" class="rounded-lg bg-slate-50 p-3">
@@ -121,7 +126,7 @@ const resendInvite = (inviteId) => {
                 </div>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section class="admin-panel">
                 <div class="flex items-center justify-between gap-3">
                     <div>
                         <h2 class="text-base font-semibold text-slate-900">Pending invites</h2>
@@ -163,7 +168,7 @@ const resendInvite = (inviteId) => {
                     </table>
                     <p v-if="!pendingInvites.length" class="py-6 text-sm text-slate-500">No pending invitations right now.</p>
                 </div>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

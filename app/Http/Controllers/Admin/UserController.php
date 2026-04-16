@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -34,7 +35,10 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $query = User::query()
-            ->with('roles:id,name')
+            ->with([
+                'roles:id,name',
+                'serviceProvider:id,user_id,background_check_status,background_check_verified_at',
+            ])
             ->withCount(['leads', 'reviews']);
 
         if ($request->filled('search')) {
@@ -57,6 +61,20 @@ class UserController extends Controller
                 $query->whereNotNull('email_verified_at');
             } elseif ($request->status === 'unverified') {
                 $query->whereNull('email_verified_at');
+            }
+        }
+
+        if ($request->filled('background_check')) {
+            $value = $request->string('background_check')->toString();
+
+            if (in_array($value, BackgroundCheckStatus::values(), true)) {
+                $query->whereHas('serviceProvider', function ($providerQuery) use ($value) {
+                    $providerQuery->where('background_check_status', $value);
+                });
+            } elseif ($value === 'none') {
+                $query->whereDoesntHave('serviceProvider', function ($providerQuery) {
+                    $providerQuery->whereNotNull('background_check_status');
+                });
             }
         }
 
@@ -100,11 +118,15 @@ class UserController extends Controller
             'users' => $users,
             'selectedUser' => $selectedUser,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'role', 'status', 'sort', 'dir', 'view']),
+            'filters' => $request->only(['search', 'role', 'status', 'background_check', 'sort', 'dir', 'view']),
             'roles' => collect(UserRole::cases())->map(fn ($r) => [
                 'value' => $r->value,
                 'label' => $r->label(),
             ]),
+            'backgroundCheckStatuses' => collect(BackgroundCheckStatus::cases())->map(fn ($status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
+            ])->values(),
         ]);
     }
 

@@ -233,32 +233,25 @@ const accentMap = {
                 <article
                     v-for="card in statCards"
                     :key="card.title"
-                    class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                    <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-start gap-3">
                         <div
-                            class="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-lg"
                             :class="accentMap[card.accent].box"
                         >
-                            <component :is="card.icon" class="h-6 w-6" />
+                            <component :is="card.icon" class="h-4 w-4" />
                         </div>
-
-                        <span
-                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                            :class="accentMap[card.accent].chip"
-                        >
-                            {{ card.chip }}
-                        </span>
                     </div>
 
-                    <div class="mt-5">
-                        <p class="text-sm font-medium text-slate-500">
+                    <div class="mt-3">
+                        <p class="text-xs font-medium uppercase tracking-wide text-slate-500">
                             {{ card.title }}
                         </p>
-                        <p class="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+                        <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">
                             {{ card.value }}
                         </p>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">
+                        <p class="mt-1 line-clamp-1 text-xs text-slate-500">
                             {{ card.sublabel }}
                         </p>
                     </div>

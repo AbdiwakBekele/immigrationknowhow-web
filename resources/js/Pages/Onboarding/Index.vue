@@ -202,6 +202,16 @@ const goBack = () => {
 };
 
 const selectedPlan = computed(() => (props.subscriptionPlans || []).find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null);
+const selectedPlanRequiresCheckout = computed(() => {
+    if (!selectedPlan.value) return false;
+    return Number(selectedPlan.value.price_cents || 0) > 0 && !!selectedPlan.value.stripe_price_id;
+});
+const finishButtonLabel = computed(() => {
+    if (selectedPlanRequiresCheckout.value) {
+        return 'Subscribe & continue';
+    }
+    return 'Finish setup';
+});
 const canFinishProviderOnboarding = computed(() => {
     if (!props.isProvider || !isProviderSubscriptionStep.value) return true;
     if (!hasCheckoutReadyPlans.value) return true;
@@ -540,7 +550,7 @@ onMounted(() => {
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
                 <Button v-else variant="primary" size="sm" class="!py-1.5 !text-xs" :loading="saving" :disabled="!canFinishProviderOnboarding" @click="completeOnboarding">
-                    Finish setup
+                    {{ finishButtonLabel }}
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
             </div>

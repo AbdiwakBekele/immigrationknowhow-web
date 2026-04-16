@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Stripe\Checkout\Session as StripeCheckoutSession;
+use Stripe\Stripe;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class OnboardingController extends Controller
 {
@@ -93,16 +96,18 @@ class OnboardingController extends Controller
         return back()->with('success', 'Progress saved');
     }
 
-    public function complete(Request $request): RedirectResponse
+    public function complete(Request $request): RedirectResponse|SymfonyResponse
     {
         $user = auth()->user();
         $isProvider = $user->followsProviderOnboarding();
+        $providerForCheckout = null;
+        $planForCheckout = null;
 
         if ($isProvider && ! $user->isProvider()) {
             $user->assignRole(UserRole::PROVIDER->value);
         }
 
-        DB::transaction(function () use ($user, $request, $isProvider) {
+        DB::transaction(function () use ($user, $request, $isProvider, &$providerForCheckout, &$planForCheckout) {
             $data = $request->all();
             $onboardingData = array_merge($user->onboarding_data ?? [], [
                 'business' => array_merge($user->onboarding_data['business'] ?? [], $data['business'] ?? []),
@@ -205,12 +210,73 @@ class OnboardingController extends Controller
                             'subscription_expires_at' => null,
                             'stripe_subscription_status' => 'active',
                         ]);
+                    } else {
+                        $providerForCheckout = $serviceProvider;
+                        $planForCheckout = $selectedPlan;
                     }
                 }
             }
         });
 
+        if ($providerForCheckout instanceof ServiceProvider && $planForCheckout instanceof SubscriptionPlan) {
+            $checkoutUrl = $this->createStripeCheckoutUrl($request, $providerForCheckout, $planForCheckout);
+            if ($checkoutUrl !== null) {
+                return Inertia::location($checkoutUrl);
+            }
+
+            return redirect()->route('provider.dashboard')->with('error', 'Unable to start Stripe checkout. Please try subscribing again from your dashboard.');
+        }
+
         return $this->redirectToDashboard()->with('success', 'Welcome! Your profile is complete.');
+    }
+
+    private function createStripeCheckoutUrl(Request $request, ServiceProvider $provider, SubscriptionPlan $plan): ?string
+    {
+        if (! is_string($plan->stripe_price_id) || trim($plan->stripe_price_id) === '') {
+            return null;
+        }
+
+        $secret = config('services.stripe.secret');
+        if (! is_string($secret) || trim($secret) === '') {
+            return null;
+        }
+
+        Stripe::setApiKey($secret);
+        $session = StripeCheckoutSession::create([
+            'mode' => 'subscription',
+            'customer_email' => $request->user()->email,
+            'client_reference_id' => (string) $request->user()->id,
+            'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
+            'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
+            'line_items' => [[
+                'price' => $plan->stripe_price_id,
+                'quantity' => 1,
+            ]],
+            'metadata' => [
+                'app' => 'provider_subscription',
+                'provider_id' => (string) $provider->id,
+                'user_id' => (string) $request->user()->id,
+                'plan_uuid' => (string) $plan->uuid,
+                'plan_name' => (string) $plan->name,
+                'source' => 'onboarding',
+            ],
+            'subscription_data' => [
+                'metadata' => [
+                    'provider_id' => (string) $provider->id,
+                    'user_id' => (string) $request->user()->id,
+                    'plan_uuid' => (string) $plan->uuid,
+                    'app' => 'provider_subscription',
+                    'source' => 'onboarding',
+                ],
+            ],
+        ]);
+
+        $checkoutUrl = $session->url;
+        if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
+            return null;
+        }
+
+        return $checkoutUrl;
     }
 
     protected function redirectToDashboard(): RedirectResponse

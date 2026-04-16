@@ -51,7 +51,7 @@ const destroyVideo = (slug) => {
     <Head title="Videos" />
 
     <AdminLayout>
-        <div class="space-y-6">
+        <div class="admin-page-container">
             <div
                 v-if="flashSuccess"
                 class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
@@ -59,47 +59,52 @@ const destroyVideo = (slug) => {
                 {{ flashSuccess }}
             </div>
 
-            <div class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Videos</h1>
-                    <p class="mt-1 text-sm text-slate-500">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                        Video content management
+                    </p>
+                    <h1 class="mt-2 admin-title">Videos</h1>
+                    <p class="admin-subtitle">
                         Embed from YouTube / Vimeo / TikTok, or upload MP4, WebM, or MOV (stored privately; max ~{{ maxUploadMb }} MB per file).
                     </p>
                 </div>
                 <Link
                     :href="route('admin.videos.create')"
-                    class="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sky-700"
+                    class="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
                 >
                     <PlusIcon class="h-5 w-5" />
                     Add video
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-rose-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-rose-100 p-1.5">
                         <VideoCameraIcon class="h-5 w-5 text-rose-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-slate-900">{{ stats.total ?? 0 }}</p>
+                    <p class="text-xl font-semibold text-slate-900">{{ stats.total ?? 0 }}</p>
                     <p class="text-sm text-slate-500">Total videos</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-sky-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-sky-100 p-1.5">
                         <PlayCircleIcon class="h-5 w-5 text-sky-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-slate-900">{{ stats.active ?? 0 }}</p>
+                    <p class="text-xl font-semibold text-slate-900">{{ stats.active ?? 0 }}</p>
                     <p class="text-sm text-slate-500">Active</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-amber-100 p-2">
+                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-amber-100 p-1.5">
                         <FireIcon class="h-5 w-5 text-amber-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-slate-900">{{ stats.featured ?? 0 }}</p>
+                    <p class="text-xl font-semibold text-slate-900">{{ stats.featured ?? 0 }}</p>
                     <p class="text-sm text-slate-500">Featured</p>
                 </div>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section class="admin-panel">
                 <div class="flex flex-col gap-3 md:flex-row md:items-end">
                     <div class="min-w-0 flex-1">
                         <label class="mb-1 block text-xs font-medium text-slate-500">Search</label>
@@ -202,7 +207,7 @@ const destroyVideo = (slug) => {
                         v-html="link.label"
                     />
                 </nav>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

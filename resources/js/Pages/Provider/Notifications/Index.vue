@@ -41,11 +41,13 @@ const summary = (row) => {
     <Head title="Notifications" />
 
     <ProviderLayout>
-        <div class="mx-auto max-w-3xl space-y-5">
-            <div class="flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="font-display text-xl font-bold text-slate-900">Notifications</h1>
-                    <p class="mt-0.5 text-sm text-slate-500">In-app alerts for your provider account</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Alerts</p>
+                    <h1 class="mt-2 admin-title">Notifications</h1>
+                    <p class="admin-subtitle">In-app alerts for your provider account.</p>
                 </div>
                 <Link
                     :href="route('provider.dashboard')"
@@ -53,7 +55,8 @@ const summary = (row) => {
                 >
                     ← Dashboard
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <div
                 v-if="notifications_table_missing"

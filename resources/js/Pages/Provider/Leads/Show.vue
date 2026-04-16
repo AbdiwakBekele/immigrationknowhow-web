@@ -109,7 +109,7 @@ const firstInitial = (...values) => {
     <Head :title="`Lead from ${lead.user?.full_name || 'Anonymous'}`" />
 
     <ProviderLayout>
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="admin-page-container">
             <!-- Back Button -->
             <Link href="/provider/leads" class="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
                 <ArrowLeftIcon class="h-4 w-4" />

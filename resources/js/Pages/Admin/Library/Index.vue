@@ -14,9 +14,17 @@ const props = defineProps({
     filters: Object,
 });
 
+const regionOptions = [
+    { value: 'usa', label: 'USA' },
+    { value: 'canada', label: 'Canada' },
+    { value: 'great_britain', label: 'Great Britain' },
+    { value: 'europe', label: 'Europe' },
+];
+
 const uploadForm = useForm({
     title: '',
     type: props.types?.[0]?.value ?? '',
+    regions: [],
     category_id: '',
     author: '',
     description: '',
@@ -80,6 +88,7 @@ const submitUpload = () => {
             uploadForm.reset('title', 'author', 'description', 'file', 'price');
             uploadForm.price = '0';
             uploadForm.type = props.types?.[0]?.value ?? '';
+            uploadForm.regions = [];
             uploadForm.category_id = '';
             uploadForm.is_active = true;
             uploadForm.is_featured = false;
@@ -93,29 +102,32 @@ const submitUpload = () => {
     <Head title="Library" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Library</h1>
-                <p class="mt-1 text-gray-500">Upload e-books and audiobooks, organized by category.</p>
-            </div>
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Content library
+                </p>
+                <h1 class="mt-2 admin-title">Library</h1>
+                <p class="admin-subtitle">Upload e-books and audiobooks, organized by category.</p>
+            </section>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <div class="mb-3 inline-flex rounded-lg bg-indigo-100 p-2">
+                <div class="rounded-[1.1rem] border border-gray-100 bg-white p-3 shadow-sm">
+                    <div class="mb-2 inline-flex rounded-lg bg-indigo-100 p-1.5">
                         <BookOpenIcon class="h-5 w-5 text-indigo-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-gray-900">{{ stats.total }}</p>
+                    <p class="text-xl font-semibold text-gray-900">{{ stats.total }}</p>
                     <p class="text-sm text-gray-500">Visible items</p>
                 </div>
                 <div
                     v-for="typeOption in types.slice(0, 2)"
                     :key="typeOption.value"
-                    class="rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                    class="rounded-[1.1rem] border border-gray-100 bg-white p-3 shadow-sm"
                 >
-                    <div class="mb-3 inline-flex rounded-lg bg-sky-100 p-2">
+                    <div class="mb-2 inline-flex rounded-lg bg-sky-100 p-1.5">
                         <DocumentTextIcon class="h-5 w-5 text-sky-600" />
                     </div>
-                    <p class="text-3xl font-semibold text-gray-900">{{ stats.byType[typeOption.value] ?? 0 }}</p>
+                    <p class="text-xl font-semibold text-gray-900">{{ stats.byType[typeOption.value] ?? 0 }}</p>
                     <p class="text-sm text-gray-500">{{ typeOption.label }}</p>
                 </div>
             </div>
@@ -149,6 +161,30 @@ const submitUpload = () => {
                         <input v-model="uploadForm.author" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2">
                         <p v-if="uploadForm.errors.author" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.author }}</p>
                     </div>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Regions</label>
+                    <p class="mb-2 text-xs text-gray-500">
+                        If none are selected, the product will be available in all regions.
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        <label
+                            v-for="region in regionOptions"
+                            :key="region.value"
+                            class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+                        >
+                            <input
+                                v-model="uploadForm.regions"
+                                :value="region.value"
+                                type="checkbox"
+                                class="rounded border-gray-300"
+                            >
+                            <span>{{ region.label }}</span>
+                        </label>
+                    </div>
+                    <p v-if="uploadForm.errors.regions" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.regions }}</p>
+                    <p v-if="uploadForm.errors['regions.0']" class="mt-1 text-xs text-red-600">{{ uploadForm.errors['regions.0'] }}</p>
                 </div>
 
                 <div>

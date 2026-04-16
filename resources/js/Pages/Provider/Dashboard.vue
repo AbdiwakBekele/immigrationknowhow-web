@@ -17,7 +17,7 @@ import {
     TrashIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid, CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     stats: Object,
@@ -79,6 +79,82 @@ const canStartBackgroundCheck = computed(() => {
     return !['clear', 'invited', 'completed'].includes(props.provider.background_check_status);
 });
 
+const statCards = computed(() => [
+    {
+        title: 'Total Leads',
+        value: props.stats?.totalLeads || 0,
+        sublabel: 'All inquiries received',
+        accent: 'blue',
+        icon: UserGroupIcon,
+        chip: props.stats?.leadsTrend !== undefined ? `${Math.abs(props.stats.leadsTrend)}%` : 'Overview',
+        trend: props.stats?.leadsTrend,
+    },
+    {
+        title: 'Open Leads',
+        value: props.stats?.openLeads || 0,
+        sublabel: `${props.stats?.newLeads || 0} new`,
+        accent: 'emerald',
+        icon: ChatBubbleLeftRightIcon,
+        chip: 'Active',
+    },
+    {
+        title: 'Average Rating',
+        value: props.provider?.average_rating ? Number(props.provider.average_rating).toFixed(1) : '–',
+        sublabel: `${props.provider?.total_reviews || 0} reviews`,
+        accent: 'amber',
+        icon: StarIcon,
+        chip: 'Reviews',
+    },
+    {
+        title: 'Profile Views (30d)',
+        value: props.stats?.profileViews || 0,
+        sublabel: 'Visibility in marketplace',
+        accent: 'violet',
+        icon: EyeIcon,
+        chip: props.stats?.viewsTrend !== undefined ? `${Math.abs(props.stats.viewsTrend)}%` : 'Traffic',
+        trend: props.stats?.viewsTrend,
+    },
+]);
+
+const accentMap = {
+    blue: { box: 'bg-blue-50 text-blue-700', chip: 'bg-blue-100 text-blue-700' },
+    emerald: { box: 'bg-emerald-50 text-emerald-700', chip: 'bg-emerald-100 text-emerald-700' },
+    amber: { box: 'bg-amber-50 text-amber-700', chip: 'bg-amber-100 text-amber-700' },
+    violet: { box: 'bg-violet-50 text-violet-700', chip: 'bg-violet-100 text-violet-700' },
+};
+
+const failedAvatarKeys = ref(new Set());
+
+const resolveAvatar = (person) => {
+    const candidate = (person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) {
+        return candidate;
+    }
+    return `/storage/${candidate}`;
+};
+
+const leadAvatarKey = (lead) => lead?.uuid || lead?.id || lead?.user?.id || '';
+
+const hasLeadAvatar = (lead) => {
+    const key = leadAvatarKey(lead);
+    return Boolean(resolveAvatar(lead?.user)) && !failedAvatarKeys.value.has(key);
+};
+
+const markLeadAvatarFailed = (lead) => {
+    const key = leadAvatarKey(lead);
+    if (!key) return;
+    failedAvatarKeys.value.add(key);
+};
+
+const leadFirstName = (lead) => {
+    return (lead?.user?.first_name || '').trim() || 'User';
+};
+
+const leadFirstInitial = (lead) => {
+    return leadFirstName(lead).charAt(0).toUpperCase();
+};
+
 const archiveConversation = (conversationUuid) => {
     if (!conversationUuid) return;
 
@@ -101,9 +177,9 @@ const deleteConversation = (conversationUuid) => {
     <Head title="Provider Dashboard" />
 
     <ProviderLayout>
-        <div class="mx-auto max-w-7xl space-y-5">
+        <div class="admin-page-container">
             <!-- Background Check Alert Banner -->
-            <div v-if="provider.background_check_status !== 'clear'" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+            <div v-if="provider.background_check_status !== 'clear'" class="rounded-[1.75rem] border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 shadow-sm">
                 <div class="flex items-start gap-4">
                     <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                         <ExclamationTriangleIcon class="w-6 h-6 text-amber-600" />
@@ -143,28 +219,29 @@ const deleteConversation = (conversationUuid) => {
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Overview</p>
-                    <h1 class="mt-0.5 text-xl font-display font-bold text-slate-900">
-                        Welcome back, {{ user.first_name }}
-                    </h1>
-                    <p class="mt-0.5 text-sm text-slate-500">
-                        Here is how your profile is performing.
-                    </p>
-                </div>
+            <section class="admin-hero-card">
+                <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Provider overview</p>
+                        <h1 class="mt-2 admin-title">
+                            Welcome back, {{ user.first_name }}
+                        </h1>
+                        <p class="admin-subtitle">
+                            Track leads, profile visibility, reviews, and conversion performance in one place.
+                        </p>
+                    </div>
 
-                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-3 md:ml-auto md:justify-end lg:flex-nowrap">
                     <Link
                         :href="route('provider.subscriptions.index')"
-                        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
                     >
                         <CurrencyDollarIcon class="h-5 w-5" />
                         Subscription Plans
                     </Link>
                     <Link
                         :href="route('provider.background-check.index')"
-                        :class="['flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium', verificationStatus.color]"
+                        :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium', verificationStatus.color]"
                     >
                         <component :is="verificationStatus.icon" class="h-5 w-5" />
                         {{ verificationStatus.text }}
@@ -172,84 +249,52 @@ const deleteConversation = (conversationUuid) => {
                     <Link
                         v-if="canStartBackgroundCheck"
                         :href="route('provider.background-check.index')"
-                        class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
                     >
                         <CheckBadgeIcon class="h-5 w-5" />
                         Start Background Check
                     </Link>
                     <Link
                         :href="route('provider.profile.index')"
-                        class="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-sky-700"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                     >
                         <EyeIcon class="h-5 w-5" />
                         View Profile
                     </Link>
                 </div>
-            </div>
+                </div>
+            </section>
 
             <!-- Stats Grid -->
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="rounded-lg bg-blue-100 p-2">
-                            <UserGroupIcon class="h-5 w-5 text-blue-600" />
+            <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <article
+                    v-for="card in statCards"
+                    :key="card.title"
+                    class="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-xl" :class="accentMap[card.accent].box">
+                            <component :is="card.icon" class="h-5 w-5" />
                         </div>
-                        <div v-if="stats.leadsTrend !== undefined" class="flex items-center gap-1 text-xs font-semibold">
-                            <component :is="getTrendIcon(stats.leadsTrend)" :class="['h-4 w-4', getTrendColor(stats.leadsTrend)]" />
-                            <span :class="getTrendColor(stats.leadsTrend)">{{ Math.abs(stats.leadsTrend) }}%</span>
-                        </div>
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold" :class="accentMap[card.accent].chip">
+                            <component v-if="card.trend !== undefined" :is="getTrendIcon(card.trend)" :class="['h-3.5 w-3.5', getTrendColor(card.trend)]" />
+                            {{ card.chip }}
+                        </span>
                     </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.totalLeads || 0 }}</p>
-                    <p class="mt-0.5 text-xs text-slate-500">Total Leads</p>
-                </div>
+                    <div class="mt-5">
+                        <p class="text-sm font-medium text-slate-500">{{ card.title }}</p>
+                        <p class="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">{{ card.value }}</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">{{ card.sublabel }}</p>
+                    </div>
+                </article>
+            </section>
 
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="rounded-lg bg-emerald-100 p-2">
-                            <ChatBubbleLeftRightIcon class="h-5 w-5 text-emerald-600" />
-                        </div>
-                        <span class="text-xs font-semibold text-emerald-600">{{ stats.newLeads || 0 }} new</span>
-                    </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.openLeads || 0 }}</p>
-                    <p class="mt-0.5 text-xs text-slate-500">Open Leads</p>
-                </div>
-
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="rounded-lg bg-amber-100 p-2">
-                            <StarIcon class="h-5 w-5 text-amber-600" />
-                        </div>
-                    </div>
-                    <div class="flex items-baseline gap-2">
-                        <p class="text-2xl font-display font-bold text-slate-900">{{ provider.average_rating ? Number(provider.average_rating).toFixed(1) : '–' }}</p>
-                        <div class="flex items-center gap-0.5">
-                            <StarSolid v-for="i in 5" :key="i" :class="['w-4 h-4', i <= Math.round(Number(provider.average_rating) || 0) ? 'text-secondary-500' : 'text-slate-200']" />
-                        </div>
-                    </div>
-                    <p class="mt-0.5 text-xs text-slate-500">{{ provider.total_reviews || 0 }} Reviews</p>
-                </div>
-
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="rounded-lg bg-violet-100 p-2">
-                            <EyeIcon class="h-5 w-5 text-violet-600" />
-                        </div>
-                        <div v-if="stats.viewsTrend !== undefined" class="flex items-center gap-1 text-xs font-semibold">
-                            <component :is="getTrendIcon(stats.viewsTrend)" :class="['h-4 w-4', getTrendColor(stats.viewsTrend)]" />
-                            <span :class="getTrendColor(stats.viewsTrend)">{{ Math.abs(stats.viewsTrend) }}%</span>
-                        </div>
-                    </div>
-                    <p class="text-2xl font-display font-bold text-slate-900">{{ stats.profileViews || 0 }}</p>
-                    <p class="mt-0.5 text-xs text-slate-500">Profile Views (30d)</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <!-- Recent Leads -->
-                <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-                    <div class="flex items-center justify-between p-6 border-b border-slate-100">
-                        <h2 class="text-lg font-display font-bold text-slate-900">Recent Leads</h2>
-                        <Link :href="route('provider.leads.index')" class="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
+                <div class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
+                    <div class="flex items-center justify-between border-b border-slate-100 p-6">
+                        <h2 class="text-xl font-semibold text-slate-900">Recent Leads</h2>
+                        <Link :href="route('provider.leads.index')" class="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700">
                             View all
                             <ArrowRightIcon class="w-4 h-4" />
                         </Link>
@@ -260,13 +305,22 @@ const deleteConversation = (conversationUuid) => {
                             v-for="lead in recentLeads" 
                             :key="lead.uuid"
                             :href="route('provider.leads.show', lead.uuid)"
-                            class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
+                            class="flex items-center gap-4 p-4 transition-colors hover:bg-slate-50"
                         >
-                            <img 
-                                :src="lead.user?.avatar || '/img/default-avatar.png'"
-                                :alt="lead.user?.first_name"
+                            <img
+                                v-if="hasLeadAvatar(lead)"
+                                :src="resolveAvatar(lead.user)"
+                                :alt="leadFirstName(lead)"
                                 class="w-12 h-12 rounded-full object-cover"
+                                @error="markLeadAvatarFailed(lead)"
                             />
+                            <div
+                                v-else
+                                class="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-base font-semibold text-primary-700"
+                                :title="leadFirstName(lead)"
+                            >
+                                {{ leadFirstInitial(lead) }}
+                            </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <h3 class="font-semibold text-slate-900">
@@ -313,8 +367,8 @@ const deleteConversation = (conversationUuid) => {
                 <!-- Sidebar -->
                 <div class="space-y-6">
                     <!-- Conversion Rate -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 class="font-semibold text-slate-900 mb-4">Conversion Rate</h3>
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 class="mb-4 text-xl font-semibold text-slate-900">Conversion Rate</h3>
                         <div class="relative pt-1">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-sm text-slate-500">Leads Converted</span>
@@ -334,10 +388,10 @@ const deleteConversation = (conversationUuid) => {
                     </div>
 
                     <!-- Recent Reviews -->
-                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div class="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm">
                         <div class="flex items-center justify-between p-4 border-b border-slate-100">
-                            <h3 class="font-semibold text-slate-900">Recent Reviews</h3>
-                            <Link :href="route('provider.reviews.index')" class="text-sm text-primary-600 hover:text-primary-700">
+                            <h3 class="text-xl font-semibold text-slate-900">Recent Reviews</h3>
+                            <Link :href="route('provider.reviews.index')" class="text-sm font-semibold text-blue-600 hover:text-blue-700">
                                 View all
                             </Link>
                         </div>
@@ -345,8 +399,8 @@ const deleteConversation = (conversationUuid) => {
                         <div v-if="recentReviews?.length" class="divide-y divide-slate-100">
                             <div v-for="review in recentReviews" :key="review.uuid" class="p-4">
                                 <div class="flex items-center gap-2 mb-2">
-                                    <div class="flex items-center gap-0.5">
-                                        <StarSolid v-for="i in review.rating" :key="i" class="w-4 h-4 text-secondary-500" />
+                                    <div class="flex items-center gap-0.5 rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                                        <StarSolid v-for="i in review.rating" :key="i" class="h-4 w-4" />
                                     </div>
                                     <span class="text-sm text-slate-400">{{ formatTimeAgo(review.created_at) }}</span>
                                 </div>
@@ -361,12 +415,12 @@ const deleteConversation = (conversationUuid) => {
                     </div>
 
                     <!-- Quick Actions -->
-                    <div class="rounded-xl bg-gradient-to-br from-sky-600 to-indigo-700 p-6 text-white shadow-sm">
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 class="font-semibold mb-4">Quick Actions</h3>
                         <div class="space-y-3">
                             <Link 
                                 :href="route('provider.profile.edit')"
-                                class="flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
                                 <span>Edit Profile</span>
                                 <ArrowRightIcon class="w-4 h-4" />
@@ -374,14 +428,14 @@ const deleteConversation = (conversationUuid) => {
                             <Link 
                                 v-if="provider.background_check_status !== 'clear'"
                                 :href="route('provider.background-check.index')"
-                                class="flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
                                 <span>Get Verified</span>
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link 
                                 :href="route('provider.analytics.index')"
-                                class="flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
                                 <span>View Analytics</span>
                                 <ArrowRightIcon class="w-4 h-4" />
@@ -389,7 +443,7 @@ const deleteConversation = (conversationUuid) => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
     </ProviderLayout>
 </template>

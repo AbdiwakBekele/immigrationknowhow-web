@@ -84,15 +84,18 @@ const deleteProvider = (lead) => {
     <Head title="Subscribers" />
 
     <AdminLayout>
-        <div class="mx-auto max-w-7xl space-y-4">
-            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <h1 class="text-lg font-display font-bold text-slate-900">Subscribers</h1>
-                <p class="mt-0.5 text-xs text-slate-500">
+        <div class="admin-page-container">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Subscriber management
+                </p>
+                <h1 class="mt-2 admin-title">Subscribers</h1>
+                <p class="admin-subtitle">
                     Users with contract details, subscribed service type, and assigned provider.
                 </p>
-            </div>
+            </section>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+            <section class="admin-panel">
                 <div class="flex flex-col gap-3 sm:flex-row">
                     <div class="relative flex-1">
                         <MagnifyingGlassIcon class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -116,9 +119,9 @@ const deleteProvider = (lead) => {
                         </option>
                     </select>
                 </div>
-            </div>
+            </section>
 
-            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="admin-table-wrap">
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="border-b border-slate-200 bg-slate-50">
@@ -209,7 +212,7 @@ const deleteProvider = (lead) => {
                         />
                     </nav>
                 </div>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>
