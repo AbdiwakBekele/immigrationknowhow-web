@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,7 +76,7 @@ class Message extends Model
     public function getIsReadAttribute(): bool
     {
         $currentUser = auth()->user();
-        if (!$currentUser || $this->sender_id === $currentUser->id) {
+        if (! $currentUser || $this->sender_id === $currentUser->id) {
             return true;
         }
 
@@ -94,7 +95,7 @@ class Message extends Model
         }
 
         if ($this->created_at->isYesterday()) {
-            return 'Yesterday ' . $this->created_at->format('g:i A');
+            return 'Yesterday '.$this->created_at->format('g:i A');
         }
 
         if ($this->created_at->isCurrentYear()) {
@@ -108,7 +109,9 @@ class Message extends Model
     public function scopeUnread($query)
     {
         $currentUser = auth()->user();
-        if (!$currentUser) return $query;
+        if (! $currentUser) {
+            return $query;
+        }
 
         return $query->where('sender_id', '!=', $currentUser->id)
             ->whereDoesntHave('reads', function ($q) use ($currentUser) {
@@ -132,6 +135,22 @@ class Message extends Model
 
     public function hasAttachments(): bool
     {
-        return !empty($this->attachments);
+        return ! empty($this->attachments);
+    }
+
+    /**
+     * Incoming messages the user has not read (excludes their own sends), across service-inquiry threads.
+     */
+    public static function unreadIncomingCountFor(User $user): int
+    {
+        return static::query()
+            ->whereHas('conversation', function (Builder $q) use ($user) {
+                $q->forUser($user)->forServiceInquiries();
+            })
+            ->where('sender_id', '!=', $user->id)
+            ->whereDoesntHave('reads', function (Builder $rq) use ($user) {
+                $rq->where('user_id', $user->id);
+            })
+            ->count();
     }
 }

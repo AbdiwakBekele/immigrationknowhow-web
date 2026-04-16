@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 
@@ -7,12 +7,36 @@ const props = defineProps({
     plans: { type: Array, default: () => [] },
     currentSubscription: { type: Object, default: null },
     subscriptionHistory: { type: Array, default: () => [] },
+    stripeBillingConfigured: { type: Boolean, default: true },
+    showStripeSetupHints: { type: Boolean, default: false },
 });
 
 const currentPlanId = computed(() => props.currentSubscription?.subscription_plan_id ?? null);
 
+const checkoutLoadingPlanUuid = ref(null);
+
+const paidPlanCheckoutBlocked = (plan) => {
+    if (!plan || (plan.price_cents ?? 0) <= 0) {
+        return null;
+    }
+    if (!props.stripeBillingConfigured) {
+        return 'stripe';
+    }
+    const priceId = plan.stripe_price_id;
+    if (typeof priceId !== 'string' || priceId.trim() === '') {
+        return 'price';
+    }
+    return null;
+};
+
 const checkout = (planUuid) => {
-    router.post(route('provider.subscriptions.checkout', planUuid));
+    checkoutLoadingPlanUuid.value = planUuid;
+    router.post(route('provider.subscriptions.checkout', planUuid), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            checkoutLoadingPlanUuid.value = null;
+        },
+    });
 };
 
 const cancelSubscription = () => {
@@ -44,7 +68,10 @@ const changePlan = (planUuid) => {
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Billing</p>
                     <h1 class="mt-2 admin-title">Subscription Plans</h1>
-                    <p class="admin-subtitle">Choose, upgrade, downgrade, or cancel your provider subscription.</p>
+                    <p class="admin-subtitle">
+                        Choose, upgrade, downgrade, or cancel your provider subscription.
+                        For paid plans, you will open Stripe's secure checkout and pay with a debit or credit card (no separate invoice step).
+                    </p>
                 </div>
                 <div v-if="currentSubscription" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
                     <p class="font-semibold text-slate-900">Current: {{ currentSubscription.plan?.name ?? 'Active plan' }}</p>
@@ -52,6 +79,20 @@ const changePlan = (planUuid) => {
                 </div>
                 </div>
             </section>
+
+            <div
+                v-if="!stripeBillingConfigured"
+                class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm"
+            >
+                <p class="font-semibold text-amber-900">Paid subscriptions are unavailable</p>
+                <p class="mt-1 text-amber-800">
+                    Stripe billing is not configured for this site, so checkout cannot start. Free plans can still be activated below.
+                </p>
+                <p v-if="showStripeSetupHints" class="mt-2 font-mono text-xs text-amber-900/90">
+                    Set <span class="font-semibold">STRIPE_SECRET</span> (and <span class="font-semibold">STRIPE_KEY</span> where needed) in
+                    <span class="font-semibold">.env</span>, then run <span class="font-semibold">php artisan config:clear</span>.
+                </p>
+            </div>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <div v-for="plan in plans" :key="plan.uuid" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -64,26 +105,58 @@ const changePlan = (planUuid) => {
                         <li v-for="(feature, idx) in (plan.features || [])" :key="`${plan.uuid}-${idx}`">• {{ feature }}</li>
                     </ul>
 
-                    <div class="mt-4 flex items-center gap-2">
-                        <button
-                            v-if="!currentSubscription"
-                            type="button"
-                            class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                            @click="checkout(plan.uuid)"
+                    <div class="mt-4 flex flex-col gap-2">
+                        <template v-if="!currentSubscription">
+                            <button
+                                type="button"
+                                class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                :disabled="Boolean(paidPlanCheckoutBlocked(plan)) || checkoutLoadingPlanUuid === plan.uuid"
+                                @click="checkout(plan.uuid)"
+                            >
+                                <span v-if="checkoutLoadingPlanUuid === plan.uuid">Opening secure checkout…</span>
+                                <span v-else>Subscriptions</span>
+                            </button>
+                            <p
+                                v-if="paidPlanCheckoutBlocked(plan) === 'stripe'"
+                                class="text-xs text-amber-700"
+                            >
+                                Stripe is not configured for this application.
+                            </p>
+                            <p
+                                v-else-if="paidPlanCheckoutBlocked(plan) === 'price'"
+                                class="text-xs text-amber-700"
+                            >
+                                This plan is missing a Stripe price ID. Ask an administrator to link the plan in Stripe.
+                            </p>
+                        </template>
+                        <span
+                            v-else-if="currentPlanId === plan.id"
+                            class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700"
                         >
-                            Subscribe
-                        </button>
-                        <span v-else-if="currentPlanId === plan.id" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
                             Current Plan
                         </span>
-                        <button
-                            v-else
-                            type="button"
-                            class="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
-                            @click="changePlan(plan.uuid)"
-                        >
-                            Switch Plan
-                        </button>
+                        <template v-else>
+                            <button
+                                type="button"
+                                class="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                :disabled="Boolean(paidPlanCheckoutBlocked(plan))"
+                                @click="changePlan(plan.uuid)"
+                            >
+                                Switch Plan
+                            </button>
+                            <p
+                                v-if="paidPlanCheckoutBlocked(plan) === 'stripe'"
+                                class="text-xs text-amber-700"
+                            >
+                                Stripe is not configured for this application.
+                            </p>
+                            <p
+                                v-else-if="paidPlanCheckoutBlocked(plan) === 'price'"
+                                class="text-xs text-amber-700"
+                            >
+                                This plan is missing a Stripe price ID.
+                            </p>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -138,7 +211,7 @@ const changePlan = (planUuid) => {
             </div>
 
             <p class="text-xs text-slate-500">
-                Payments are processed securely by Stripe.
+                Card payments run on Stripe Checkout; your card details stay with Stripe.
                 <Link :href="route('provider.dashboard')" class="text-sky-600 hover:text-sky-700">Back to dashboard</Link>
             </p>
         </div>

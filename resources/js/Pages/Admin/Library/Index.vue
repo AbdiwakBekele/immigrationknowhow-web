@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { BookOpenIcon, DocumentTextIcon, MusicalNoteIcon } from '@heroicons/vue/24/outline';
@@ -7,6 +7,10 @@ import { BookOpenIcon, DocumentTextIcon, MusicalNoteIcon } from '@heroicons/vue/
 const props = defineProps({
     items: Object,
     categories: Array,
+    authors: {
+        type: Array,
+        default: () => [],
+    },
     types: {
         type: Array,
         default: () => [],
@@ -24,16 +28,40 @@ const regionOptions = [
 const uploadForm = useForm({
     title: '',
     type: props.types?.[0]?.value ?? '',
-    regions: [],
+    all_regions: false,
+    regions: ['usa'],
     category_id: '',
-    author: '',
+    author_id: '',
+    new_author_name: '',
     description: '',
     file: null,
+    pdf_file: null,
+    audio_file: null,
     price: '0',
     currency: 'USD',
     is_active: true,
     is_featured: false,
 });
+
+watch(
+    () => uploadForm.type,
+    () => {
+        uploadForm.file = null;
+        uploadForm.pdf_file = null;
+        uploadForm.audio_file = null;
+    },
+);
+
+watch(
+    () => uploadForm.all_regions,
+    (all) => {
+        if (all) {
+            uploadForm.regions = [];
+        } else if (!uploadForm.regions?.length) {
+            uploadForm.regions = ['usa'];
+        }
+    },
+);
 
 const groupedItems = computed(() => {
     const allItems = props.items?.data ?? [];
@@ -65,36 +93,40 @@ const stats = computed(() => {
     };
 });
 
-const selectedTypeOption = computed(() => {
-    return (props.types ?? []).find((type) => type.value === uploadForm.type) ?? null;
-});
+const acceptedPdfTypes = '.pdf,application/pdf';
 
-const acceptedFileTypes = computed(() => {
-    if (uploadForm.type === 'ebook') {
-        return '.pdf,application/pdf';
-    }
-
-    if (uploadForm.type === 'audiobook') {
-        return '.mp3,.m4a,.aac,.wav,.ogg,audio/*';
-    }
-
-    return '*/*';
-});
+const acceptedAudiobookTypes = '.mp3,.m4a,.aac,.wav,.ogg,audio/*';
 
 const submitUpload = () => {
-    uploadForm.post(route('admin.library.store'), {
-        forceFormData: true,
-        onSuccess: () => {
-            uploadForm.reset('title', 'author', 'description', 'file', 'price');
-            uploadForm.price = '0';
-            uploadForm.type = props.types?.[0]?.value ?? '';
-            uploadForm.regions = [];
-            uploadForm.category_id = '';
-            uploadForm.is_active = true;
-            uploadForm.is_featured = false;
-            uploadForm.currency = 'USD';
-        },
-    });
+    if (uploadForm.new_author_name?.trim()) {
+        uploadForm.author_id = '';
+    }
+
+    uploadForm
+        .transform((data) => {
+            const next = { ...data };
+            if (next.author_id === '' || next.author_id === null || next.author_id === undefined) {
+                next.author_id = null;
+            } else {
+                next.author_id = Number(next.author_id);
+            }
+            return next;
+        })
+        .post(route('admin.library.store'), {
+            forceFormData: true,
+            onSuccess: () => {
+                uploadForm.reset('title', 'description', 'file', 'pdf_file', 'audio_file', 'price', 'new_author_name');
+                uploadForm.price = '0';
+                uploadForm.type = props.types?.[0]?.value ?? '';
+                uploadForm.all_regions = false;
+                uploadForm.regions = ['usa'];
+                uploadForm.category_id = '';
+                uploadForm.author_id = '';
+                uploadForm.is_active = true;
+                uploadForm.is_featured = false;
+                uploadForm.currency = 'USD';
+            },
+        });
 };
 </script>
 
@@ -156,19 +188,46 @@ const submitUpload = () => {
                         </select>
                         <p v-if="uploadForm.errors.category_id" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.category_id }}</p>
                     </div>
-                    <div>
+                    <div class="lg:col-span-2">
                         <label class="mb-1 block text-sm font-medium text-gray-700">Author</label>
-                        <input v-model="uploadForm.author" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2">
-                        <p v-if="uploadForm.errors.author" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.author }}</p>
+                        <p class="mb-2 text-xs text-gray-500">
+                            Choose an existing author or add a new name once; the same author can be linked to many titles.
+                        </p>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                                <select
+                                    v-model="uploadForm.author_id"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                                    :disabled="!!uploadForm.new_author_name?.trim()"
+                                >
+                                    <option value="">No author</option>
+                                    <option v-for="a in authors" :key="a.id" :value="a.id">{{ a.name }}</option>
+                                </select>
+                                <p v-if="uploadForm.errors.author_id" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.author_id }}</p>
+                            </div>
+                            <div>
+                                <input
+                                    v-model="uploadForm.new_author_name"
+                                    type="text"
+                                    class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                                    placeholder="Or enter a new author name"
+                                >
+                                <p v-if="uploadForm.errors.new_author_name" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.new_author_name }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700">Regions</label>
                     <p class="mb-2 text-xs text-gray-500">
-                        If none are selected, the product will be available in all regions.
+                        Defaults to <span class="font-medium text-gray-700">USA only</span> unless you change regions or mark worldwide.
                     </p>
-                    <div class="flex flex-wrap gap-3">
+                    <label class="mb-3 flex items-center gap-2 text-sm text-gray-700">
+                        <input v-model="uploadForm.all_regions" type="checkbox" class="rounded border-gray-300">
+                        Available worldwide (all regions)
+                    </label>
+                    <div class="flex flex-wrap gap-3" :class="uploadForm.all_regions ? 'pointer-events-none opacity-50' : ''">
                         <label
                             v-for="region in regionOptions"
                             :key="region.value"
@@ -179,33 +238,63 @@ const submitUpload = () => {
                                 :value="region.value"
                                 type="checkbox"
                                 class="rounded border-gray-300"
+                                :disabled="uploadForm.all_regions"
                             >
                             <span>{{ region.label }}</span>
                         </label>
                     </div>
                     <p v-if="uploadForm.errors.regions" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.regions }}</p>
                     <p v-if="uploadForm.errors['regions.0']" class="mt-1 text-xs text-red-600">{{ uploadForm.errors['regions.0'] }}</p>
+                    <p v-if="uploadForm.errors.all_regions" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.all_regions }}</p>
                 </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700">Description</label>
-                    <textarea v-model="uploadForm.description" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2"></textarea>
+                    <textarea v-model="uploadForm.description" rows="8" class="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm"></textarea>
                     <p v-if="uploadForm.errors.description" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.description }}</p>
                 </div>
 
-                <div>
+                <div v-if="uploadForm.type === 'ebook'" class="space-y-4">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">PDF file</label>
+                        <input
+                            type="file"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                            :accept="acceptedPdfTypes"
+                            required
+                            @change="uploadForm.pdf_file = $event.target.files?.[0] ?? null"
+                        >
+                        <p class="mt-1 text-xs text-gray-500">
+                            Max 1000MB. E-books must be PDF.
+                        </p>
+                        <p v-if="uploadForm.errors.pdf_file" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.pdf_file }}</p>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700">Audio version <span class="font-normal text-gray-500">(optional)</span></label>
+                        <input
+                            type="file"
+                            class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                            :accept="acceptedAudiobookTypes"
+                            @change="uploadForm.audio_file = $event.target.files?.[0] ?? null"
+                        >
+                        <p class="mt-1 text-xs text-gray-500">
+                            Optional companion audiobook for this title. MP3, M4A, AAC, WAV, or OGG — max 1000MB.
+                        </p>
+                        <p v-if="uploadForm.errors.audio_file" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.audio_file }}</p>
+                    </div>
+                </div>
+
+                <div v-else>
                     <label class="mb-1 block text-sm font-medium text-gray-700">File</label>
                     <input
                         type="file"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2"
-                        :accept="acceptedFileTypes"
-                        @change="uploadForm.file = $event.target.files?.[0] ?? null"
+                        :accept="acceptedAudiobookTypes"
                         required
+                        @change="uploadForm.file = $event.target.files?.[0] ?? null"
                     >
                     <p class="mt-1 text-xs text-gray-500">
-                        Max 1000MB.
-                        <span v-if="selectedTypeOption?.value === 'ebook'">E-books must be PDF.</span>
-                        <span v-else-if="selectedTypeOption?.value === 'audiobook'">Audiobooks support MP3, M4A, AAC, WAV, OGG.</span>
+                        Max 1000MB. Audiobooks support MP3, M4A, AAC, WAV, OGG.
                     </p>
                     <p v-if="uploadForm.errors.file" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.file }}</p>
                 </div>

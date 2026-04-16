@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers\Provider;
 
-use App\Enums\ServiceType;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceProvider;
+use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -55,6 +54,7 @@ class ProfileController extends Controller
                 'license_state',
                 'license_expiry',
                 'certifications',
+                'health_certificates',
                 'years_experience',
                 'linkedin_url',
                 'facebook_url',
@@ -110,6 +110,7 @@ class ProfileController extends Controller
                 'license_state',
                 'license_expiry',
                 'certifications',
+                'health_certificates',
                 'years_experience',
                 'linkedin_url',
                 'facebook_url',
@@ -120,10 +121,7 @@ class ProfileController extends Controller
                 'verification_status',
                 'accepting_clients',
             ]) : null,
-            'serviceTypes' => collect(ServiceType::cases())->map(fn($type) => [
-                'value' => $type->value,
-                'label' => $type->label(),
-            ]),
+            'serviceTypes' => ServiceTypeOptions::selectOptions('provider'),
         ]);
     }
 
@@ -132,7 +130,7 @@ class ProfileController extends Controller
         $user = auth()->user();
         $provider = $user->serviceProvider;
 
-        if (!$provider) {
+        if (! $provider) {
             return back()->withErrors(['error' => 'Provider profile not found.']);
         }
 
@@ -145,7 +143,7 @@ class ProfileController extends Controller
             'business_phone' => ['nullable', 'string', 'max:20'],
             'website' => ['nullable', 'url', 'max:255'],
             'service_types' => ['required', 'array', 'min:1'],
-            'service_types.*' => [Rule::enum(ServiceType::class)],
+            'service_types.*' => ['string', 'max:120'],
             'specializations' => ['nullable', 'array'],
             'specializations.*' => ['string', 'max:255'],
             'languages_offered' => ['required', 'array', 'min:1'],
@@ -166,7 +164,14 @@ class ProfileController extends Controller
             'certifications' => ['nullable', 'array'],
             'certifications.*.name' => ['required', 'string', 'max:255'],
             'certifications.*.issuer' => ['nullable', 'string', 'max:255'],
-            'certifications.*.year' => ['nullable', 'integer', 'min:1900', 'max:' . date('Y')],
+            'certifications.*.year' => ['nullable', 'integer', 'min:1900', 'max:'.date('Y')],
+            'health_certificates' => ['nullable', 'array'],
+            'health_certificates.*.name' => ['required', 'string', 'max:255'],
+            'health_certificates.*.issuing_authority' => ['nullable', 'string', 'max:255'],
+            'health_certificates.*.expiration_date' => ['nullable', 'date'],
+            'health_certificates.*.file_path' => ['nullable', 'string', 'max:2048'],
+            'health_certificates.*.original_name' => ['nullable', 'string', 'max:255'],
+            'health_certificates.*.document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
             'years_experience' => ['nullable', 'integer', 'min:0', 'max:100'],
             'linkedin_url' => ['nullable', 'url', 'max:255'],
             'facebook_url' => ['nullable', 'url', 'max:255'],
@@ -180,12 +185,63 @@ class ProfileController extends Controller
         // Update slug if business name changed
         if ($validated['business_name'] !== $provider->business_name) {
             $validated['slug'] = Str::slug($validated['business_name']);
-            
+
             // Ensure unique slug
             $baseSlug = $validated['slug'];
             $counter = 1;
             while (ServiceProvider::where('slug', $validated['slug'])->where('id', '!=', $provider->id)->exists()) {
-                $validated['slug'] = $baseSlug . '-' . $counter++;
+                $validated['slug'] = $baseSlug.'-'.$counter++;
+            }
+        }
+
+        $typesRequiringCertificates = collect(ServiceTypeOptions::selectOptions('provider'))
+            ->filter(fn (array $type) => (bool) ($type['include_certificate'] ?? false))
+            ->pluck('value')
+            ->values();
+        $hasCertificateEnabledType = collect($validated['service_types'] ?? [])
+            ->intersect($typesRequiringCertificates)
+            ->isNotEmpty();
+
+        $existingCertificatePaths = collect($provider->health_certificates ?? [])
+            ->pluck('file_path')
+            ->filter()
+            ->values();
+        $keptCertificatePaths = collect();
+
+        $validated['health_certificates'] = collect($validated['health_certificates'] ?? [])
+            ->map(function (array $certificate) use (&$keptCertificatePaths) {
+                $filePath = $certificate['file_path'] ?? null;
+                $originalName = $certificate['original_name'] ?? null;
+
+                if (isset($certificate['document']) && $certificate['document']) {
+                    $filePath = $certificate['document']->store('provider-certificates', 'public');
+                    $originalName = $certificate['document']->getClientOriginalName();
+                }
+
+                if ($filePath) {
+                    $keptCertificatePaths->push($filePath);
+                }
+
+                return [
+                    'name' => $certificate['name'],
+                    'issuing_authority' => $certificate['issuing_authority'] ?? null,
+                    'expiration_date' => $certificate['expiration_date'] ?? null,
+                    'file_path' => $filePath,
+                    'original_name' => $originalName,
+                ];
+            })
+            ->values()
+            ->all();
+
+        if (! $hasCertificateEnabledType) {
+            $validated['health_certificates'] = [];
+            $pathsToDelete = $existingCertificatePaths;
+        } else {
+            $pathsToDelete = $existingCertificatePaths->diff($keptCertificatePaths);
+        }
+        foreach ($pathsToDelete as $path) {
+            if (is_string($path) && $path !== '' && ! str_starts_with($path, 'http')) {
+                Storage::disk('public')->delete($path);
             }
         }
 
@@ -204,7 +260,7 @@ class ProfileController extends Controller
 
         $user = auth()->user();
 
-        if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+        if ($user->avatar && ! str_starts_with($user->avatar, 'http')) {
             Storage::disk('public')->delete($user->avatar);
         }
 

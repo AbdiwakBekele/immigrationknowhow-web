@@ -43,6 +43,7 @@ class ServiceTypeController extends Controller
             'icon' => ['nullable', 'string', 'max:120'],
             'for_user' => ['boolean'],
             'for_provider' => ['boolean'],
+            'include_certificate' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
         ]);
@@ -61,6 +62,7 @@ class ServiceTypeController extends Controller
             'icon' => $validated['icon'] ?? null,
             'for_user' => (bool) ($validated['for_user'] ?? false),
             'for_provider' => (bool) ($validated['for_provider'] ?? false),
+            'include_certificate' => (bool) ($validated['include_certificate'] ?? false),
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => $sortOrder,
         ]);
@@ -95,6 +97,7 @@ class ServiceTypeController extends Controller
             'icon' => ['nullable', 'string', 'max:120'],
             'for_user' => ['boolean'],
             'for_provider' => ['boolean'],
+            'include_certificate' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
         ]);
@@ -109,6 +112,7 @@ class ServiceTypeController extends Controller
             'icon' => $validated['icon'] ?? null,
             'for_user' => (bool) ($validated['for_user'] ?? false),
             'for_provider' => (bool) ($validated['for_provider'] ?? false),
+            'include_certificate' => (bool) ($validated['include_certificate'] ?? false),
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => array_key_exists('sort_order', $validated) ? $validated['sort_order'] : $serviceType->sort_order,
         ]);

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -143,7 +144,12 @@ class MessagingController extends Controller
 
         $otherUser->notify(new NewMessageNotification($message));
 
-        return back()->with('success', 'Message sent.');
+        $showRoute = str_starts_with((string) $request->route()?->getName(), 'provider.')
+            ? 'provider.messages.show'
+            : 'messages.show';
+
+        return redirect()->route($showRoute, $conversation)
+            ->with('success', 'Message sent.');
     }
 
     public function markAsRead(Conversation $conversation): RedirectResponse
@@ -230,20 +236,9 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
 
-        $conversations = Conversation::query()
-            ->forUser($user)
-            ->forServiceInquiries()
-            ->withCount(['messages as unread_count' => function ($q) use ($user) {
-                $q->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($rq) use ($user) {
-                        $rq->where('user_id', $user->id);
-                    });
-            }])
-            ->get();
-
-        $count = $this->mergeByParticipants($conversations)->sum('unread_count');
-
-        return response()->json(['count' => $count]);
+        return response()->json([
+            'count' => Message::unreadIncomingCountFor($user),
+        ]);
     }
 
     protected function mergeByParticipants(Collection $conversations): Collection

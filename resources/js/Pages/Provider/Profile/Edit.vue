@@ -66,6 +66,14 @@ const form = useForm({
     license_state: props.provider?.license_state || '',
     license_expiry: props.provider?.license_expiry || '',
     certifications: props.provider?.certifications || [],
+    health_certificates: (props.provider?.health_certificates || []).map((certificate) => ({
+        name: certificate.name || '',
+        issuing_authority: certificate.issuing_authority || '',
+        expiration_date: certificate.expiration_date || '',
+        file_path: certificate.file_path || '',
+        original_name: certificate.original_name || '',
+        document: null,
+    })),
     years_experience: props.provider?.years_experience || '',
     
     // Social Links
@@ -109,9 +117,20 @@ const pricingModels = [
     { value: 'custom', label: 'Custom Quote' },
 ];
 
+const certificateRequiredServiceTypeValues = computed(() =>
+    (props.serviceTypes || [])
+        .filter((type) => type.include_certificate)
+        .map((type) => type.value)
+);
+
+const showsHealthCertificates = computed(() =>
+    form.service_types.some((type) => certificateRequiredServiceTypeValues.value.includes(type))
+);
+
 const updateProfile = () => {
     form.patch(route('provider.profile.update'), {
         preserveScroll: true,
+        forceFormData: true,
     });
 };
 
@@ -162,6 +181,46 @@ const removeCertification = (index) => {
     form.certifications.splice(index, 1);
 };
 
+const addHealthCertificate = () => {
+    form.health_certificates.push({
+        name: '',
+        issuing_authority: '',
+        expiration_date: '',
+        file_path: '',
+        original_name: '',
+        document: null,
+    });
+};
+
+const removeHealthCertificate = (index) => {
+    form.health_certificates.splice(index, 1);
+};
+
+const onHealthCertificateFileChange = (event, certificate) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+        return;
+    }
+
+    certificate.document = file;
+    certificate.original_name = file.name;
+    if (!certificate.name) {
+        certificate.name = file.name.replace(/\.[^/.]+$/, '');
+    }
+};
+
+const healthCertificateFileUrl = (path) => {
+    if (!path) {
+        return '';
+    }
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+
+    return `/storage/${path}`;
+};
+
 const addServiceArea = () => {
     if (newServiceArea.value && !form.service_areas.includes(newServiceArea.value)) {
         form.service_areas.push(newServiceArea.value);
@@ -199,6 +258,10 @@ const toggleServiceType = (value) => {
         form.service_types.splice(index, 1);
     } else {
         form.service_types.push(value);
+    }
+
+    if (!showsHealthCertificates.value) {
+        form.health_certificates = [];
     }
 };
 
@@ -287,16 +350,6 @@ const verificationStatusLabel = computed(() => {
                             <div class="min-w-0 flex-1 space-y-2">
                                 <p class="text-sm text-slate-600">Upload a professional headshot or logo. This appears on your public listing.</p>
                                 <p class="text-xs text-slate-500">JPEG, PNG, GIF, WebP, or BMP. Max 5&nbsp;MB.</p>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <button
-                                        type="button"
-                                        :disabled="avatarUploading"
-                                        class="btn btn-outline btn-sm"
-                                        @click="avatarInput?.click()"
-                                    >
-                                        {{ avatarUploading ? 'Uploading…' : (hasAvatar ? 'Change photo' : 'Upload photo') }}
-                                    </button>
-                                </div>
                                 <p v-if="avatarClientError" class="text-sm text-red-600">{{ avatarClientError }}</p>
                                 <p v-else-if="page.props.errors?.avatar" class="text-sm text-red-600">{{ page.props.errors.avatar }}</p>
                             </div>
@@ -633,6 +686,93 @@ const verificationStatusLabel = computed(() => {
                                 <p v-if="!form.certifications.length" class="text-slate-500 text-center py-4 bg-slate-50 rounded-xl">
                                     No certifications added yet
                                 </p>
+                            </div>
+
+                            <div v-if="showsHealthCertificates" class="pt-4 border-t border-slate-200">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700">Health-Related Certificates</label>
+                                        <p class="text-xs text-slate-500 mt-1">
+                                            Add pet first aid or first aid certificates, including issuing authority and expiration (if any).
+                                        </p>
+                                    </div>
+                                    <button type="button" @click="addHealthCertificate" class="flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
+                                        <PlusIcon class="h-4 w-4" />
+                                        Add Certificate
+                                    </button>
+                                </div>
+
+                                <div class="space-y-3">
+                                    <div
+                                        v-for="(certificate, index) in form.health_certificates"
+                                        :key="index"
+                                        class="p-4 bg-slate-50 rounded-xl space-y-3"
+                                    >
+                                        <div class="grid sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">Document Name *</label>
+                                                <input
+                                                    v-model="certificate.name"
+                                                    type="text"
+                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                    placeholder="Pet First Aid Training Certificate"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">Issuing Authority</label>
+                                                <input
+                                                    v-model="certificate.issuing_authority"
+                                                    type="text"
+                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                    placeholder="American Red Cross"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">Expiration Date (optional)</label>
+                                                <input
+                                                    v-model="certificate.expiration_date"
+                                                    type="date"
+                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">Document File</label>
+                                                <input
+                                                    type="file"
+                                                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                                                    @change="onHealthCertificateFileChange($event, certificate)"
+                                                />
+                                                <p class="mt-1 text-xs text-slate-500">PDF, JPG, PNG, or WebP up to 10MB.</p>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="certificate.file_path || certificate.original_name" class="flex items-center justify-between gap-3 text-xs text-slate-600">
+                                            <a
+                                                v-if="certificate.file_path"
+                                                :href="healthCertificateFileUrl(certificate.file_path)"
+                                                target="_blank"
+                                                class="text-primary-600 hover:text-primary-700 underline"
+                                            >
+                                                {{ certificate.original_name || 'View uploaded document' }}
+                                            </a>
+                                            <span v-else>{{ certificate.original_name }}</span>
+                                            <button type="button" @click="removeHealthCertificate(index)" class="text-red-500 hover:text-red-700 transition-colors">
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <div v-else class="flex justify-end">
+                                            <button type="button" @click="removeHealthCertificate(index)" class="text-red-500 hover:text-red-700 text-sm transition-colors">
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p v-if="!form.health_certificates.length" class="text-slate-500 text-center py-4 bg-slate-50 rounded-xl">
+                                    No health-related certificates added yet
+                                </p>
+                                <p v-if="form.errors.health_certificates" class="mt-2 text-sm text-red-600">{{ form.errors.health_certificates }}</p>
                             </div>
                         </div>
                     </div>

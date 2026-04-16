@@ -237,7 +237,7 @@ const deleteConversation = (conversationUuid) => {
                         class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
                     >
                         <CurrencyDollarIcon class="h-5 w-5" />
-                        Subscription Plans
+                        Subscriptions
                     </Link>
                     <Link
                         :href="route('provider.background-check.index')"

@@ -14,7 +14,7 @@ import {
     InformationCircleIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
 const props = defineProps({
@@ -64,7 +64,7 @@ const groupedMessages = computed(() => {
     const groups = [];
     let currentDate = null;
 
-    props.conversation.messages.forEach(message => {
+    (props.conversation?.messages ?? []).forEach(message => {
         const messageDate = new Date(message.created_at).toDateString();
         
         if (messageDate !== currentDate) {
@@ -89,11 +89,28 @@ const scrollToBottom = () => {
     });
 };
 
+let pollTimer = null;
+const pollConversation = () => {
+    if (document.visibilityState !== 'visible') {
+        return;
+    }
+    router.reload({ only: ['conversation'], preserveScroll: true });
+};
+
 onMounted(() => {
     scrollToBottom();
+    pollTimer = window.setInterval(pollConversation, 4000);
+    document.addEventListener('visibilitychange', pollConversation);
 });
 
-watch(() => props.conversation.messages, () => {
+onUnmounted(() => {
+    if (pollTimer !== null) {
+        clearInterval(pollTimer);
+    }
+    document.removeEventListener('visibilitychange', pollConversation);
+});
+
+watch(() => props.conversation?.messages, () => {
     scrollToBottom();
 }, { deep: true });
 
@@ -102,6 +119,8 @@ const sendMessage = () => {
 
     form.post(route('messages.send', props.conversation.uuid), {
         preserveScroll: true,
+        preserveState: false,
+        forceFormData: form.attachments.length > 0,
         onSuccess: () => {
             form.reset();
             attachmentPreviews.value = [];
@@ -389,6 +408,9 @@ const getInitials = (person) => {
                 <div class="mx-auto grid h-full w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                     <div ref="messagesContainer" class="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm">
                         <div class="space-y-8">
+                    <div v-if="form.errors.body" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        {{ form.errors.body }}
+                    </div>
                     <div v-for="group in groupedMessages" :key="group.date" class="space-y-4">
                         <!-- Date Separator -->
                         <div class="flex items-center justify-center">

@@ -50,9 +50,13 @@ const formatDuration = (minutes) => {
     return `${mins} min`;
 };
 
-const downloadItem = () => {
+const downloadItem = (asset = null) => {
     isDownloading.value = true;
-    window.location.href = `/library/${props.item.slug}/download`;
+    let url = `/library/${props.item.slug}/download`;
+    if (asset === 'audio') {
+        url += '?asset=audio';
+    }
+    window.location.href = url;
     setTimeout(() => {
         isDownloading.value = false;
     }, 3000);
@@ -311,11 +315,42 @@ const progressPercentage = computed(() => {
                                 </div>
 
                                 <button
-                                    v-if="hasAccess"
+                                    v-if="hasAccess && item.type === 'ebook' && item.has_audio_companion"
                                     type="button"
                                     class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-600/25 transition hover:from-primary-500 hover:to-primary-600 disabled:opacity-60"
                                     :disabled="isDownloading"
-                                    @click="downloadItem"
+                                    @click="downloadItem()"
+                                >
+                                    <ArrowDownTrayIcon v-if="!isDownloading" class="h-5 w-5" />
+                                    <svg
+                                        v-else
+                                        class="h-5 w-5 animate-spin"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            class="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                        />
+                                        <path
+                                            class="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        />
+                                    </svg>
+                                    {{ isDownloading ? 'Preparing download…' : 'Download PDF' }}
+                                </button>
+
+                                <button
+                                    v-else-if="hasAccess"
+                                    type="button"
+                                    class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3.5 text-sm font-semibold text-white shadow-md shadow-primary-600/25 transition hover:from-primary-500 hover:to-primary-600 disabled:opacity-60"
+                                    :disabled="isDownloading"
+                                    @click="downloadItem()"
                                 >
                                     <ArrowDownTrayIcon v-if="!isDownloading" class="h-5 w-5" />
                                     <svg
@@ -339,6 +374,17 @@ const progressPercentage = computed(() => {
                                         />
                                     </svg>
                                     {{ isDownloading ? 'Preparing download…' : 'Download' }}
+                                </button>
+
+                                <button
+                                    v-if="hasAccess && item.type === 'ebook' && item.has_audio_companion"
+                                    type="button"
+                                    class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-slate-50 disabled:opacity-60"
+                                    :disabled="isDownloading"
+                                    @click="downloadItem('audio')"
+                                >
+                                    <MusicalNoteIcon class="h-5 w-5 text-primary-600" />
+                                    Download audio
                                 </button>
 
                                 <button

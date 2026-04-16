@@ -48,7 +48,7 @@ class LibraryController extends Controller
     public function index(Request $request): Response
     {
         $query = LibraryItem::query()
-            ->with('category')
+            ->with(['category', 'libraryAuthor'])
             ->active();
 
         $query->availableInRegion($this->regionForCurrentUser());
@@ -128,7 +128,7 @@ class LibraryController extends Controller
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
 
-        $item->load('category');
+        $item->load(['category', 'libraryAuthor']);
         $item->incrementViews();
         if (auth()->check()) {
             $item->recordAccess(auth()->user());
@@ -139,6 +139,7 @@ class LibraryController extends Controller
             ->active()
             ->where('id', '!=', $item->id)
             ->where('category_id', $item->category_id)
+            ->with('libraryAuthor')
             ->limit(4)
             ->get();
 
@@ -171,7 +172,7 @@ class LibraryController extends Controller
         ]);
     }
 
-    public function download(LibraryItem $item): StreamedResponse|RedirectResponse
+    public function download(Request $request, LibraryItem $item): StreamedResponse|RedirectResponse
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
@@ -190,23 +191,32 @@ class LibraryController extends Controller
                 ->with('error', 'Purchase this item before downloading.');
         }
 
+        $wantAudioCompanion = $request->query('asset') === 'audio';
+
+        if ($wantAudioCompanion) {
+            abort_unless($item->type === 'ebook' && $item->audio_file_path, 404);
+            $fileDisk = $item->resolveAudioFileDisk();
+            $path = $item->audio_file_path;
+            $downloadName = $item->audio_file_name ?? basename((string) $path);
+        } else {
+            $fileDisk = $item->resolveLibraryFileDisk();
+            $path = $item->file_path;
+            $downloadName = $item->file_name ?? basename((string) $path);
+        }
+
         // Record the download
         $item->incrementDownloads();
         if (auth()->check()) {
             $item->recordAccess(auth()->user());
         }
 
-        $fileDisk = $item->resolveLibraryFileDisk();
-        if ($fileDisk === null) {
+        if ($fileDisk === null || ! $path) {
             return redirect()
                 ->route('library.show', $item)
                 ->with('error', 'File not found. Please contact support.');
         }
 
-        return Storage::disk($fileDisk)->download(
-            $item->file_path,
-            $item->file_name ?? basename($item->file_path)
-        );
+        return Storage::disk($fileDisk)->download($path, $downloadName);
     }
 
     public function toggleFavorite(LibraryItem $item): RedirectResponse

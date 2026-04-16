@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import {
@@ -16,7 +17,17 @@ import {
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const unreadMessages = computed(() => page.props.unreadMessages || 0);
+const unreadMessages = computed(() => Number(page.props.unreadMessages ?? 0) || 0);
+const unreadMessagesLabel = computed(() => {
+    const n = unreadMessages.value;
+    if (n < 1) {
+        return '';
+    }
+    if (n > 9999) {
+        return '9999+';
+    }
+    return String(n);
+});
 const userLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
     return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
@@ -27,7 +38,7 @@ const scrolled = ref(false);
 
 const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Find Services', href: '/providers', icon: MagnifyingGlassIcon },
+    { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Library', href: '/library', icon: BookOpenIcon },
 ];
 
@@ -107,9 +118,9 @@ const logout = () => {
                             <ChatBubbleLeftRightIcon class="h-6 w-6" />
                             <span
                                 v-if="unreadMessages > 0"
-                                class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-rose-500 text-white text-xs font-medium flex items-center justify-center ring-2 ring-white"
+                                class="absolute -top-1 -right-1 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
                             >
-                                {{ unreadMessages > 9 ? '9+' : unreadMessages }}
+                                {{ unreadMessagesLabel }}
                             </span>
                         </Link>
 

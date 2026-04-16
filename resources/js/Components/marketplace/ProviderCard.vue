@@ -9,8 +9,19 @@ const props = defineProps({
     },
 });
 
+/** Laravel / JSON often sends average_rating as a string; normalize before math. */
+const numericRating = (rating) => {
+    const n = Number(rating);
+    return Number.isFinite(n) ? n : 0;
+};
+
 const ratingStars = (rating) => {
-    return Math.round(rating);
+    return Math.round(numericRating(rating));
+};
+
+const averageRatingText = (rating) => {
+    const n = numericRating(rating);
+    return n > 0 ? n.toFixed(1) : 'New';
 };
 
 const resolveAvatar = (person) => {
@@ -74,7 +85,7 @@ const resolveAvatar = (person) => {
                         />
                     </div>
                     <span class="text-sm text-neutral-600">
-                        {{ provider.average_rating > 0 ? provider.average_rating.toFixed(1) : 'New' }}
+                        {{ averageRatingText(provider.average_rating) }}
                         <span v-if="provider.total_reviews > 0" class="text-neutral-400">
                             ({{ provider.total_reviews }})
                         </span>
