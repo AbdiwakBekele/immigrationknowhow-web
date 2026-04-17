@@ -23,6 +23,16 @@ class CountryOptions
         return array_keys(self::labels());
     }
 
+    public static function labelForCode(?string $code): ?string
+    {
+        $code = is_string($code) ? trim($code) : '';
+        if ($code === '') {
+            return null;
+        }
+
+        return self::labels()[$code] ?? $code;
+    }
+
     /**
      * @return array<string, string>
      */

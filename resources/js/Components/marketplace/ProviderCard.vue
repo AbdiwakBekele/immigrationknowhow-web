@@ -1,6 +1,8 @@
 <script setup>
+import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { StarIcon, MapPinIcon, CheckBadgeIcon, LanguageIcon } from '@heroicons/vue/20/solid';
+import { StarIcon, MapPinIcon, CheckBadgeIcon } from '@heroicons/vue/20/solid';
+import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
 
 const props = defineProps({
     provider: {
@@ -32,13 +34,40 @@ const resolveAvatar = (person) => {
     }
     return `/storage/${candidate}`;
 };
+
+const sharePayload = computed(() => {
+    const p = props.provider;
+    const title = p.display_name || p.business_name || 'Provider';
+    let description = (p.tagline || '').trim();
+    if (!description && p.bio) {
+        description = String(p.bio).replace(/\s+/g, ' ').trim().slice(0, 200);
+    }
+    if (!description) {
+        description = `View ${title} on the marketplace.`;
+    }
+    const path = route('marketplace.show', p.slug);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const url = path.startsWith('http') ? path : `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+
+    let image = resolveAvatar(p.user);
+    if (image) {
+        image = image.startsWith('http') ? image : `${origin}${image.startsWith('/') ? image : `/${image}`}`;
+    } else {
+        image = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=3B95F3&color=fff&size=512`;
+    }
+
+    return { url, title, description, image };
+});
 </script>
 
 <template>
-    <Link 
-        :href="route('marketplace.show', provider.slug)"
-        class="provider-card group"
-    >
+    <article class="provider-card group relative">
+        <Link
+            :href="route('marketplace.show', provider.slug)"
+            class="absolute inset-0 z-0 rounded-2xl"
+            :aria-label="`View profile: ${provider.display_name}`"
+        />
+        <div class="relative z-10 flex flex-col gap-4 pointer-events-none">
         <!-- Header with avatar and verification badge -->
         <div class="flex items-start gap-4">
             <div class="relative flex-shrink-0">
@@ -117,20 +146,23 @@ const resolveAvatar = (person) => {
         </div>
         
         <!-- Footer info -->
-        <div class="flex items-center justify-between pt-3 mt-auto border-t border-neutral-100">
-            <div class="flex items-center gap-4 text-xs text-neutral-500">
-                <span class="flex items-center gap-1">
-                    <MapPinIcon class="w-3.5 h-3.5" />
-                    {{ provider.location_display }}
+        <div class="flex items-center justify-between gap-2 pt-3 mt-auto border-t border-neutral-100">
+            <div class="flex min-w-0 flex-1 items-center gap-4 text-xs text-neutral-500">
+                <span class="flex min-w-0 items-center gap-1">
+                    <MapPinIcon class="w-3.5 h-3.5 flex-shrink-0" />
+                    <span class="truncate">{{ provider.location_display }}</span>
                 </span>
-                <span v-if="provider.serves_remote" class="flex items-center gap-1 text-accent-600">
+                <span v-if="provider.serves_remote" class="flex flex-shrink-0 items-center gap-1 text-accent-600">
                     <span class="w-1.5 h-1.5 bg-accent-500 rounded-full"></span>
                     Remote OK
                 </span>
             </div>
-            
-            <div v-if="provider.free_consultation" class="badge-success text-2xs">
-                Free Consult
+
+            <div class="flex flex-shrink-0 items-center gap-1.5 pointer-events-auto">
+                <div v-if="provider.free_consultation" class="badge-success text-2xs">
+                    Free Consult
+                </div>
+                <ProfileSharePanel :share="sharePayload" menu-align="right" />
             </div>
         </div>
         
@@ -143,7 +175,8 @@ const resolveAvatar = (person) => {
                 ⭐ Featured
             </span>
         </div>
-    </Link>
+        </div>
+    </article>
 </template>
 
 <style scoped>

@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -73,6 +73,20 @@ class LibraryController extends Controller
             }
         }
 
+        if ($request->filled('region')) {
+            $region = $request->string('region')->toString();
+            if (in_array($region, LibraryItem::supportedRegions(), true)) {
+                $query->whereRegionsMatchOrGlobal($region);
+            }
+        }
+
+        if ($request->filled('author')) {
+            $author = LibraryAuthor::query()->where('slug', $request->input('author'))->first();
+            if ($author) {
+                $query->where('author_id', $author->id);
+            }
+        }
+
         if ($request->boolean('favorites')) {
             $userId = auth()->id();
             if ($userId) {
@@ -82,11 +96,19 @@ class LibraryController extends Controller
             }
         }
 
+        $sort = $request->input('sort', 'newest');
+        if ($sort === 'oldest') {
+            $query->orderBy('created_at');
+        } elseif ($sort === 'title_asc') {
+            $query->orderBy('title');
+        } elseif ($sort === 'title_desc') {
+            $query->orderByDesc('title');
+        } else {
+            $query->orderByDesc('is_featured')->orderByDesc('created_at');
+        }
+
         // Add favorite status for current user
-        $items = $query->orderByDesc('is_featured')
-            ->orderByDesc('created_at')
-            ->paginate(16)
-            ->withQueryString();
+        $items = $query->paginate(16)->withQueryString();
 
         // Add favorite status to each item
         $userId = auth()->id();
@@ -94,6 +116,7 @@ class LibraryController extends Controller
             $access = $userId ? $item->userAccess()->where('user_id', $userId)->first() : null;
             $item->is_favorite = $access?->is_favorite ?? false;
             $item->has_access = $userId && (bool) $access?->purchased_at;
+            $item->reading_progress_percent = $this->readingProgressPercent($access, $item);
 
             return $item;
         });
@@ -101,16 +124,23 @@ class LibraryController extends Controller
         $types = LibraryItem::typeOptionsWithCounts();
         $categories = LibraryCategory::active()->ordered()->get(['id', 'name', 'slug']);
 
-        $itemsArray = $items->toArray();
+        $userRegion = $this->regionForCurrentUser();
+        $authors = LibraryAuthor::query()
+            ->whereHas('libraryItems', function ($q) use ($userRegion) {
+                $q->active()->availableInRegion($userRegion);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
 
-        $groupedItems = $this->buildCategoryGroups($items->getCollection());
+        $itemsArray = $items->toArray();
 
         return Inertia::render('Library/Index', [
             'items' => $itemsArray,
             'categories' => $categories,
             'types' => $types,
-            'groupedItems' => $groupedItems,
-            'filters' => $request->only(['search', 'category', 'type', 'favorites']),
+            'authors' => $authors,
+            'regionOptions' => LibraryItem::regionOptions(),
+            'filters' => $request->only(['search', 'category', 'type', 'favorites', 'region', 'author', 'sort']),
         ]);
     }
 
@@ -232,7 +262,7 @@ class LibraryController extends Controller
     }
 
     /**
-     * Stripe embedded checkout (Library/Payment.vue) or manual instructions (Library/ManualPayment.vue).
+     * Stripe hosted Checkout (same flow as provider subscriptions) or manual instructions (Library/ManualPayment.vue).
      */
     public function pay(LibraryItem $item): Response|RedirectResponse
     {
@@ -266,7 +296,6 @@ class LibraryController extends Controller
         }
 
         $secret = config('services.stripe.secret');
-        $publishable = config('services.stripe.key');
 
         Stripe::setApiKey($secret);
 
@@ -286,11 +315,11 @@ class LibraryController extends Controller
 
         try {
             $session = StripeCheckoutSession::create([
-                'ui_mode' => 'embedded_page',
                 'mode' => 'payment',
                 'customer_email' => auth()->user()->email,
                 'client_reference_id' => (string) auth()->id(),
-                'return_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('library.purchase.cancel', $item, true),
                 'metadata' => [
                     'app' => 'library',
                     'library_item_id' => (string) $item->id,
@@ -307,11 +336,6 @@ class LibraryController extends Controller
                     ],
                     'quantity' => 1,
                 ]],
-                'custom_text' => [
-                    'submit' => [
-                        'message' => 'After payment, you will return here and can download from the library.',
-                    ],
-                ],
             ]);
         } catch (\Throwable $e) {
             Log::error('Stripe library checkout session failed', [
@@ -326,24 +350,14 @@ class LibraryController extends Controller
                     : 'Payment could not start. Please try again or contact support.');
         }
 
-        $clientSecret = $session->client_secret;
-        if (! is_string($clientSecret) || $clientSecret === '') {
+        $checkoutUrl = $session->url;
+        if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
             return redirect()
                 ->route('library.show', $item)
                 ->with('error', 'Could not start checkout. Please try again.');
         }
 
-        return Inertia::render('Library/Payment', [
-            'item' => [
-                'title' => $item->title,
-                'slug' => $item->slug,
-                'price' => $item->price,
-                'currency' => $item->currency ?? 'USD',
-                'type' => $item->type,
-            ],
-            'checkoutClientSecret' => $clientSecret,
-            'stripePublishableKey' => $publishable,
-        ]);
+        return Inertia::location($checkoutUrl);
     }
 
     /**
@@ -459,7 +473,7 @@ class LibraryController extends Controller
 
     /**
      * Free library items only: grants access and starts download.
-     * Premium titles use Stripe embedded checkout from the pay page.
+     * Premium titles use Stripe hosted Checkout from the pay route.
      */
     public function purchase(LibraryItem $item): RedirectResponse
     {
@@ -562,22 +576,35 @@ class LibraryController extends Controller
         ]);
     }
 
-    private function buildCategoryGroups(Collection $items): array
+    private function readingProgressPercent(?LibraryUserAccess $access, LibraryItem $item): ?int
     {
-        $groups = $items
-            ->groupBy(fn ($item) => $item->category?->slug ?? 'uncategorized')
-            ->map(function ($groupItems, $slug) {
-                $first = $groupItems->first();
+        if (! $access?->progress || ! is_array($access->progress)) {
+            return null;
+        }
 
-                return [
-                    'slug' => $slug,
-                    'name' => $first->category?->name ?? 'Uncategorized',
-                    'items' => $groupItems->values(),
-                ];
-            })
-            ->values()
-            ->all();
+        $p = $access->progress;
 
-        return $groups;
+        if ($item->type === 'ebook' && isset($p['page'])) {
+            $page = (int) $p['page'];
+            $total = (int) ($item->page_count ?? 0);
+            if ($total < 1) {
+                $total = 100;
+            }
+
+            return (int) max(0, min(100, round(($page / $total) * 100)));
+        }
+
+        if ($item->type === 'audiobook' && isset($p['position']) && $item->duration_seconds) {
+            $pos = (int) $p['position'];
+            $dur = max(1, (int) $item->duration_seconds);
+
+            return (int) max(0, min(100, round(($pos / $dur) * 100)));
+        }
+
+        if (isset($p['percentage'])) {
+            return (int) max(0, min(100, round((float) $p['percentage'])));
+        }
+
+        return null;
     }
 }

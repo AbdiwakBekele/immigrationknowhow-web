@@ -328,14 +328,13 @@ const backgroundCheckMeta = (user) => {
     }
 };
 
+/** Narrowing filters only — sort/direction are list controls, not “filters”. */
 const hasActiveFilters = computed(() => {
     return Boolean(
-        search.value ||
+        (search.value || '').trim() ||
         roleFilter.value ||
         statusFilter.value ||
-        backgroundCheckFilter.value ||
-        sort.value !== 'created_at' ||
-        dir.value !== 'desc'
+        backgroundCheckFilter.value
     );
 });
 

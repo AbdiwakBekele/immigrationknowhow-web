@@ -126,32 +126,40 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
     <Head title="Contracts" />
 
     <AppLayout>
-        <div class="mx-auto max-w-7xl space-y-5">
-            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-6 text-white shadow-sm">
-                <h1 class="text-2xl font-display font-bold">Contracts</h1>
-                <p class="mt-1 text-sm text-slate-200">
-                    Manage offers and contracts in one place. Send offer, wait for acceptance, then track active work.
-                </p>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs text-slate-500">Total</p>
-                    <p class="mt-1 text-xl font-semibold text-slate-900">{{ stats.total || 0 }}</p>
+        <div class="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+            <section class="overflow-hidden rounded-3xl bg-gradient-to-r from-sky-600 via-indigo-600 to-violet-600 px-6 py-8 text-white shadow-xl sm:px-8">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="max-w-2xl">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-sky-100">
+                            Contracts
+                        </p>
+                        <h1 class="mt-2 text-3xl font-display font-bold sm:text-4xl">
+                            Manage offers and active work
+                        </h1>
+                        <p class="mt-3 text-sm text-sky-50 sm:text-base">
+                            Send offers, wait for acceptance, and track contracts with your providers in one place.
+                        </p>
+                    </div>
+                    <div class="grid w-full grid-cols-2 gap-3 lg:max-w-3xl lg:grid-cols-4">
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Total</p>
+                            <p class="text-lg font-semibold tabular-nums">{{ stats.total || 0 }}</p>
+                        </div>
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Active</p>
+                            <p class="text-lg font-semibold tabular-nums text-amber-100">{{ stats.active || 0 }}</p>
+                        </div>
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Completed</p>
+                            <p class="text-lg font-semibold tabular-nums text-emerald-100">{{ stats.completed || 0 }}</p>
+                        </div>
+                        <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                            <p class="text-xs text-sky-100">Ended</p>
+                            <p class="text-lg font-semibold tabular-nums text-sky-100">{{ stats.ended || 0 }}</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs text-slate-500">Active</p>
-                    <p class="mt-1 text-xl font-semibold text-amber-700">{{ stats.active || 0 }}</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs text-slate-500">Completed</p>
-                    <p class="mt-1 text-xl font-semibold text-emerald-700">{{ stats.completed || 0 }}</p>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs text-slate-500">Ended</p>
-                    <p class="mt-1 text-xl font-semibold text-slate-700">{{ stats.ended || 0 }}</p>
-                </div>
-            </div>
+            </section>
 
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex flex-col gap-3 sm:flex-row">

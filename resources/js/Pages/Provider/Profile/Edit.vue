@@ -1,6 +1,7 @@
 <script setup>
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
 import { 
     ArrowLeftIcon,
     UserCircleIcon,
@@ -21,6 +22,8 @@ import { ref, computed } from 'vue';
 const props = defineProps({
     provider: { type: Object, required: true },
     serviceTypes: { type: Array, default: () => [] },
+    /** Canonical public listing URL and copy for social shares */
+    providerShare: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -299,6 +302,12 @@ const verificationStatusLabel = computed(() => {
                         <span :class="['px-3 py-1 rounded-full text-sm font-medium', verificationStatusLabel.class]">
                             {{ verificationStatusLabel.text }}
                         </span>
+                        <ProfileSharePanel
+                            v-if="providerShare"
+                            :share="providerShare"
+                            trigger-variant="outline"
+                            menu-align="right"
+                        />
                         <Link
                             :href="route('marketplace.show', { provider: provider.slug })"
                             class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-slate-700 transition-colors hover:bg-slate-50"

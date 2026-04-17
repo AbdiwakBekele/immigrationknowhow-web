@@ -1,22 +1,22 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { 
-    BookOpenIcon, 
+import {
+    BookOpenIcon,
     MusicalNoteIcon,
     MagnifyingGlassIcon,
     HeartIcon,
-    ArrowDownTrayIcon,
-    PlayIcon,
-    ClockIcon,
     DocumentTextIcon,
+    Squares2X2Icon,
+    ListBulletIcon,
+    ClockIcon,
 } from '@heroicons/vue/24/outline';
-import { HeartIcon as HeartSolid, StarIcon as StarSolid } from '@heroicons/vue/24/solid';
-import { ref, watch, computed } from 'vue';
+import { HeartIcon as HeartSolid } from '@heroicons/vue/24/solid';
+import { ref, computed, watch } from 'vue';
 
 const page = usePage();
 const isAuthenticated = computed(() => !!page.props.auth?.user);
-import { debounce } from 'lodash-es';
 
 const props = defineProps({
     items: Object,
@@ -25,31 +25,129 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    groupedItems: {
+    authors: {
+        type: Array,
+        default: () => [],
+    },
+    regionOptions: {
         type: Array,
         default: () => [],
     },
     filters: Object,
 });
 
-const search = ref(props.filters?.search || '');
-const selectedCategory = ref(props.filters?.category || '');
-const selectedType = ref(props.filters?.type || '');
-const showFavorites = ref(props.filters?.favorites === 'true');
+/** Empty string from the query string does not trigger `??`, so `<select>` shows blank with no matching option. */
+const SORT_VALUES = ['newest', 'oldest', 'title_asc', 'title_desc'];
 
-const applyFilters = debounce(() => {
-    router.get(route('library.index'), {
-        search: search.value || undefined,
-        category: selectedCategory.value || undefined,
-        type: selectedType.value || undefined,
-        favorites: showFavorites.value ? 'true' : undefined,
-    }, {
+function normalizeSort(value) {
+    const s = typeof value === 'string' ? value.trim() : '';
+    return SORT_VALUES.includes(s) ? s : 'newest';
+}
+
+const viewMode = ref('grid');
+
+const LOCALE_CODES = ['en', 'fr', 'es'];
+
+function normalizeLocale(value) {
+    const v = typeof value === 'string' ? value.trim() : '';
+    return LOCALE_CODES.includes(v) ? v : 'en';
+}
+
+const locale = ref(normalizeLocale(page.props.locale));
+
+watch(
+    () => page.props.locale,
+    (l) => {
+        locale.value = normalizeLocale(l);
+    },
+);
+
+const updateLocale = () => {
+    router.post(
+        route('locale.update'),
+        { locale: locale.value },
+        {
+            preserveScroll: true,
+            onSuccess: () => router.reload(),
+        },
+    );
+};
+
+const search = ref(props.filters?.search ?? '');
+const selectedCategory = ref(props.filters?.category ?? '');
+const selectedRegion = ref(props.filters?.region ?? '');
+const selectedAuthor = ref(props.filters?.author ?? '');
+const selectedSort = ref(normalizeSort(props.filters?.sort));
+const selectedType = ref(props.filters?.type ?? '');
+
+watch(
+    () => props.filters,
+    (f) => {
+        search.value = f?.search ?? '';
+        selectedCategory.value = f?.category ?? '';
+        selectedRegion.value = f?.region ?? '';
+        selectedAuthor.value = f?.author ?? '';
+        selectedSort.value = normalizeSort(f?.sort);
+        selectedType.value = f?.type ?? '';
+    },
+    { deep: true },
+);
+
+const buildQuery = () => ({
+    search: search.value || undefined,
+    category: selectedCategory.value || undefined,
+    region: selectedRegion.value || undefined,
+    author: selectedAuthor.value || undefined,
+    sort: selectedSort.value && selectedSort.value !== 'newest' ? selectedSort.value : undefined,
+    type: selectedType.value || undefined,
+});
+
+const applyFilters = () => {
+    router.get(route('library.index'), buildQuery(), {
         preserveState: true,
         preserveScroll: true,
     });
-}, 300);
+};
 
-watch([search, selectedCategory, selectedType, showFavorites], applyFilters);
+const resetFilters = () => {
+    search.value = '';
+    selectedCategory.value = '';
+    selectedRegion.value = '';
+    selectedAuthor.value = '';
+    selectedSort.value = 'newest';
+    selectedType.value = '';
+    router.get(route('library.index'), {}, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const libraryItems = computed(() => props.items?.data ?? []);
+
+const totalLabel = computed(() => {
+    const n = props.items?.total ?? 0;
+    if (selectedType.value === 'audiobook') {
+        return `${n} audiobook${n === 1 ? '' : 's'} found`;
+    }
+    if (selectedType.value === 'ebook') {
+        return `${n} eBook${n === 1 ? '' : 's'} found`;
+    }
+    return `${n} item${n === 1 ? '' : 's'} found`;
+});
+
+function stripHtml(html) {
+    if (!html) return '';
+    return String(html)
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function excerpt(text, len = 140) {
+    const t = stripHtml(text);
+    if (t.length <= len) return t;
+    return `${t.slice(0, len)}…`;
+}
 
 const toggleFavorite = (item) => {
     router.post(route('library.favorite', item.slug), {}, {
@@ -75,261 +173,479 @@ const formatDuration = (seconds) => {
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes} min`;
 };
+
+const primaryCtaLabel = (item) => {
+    if (item.type === 'audiobook') {
+        if (item.has_access) return 'Listen';
+        return item.is_premium ? 'Purchase' : 'Get access';
+    }
+    if (item.has_access) {
+        if (item.reading_progress_percent > 0) return 'Continue Reading';
+        return 'Read Now';
+    }
+    return item.is_premium ? 'Purchase' : 'Get access';
+};
+
+const categoryBadge = (item) => item.category?.name ?? getTypeLabel(item.type);
 </script>
 
 <template>
-    <Head title="Digital Library" />
+    <Head title="Explore Our eBook & Audio Collections" />
 
     <AppLayout>
         <div
-            class="mx-auto max-w-7xl space-y-5"
-            :class="!isAuthenticated ? 'px-4 pb-10 pt-2 sm:px-6 lg:px-8' : ''"
+            class="space-y-5 pb-16"
+            :class="
+                isAuthenticated
+                    ? '-mx-4 bg-[#e8edf5] px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5 lg:-mx-8 lg:px-8 lg:py-6'
+                    : 'bg-[#e8edf5] px-4 pb-16 pt-2 sm:px-6 lg:px-8'
+            "
         >
-            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                            Library
-                        </p>
-                        <h1 class="text-xl font-display font-bold text-slate-900">
-                            Digital Library
-                        </h1>
-                        <p class="mt-0.5 max-w-2xl text-sm text-slate-500">
-                            E-books and audiobooks to support your immigration journey.
-                        </p>
-                    </div>
-                    <span class="hidden rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 sm:inline-flex">
-                        Browse &amp; download
-                    </span>
+            <div class="mx-auto max-w-7xl space-y-5">
+                <!-- Title banner (matches Contracts / dashboard system) -->
+                <div
+                    class="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-8 text-center text-white shadow-sm sm:py-10"
+                >
+                    <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+                        Explore Our eBook & Audio Collections
+                    </h1>
+                    <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-200 sm:text-base">
+                        E-books, audiobooks, and audio content to support your immigration journey.
+                    </p>
                 </div>
-            </div>
 
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <template v-for="typeOption in types.slice(0, 4)" :key="typeOption.value">
-                    <Link
-                        :href="route('library.index', { type: typeOption.value })"
-                        class="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm transition-shadow hover:shadow-md"
-                    >
-                        <component
-                            :is="getTypeIcon(typeOption.value)"
-                            class="mx-auto mb-2 h-7 w-7 text-sky-600"
-                        />
-                        <p class="text-2xl font-display font-bold text-slate-900">
-                            {{ typeOption.count ?? 0 }}
-                        </p>
-                        <p class="text-xs text-slate-500">{{ typeOption.label }}</p>
-                    </Link>
-                </template>
-            </div>
+                <!-- Search & filters (white panel like system cards) -->
+                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                    <div class="mx-auto max-w-5xl">
+                        <!-- Search (icon inside field) -->
+                        <div class="relative">
+                            <label class="sr-only" for="library-search">Search library</label>
+                            <MagnifyingGlassIcon
+                                class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                                aria-hidden="true"
+                            />
+                            <input
+                                id="library-search"
+                                v-model="search"
+                                type="search"
+                                placeholder="Search by title, author, or keyword..."
+                                class="h-12 w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                @keydown.enter.prevent="applyFilters"
+                            />
+                        </div>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-                <div class="flex flex-col gap-3 lg:flex-row">
-                    <div class="relative min-w-0 flex-1">
-                        <MagnifyingGlassIcon
-                            class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-                        />
-                        <input
-                            v-model="search"
-                            type="text"
-                            placeholder="Search by title, author..."
-                            class="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                        />
-                    </div>
-
-                    <select
-                        v-model="selectedCategory"
-                        class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                    >
-                        <option value="">All Categories</option>
-                        <option v-for="category in categories" :key="category.slug" :value="category.slug">
-                            {{ category.name }}
-                        </option>
-                    </select>
-
-                    <select
-                        v-model="selectedType"
-                        class="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                    >
-                        <option value="">All Types</option>
-                        <option v-for="typeOption in types" :key="typeOption.value" :value="typeOption.value">
-                            {{ typeOption.label }}
-                        </option>
-                    </select>
-
-                    <button
-                        type="button"
-                        @click="showFavorites = !showFavorites"
-                        :class="[
-                            'inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
-                            showFavorites
-                                ? 'border-rose-200 bg-rose-50 text-rose-800'
-                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
-                        ]"
-                    >
-                        <component :is="showFavorites ? HeartSolid : HeartIcon" class="h-5 w-5" />
-                        Favorites
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="groupedItems.length" class="space-y-8">
-                <section v-for="group in groupedItems" :key="group.slug" class="space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                        <h2 class="text-lg font-display font-semibold text-slate-900">
-                            {{ group.name }}
-                        </h2>
-                        <span class="text-sm text-slate-500">{{ group.items.length }} item(s)</span>
-                    </div>
-
-                    <div
-                        class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-                    >
+                        <!-- One row: filters + Apply -->
                         <div
-                            v-for="item in group.items"
-                            :key="item.uuid"
-                            class="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+                            class="mt-5 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-end"
                         >
-                                <!-- Cover Image (capped height — wide cards stay short) -->
-                                <div class="relative h-24 sm:h-28 md:h-32 w-full bg-slate-100 overflow-hidden">
-                                    <img
-                                        v-if="item.cover_image_url"
-                                        :src="item.cover_image_url"
-                                        :alt="item.title"
-                                        class="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                                    />
-                                    <div v-else class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-sky-100 to-indigo-100">
-                                        <component :is="getTypeIcon(item.type)" class="h-8 w-8 text-sky-500 sm:h-9 sm:w-9" />
-                                    </div>
-
-                                    <!-- Type Badge -->
-                                    <div class="absolute left-1.5 top-1.5 sm:left-2 sm:top-2">
-                                        <span :class="[
-                                            'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-medium sm:px-2 sm:py-1 sm:text-xs',
-                                            item.type === 'ebook'
-                                                ? 'bg-sky-100 text-sky-800'
-                                                : 'bg-violet-100 text-violet-800'
-                                        ]">
-                                            <component :is="getTypeIcon(item.type)" class="w-3.5 h-3.5" />
-                                            {{ getTypeLabel(item.type) }}
-                                        </span>
-                                    </div>
-
-                                    <!-- One-time purchase badge -->
-                                    <div v-if="item.is_premium" class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
-                                        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 sm:px-2 sm:py-1 bg-amber-100 text-amber-700 rounded-md text-[10px] sm:text-xs font-medium">
-                                            <StarSolid class="w-3.5 h-3.5" />
-                                            One-time
-                                        </span>
-                                    </div>
-
-                                    <!-- Favorite Button -->
-                                    <button
-                                        @click.prevent="toggleFavorite(item)"
-                                        class="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 w-8 h-8 sm:w-9 sm:h-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                            <div class="min-w-0 flex-1 sm:min-w-[9.5rem]">
+                                <label class="sr-only" for="filter-category">Category</label>
+                                <select
+                                    id="filter-category"
+                                    v-model="selectedCategory"
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <option value="">All Categories</option>
+                                    <option
+                                        v-for="category in categories"
+                                        :key="category.slug"
+                                        :value="category.slug"
                                     >
-                                        <component
-                                            :is="item.is_favorite ? HeartSolid : HeartIcon"
-                                            :class="['h-4 w-4', item.is_favorite ? 'text-rose-500' : 'text-slate-600']"
-                                        />
-                                    </button>
-
-                                    <!-- Play Button for Audiobooks -->
-                                    <Link
-                                        v-if="item.type === 'audiobook'"
-                                        :href="route('library.show', item.slug)"
-                                        class="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        {{ category.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="min-w-0 flex-1 sm:min-w-[9.5rem]">
+                                <label class="sr-only" for="filter-country">Country</label>
+                                <select
+                                    id="filter-country"
+                                    v-model="selectedRegion"
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <option value="">All Countries</option>
+                                    <option
+                                        v-for="opt in regionOptions"
+                                        :key="opt.value"
+                                        :value="opt.value"
                                     >
-                                        <div class="w-11 h-11 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center shadow-lg">
-                                            <PlayIcon class="ml-0.5 h-5 w-5 text-sky-600 sm:h-6 sm:w-6" />
-                                        </div>
-                                    </Link>
+                                        {{ opt.label }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="min-w-0 flex-1 sm:min-w-[9.5rem]">
+                                <label class="sr-only" for="filter-author">Author</label>
+                                <select
+                                    id="filter-author"
+                                    v-model="selectedAuthor"
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <option value="">All Authors</option>
+                                    <option
+                                        v-for="author in authors"
+                                        :key="author.slug"
+                                        :value="author.slug"
+                                    >
+                                        {{ author.name }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="min-w-0 flex-1 sm:min-w-[9.5rem]">
+                                <label class="sr-only" for="filter-format">Format</label>
+                                <select
+                                    id="filter-format"
+                                    v-model="selectedType"
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                                    :disabled="!types.length"
+                                >
+                                    <option value="">All Formats</option>
+                                    <option
+                                        v-for="typeOption in types"
+                                        :key="typeOption.value"
+                                        :value="typeOption.value"
+                                    >
+                                        {{ typeOption.label }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="min-w-0 flex-1 sm:min-w-[9.5rem]">
+                                <label class="sr-only" for="filter-sort">Sort</label>
+                                <select
+                                    id="filter-sort"
+                                    v-model="selectedSort"
+                                    class="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <option value="newest">Newest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="title_asc">Title A–Z</option>
+                                    <option value="title_desc">Title Z–A</option>
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                class="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-lg bg-primary-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 sm:w-auto sm:min-w-[10.5rem]"
+                                @click="applyFilters"
+                            >
+                                Apply Filters
+                            </button>
+                        </div>
+
+                        <!-- Reset on its own row -->
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <button
+                                type="button"
+                                class="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-5 text-sm font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                @click="resetFilters"
+                            >
+                                Reset
+                            </button>
+                        </div>
+
+                        <!-- Language below -->
+                        <div class="mt-5 flex justify-center">
+                            <label class="sr-only" for="library-locale">Language</label>
+                            <select
+                                id="library-locale"
+                                v-model="locale"
+                                class="min-w-[11rem] cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-10 text-sm font-medium text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25"
+                                style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 fill=%22none%22 viewBox=%220 0 24 24%22 stroke-width=%221.5%22 stroke=%2364748b%22%3E%3Cpath stroke-linecap=%22round%22 stroke-linejoin=%22round%22 d=%22M19.5 8.25l-7.5 7.5-7.5-7.5%22/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 0.65rem center; background-size: 1rem 1rem"
+                                @change="updateLocale"
+                            >
+                                <option value="en">EN — English</option>
+                                <option value="fr">FR — French</option>
+                                <option value="es">ES — Spanish</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results toolbar -->
+            <div class="mx-auto max-w-7xl px-0 sm:px-0 lg:px-0">
+                <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <p class="text-sm font-medium text-slate-600">
+                        {{ totalLabel }}
+                    </p>
+                    <div
+                        class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm"
+                        role="group"
+                        aria-label="View mode"
+                    >
+                        <button
+                            type="button"
+                            :class="[
+                                'inline-flex items-center justify-center rounded-md p-2 transition',
+                                viewMode === 'grid'
+                                    ? 'bg-primary-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+                            ]"
+                            :aria-pressed="viewMode === 'grid'"
+                            @click="viewMode = 'grid'"
+                        >
+                            <Squares2X2Icon class="h-5 w-5" />
+                            <span class="sr-only">Grid view</span>
+                        </button>
+                        <button
+                            type="button"
+                            :class="[
+                                'inline-flex items-center justify-center rounded-md p-2 transition',
+                                viewMode === 'list'
+                                    ? 'bg-primary-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800',
+                            ]"
+                            :aria-pressed="viewMode === 'list'"
+                            @click="viewMode = 'list'"
+                        >
+                            <ListBulletIcon class="h-5 w-5" />
+                            <span class="sr-only">List view</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid -->
+                <div
+                    v-if="libraryItems.length && viewMode === 'grid'"
+                    class="grid grid-cols-1 gap-6 md:grid-cols-3"
+                >
+                    <article
+                        v-for="item in libraryItems"
+                        :key="item.uuid"
+                        class="group flex flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-soft transition hover:shadow-soft-lg"
+                    >
+                        <div class="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                            <img
+                                v-if="item.cover_image_url"
+                                :src="item.cover_image_url"
+                                :alt="item.title"
+                                class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+                            />
+                            <div
+                                v-else
+                                class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 to-indigo-100"
+                            >
+                                <component
+                                    :is="getTypeIcon(item.type)"
+                                    class="h-14 w-14 text-primary-500"
+                                />
+                            </div>
+
+                            <div class="absolute left-3 top-3">
+                                <span
+                                    class="inline-flex rounded-md bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm"
+                                >
+                                    {{ categoryBadge(item) }}
+                                </span>
+                            </div>
+
+                            <div
+                                v-if="item.has_access && item.reading_progress_percent != null && item.reading_progress_percent > 0"
+                                class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-3 pb-2 pt-8"
+                            >
+                                <div class="flex items-center justify-between text-[11px] font-medium text-white">
+                                    <span>{{ item.reading_progress_percent }}% read</span>
                                 </div>
-
-                                <!-- Content -->
-                                <div class="p-2.5 sm:p-3">
-                                    <Link :href="route('library.show', item.slug)">
-                                        <h3 class="mb-0.5 line-clamp-2 text-sm font-semibold leading-snug text-slate-900 transition-colors group-hover:text-sky-700">
-                                            {{ item.title }}
-                                        </h3>
-                                    </Link>
-                                    <p class="text-xs text-slate-500 mb-1.5 line-clamp-1">{{ item.author }}</p>
-
-                                    <div class="flex items-center justify-between text-xs sm:text-sm gap-1">
-                                        <div class="flex items-center gap-2 text-slate-400 min-w-0">
-                                            <span v-if="item.duration_formatted" class="flex items-center gap-0.5 truncate">
-                                                <ClockIcon class="w-3.5 h-3.5 shrink-0" />
-                                                {{ item.duration_formatted }}
-                                            </span>
-                                            <span v-else-if="item.file_size_formatted">
-                                                {{ item.file_size_formatted }}
-                                            </span>
-                                        </div>
-
-                                        <a
-                                            v-if="item.has_access"
-                                            :href="route('library.download', item.slug)"
-                                            class="flex shrink-0 items-center gap-0.5 font-medium text-sky-700 hover:text-sky-800"
-                                        >
-                                            <ArrowDownTrayIcon class="w-3.5 h-3.5" />
-                                            <span class="hidden min-[380px]:inline">Download</span>
-                                        </a>
-                                        <Link
-                                            v-else
-                                            :href="route('library.show', item.slug)"
-                                            class="flex shrink-0 items-center gap-0.5 font-medium text-sky-700 hover:text-sky-800"
-                                        >
-                                            <ArrowDownTrayIcon class="w-3.5 h-3.5" />
-                                            {{ item.is_premium ? 'Purchase' : 'Get access' }}
-                                        </Link>
-                                    </div>
+                                <div class="mt-1 h-1 overflow-hidden rounded-full bg-white/30">
+                                    <div
+                                        class="h-full rounded-full bg-primary-400"
+                                        :style="{ width: `${Math.min(100, item.reading_progress_percent)}%` }"
+                                    />
                                 </div>
                             </div>
                         </div>
-                    </section>
+
+                        <div class="flex flex-1 flex-col p-4">
+                            <Link :href="route('library.show', item.slug)">
+                                <h2
+                                    class="line-clamp-2 font-display text-lg font-bold text-slate-900 transition group-hover:text-primary-700"
+                                >
+                                    {{ item.title }}
+                                </h2>
+                            </Link>
+                            <p class="mt-1 text-sm text-slate-500">
+                                <span v-if="item.author">by {{ item.author }}</span>
+                                <span v-else class="italic text-slate-400">Unknown author</span>
+                            </p>
+                            <p class="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-slate-600">
+                                {{ excerpt(item.description) || 'No description available.' }}
+                            </p>
+
+                            <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                <span
+                                    v-if="item.type === 'ebook' && item.page_count"
+                                    class="inline-flex items-center gap-1"
+                                >
+                                    <DocumentTextIcon class="h-4 w-4 text-slate-400" />
+                                    {{ item.page_count }} pages
+                                </span>
+                                <span
+                                    v-else-if="item.type === 'audiobook' && item.duration_seconds"
+                                    class="inline-flex items-center gap-1"
+                                >
+                                    <ClockIcon class="h-4 w-4 text-slate-400" />
+                                    {{ formatDuration(item.duration_seconds) }}
+                                </span>
+                                <span
+                                    v-if="item.publication_year"
+                                    class="inline-flex items-center gap-1"
+                                >
+                                    <span class="text-slate-400" aria-hidden="true">·</span>
+                                    {{ item.publication_year }}
+                                </span>
+                            </div>
+
+                            <div class="mt-4 flex gap-2">
+                                <Link
+                                    :href="route('library.show', item.slug)"
+                                    class="inline-flex flex-1 items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                                >
+                                    {{ primaryCtaLabel(item) }}
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                                    :aria-pressed="item.is_favorite"
+                                    @click="toggleFavorite(item)"
+                                >
+                                    <HeartSolid
+                                        v-if="item.is_favorite"
+                                        class="h-5 w-5 text-rose-500"
+                                    />
+                                    <HeartIcon v-else class="h-5 w-5" />
+                                    <span class="sr-only">Toggle bookmark</span>
+                                </button>
+                            </div>
+                        </div>
+                    </article>
                 </div>
 
-            <div v-else class="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                <BookOpenIcon class="mx-auto mb-4 h-16 w-16 text-slate-300" />
-                <h3 class="mb-2 text-lg font-semibold text-slate-900">No items found</h3>
-                <p class="mb-6 text-slate-500">
-                    {{
-                        search || selectedCategory || selectedType || showFavorites
-                            ? 'Try adjusting your filters'
-                            : 'Check back soon for new content!'
-                    }}
-                </p>
-                <button
-                    v-if="search || selectedCategory || selectedType || showFavorites"
-                    type="button"
-                    @click="
-                        search = '';
-                        selectedCategory = '';
-                        selectedType = '';
-                        showFavorites = false;
-                    "
-                    class="rounded-lg bg-sky-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-sky-700"
-                >
-                    Clear Filters
-                </button>
-            </div>
+                <!-- List -->
+                <div v-else-if="libraryItems.length && viewMode === 'list'" class="space-y-4">
+                    <article
+                        v-for="item in libraryItems"
+                        :key="item.uuid"
+                        class="flex flex-col gap-4 overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-soft transition hover:shadow-soft-lg sm:flex-row"
+                    >
+                        <div class="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-36 sm:w-48">
+                            <img
+                                v-if="item.cover_image_url"
+                                :src="item.cover_image_url"
+                                :alt="item.title"
+                                class="h-full w-full object-cover object-top"
+                            />
+                            <div
+                                v-else
+                                class="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary-100 to-indigo-100"
+                            >
+                                <component
+                                    :is="getTypeIcon(item.type)"
+                                    class="h-12 w-12 text-primary-500"
+                                />
+                            </div>
+                            <div class="absolute left-2 top-2">
+                                <span
+                                    class="inline-flex rounded-md bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white"
+                                >
+                                    {{ categoryBadge(item) }}
+                                </span>
+                            </div>
+                            <div
+                                v-if="item.has_access && item.reading_progress_percent != null && item.reading_progress_percent > 0"
+                                class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/45 to-transparent px-2 pb-1.5 pt-6"
+                            >
+                                <div class="h-1 overflow-hidden rounded-full bg-white/30">
+                                    <div
+                                        class="h-full rounded-full bg-primary-400"
+                                        :style="{ width: `${Math.min(100, item.reading_progress_percent)}%` }"
+                                    />
+                                </div>
+                                <p class="mt-0.5 text-[10px] font-medium text-white">
+                                    {{ item.reading_progress_percent }}% read
+                                </p>
+                            </div>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <Link :href="route('library.show', item.slug)">
+                                <h2 class="font-display text-lg font-bold text-slate-900 hover:text-primary-700">
+                                    {{ item.title }}
+                                </h2>
+                            </Link>
+                            <p class="mt-0.5 text-sm text-slate-500">
+                                <span v-if="item.author">by {{ item.author }}</span>
+                            </p>
+                            <p class="mt-2 line-clamp-2 text-sm text-slate-600">
+                                {{ excerpt(item.description, 200) || 'No description available.' }}
+                            </p>
+                            <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                <span v-if="item.type === 'ebook' && item.page_count" class="inline-flex items-center gap-1">
+                                    <DocumentTextIcon class="h-4 w-4" />
+                                    {{ item.page_count }} pages
+                                </span>
+                                <span
+                                    v-else-if="item.type === 'audiobook' && item.duration_seconds"
+                                    class="inline-flex items-center gap-1"
+                                >
+                                    <ClockIcon class="h-4 w-4" />
+                                    {{ formatDuration(item.duration_seconds) }}
+                                </span>
+                                <span v-if="item.publication_year">· {{ item.publication_year }}</span>
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <Link
+                                    :href="route('library.show', item.slug)"
+                                    class="inline-flex flex-1 items-center justify-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white sm:flex-initial sm:min-w-[10rem]"
+                                >
+                                    {{ primaryCtaLabel(item) }}
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white"
+                                    @click="toggleFavorite(item)"
+                                >
+                                    <HeartSolid v-if="item.is_favorite" class="h-5 w-5 text-rose-500" />
+                                    <HeartIcon v-else class="h-5 w-5 text-slate-600" />
+                                </button>
+                            </div>
+                        </div>
+                    </article>
+                </div>
 
-            <div v-if="items.links && items.last_page > 1" class="flex justify-center pt-2">
-                <nav class="flex flex-wrap items-center justify-center gap-1">
-                    <Link
-                        v-for="link in items.links"
-                        :key="link.label"
-                        :href="link.url"
-                        :class="[
-                            'min-w-[2.25rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                            link.active
-                                ? 'bg-sky-600 text-white shadow-sm'
-                                : link.url
-                                  ? 'text-slate-600 hover:bg-slate-100'
-                                  : 'cursor-not-allowed text-slate-300',
-                        ]"
-                        v-html="link.label"
-                    />
-                </nav>
+                <div
+                    v-else
+                    class="rounded-xl border border-slate-200 bg-white px-6 py-16 text-center shadow-soft"
+                >
+                    <BookOpenIcon class="mx-auto mb-4 h-16 w-16 text-slate-300" />
+                    <h3 class="text-lg font-semibold text-slate-900">
+                        No items found
+                    </h3>
+                    <p class="mt-2 text-slate-500">
+                        Try adjusting your search or filters.
+                    </p>
+                    <button
+                        type="button"
+                        class="mt-6 rounded-lg bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-700"
+                        @click="resetFilters"
+                    >
+                        Reset filters
+                    </button>
+                </div>
+
+                <div v-if="items.links && items.last_page > 1" class="mt-10 flex justify-center">
+                    <nav class="flex flex-wrap items-center justify-center gap-1">
+                        <Link
+                            v-for="link in items.links"
+                            :key="link.label"
+                            :href="link.url"
+                            :class="[
+                                'min-w-[2.25rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                link.active
+                                    ? 'bg-primary-600 text-white shadow-sm'
+                                    : link.url
+                                      ? 'text-slate-600 hover:bg-slate-100'
+                                      : 'cursor-not-allowed text-slate-300',
+                            ]"
+                            v-html="link.label"
+                        />
+                    </nav>
+                </div>
             </div>
         </div>
     </AppLayout>

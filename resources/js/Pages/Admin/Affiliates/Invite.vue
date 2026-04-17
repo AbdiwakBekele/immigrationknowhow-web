@@ -1,5 +1,6 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
@@ -23,9 +24,25 @@ const submit = () => form.post(route('admin.affiliates.invite.store'));
     <Head title="Invite Affiliate" />
 
     <AdminLayout>
-        <div class="max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h1 class="text-xl font-semibold text-slate-900">Invite affiliate</h1>
-            <form class="mt-5 space-y-3" @submit.prevent="submit">
+        <div class="mx-auto w-full max-w-3xl space-y-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <Link
+                        :href="route('admin.affiliates.index')"
+                        class="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        title="Back to affiliates"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-900">Invite affiliate</h1>
+                        <p class="mt-0.5 text-xs text-slate-500">Send an invitation email with optional commission overrides.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <form class="space-y-3" @submit.prevent="submit">
                 <Input v-model="form.name" label="Name" :error="form.errors.name" required />
                 <Input v-model="form.email" type="email" label="Email" :error="form.errors.email" required />
                 <Input v-model="form.phone" label="Phone" :error="form.errors.phone" />
@@ -36,6 +53,7 @@ const submit = () => form.post(route('admin.affiliates.invite.store'));
                 <Input v-model="form.notes" label="Notes" :error="form.errors.notes" />
                 <Button type="submit" :loading="form.processing">Send invite</Button>
             </form>
+            </div>
         </div>
     </AdminLayout>
 </template>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ServiceType;
 use App\Models\ServiceProvider;
+use App\Support\ProviderShareMeta;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,10 +29,14 @@ class MarketplaceController extends Controller
 
     public function index(Request $request): Response
     {
+        $viewerCountryRaw = $request->user()?->country;
+        $viewerCountry = is_string($viewerCountryRaw) ? trim($viewerCountryRaw) : '';
+
         $query = ServiceProvider::query()
-            ->with(['user:id,first_name,last_name,avatar,city,state'])
+            ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
-            ->acceptingClients();
+            ->acceptingClients()
+            ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
 
         // Apply filters
         if ($request->filled('service_type')) {
@@ -87,7 +92,7 @@ class MarketplaceController extends Controller
             'filters' => $request->only(['service_type', 'language', 'location', 'search', 'remote_only', 'free_consultation', 'sort']),
             'serviceTypes' => ServiceType::options(),
             'languages' => $this->languages,
-            'featuredProviders' => $this->getFeaturedProviders(),
+            'featuredProviders' => $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null),
         ]);
     }
 
@@ -106,6 +111,14 @@ class MarketplaceController extends Controller
             'reviews' => fn ($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
         ]);
 
+        if ($viewer && ! $isOwner) {
+            $viewerCountry = is_string($viewer->country) ? trim($viewer->country) : '';
+            $providerCountry = is_string($provider->user?->country) ? trim((string) $provider->user->country) : '';
+            if ($viewerCountry !== '' && $providerCountry !== '' && $viewerCountry !== $providerCountry) {
+                abort(404);
+            }
+        }
+
         if (! $isOwner) {
             $provider->incrementProfileViews();
         }
@@ -123,17 +136,19 @@ class MarketplaceController extends Controller
             'serviceTypeLabels' => collect($provider->service_types ?? [])
                 ->map(fn ($type) => ServiceType::tryFrom($type)?->label() ?? $type)
                 ->toArray(),
+            'providerShare' => ProviderShareMeta::forProvider($provider),
         ]);
     }
 
-    protected function getFeaturedProviders()
+    protected function getFeaturedProviders(?string $viewerCountry = null)
     {
         return ServiceProvider::query()
-            ->with(['user:id,first_name,last_name,avatar,city,state'])
+            ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
             ->verified()
             ->featured()
+            ->whereUserCountry($viewerCountry)
             ->limit(6)
             ->get()
             ->map(fn (ServiceProvider $p) => $p->append('primary_service_type'));
@@ -141,11 +156,14 @@ class MarketplaceController extends Controller
 
     protected function getSimilarProviders(ServiceProvider $provider)
     {
+        $provider->loadMissing('user:id,country');
+
         return ServiceProvider::query()
-            ->with(['user:id,first_name,last_name,avatar,city,state'])
+            ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
             ->verified()
+            ->whereUserCountry($provider->user?->country)
             ->where('id', '!=', $provider->id)
             ->where(function ($q) use ($provider) {
                 foreach ($provider->service_types as $type) {

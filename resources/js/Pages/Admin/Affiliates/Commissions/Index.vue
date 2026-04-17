@@ -1,5 +1,6 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
@@ -39,9 +40,21 @@ const submit = () => form.post(route('admin.affiliates.commissions.store'));
     <Head title="Affiliate Commissions" />
 
     <AdminLayout>
-        <div class="space-y-6">
+        <div class="admin-page-container">
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h1 class="text-xl font-semibold text-slate-900">Commission rules</h1>
+                <div class="flex items-center gap-3">
+                    <Link
+                        :href="route('admin.affiliates.index')"
+                        class="inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        title="Back to affiliates"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <div>
+                        <h1 class="text-xl font-semibold text-slate-900">Commission rules</h1>
+                        <p class="mt-0.5 text-xs text-slate-500">Create overrides and defaults for affiliate payouts.</p>
+                    </div>
+                </div>
                 <form class="mt-5 grid gap-3 md:grid-cols-2" @submit.prevent="submit">
                     <Select v-model="form.scope" :options="scopeOptions" label="Scope" :error="form.errors.scope" required />
                     <Select v-model="form.trigger_event" :options="triggerOptions" label="Trigger event" :error="form.errors.trigger_event" required />

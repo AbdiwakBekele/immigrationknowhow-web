@@ -9,6 +9,7 @@ use App\Models\SubscriptionPlan;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\ServiceTypeOptions;
+use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,6 +59,7 @@ class OnboardingController extends Controller
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
             'subscriptionPlans' => $subscriptionPlans,
+            'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
         ]);
     }
 
@@ -137,11 +139,14 @@ class OnboardingController extends Controller
                 $subscriptionData = $onboardingData['subscription'] ?? [];
 
                 $planUuid = (string) ($subscriptionData['plan_uuid'] ?? '');
+                $stripeReady = StripeProviderSubscriptionCheckout::secretConfigured();
                 $hasSelectablePlans = SubscriptionPlan::query()
                     ->active()
-                    ->where(function ($query) {
-                        $query->where('price_cents', '<=', 0)
-                            ->orWhereNotNull('stripe_price_id');
+                    ->where(function ($query) use ($stripeReady) {
+                        $query->where('price_cents', '<=', 0);
+                        if ($stripeReady) {
+                            $query->orWhere('price_cents', '>', 0);
+                        }
                     })
                     ->exists();
                 if ($hasSelectablePlans && $planUuid === '') {
@@ -232,26 +237,23 @@ class OnboardingController extends Controller
 
     private function createStripeCheckoutUrl(Request $request, ServiceProvider $provider, SubscriptionPlan $plan): ?string
     {
-        if (! is_string($plan->stripe_price_id) || trim($plan->stripe_price_id) === '') {
+        if (! StripeProviderSubscriptionCheckout::secretConfigured()) {
             return null;
         }
 
-        $secret = config('services.stripe.secret');
-        if (! is_string($secret) || trim($secret) === '') {
+        $lineItems = StripeProviderSubscriptionCheckout::lineItemsForPlan($plan);
+        if ($lineItems === null) {
             return null;
         }
 
-        Stripe::setApiKey($secret);
+        Stripe::setApiKey((string) config('services.stripe.secret'));
         $session = StripeCheckoutSession::create([
             'mode' => 'subscription',
             'customer_email' => $request->user()->email,
             'client_reference_id' => (string) $request->user()->id,
             'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
             'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
-            'line_items' => [[
-                'price' => $plan->stripe_price_id,
-                'quantity' => 1,
-            ]],
+            'line_items' => $lineItems,
             'metadata' => [
                 'app' => 'provider_subscription',
                 'provider_id' => (string) $provider->id,

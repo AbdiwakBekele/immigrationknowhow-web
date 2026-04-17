@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
@@ -42,12 +43,21 @@ const resendInvite = (inviteId) => {
         <div class="admin-page-container">
             <section class="admin-hero-card">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
+                <div class="flex items-start gap-3">
+                    <Link
+                        :href="route('admin.dashboard')"
+                        class="mt-1 inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        title="Back to dashboard"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                         Partner management
                     </p>
                     <h1 class="mt-2 admin-title">Affiliate program</h1>
                     <p class="admin-subtitle">Manage invites, referrals, commissions, payouts, and partner performance.</p>
+                    </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <Link :href="route('admin.affiliates.invite.create')" class="rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Invite affiliate</Link>
@@ -74,9 +84,11 @@ const resendInvite = (inviteId) => {
 
             <div class="grid gap-4 xl:grid-cols-[2fr,1fr]">
                 <div class="admin-panel">
-                    <div class="flex flex-col gap-3 md:flex-row">
-                        <Input v-model="searchValue" label="Search" placeholder="Affiliate code, name, email" />
-                        <Select v-model="statusValue" :options="[{ value: '', label: 'All statuses' }, ...statuses]" label="Status" />
+                    <div class="mx-auto max-w-2xl">
+                        <div class="flex flex-col gap-3 md:flex-row">
+                            <Input v-model="searchValue" label="Search" placeholder="Affiliate code, name, email" />
+                            <Select v-model="statusValue" :options="[{ value: '', label: 'All statuses' }, ...statuses]" label="Status" />
+                        </div>
                     </div>
 
                     <div class="mt-4 overflow-x-auto">

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
 import { 
     CheckBadgeIcon,
     MapPinIcon,
@@ -13,7 +14,6 @@ import {
     BriefcaseIcon,
     ShieldCheckIcon,
     ArrowLeftIcon,
-    ShareIcon,
     HeartIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -28,6 +28,12 @@ const props = defineProps({
     serviceTypeLabels: { type: Array, default: () => [] },
     /** True when the logged-in provider is viewing their own public listing (e.g. Preview from edit). */
     isOwnListingPreview: { type: Boolean, default: false },
+    /** Public profile URL, title, description, and image for sharing / Open Graph */
+    providerShare: {
+        type: Object,
+        required: true,
+        validator: (v) => v && typeof v.url === 'string' && typeof v.title === 'string',
+    },
 });
 
 const page = usePage();
@@ -116,7 +122,19 @@ const resolveAvatar = (person, fallback) => {
 </script>
 
 <template>
-    <Head :title="provider.business_name || 'Provider Profile'" />
+    <Head :title="provider.business_name || 'Provider Profile'">
+        <meta head-key="description" name="description" :content="providerShare.description" />
+        <link head-key="canonical" rel="canonical" :href="providerShare.url" />
+        <meta head-key="og:title" property="og:title" :content="providerShare.title" />
+        <meta head-key="og:description" property="og:description" :content="providerShare.description" />
+        <meta head-key="og:url" property="og:url" :content="providerShare.url" />
+        <meta head-key="og:type" property="og:type" content="website" />
+        <meta head-key="og:image" property="og:image" :content="providerShare.image" />
+        <meta head-key="twitter:card" name="twitter:card" content="summary_large_image" />
+        <meta head-key="twitter:title" name="twitter:title" :content="providerShare.title" />
+        <meta head-key="twitter:description" name="twitter:description" :content="providerShare.description" />
+        <meta head-key="twitter:image" name="twitter:image" :content="providerShare.image" />
+    </Head>
 
     <AppLayout>
         <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
@@ -187,9 +205,7 @@ const resolveAvatar = (person, fallback) => {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 sm:pb-2">
-                                        <button class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
-                                            <ShareIcon class="h-5 w-5" />
-                                        </button>
+                                        <ProfileSharePanel :share="providerShare" menu-align="right" />
                                         <button class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500">
                                             <HeartIcon class="h-5 w-5" />
                                         </button>

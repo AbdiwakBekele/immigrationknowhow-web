@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 defineProps({
@@ -15,13 +16,24 @@ defineProps({
     <Head :title="`Affiliate ${affiliate.user?.full_name || affiliate.code}`" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">{{ affiliate.user?.full_name || affiliate.code }}</h1>
-                    <p class="mt-1 text-sm text-slate-500">{{ affiliate.user?.email }} · Code {{ affiliate.code }}</p>
+        <div class="admin-page-container">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-start gap-3">
+                        <Link
+                            :href="route('admin.affiliates.index')"
+                            class="mt-1 inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                            title="Back to affiliates"
+                        >
+                            <ArrowLeftIcon class="h-5 w-5" />
+                        </Link>
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-900">{{ affiliate.user?.full_name || affiliate.code }}</h1>
+                            <p class="mt-1 text-sm text-slate-500">{{ affiliate.user?.email }} · Code {{ affiliate.code }}</p>
+                        </div>
+                    </div>
+                    <Link :href="route('admin.affiliates.edit', affiliate.id)" class="shrink-0 rounded-lg bg-sky-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-sky-700">Edit affiliate</Link>
                 </div>
-                <Link :href="route('admin.affiliates.edit', affiliate.id)" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">Edit affiliate</Link>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

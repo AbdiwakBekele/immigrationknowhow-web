@@ -1,5 +1,6 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
@@ -25,9 +26,25 @@ const submit = () => form.put(route('admin.affiliates.update', props.affiliate.i
     <Head title="Edit Affiliate" />
 
     <AdminLayout>
-        <div class="max-w-3xl rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h1 class="text-xl font-semibold text-slate-900">Edit affiliate</h1>
-            <form class="mt-5 space-y-3" @submit.prevent="submit">
+        <div class="mx-auto max-w-3xl space-y-4">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <Link
+                        :href="route('admin.affiliates.show', affiliate.id)"
+                        class="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        title="Back to affiliate"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-900">Edit affiliate</h1>
+                        <p class="mt-0.5 text-xs text-slate-500">Update status, contact details, and commission overrides.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <form class="space-y-3" @submit.prevent="submit">
                 <Select v-model="form.status" :options="statuses" label="Status" :error="form.errors.status" required />
                 <Input v-model="form.phone" label="Phone" :error="form.errors.phone" />
                 <Input v-model="form.company_name" label="Company" :error="form.errors.company_name" />
@@ -40,6 +57,7 @@ const submit = () => form.put(route('admin.affiliates.update', props.affiliate.i
                 <Input v-model="form.notes" label="Notes" :error="form.errors.notes" />
                 <Button type="submit" :loading="form.processing">Save affiliate</Button>
             </form>
+            </div>
         </div>
     </AdminLayout>
 </template>

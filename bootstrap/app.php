@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureAffiliatePortalAccess;
 use App\Http\Middleware\EnsureOnboardingComplete;
 use App\Http\Middleware\EnsurePhoneVerified;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SetLocaleFromSession;
 use App\Support\UploadLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
+            SetLocaleFromSession::class,
             HandleInertiaRequests::class,
             CaptureAffiliateAttribution::class,
         ]);
