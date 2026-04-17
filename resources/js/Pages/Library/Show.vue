@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
     ArrowDownTrayIcon,
@@ -32,6 +33,9 @@ const props = defineProps({
 const page = usePage();
 const isDownloading = ref(false);
 const isFavorited = ref(props.userAccess?.is_favorite || false);
+
+/** Full URL for Stripe / manual pay step — use a real `<a href>` so navigation works even if an Inertia visit stalls (e.g. slow Stripe API). */
+const libraryPayUrl = computed(() => route('library.pay', { item: props.item.slug }));
 
 const formatFileSize = (bytes) => {
     if (!bytes) return 'N/A';
@@ -72,7 +76,7 @@ const toggleFavorite = () => {
 };
 
 const purchaseItem = () => {
-    router.post(route('library.purchase', props.item.slug), {}, {
+    router.post(route('library.purchase', { item: props.item.slug }), {}, {
         preserveScroll: true,
     });
 };
@@ -439,9 +443,9 @@ const progressPercentage = computed(() => {
                                             We received your payment details. An administrator will confirm and unlock your download — check back soon.
                                         </p>
                                     </div>
-                                    <Link
+                                    <a
                                         v-if="!manualPaymentPending"
-                                        :href="route('library.pay', item.slug)"
+                                        :href="libraryPayUrl"
                                         class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/30 transition hover:from-primary-500 hover:to-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                                     >
                                         <template v-if="libraryPaymentMode === 'stripe'">
@@ -452,14 +456,14 @@ const progressPercentage = computed(() => {
                                             Continue to pay (manual)
                                             <span v-if="item.price" class="opacity-95">· {{ item.currency ?? 'USD' }} {{ item.price }}</span>
                                         </template>
-                                    </Link>
-                                    <Link
+                                    </a>
+                                    <a
                                         v-else
-                                        :href="route('library.pay', item.slug)"
+                                        :href="libraryPayUrl"
                                         class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-slate-50"
                                     >
                                         View payment instructions
-                                    </Link>
+                                    </a>
                                     <p
                                         v-if="libraryPaymentMode === 'stripe'"
                                         class="flex items-start gap-2 text-xs leading-relaxed text-slate-500"
