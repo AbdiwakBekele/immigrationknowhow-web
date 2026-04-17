@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -8,6 +8,7 @@ import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/vue/20/solid';
 import { CheckIcon } from '@heroicons/vue/24/solid';
+import { SparklesIcon, CreditCardIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     user: Object,
@@ -18,6 +19,8 @@ const props = defineProps({
     languageOptions: Array,
     existingData: Object,
     subscriptionPlans: Array,
+    /** True when STRIPE_SECRET is set — paid plans can use Checkout (dashboard Price or dynamic price_data). */
+    stripeBillingReady: { type: Boolean, default: false },
 });
 
 const currentStep = ref(props.initialStep ?? (props.isProvider ? 4 : 2));
@@ -29,7 +32,11 @@ const isUserStepTwo = computed(() => !props.isProvider && currentStep.value === 
 const isUserStepThree = computed(() => !props.isProvider && currentStep.value === 3);
 const hasSubscriptionPlans = computed(() => (props.subscriptionPlans || []).length > 0);
 const selectedBillingCycle = ref('monthly');
-const hasCheckoutReadyPlans = computed(() => (props.subscriptionPlans || []).some((plan) => !!plan.stripe_price_id || Number(plan.price_cents || 0) <= 0));
+const hasCheckoutReadyPlans = computed(() =>
+    (props.subscriptionPlans || []).some(
+        (plan) => Number(plan.price_cents || 0) <= 0 || props.stripeBillingReady,
+    ),
+);
 
 const onboardingHeading = computed(() => {
     if (isProviderBusinessStep.value) {
@@ -204,7 +211,7 @@ const goBack = () => {
 const selectedPlan = computed(() => (props.subscriptionPlans || []).find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null);
 const selectedPlanRequiresCheckout = computed(() => {
     if (!selectedPlan.value) return false;
-    return Number(selectedPlan.value.price_cents || 0) > 0 && !!selectedPlan.value.stripe_price_id;
+    return Number(selectedPlan.value.price_cents || 0) > 0 && props.stripeBillingReady;
 });
 const finishButtonLabel = computed(() => {
     if (selectedPlanRequiresCheckout.value) {
@@ -238,7 +245,17 @@ const filteredPlans = computed(() => {
     return props.subscriptionPlans || [];
 });
 
-const planIsSelectable = (plan) => !!plan?.stripe_price_id || Number(plan?.price_cents || 0) <= 0;
+const planIsSelectable = (plan) => {
+    if (Number(plan?.price_cents || 0) <= 0) return true;
+    return props.stripeBillingReady;
+};
+
+const selectPlanAndContinue = async (plan) => {
+    if (!planIsSelectable(plan) || saving.value) return;
+    formData.value.subscription.plan_uuid = plan.uuid;
+    await nextTick();
+    completeOnboarding();
+};
 
 onMounted(() => {
     if (!props.isProvider) return;
@@ -425,24 +442,44 @@ onMounted(() => {
                     />
                 </div>
             </div>
-            <div v-else-if="isProviderSubscriptionStep" class="space-y-4">
-                <div class="p-2 sm:p-3">
-                    <div class="text-center">
-                        <h2 class="text-2xl font-semibold text-slate-900 sm:text-3xl">Choose Your Plan</h2>
-                        <p class="mt-1 text-sm text-slate-500">Choose the right program for your business</p>
+            <div v-else-if="isProviderSubscriptionStep" class="space-y-6">
+                <div
+                    class="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-sky-50/40 px-4 py-8 sm:px-8"
+                >
+                    <div
+                        class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sky-400/15 blur-3xl"
+                    />
+                    <div
+                        class="pointer-events-none absolute -bottom-20 -left-12 h-40 w-40 rounded-full bg-violet-400/10 blur-3xl"
+                    />
+                    <div class="relative text-center">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600/90">Billing</p>
+                        <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                            Choose your plan
+                        </h2>
+                        <p class="mx-auto mt-2 max-w-md text-sm text-slate-600">
+                            Pick the program that fits your practice. Paid plans open a secure Stripe checkout; free plans
+                            activate instantly.
+                        </p>
                     </div>
 
-                    <div v-if="availableCycles.length > 0" class="mt-5 flex justify-center">
-                        <div class="inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+                    <div v-if="availableCycles.length > 0" class="relative mt-8 flex justify-center">
+                        <div
+                            class="inline-flex rounded-full border border-slate-200/90 bg-white/90 p-1 shadow-sm backdrop-blur-sm"
+                            role="tablist"
+                            aria-label="Billing cycle"
+                        >
                             <button
                                 v-for="cycle in availableCycles"
                                 :key="cycle"
                                 type="button"
+                                role="tab"
+                                :aria-selected="selectedBillingCycle === cycle"
                                 :class="[
-                                    'rounded-full px-5 py-1.5 text-sm font-medium transition',
+                                    'rounded-full px-5 py-2 text-sm font-semibold transition-all duration-200',
                                     selectedBillingCycle === cycle
-                                        ? 'bg-gradient-to-r from-sky-600 to-blue-500 text-white shadow'
-                                        : 'text-slate-600 hover:text-slate-900',
+                                        ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-500/25'
+                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                                 ]"
                                 @click="selectedBillingCycle = cycle"
                             >
@@ -451,72 +488,147 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div v-if="hasSubscriptionPlans" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        <button
+                    <div v-if="hasSubscriptionPlans" class="relative mt-8 grid gap-5 sm:grid-cols-2">
+                        <div
                             v-for="plan in filteredPlans"
                             :key="plan.uuid"
-                            type="button"
-                            :disabled="!planIsSelectable(plan)"
+                            role="group"
+                            :aria-label="plan.name"
                             :class="[
-                                'relative overflow-hidden rounded-2xl border bg-white p-5 text-left shadow-sm transition-all',
-                                !planIsSelectable(plan)
-                                    ? 'cursor-not-allowed opacity-60'
-                                    : '',
+                                'relative flex flex-col rounded-2xl border bg-white/90 p-6 shadow-sm backdrop-blur-sm transition-all duration-300',
                                 formData.subscription.plan_uuid === plan.uuid
-                                    ? 'border-sky-400 ring-2 ring-sky-200 shadow-md'
-                                    : 'border-slate-200 hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md',
+                                    ? 'border-sky-400 ring-2 ring-sky-300/60 shadow-lg shadow-sky-500/10'
+                                    : 'border-slate-200/90 hover:border-sky-200 hover:shadow-md',
+                                !planIsSelectable(plan) ? 'opacity-75' : '',
                             ]"
-                            @click="planIsSelectable(plan) ? (formData.subscription.plan_uuid = plan.uuid) : null"
                         >
                             <div
                                 v-if="plan.is_featured"
-                                class="absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r from-sky-500 to-blue-500"
-                            ></div>
-                            <div class="pt-2">
-                                <div class="flex items-start justify-between gap-2">
-                                    <h3 class="text-xl font-semibold text-slate-900">{{ plan.name }}</h3>
-                                    <span
-                                        v-if="plan.is_featured"
-                                        class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700"
-                                    >
-                                        Most Popular
-                                    </span>
+                                class="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-sky-500 via-indigo-500 to-violet-500"
+                            />
+                            <div
+                                class="flex items-start justify-between gap-3"
+                                :class="plan.is_featured ? 'pt-2' : ''"
+                            >
+                                <div>
+                                    <h3 class="font-display text-lg font-bold text-slate-900">{{ plan.name }}</h3>
+                                    <p v-if="plan.description" class="mt-1 text-sm leading-relaxed text-slate-600">
+                                        {{ plan.description }}
+                                    </p>
                                 </div>
-                                <div class="mt-3 flex items-end gap-1">
-                                    <span class="text-4xl font-bold text-sky-600">${{ (plan.price_cents / 100).toFixed(0) }}</span>
-                                    <span class="pb-1 text-sm text-slate-400">/ {{ planCycleLabel(plan.billing_cycle) }}</span>
-                                </div>
-                                <p v-if="plan.description" class="mt-2 text-sm text-slate-500">{{ plan.description }}</p>
-                                <p v-if="!planIsSelectable(plan)" class="mt-2 text-xs font-medium text-amber-700">
-                                    Checkout setup pending for this plan.
-                                </p>
-                                <p v-else-if="Number(plan.price_cents || 0) <= 0" class="mt-2 text-xs font-medium text-emerald-700">
-                                    Starts on free tier.
-                                </p>
-                                <ul class="mt-4 space-y-2">
-                                    <li
-                                        v-for="(feature, index) in (plan.features || [])"
-                                        :key="`${plan.uuid}-${index}`"
-                                        class="flex items-start gap-2 text-sm text-slate-600"
-                                    >
-                                        <CheckIcon class="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
-                                        <span>{{ feature }}</span>
-                                    </li>
-                                </ul>
+                                <span
+                                    v-if="plan.is_featured"
+                                    class="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-sky-800"
+                                >
+                                    <SparklesIcon class="h-3.5 w-3.5" />
+                                    Popular
+                                </span>
                             </div>
-                        </button>
+
+                            <div class="mt-5 flex items-baseline gap-1 border-b border-slate-100 pb-5">
+                                <template v-if="Number(plan.price_cents || 0) <= 0">
+                                    <span class="font-display text-4xl font-bold text-emerald-600">Free</span>
+                                    <span class="text-sm font-medium text-slate-500">forever</span>
+                                </template>
+                                <template v-else>
+                                    <span class="font-display text-4xl font-bold text-sky-600">
+                                        ${{ (plan.price_cents / 100).toFixed(0) }}
+                                    </span>
+                                    <span class="text-sm text-slate-500">
+                                        / {{ planCycleLabel(plan.billing_cycle) }}
+                                    </span>
+                                </template>
+                            </div>
+
+                            <ul class="mt-4 flex-1 space-y-2.5">
+                                <li
+                                    v-for="(feature, index) in plan.features || []"
+                                    :key="`${plan.uuid}-${index}`"
+                                    class="flex items-start gap-2.5 text-sm text-slate-700"
+                                >
+                                    <span
+                                        class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700"
+                                    >
+                                        <CheckIcon class="h-3 w-3" />
+                                    </span>
+                                    <span>{{ feature }}</span>
+                                </li>
+                                <li
+                                    v-if="!(plan.features && plan.features.length)"
+                                    class="text-sm italic text-slate-400"
+                                >
+                                    All core provider features included.
+                                </li>
+                            </ul>
+
+                            <p
+                                v-if="Number(plan.price_cents || 0) > 0 && !props.stripeBillingReady"
+                                class="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 ring-1 ring-amber-200/80"
+                            >
+                                Add your Stripe secret key in <code class="rounded bg-amber-100/80 px-1">.env</code> to
+                                enable card checkout for paid plans.
+                            </p>
+                            <p
+                                v-else-if="Number(plan.price_cents || 0) > 0 && props.stripeBillingReady"
+                                class="mt-4 flex items-center gap-2 text-xs font-medium text-slate-500"
+                            >
+                                <CreditCardIcon class="h-4 w-4 text-sky-600" />
+                                Secure checkout powered by Stripe
+                            </p>
+
+                            <div class="mt-5 flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    :disabled="!planIsSelectable(plan) || saving"
+                                    :class="[
+                                        'inline-flex flex-1 min-w-[8rem] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2',
+                                        planIsSelectable(plan) && !saving
+                                            ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-md shadow-sky-500/25 hover:from-sky-500 hover:to-indigo-500'
+                                            : 'cursor-not-allowed bg-slate-200 text-slate-500',
+                                    ]"
+                                    @click="selectPlanAndContinue(plan)"
+                                >
+                                    <template v-if="Number(plan.price_cents || 0) <= 0">
+                                        Start free
+                                    </template>
+                                    <template v-else>
+                                        Subscribe with Stripe
+                                    </template>
+                                    <ArrowRightIcon class="h-4 w-4 opacity-90" />
+                                </button>
+                                <button
+                                    type="button"
+                                    :disabled="!planIsSelectable(plan)"
+                                    class="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                    @click="planIsSelectable(plan) ? (formData.subscription.plan_uuid = plan.uuid) : null"
+                                >
+                                    Select
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div v-else class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                        Plans are not available yet. You can finish onboarding and subscribe later from your dashboard.
+                    <div
+                        v-else
+                        class="relative mt-8 rounded-2xl border border-amber-200/90 bg-amber-50/90 px-4 py-4 text-center text-sm text-amber-900"
+                    >
+                        Plans are not available yet. Finish setup and subscribe later from your provider dashboard.
                     </div>
                 </div>
 
-                <p v-if="hasCheckoutReadyPlans && !formData.subscription.plan_uuid" class="text-xs text-rose-600">
-                    Please select a plan to continue.
+                <p v-if="hasCheckoutReadyPlans && !formData.subscription.plan_uuid" class="text-center text-xs text-rose-600">
+                    Choose a plan above, or use <span class="font-semibold">Select</span> then <span class="font-semibold">Finish setup</span>.
                 </p>
-                <div v-if="selectedPlan" class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                    Selected: <span class="font-semibold">{{ selectedPlan.name }}</span>
+                <div
+                    v-if="selectedPlan"
+                    class="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-900"
+                >
+                    <CheckIcon class="h-5 w-5 shrink-0 text-emerald-600" />
+                    <span>
+                        Selected:
+                        <span class="font-semibold">{{ selectedPlan.name }}</span>
+                        — use <span class="font-semibold">Finish setup</span> below if you prefer not to pay yet.
+                    </span>
                 </div>
             </div>
             <div v-else class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">

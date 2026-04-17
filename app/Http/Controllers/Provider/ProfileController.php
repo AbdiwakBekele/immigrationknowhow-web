@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\ServiceProvider;
+use App\Support\ProviderShareMeta;
 use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,6 +85,7 @@ class ProfileController extends Controller
                 'phone',
                 'avatar',
             ]), ['avatar_url' => $user->avatar_url]),
+            'providerShare' => $provider ? ProviderShareMeta::forProvider($provider) : null,
             'provider' => $provider ? $provider->only([
                 'id',
                 'business_name',

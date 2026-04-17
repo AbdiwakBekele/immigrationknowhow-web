@@ -13,17 +13,20 @@ class WelcomeController extends Controller
 {
     public function __invoke(): Response
     {
+        $viewerCountry = auth()->user()?->country;
+
         // Get featured providers (verified, high-rated, with reviews)
         $featuredProviders = ServiceProvider::query()
             ->where('verification_status', VerificationStatus::APPROVED)
             ->where('is_active', true)
             ->where('total_reviews', '>', 0)
-            ->with('user:id,first_name,last_name,avatar')
+            ->with('user:id,first_name,last_name,avatar,country')
+            ->whereUserCountry($viewerCountry)
             ->orderByDesc('average_rating')
             ->orderByDesc('total_reviews')
             ->limit(6)
             ->get()
-            ->map(fn($provider) => [
+            ->map(fn ($provider) => [
                 'id' => $provider->id,
                 'slug' => $provider->slug,
                 'business_name' => $provider->business_name,
@@ -37,7 +40,7 @@ class WelcomeController extends Controller
             ]);
 
         // Get service types with icons
-        $serviceTypes = collect(ServiceType::cases())->map(fn($type) => [
+        $serviceTypes = collect(ServiceType::cases())->map(fn ($type) => [
             'value' => $type->value,
             'label' => $type->label(),
             'icon' => $this->getServiceIcon($type),
@@ -59,7 +62,7 @@ class WelcomeController extends Controller
             ->latest()
             ->limit(3)
             ->get()
-            ->map(fn($review) => [
+            ->map(fn ($review) => [
                 'id' => $review->id,
                 'comment' => $review->comment,
                 'rating' => $review->rating,

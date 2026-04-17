@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
+use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -92,16 +93,16 @@ class SubscriptionController extends Controller
             return back()->with('success', 'Free plan activated.');
         }
 
-        if (! is_string($plan->stripe_price_id) || trim($plan->stripe_price_id) === '') {
-            return back()->with('error', 'Stripe price is not configured for this plan.');
-        }
-
-        $secret = config('services.stripe.secret');
-        if (! is_string($secret) || trim($secret) === '') {
+        if (! StripeProviderSubscriptionCheckout::secretConfigured()) {
             return back()->with('error', 'Stripe is not configured.');
         }
 
-        Stripe::setApiKey($secret);
+        $lineItems = StripeProviderSubscriptionCheckout::lineItemsForPlan($plan);
+        if ($lineItems === null) {
+            return back()->with('error', 'This plan does not require checkout.');
+        }
+
+        Stripe::setApiKey((string) config('services.stripe.secret'));
 
         $session = StripeCheckoutSession::create([
             'mode' => 'subscription',
@@ -109,10 +110,7 @@ class SubscriptionController extends Controller
             'client_reference_id' => (string) $request->user()->id,
             'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
             'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
-            'line_items' => [[
-                'price' => $plan->stripe_price_id,
-                'quantity' => 1,
-            ]],
+            'line_items' => $lineItems,
             'metadata' => [
                 'app' => 'provider_subscription',
                 'provider_id' => (string) $provider->id,

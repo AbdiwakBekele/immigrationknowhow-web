@@ -205,14 +205,14 @@ const toggleLanguage = (lang) => {
                                     <h3 class="font-medium text-gray-900">Profile Photo</h3>
                                     <p class="text-sm text-gray-500 mb-2">JPG or PNG. Max 2MB.</p>
                                     <p v-if="avatarTypeError" class="text-sm text-red-600 mb-2">{{ avatarTypeError }}</p>
-                                    <div class="flex gap-2">
-                                        <button @click="avatarInput?.click()" :disabled="avatarUploading" class="btn-secondary btn-sm">
-                                            {{ avatarUploading ? 'Uploading...' : (hasAvatar ? 'Change photo' : 'Upload photo') }}
-                                        </button>
-                                        <button v-if="hasAvatar" @click="deleteAvatar" class="btn-ghost btn-sm text-red-600">
-                                            Remove
-                                        </button>
-                                    </div>
+                                    <button
+                                        v-if="hasAvatar"
+                                        type="button"
+                                        @click="deleteAvatar"
+                                        class="btn-ghost btn-sm text-red-600"
+                                    >
+                                        Remove
+                                    </button>
                                 </div>
                             </div>
 

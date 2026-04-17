@@ -169,10 +169,11 @@ class DashboardController extends Controller
         $serviceTypes = array_unique(array_merge($serviceTypes, $leadServiceTypes));
 
         $query = ServiceProvider::query()
-            ->with(['user:id,first_name,last_name,avatar,city,state'])
+            ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
-            ->verified();
+            ->verified()
+            ->whereUserCountry($user->country);
 
         // If we have service preferences, prioritize matching providers
         if (! empty($serviceTypes)) {
@@ -183,11 +184,11 @@ class DashboardController extends Controller
             });
         }
 
-        // Prioritize by location if user has one
+        // Prefer same state or remote when user has a state
         if ($user->state) {
-            $query->whereHas('user', function ($q) use ($user) {
-                $q->where('state', $user->state)
-                    ->orWhere('serves_remote', true);
+            $query->where(function ($q) use ($user) {
+                $q->where('serves_remote', true)
+                    ->orWhereHas('user', fn ($uq) => $uq->where('state', $user->state));
             });
         }
 

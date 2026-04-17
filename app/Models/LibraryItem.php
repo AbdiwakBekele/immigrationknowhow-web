@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
@@ -324,17 +326,54 @@ class LibraryItem extends Model
         return $query->where('category_id', $categoryId);
     }
 
+    /**
+     * Items available worldwide (no regions set) or whose JSON `regions` array includes $region.
+     * MySQL needs JSON_CONTAINS with a JSON-encoded scalar; whereJsonContains is unreliable for JSON arrays on some drivers.
+     *
+     * @param  Builder  $query
+     */
+    public function scopeWhereRegionsMatchOrGlobal($query, string $region): void
+    {
+        $query->where(function ($q) use ($region) {
+            $q->whereNull('regions')
+                ->orWhereJsonLength('regions', 0)
+                ->orWhere(function ($q2) use ($region) {
+                    static::applyRegionsArrayContains($q2, $region);
+                });
+        });
+    }
+
     public function scopeAvailableInRegion($query, ?string $region)
     {
         if (! is_string($region) || $region === '') {
             return $query;
         }
 
-        return $query->where(function ($q) use ($region) {
-            $q->whereNull('regions')
-                ->orWhereJsonLength('regions', 0)
-                ->orWhereJsonContains('regions', $region);
-        });
+        $query->whereRegionsMatchOrGlobal($region);
+
+        return $query;
+    }
+
+    /**
+     * @param  Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    protected static function applyRegionsArrayContains($query, string $region): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $query->whereRaw('JSON_CONTAINS(regions, ?)', [json_encode($region)]);
+
+            return;
+        }
+
+        if ($driver === 'pgsql') {
+            $query->whereRaw('regions::jsonb @> ?::jsonb', [json_encode([$region])]);
+
+            return;
+        }
+
+        $query->whereJsonContains('regions', $region);
     }
 
     public static function supportedRegions(): array

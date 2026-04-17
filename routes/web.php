@@ -16,6 +16,7 @@ use App\Http\Controllers\VideoProductController;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
 use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
 use App\Http\Controllers\WelcomeController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +27,15 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', WelcomeController::class)->name('home');
 Route::get('/favicon.ico', fn () => redirect('/favicon.svg', 301));
+
+Route::post('/locale', function (Request $request) {
+    $validated = $request->validate([
+        'locale' => ['required', 'string', 'in:en,fr,es'],
+    ]);
+    $request->session()->put('locale', $validated['locale']);
+
+    return back();
+})->name('locale.update');
 
 // Public library access
 Route::get('/library', [LibraryController::class, 'index'])->name('library.index');

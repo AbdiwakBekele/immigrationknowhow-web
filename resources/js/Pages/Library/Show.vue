@@ -402,8 +402,8 @@ const progressPercentage = computed(() => {
 
                                 <div v-if="!hasAccess && (item.is_premium || requiresPaidAccess)" class="space-y-4">
                                     <p v-if="libraryPaymentMode === 'stripe'" class="text-sm leading-relaxed text-slate-600">
-                                        Unlock this {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} with a secure card
-                                        checkout powered by Stripe — right on this site.
+                                        Unlock this {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} with Stripe's secure
+                                        checkout (same hosted flow as provider subscriptions). You will return here when payment completes.
                                     </p>
                                     <p v-else class="text-sm leading-relaxed text-slate-600">
                                         Unlock this {{ item.type === 'ebook' ? 'e-book' : (item.type === 'video' ? 'video' : 'audiobook') }} by completing payment

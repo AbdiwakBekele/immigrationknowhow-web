@@ -220,6 +220,20 @@ class ServiceProvider extends Model
         return $query->where('accepting_clients', true);
     }
 
+    /**
+     * Limit providers to those whose account country matches (e.g. ISO code from CountryOptions).
+     * Empty/null country skips the constraint so guests or incomplete profiles still see listings.
+     */
+    public function scopeWhereUserCountry($query, ?string $country)
+    {
+        $country = is_string($country) ? trim($country) : '';
+        if ($country === '') {
+            return $query;
+        }
+
+        return $query->whereHas('user', fn ($q) => $q->where('country', $country));
+    }
+
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
