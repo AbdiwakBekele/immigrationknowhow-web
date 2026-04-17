@@ -13,6 +13,10 @@ use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Authenticated messaging for lead-linked conversations only (see ConversationPolicy).
+ * Contract offer / acceptance is carried on the related Lead, not as system chat lines.
+ */
 class MessagingController extends Controller
 {
     public function index(Request $request): Response

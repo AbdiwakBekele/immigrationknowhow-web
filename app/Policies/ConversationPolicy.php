@@ -5,6 +5,12 @@ namespace App\Policies;
 use App\Models\Conversation;
 use App\Models\User;
 
+/**
+ * Messaging requires a signed-in user (routes use auth; this policy assumes that).
+ *
+ * A conversation belongs to a specific lead. Only that lead’s user (client),
+ * the related service provider, and admins may view or send messages.
+ */
 class ConversationPolicy
 {
     /**

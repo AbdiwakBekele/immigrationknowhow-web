@@ -37,6 +37,7 @@ const uploadForm = useForm({
     file: null,
     pdf_file: null,
     audio_file: null,
+    cover_image: null,
     price: '0',
     currency: 'USD',
     is_active: true,
@@ -49,6 +50,7 @@ watch(
         uploadForm.file = null;
         uploadForm.pdf_file = null;
         uploadForm.audio_file = null;
+        uploadForm.cover_image = null;
     },
 );
 
@@ -115,7 +117,7 @@ const submitUpload = () => {
         .post(route('admin.library.store'), {
             forceFormData: true,
             onSuccess: () => {
-                uploadForm.reset('title', 'description', 'file', 'pdf_file', 'audio_file', 'price', 'new_author_name');
+                uploadForm.reset('title', 'description', 'file', 'pdf_file', 'audio_file', 'cover_image', 'price', 'new_author_name');
                 uploadForm.price = '0';
                 uploadForm.type = props.types?.[0]?.value ?? '';
                 uploadForm.all_regions = false;
@@ -252,6 +254,18 @@ const submitUpload = () => {
                     <label class="mb-1 block text-sm font-medium text-gray-700">Description</label>
                     <textarea v-model="uploadForm.description" rows="8" class="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm"></textarea>
                     <p v-if="uploadForm.errors.description" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.description }}</p>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700">Cover image <span class="font-normal text-gray-500">(optional)</span></label>
+                    <input
+                        type="file"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        @change="uploadForm.cover_image = $event.target.files?.[0] ?? null"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Shown on the public library. Max 2MB. JPG, PNG, WebP, or GIF.</p>
+                    <p v-if="uploadForm.errors.cover_image" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.cover_image }}</p>
                 </div>
 
                 <div v-if="uploadForm.type === 'ebook'" class="space-y-4">

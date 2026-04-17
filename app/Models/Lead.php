@@ -12,6 +12,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * Contract / offer lifecycle is tracked on the lead (status and contract_* timestamps),
+ * not by auto-posting chat messages. When the user sends a contract, the lead reflects
+ * an offer sent and pending the provider. When the provider accepts, the lead moves to
+ * In Progress and contract acceptance is recorded.
+ */
 class Lead extends Model
 {
     use HasFactory, SoftDeletes;

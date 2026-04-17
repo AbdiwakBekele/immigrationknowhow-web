@@ -14,6 +14,11 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Logged-in providers only. Accepting a user’s contract is done by moving the lead
+ * to In Progress after contract_sent_at is set; that records acceptance on the lead,
+ * not as a chat message.
+ */
 class LeadsController extends Controller
 {
     public function __construct(
