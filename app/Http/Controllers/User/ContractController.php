@@ -15,6 +15,10 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Logged-in users only. Sending a contract updates lead fields (e.g. offer sent);
+ * it does not create a conversation message row.
+ */
 class ContractController extends Controller
 {
     public function index(Request $request): Response

@@ -187,6 +187,23 @@ const primaryCtaLabel = (item) => {
 };
 
 const categoryBadge = (item) => item.category?.name ?? getTypeLabel(item.type);
+
+/** Public URL for card cover (append + raw path fallback for older payloads). */
+const libraryItemCoverSrc = (item) => {
+    if (item?.cover_image_url) {
+        return item.cover_image_url;
+    }
+    const path = item?.cover_image;
+    if (typeof path === 'string' && path.trim() !== '') {
+        return `/storage/${path.replace(/^\/+/, '')}`;
+    }
+    return null;
+};
+
+const heroEbookCount = computed(() => props.types?.find((t) => t.value === 'ebook')?.count ?? 0);
+const heroAudiobookCount = computed(() => props.types?.find((t) => t.value === 'audiobook')?.count ?? 0);
+const heroTotalTitles = computed(() => Number(heroEbookCount.value) + Number(heroAudiobookCount.value));
+const heroCategoryCount = computed(() => props.categories?.length ?? 0);
 </script>
 
 <template>
@@ -202,17 +219,42 @@ const categoryBadge = (item) => item.category?.name ?? getTypeLabel(item.type);
             "
         >
             <div class="mx-auto max-w-7xl space-y-5">
-                <!-- Title banner (matches Contracts / dashboard system) -->
-                <div
-                    class="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-8 text-center text-white shadow-sm sm:py-10"
+                <!-- Hero (same gradient / layout as Marketplace + Contracts) -->
+                <section
+                    class="overflow-hidden rounded-3xl bg-gradient-to-r from-sky-600 via-indigo-600 to-violet-600 px-6 py-8 text-white shadow-xl sm:px-8"
                 >
-                    <h1 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-                        Explore Our eBook & Audio Collections
-                    </h1>
-                    <p class="mx-auto mt-2 max-w-2xl text-sm text-slate-200 sm:text-base">
-                        E-books, audiobooks, and audio content to support your immigration journey.
-                    </p>
-                </div>
+                    <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div class="max-w-2xl">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-sky-100">
+                                Library
+                            </p>
+                            <h1 class="mt-2 text-3xl font-display font-bold sm:text-4xl">
+                                Explore Our eBook & Audio Collections
+                            </h1>
+                            <p class="mt-3 text-sm text-sky-50 sm:text-base">
+                                E-books, audiobooks, and audio content to support your immigration journey.
+                            </p>
+                        </div>
+                        <div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:max-w-3xl">
+                            <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                                <p class="text-xs text-sky-100">Titles</p>
+                                <p class="text-lg font-semibold tabular-nums">{{ heroTotalTitles }}</p>
+                            </div>
+                            <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                                <p class="text-xs text-sky-100">E-books</p>
+                                <p class="text-lg font-semibold tabular-nums">{{ heroEbookCount }}</p>
+                            </div>
+                            <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                                <p class="text-xs text-sky-100">Audiobooks</p>
+                                <p class="text-lg font-semibold tabular-nums">{{ heroAudiobookCount }}</p>
+                            </div>
+                            <div class="rounded-xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+                                <p class="text-xs text-sky-100">Categories</p>
+                                <p class="text-lg font-semibold tabular-nums">{{ heroCategoryCount }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <!-- Search & filters (white panel like system cards) -->
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
@@ -411,10 +453,10 @@ const categoryBadge = (item) => item.category?.name ?? getTypeLabel(item.type);
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-soft transition hover:shadow-soft-lg"
                     >
-                        <div class="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                        <div class="relative aspect-[3/4] w-full overflow-hidden bg-slate-100">
                             <img
-                                v-if="item.cover_image_url"
-                                :src="item.cover_image_url"
+                                v-if="libraryItemCoverSrc(item)"
+                                :src="libraryItemCoverSrc(item)"
                                 :alt="item.title"
                                 class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02]"
                             />
@@ -524,10 +566,10 @@ const categoryBadge = (item) => item.category?.name ?? getTypeLabel(item.type);
                         :key="item.uuid"
                         class="flex flex-col gap-4 overflow-hidden rounded-xl border border-slate-200/90 bg-white p-4 shadow-soft transition hover:shadow-soft-lg sm:flex-row"
                     >
-                        <div class="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-36 sm:w-48">
+                        <div class="relative h-44 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-40 sm:w-36">
                             <img
-                                v-if="item.cover_image_url"
-                                :src="item.cover_image_url"
+                                v-if="libraryItemCoverSrc(item)"
+                                :src="libraryItemCoverSrc(item)"
                                 :alt="item.title"
                                 class="h-full w-full object-cover object-top"
                             />

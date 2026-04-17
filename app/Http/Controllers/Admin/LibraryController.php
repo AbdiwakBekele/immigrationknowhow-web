@@ -149,7 +149,6 @@ class LibraryController extends Controller
         );
 
         unset(
-            $validated['cover_image'],
             $validated['file'],
             $validated['pdf_file'],
             $validated['audio_file'],
@@ -223,8 +222,9 @@ class LibraryController extends Controller
             }
             $validated['cover_image'] = $request->file('cover_image')
                 ->store('library/covers', 'public');
+        } else {
+            unset($validated['cover_image']);
         }
-        unset($validated['cover_image']);
 
         if ($validated['type'] === 'audiobook' && $library->audio_file_path) {
             $library->deleteStoredAudioFile();

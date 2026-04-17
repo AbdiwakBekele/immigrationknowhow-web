@@ -5,7 +5,6 @@ import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import {
     HomeIcon,
-    MagnifyingGlassIcon,
     InboxIcon,
     ChatBubbleLeftRightIcon,
     StarIcon,
@@ -59,7 +58,6 @@ const unreadMessagesLabel = computed(() => {
 
 const navigation = [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
-    { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
