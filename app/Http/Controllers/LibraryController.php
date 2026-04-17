@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -283,34 +284,47 @@ class LibraryController extends Controller
             $description = 'Digital library item';
         }
 
-        $session = StripeCheckoutSession::create([
-            'ui_mode' => 'embedded_page',
-            'mode' => 'payment',
-            'customer_email' => auth()->user()->email,
-            'client_reference_id' => (string) auth()->id(),
-            'return_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-            'metadata' => [
-                'app' => 'library',
-                'library_item_id' => (string) $item->id,
-                'user_id' => (string) auth()->id(),
-            ],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => $currency,
-                    'unit_amount' => $unitAmount,
-                    'product_data' => [
-                        'name' => $item->title,
-                        'description' => $description,
+        try {
+            $session = StripeCheckoutSession::create([
+                'ui_mode' => 'embedded_page',
+                'mode' => 'payment',
+                'customer_email' => auth()->user()->email,
+                'client_reference_id' => (string) auth()->id(),
+                'return_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'metadata' => [
+                    'app' => 'library',
+                    'library_item_id' => (string) $item->id,
+                    'user_id' => (string) auth()->id(),
+                ],
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => $currency,
+                        'unit_amount' => $unitAmount,
+                        'product_data' => [
+                            'name' => $item->title,
+                            'description' => $description,
+                        ],
+                    ],
+                    'quantity' => 1,
+                ]],
+                'custom_text' => [
+                    'submit' => [
+                        'message' => 'After payment, you will return here and can download from the library.',
                     ],
                 ],
-                'quantity' => 1,
-            ]],
-            'custom_text' => [
-                'submit' => [
-                    'message' => 'After payment, you will return here and can download from the library.',
-                ],
-            ],
-        ]);
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Stripe library checkout session failed', [
+                'library_item_id' => $item->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', config('app.debug')
+                    ? 'Payment could not start: '.$e->getMessage()
+                    : 'Payment could not start. Please try again or contact support.');
+        }
 
         $clientSecret = $session->client_secret;
         if (! is_string($clientSecret) || $clientSecret === '') {
