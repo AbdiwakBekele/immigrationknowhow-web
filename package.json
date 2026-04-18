@@ -17,6 +17,7 @@
         "flag-icons": "^7.5.0",
         "lodash": "^4.18.1",
         "lodash-es": "^4.18.1",
+        "pdfjs-dist": "^4.10.38",
         "pinia": "^3.0.4",
         "vue": "^3.4.21",
         "vue-chartjs": "^5.3.3",

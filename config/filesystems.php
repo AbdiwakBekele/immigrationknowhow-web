@@ -23,11 +23,37 @@ return [
         | Library media (e-books / audiobooks)
         |--------------------------------------------------------------------------
         |
-        | Not web-accessible — downloads only through LibraryController after
-        | access checks. Covers stay on the `public` disk.
+        | Not web-accessible — reads/listens only through LibraryController after
+        | access checks. Set LIBRARY_MEDIA_DRIVER=s3 to store these binaries in
+        | a private S3 bucket. Covers stay on the `public` disk.
         |
         */
         'library_media' => [
+            'driver' => env('LIBRARY_MEDIA_DRIVER', 'local'),
+            'root' => env('LIBRARY_MEDIA_DRIVER', 'local') === 's3'
+                ? env('LIBRARY_MEDIA_PREFIX', 'library-media')
+                : storage_path('app/library-media'),
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'bucket' => env('AWS_PRIVATE_BUCKET', env('AWS_BUCKET')),
+            'url' => env('AWS_URL'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'visibility' => 'private',
+            'throw' => false,
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Legacy local library media
+        |--------------------------------------------------------------------------
+        |
+        | Fallback for files uploaded before LIBRARY_MEDIA_DRIVER was switched to
+        | S3. New uploads still use `library_media`.
+        |
+        */
+        'library_media_local' => [
             'driver' => 'local',
             'root' => storage_path('app/library-media'),
             'throw' => false,

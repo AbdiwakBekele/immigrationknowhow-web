@@ -36,11 +36,7 @@ final class FulfillLibraryStripeCheckout
             ->where('is_active', true)
             ->first();
 
-        $requiresPaidAccess = $item && (
-            $item->is_premium
-            || in_array($item->type, ['audiobook', 'video'], true)
-            || ((float) ($item->price ?? 0) > 0)
-        );
+        $requiresPaidAccess = $item && ($item->is_premium || ((float) ($item->price ?? 0) > 0));
 
         if (! $item || ! $requiresPaidAccess) {
             return false;

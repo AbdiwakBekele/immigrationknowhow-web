@@ -10,6 +10,7 @@ use App\Models\LibraryItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -83,9 +84,14 @@ class LibraryController extends Controller
             'description' => ['nullable', 'string', 'max:500000'],
             'publisher' => ['nullable', 'string', 'max:255'],
             'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
+            'published_at' => ['nullable', 'date'],
             'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
+            'language' => ['nullable', 'string', 'max:100'],
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
+            'estimated_reading_minutes' => ['nullable', 'integer', 'min:1'],
+            'difficulty_level' => ['nullable', 'string', 'max:100'],
+            'recommended_age_group' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['nullable', 'required_if:type,audiobook', 'prohibited_if:type,ebook', 'file', 'max:1024000'],
             'pdf_file' => ['nullable', 'required_if:type,ebook', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
@@ -139,6 +145,7 @@ class LibraryController extends Controller
         }
 
         $validated = $this->applyLibraryItemPricing($validated);
+        $validated = $this->normalizePublishedDate($validated);
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
         $validated['is_featured'] = (bool) ($validated['is_featured'] ?? false);
 
@@ -189,9 +196,14 @@ class LibraryController extends Controller
             'description' => ['nullable', 'string', 'max:500000'],
             'publisher' => ['nullable', 'string', 'max:255'],
             'publication_year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
+            'published_at' => ['nullable', 'date'],
             'isbn' => ['nullable', 'string', 'max:50'],
             'page_count' => ['nullable', 'integer', 'min:1'],
+            'language' => ['nullable', 'string', 'max:100'],
             'duration_seconds' => ['nullable', 'integer', 'min:1'],
+            'estimated_reading_minutes' => ['nullable', 'integer', 'min:1'],
+            'difficulty_level' => ['nullable', 'string', 'max:100'],
+            'recommended_age_group' => ['nullable', 'string', 'max:100'],
             'cover_image' => ['nullable', 'image', 'max:2048'],
             'file' => ['nullable', 'prohibited_if:type,ebook', 'file', 'max:1024000'],
             'pdf_file' => ['nullable', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
@@ -268,6 +280,7 @@ class LibraryController extends Controller
         unset($validated['file'], $validated['pdf_file'], $validated['audio_file']);
 
         $validated = $this->applyLibraryItemPricing($validated);
+        $validated = $this->normalizePublishedDate($validated);
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
         $validated['is_featured'] = (bool) ($validated['is_featured'] ?? false);
 
@@ -356,6 +369,12 @@ class LibraryController extends Controller
     private function validateUploadRules(Request $request, string $type, ?LibraryItem $existingItem = null): void
     {
         if ($type === 'ebook') {
+            if ($existingItem && $existingItem->type !== 'ebook' && ! $request->hasFile('pdf_file')) {
+                throw ValidationException::withMessages([
+                    'pdf_file' => 'Upload a PDF file when changing this item to an e-book.',
+                ]);
+            }
+
             if ($request->hasFile('pdf_file')) {
                 $this->validateEbookPdfUpload($request->file('pdf_file'), $existingItem);
             }
@@ -368,6 +387,12 @@ class LibraryController extends Controller
         }
 
         if (! $request->hasFile('file')) {
+            if ($existingItem && $existingItem->type !== $type) {
+                throw ValidationException::withMessages([
+                    'file' => 'Upload a new audio file when changing this item to an audiobook.',
+                ]);
+            }
+
             return;
         }
 
@@ -415,5 +440,14 @@ class LibraryController extends Controller
                 'audio_file' => 'Companion audio must use a supported format (MP3, M4A, AAC, WAV, OGG).',
             ]);
         }
+    }
+
+    private function normalizePublishedDate(array $validated): array
+    {
+        if (! empty($validated['published_at'])) {
+            $validated['publication_year'] = Carbon::parse($validated['published_at'])->year;
+        }
+
+        return $validated;
     }
 }

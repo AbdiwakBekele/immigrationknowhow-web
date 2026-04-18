@@ -7,8 +7,11 @@ use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
+use Illuminate\Filesystem\AwsS3V3Adapter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +20,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Stripe;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\HeaderUtils;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LibraryController extends Controller
@@ -52,7 +58,10 @@ class LibraryController extends Controller
             ->with(['category', 'libraryAuthor'])
             ->active();
 
-        $query->availableInRegion($this->regionForCurrentUser());
+        $forcedType = $request->attributes->get('library_forced_type');
+        $forcedType = is_string($forcedType) && in_array($forcedType, LibraryItem::supportedTypes(), true)
+            ? $forcedType
+            : null;
 
         // Apply filters
         if ($request->filled('search')) {
@@ -66,7 +75,16 @@ class LibraryController extends Controller
             }
         }
 
-        if ($request->filled('type')) {
+        if ($request->filled('author')) {
+            $author = LibraryAuthor::where('slug', $request->input('author'))->first();
+            if ($author) {
+                $query->where('author_id', $author->id);
+            }
+        }
+
+        if ($forcedType !== null) {
+            $query->where('type', $forcedType);
+        } elseif ($request->filled('type')) {
             $type = $request->input('type');
             if (in_array($type, LibraryItem::supportedTypes(), true)) {
                 $query->where('type', $type);
@@ -74,17 +92,25 @@ class LibraryController extends Controller
         }
 
         if ($request->filled('region')) {
-            $region = $request->string('region')->toString();
+            $region = $request->input('region');
             if (in_array($region, LibraryItem::supportedRegions(), true)) {
                 $query->whereRegionsMatchOrGlobal($region);
             }
         }
 
-        if ($request->filled('author')) {
-            $author = LibraryAuthor::query()->where('slug', $request->input('author'))->first();
-            if ($author) {
-                $query->where('author_id', $author->id);
-            }
+        if ($request->filled('access')) {
+            match ($request->input('access')) {
+                'free' => $query->where(function ($q) {
+                    $q->where('is_premium', false)
+                        ->where(function ($priceQuery) {
+                            $priceQuery->whereNull('price')->orWhere('price', '<=', 0);
+                        });
+                }),
+                'paid' => $query->where(function ($q) {
+                    $q->where('is_premium', true)->orWhere('price', '>', 0);
+                }),
+                default => null,
+            };
         }
 
         if ($request->boolean('favorites')) {
@@ -96,19 +122,25 @@ class LibraryController extends Controller
             }
         }
 
-        $sort = $request->input('sort', 'newest');
-        if ($sort === 'oldest') {
-            $query->orderBy('created_at');
-        } elseif ($sort === 'title_asc') {
-            $query->orderBy('title');
-        } elseif ($sort === 'title_desc') {
-            $query->orderByDesc('title');
-        } else {
-            $query->orderByDesc('is_featured')->orderByDesc('created_at');
-        }
+        match ($request->input('sort', 'newest')) {
+            'newest' => $query->orderByDesc('created_at'),
+            'oldest' => $query->orderBy('created_at'),
+            'popular' => $query->orderByDesc('view_count')->orderByDesc('created_at'),
+            'best_sellers' => $query
+                ->withCount(['userAccess as purchases_count' => fn ($q) => $q->whereNotNull('purchased_at')])
+                ->orderByDesc('purchases_count')
+                ->orderByDesc('view_count'),
+            'title', 'title_asc' => $query->orderBy('title'),
+            'title_desc' => $query->orderByDesc('title'),
+            'price_low' => $query->orderByRaw('COALESCE(price, 0) asc')->orderBy('title'),
+            'price_high' => $query->orderByRaw('COALESCE(price, 0) desc')->orderBy('title'),
+            'random' => $query->inRandomOrder(),
+            default => $query->orderByDesc('is_featured')->orderByDesc('created_at'),
+        };
 
         // Add favorite status for current user
-        $items = $query->paginate(16)->withQueryString();
+        $items = $query->paginate(16)
+            ->withQueryString();
 
         // Add favorite status to each item
         $userId = auth()->id();
@@ -123,34 +155,42 @@ class LibraryController extends Controller
 
         $types = LibraryItem::typeOptionsWithCounts();
         $categories = LibraryCategory::active()->ordered()->get(['id', 'name', 'slug']);
-
-        $userRegion = $this->regionForCurrentUser();
         $authors = LibraryAuthor::query()
-            ->whereHas('libraryItems', function ($q) use ($userRegion) {
-                $q->active()->availableInRegion($userRegion);
-            })
+            ->whereHas('libraryItems', fn ($q) => $q->active())
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
+        $regions = LibraryItem::regionOptions();
 
         $itemsArray = $items->toArray();
+
+        $groupedItems = $this->buildCategoryGroups($items->getCollection());
+        $filters = $request->only(['search', 'category', 'author', 'type', 'region', 'access', 'sort', 'favorites']);
+        $filters['sort'] = $request->input('sort', 'newest');
 
         return Inertia::render('Library/Index', [
             'items' => $itemsArray,
             'categories' => $categories,
-            'types' => $types,
             'authors' => $authors,
-            'regionOptions' => LibraryItem::regionOptions(),
-            'filters' => $request->only(['search', 'category', 'type', 'favorites', 'region', 'author', 'sort']),
+            'types' => $types,
+            'regions' => $regions,
+            'regionOptions' => $regions,
+            'groupedItems' => $groupedItems,
+            'forcedType' => $forcedType,
+            'filters' => $filters,
         ]);
     }
 
     public function ebooks(Request $request): Response
     {
+        $request->attributes->set('library_forced_type', 'ebook');
+
         return $this->index($request->merge(['type' => 'ebook']));
     }
 
     public function audiobooks(Request $request): Response
     {
+        $request->attributes->set('library_forced_type', 'audiobook');
+
         return $this->index($request->merge(['type' => 'audiobook']));
     }
 
@@ -179,17 +219,16 @@ class LibraryController extends Controller
             ? $item->userAccess()->where('user_id', auth()->id())->first()
             : null;
         $hasAccess = (bool) $userAccess?->purchased_at;
-        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        $requiresPaidAccess = $this->requiresPaidAccess($item);
 
         $stripeConfigured = $this->stripeIsConfigured();
 
+        $manualPaymentsAvailable = $this->manualPaymentsEnabled();
         $stripeSetupNote = $stripeConfigured
             ? null
-            : ($this->manualPaymentInstructions() !== ''
-                ? null
-                : (config('app.debug')
-                    ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe, or set MANUAL_PAYMENT_INSTRUCTIONS for manual payments. Run php artisan config:clear after changing .env.'
-                    : 'Online checkout is not available right now. Please try again later or contact support.'));
+            : (config('app.debug')
+                ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe to enable card checkout. Run php artisan config:clear after changing .env.'
+                : ($manualPaymentsAvailable ? null : 'Online checkout is not available right now. Please try again later or contact support.'));
 
         return Inertia::render('Library/Show', [
             'item' => $item,
@@ -198,56 +237,79 @@ class LibraryController extends Controller
             'hasAccess' => $hasAccess,
             'requiresPaidAccess' => $requiresPaidAccess,
             'stripeSetupNote' => $stripeSetupNote,
-            'libraryPaymentMode' => $stripeConfigured ? 'stripe' : 'manual',
+            'libraryPaymentMode' => $stripeConfigured ? 'stripe' : ($manualPaymentsAvailable ? 'manual' : 'unavailable'),
             'manualPaymentPending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
+            'mediaUrls' => $hasAccess ? $this->readerMediaUrls($item) : [],
+            'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
         ]);
     }
 
-    public function download(Request $request, LibraryItem $item): StreamedResponse|RedirectResponse
+    public function read(LibraryItem $item): Response|RedirectResponse
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
 
-        $userId = auth()->id();
-        $hasPurchased = $userId
-            ? $item->userAccess()
-                ->where('user_id', $userId)
-                ->whereNotNull('purchased_at')
-                ->exists()
-            : false;
-
-        if (! $hasPurchased) {
+        if (! $this->userHasAccess($item)) {
             return redirect()
                 ->route('library.show', $item)
-                ->with('error', 'Purchase this item before downloading.');
+                ->with('error', 'Unlock this title before opening it.');
         }
 
-        $wantAudioCompanion = $request->query('asset') === 'audio';
+        $access = $item->recordAccess(auth()->user());
 
-        if ($wantAudioCompanion) {
-            abort_unless($item->type === 'ebook' && $item->audio_file_path, 404);
-            $fileDisk = $item->resolveAudioFileDisk();
-            $path = $item->audio_file_path;
-            $downloadName = $item->audio_file_name ?? basename((string) $path);
-        } else {
-            $fileDisk = $item->resolveLibraryFileDisk();
-            $path = $item->file_path;
-            $downloadName = $item->file_name ?? basename((string) $path);
+        return Inertia::render('Library/Reader', [
+            'item' => $item->load(['category', 'libraryAuthor']),
+            'userAccess' => $access,
+            'mediaUrl' => route('library.media', $item),
+            'mediaUrls' => $this->readerMediaUrls($item),
+            'progressUrl' => route('library.progress', $item),
+        ]);
+    }
+
+    public function media(Request $request, LibraryItem $item): BinaryFileResponse|StreamedResponse
+    {
+        abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
+        abort_unless($this->userHasAccess($item), 403);
+
+        [$fileDisk, $path, $fileName, $fileType] = $this->resolveMediaAsset(
+            $item,
+            $request->query('asset')
+        );
+
+        if ($fileDisk === null) {
+            abort(404);
         }
 
-        // Record the download
-        $item->incrementDownloads();
-        if (auth()->check()) {
-            $item->recordAccess(auth()->user());
+        $disk = Storage::disk($fileDisk);
+        $headers = $this->mediaHeaders($fileName, $fileType, $path);
+
+        if ($disk instanceof AwsS3V3Adapter) {
+            return $this->streamS3Media($disk, $path, $headers);
         }
 
-        if ($fileDisk === null || ! $path) {
+        $localPath = $disk->path($path);
+        if (! is_file($localPath)) {
+            abort(404);
+        }
+
+        return response()->file($localPath, $headers);
+    }
+
+    public function download(Request $request, LibraryItem $item): RedirectResponse
+    {
+        abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
+
+        if (! $this->userHasAccess($item)) {
             return redirect()
                 ->route('library.show', $item)
-                ->with('error', 'File not found. Please contact support.');
+                ->with('error', 'Unlock this title before opening it.');
         }
 
-        return Storage::disk($fileDisk)->download($path, $downloadName);
+        return redirect()
+            ->route('library.read', $item)
+            ->with('info', 'Downloads are turned off for protected titles. You can keep reading or listening here.');
     }
 
     public function toggleFavorite(LibraryItem $item): RedirectResponse
@@ -262,14 +324,14 @@ class LibraryController extends Controller
     }
 
     /**
-     * Stripe hosted Checkout (same flow as provider subscriptions) or manual instructions (Library/ManualPayment.vue).
+     * Stripe hosted Checkout or manual instructions (Library/ManualPayment.vue).
      */
-    public function pay(LibraryItem $item): Response|RedirectResponse
+    public function pay(LibraryItem $item): Response|RedirectResponse|SymfonyResponse
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
 
-        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        $requiresPaidAccess = $this->requiresPaidAccess($item);
         if (! $item->is_premium && ! $requiresPaidAccess) {
             return redirect()
                 ->route('library.show', $item)
@@ -292,11 +354,18 @@ class LibraryController extends Controller
         }
 
         if (! $this->stripeIsConfigured()) {
-            return $this->renderManualPaymentPage($item);
+            if ($this->manualPaymentsEnabled()) {
+                return $this->renderManualPaymentPage($item);
+            }
+
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', config('app.debug')
+                    ? 'Stripe checkout is not configured. Add STRIPE_KEY and STRIPE_SECRET, then run php artisan config:clear.'
+                    : 'Online checkout is not available right now. Please try again later or contact support.');
         }
 
         $secret = config('services.stripe.secret');
-
         Stripe::setApiKey($secret);
 
         $currency = strtolower((string) ($item->currency ?? 'USD'));
@@ -336,6 +405,11 @@ class LibraryController extends Controller
                     ],
                     'quantity' => 1,
                 ]],
+                'custom_text' => [
+                    'submit' => [
+                        'message' => 'After payment, you will return here and can read or listen from your library.',
+                    ],
+                ],
             ]);
         } catch (\Throwable $e) {
             Log::error('Stripe library checkout session failed', [
@@ -368,7 +442,7 @@ class LibraryController extends Controller
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
 
-        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        $requiresPaidAccess = $this->requiresPaidAccess($item);
         if (! $item->is_premium && ! $requiresPaidAccess) {
             return redirect()
                 ->route('library.show', $item)
@@ -379,6 +453,12 @@ class LibraryController extends Controller
             return redirect()
                 ->route('library.pay', $item)
                 ->with('info', 'Use card checkout to complete this purchase.');
+        }
+
+        if (! $this->manualPaymentsEnabled()) {
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', 'Manual payment is not enabled for this title.');
         }
 
         if ($item->price === null || (float) $item->price <= 0) {
@@ -417,7 +497,7 @@ class LibraryController extends Controller
 
             return redirect()
                 ->route('library.show', $item)
-                ->with('success', 'Thanks — we received your payment details. An administrator will verify and unlock your download.');
+                ->with('success', 'Thanks — we received your payment details. An administrator will verify and unlock your access.');
         });
     }
 
@@ -453,7 +533,7 @@ class LibraryController extends Controller
         if ($item) {
             return redirect()
                 ->route('library.show', $item)
-                ->with('success', 'Payment successful. You can download your file below.');
+                ->with('success', 'Payment successful. You can read or listen now.');
         }
 
         return redirect()
@@ -472,15 +552,15 @@ class LibraryController extends Controller
     }
 
     /**
-     * Free library items only: grants access and starts download.
-     * Premium titles use Stripe hosted Checkout from the pay route.
+     * Free library items only: grants access and opens the reader/player.
+     * Premium titles use Stripe embedded checkout from the pay page.
      */
     public function purchase(LibraryItem $item): RedirectResponse
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
 
-        if ($item->is_premium || in_array($item->type, ['audiobook', 'video'], true)) {
+        if ($this->requiresPaidAccess($item)) {
             return redirect()
                 ->route('library.pay', $item)
                 ->with('info', 'Use card checkout to unlock this item.');
@@ -499,25 +579,35 @@ class LibraryController extends Controller
         }
 
         return redirect()
-            ->route('library.download', $item)
-            ->with('success', 'Added to your library. Your download will start shortly.');
+            ->route('library.read', $item)
+            ->with('success', 'Added to your library.');
     }
 
-    public function updateProgress(Request $request, LibraryItem $item): RedirectResponse
+    public function updateProgress(Request $request, LibraryItem $item): JsonResponse|RedirectResponse
     {
+        abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
+        abort_unless($this->userHasAccess($item), 403);
+
         $validated = $request->validate([
+            'mode' => ['required', 'string', 'in:reading,audio'],
             'progress' => ['required', 'array'],
-            'progress.page' => ['nullable', 'integer', 'min:0'],
-            'progress.position' => ['nullable', 'integer', 'min:0'],
+            'progress.page' => ['nullable', 'integer', 'min:1'],
+            'progress.total_pages' => ['nullable', 'integer', 'min:1'],
+            'progress.position' => ['nullable', 'numeric', 'min:0'],
+            'progress.duration' => ['nullable', 'numeric', 'min:0'],
             'progress.percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
-        $access = $item->userAccess()->firstOrCreate([
-            'user_id' => auth()->id(),
-        ]);
+        $access = $item->userAccess()->where('user_id', auth()->id())->firstOrFail();
 
-        $access->updateProgress($validated['progress']);
+        $access->updateProgress($validated['progress'], $validated['mode']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'progress' => $access->fresh()->progress,
+            ]);
+        }
 
         return back();
     }
@@ -531,6 +621,200 @@ class LibraryController extends Controller
             && is_string($publishable) && $publishable !== '';
     }
 
+    private function requiresPaidAccess(LibraryItem $item): bool
+    {
+        return $item->is_premium || (float) ($item->price ?? 0) > 0;
+    }
+
+    private function userHasAccess(LibraryItem $item): bool
+    {
+        $userId = auth()->id();
+        if (! $userId) {
+            return false;
+        }
+
+        return $item->userAccess()
+            ->where('user_id', $userId)
+            ->whereNotNull('purchased_at')
+            ->exists();
+    }
+
+    private function readerMediaUrls(LibraryItem $item): array
+    {
+        if ($item->type === 'ebook') {
+            $urls = [
+                'pdf' => route('library.media', $item),
+            ];
+
+            if ($item->audio_file_path) {
+                $urls['audio'] = route('library.media', ['item' => $item, 'asset' => 'audio']);
+            }
+
+            return $urls;
+        }
+
+        return [
+            'audio' => route('library.media', $item),
+        ];
+    }
+
+    private function resolveMediaAsset(LibraryItem $item, mixed $asset): array
+    {
+        $asset = is_string($asset) ? $asset : null;
+
+        if ($asset !== null && $asset !== '' && ! in_array($asset, ['pdf', 'audio'], true)) {
+            abort(404);
+        }
+
+        if ($asset === 'audio' && $item->type === 'ebook') {
+            abort_unless($item->audio_file_path, 404);
+
+            return [
+                $item->resolveAudioFileDisk(),
+                $item->audio_file_path,
+                $item->audio_file_name ?: basename((string) $item->audio_file_path),
+                $item->audio_file_type,
+            ];
+        }
+
+        if ($asset === 'pdf' && $item->type !== 'ebook') {
+            abort(404);
+        }
+
+        if ($asset === 'audio' && $item->type !== 'audiobook') {
+            abort(404);
+        }
+
+        return [
+            $item->resolveLibraryFileDisk(),
+            $item->file_path,
+            $item->file_name ?: basename((string) $item->file_path),
+            $item->file_type,
+        ];
+    }
+
+    private function mediaContentType(?string $fileType, ?string $path = null): string
+    {
+        $extension = strtolower((string) ($fileType ?: pathinfo((string) $path, PATHINFO_EXTENSION)));
+
+        return match ($extension) {
+            'pdf' => 'application/pdf',
+            'mp3' => 'audio/mpeg',
+            'm4a' => 'audio/mp4',
+            'aac' => 'audio/aac',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            default => 'application/octet-stream',
+        };
+    }
+
+    private function mediaHeaders(string $fileName, ?string $fileType, string $path): array
+    {
+        return [
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Content-Disposition' => HeaderUtils::makeDisposition(HeaderUtils::DISPOSITION_INLINE, $fileName),
+            'Content-Type' => $this->mediaContentType($fileType, $path),
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'SAMEORIGIN',
+        ];
+    }
+
+    private function streamS3Media(AwsS3V3Adapter $disk, string $path, array $headers): StreamedResponse
+    {
+        try {
+            $size = (int) $disk->size($path);
+        } catch (\Throwable) {
+            abort(404);
+        }
+
+        if ($size < 1) {
+            abort(404);
+        }
+
+        $range = $this->parseByteRange(request()->header('Range'), $size);
+        if ($range === false) {
+            return response()->stream(static function (): void {}, 416, array_merge($headers, [
+                'Content-Length' => '0',
+                'Content-Range' => "bytes */{$size}",
+            ]));
+        }
+
+        $s3Request = [
+            'Bucket' => $disk->getConfig()['bucket'],
+            'Key' => $disk->path($path),
+        ];
+
+        $status = 200;
+        if (is_array($range)) {
+            $status = 206;
+            $s3Request['Range'] = "bytes={$range['start']}-{$range['end']}";
+            $headers['Content-Length'] = (string) ($range['end'] - $range['start'] + 1);
+            $headers['Content-Range'] = "bytes {$range['start']}-{$range['end']}/{$size}";
+        } else {
+            $headers['Content-Length'] = (string) $size;
+        }
+
+        try {
+            $object = $disk->getClient()->getObject($s3Request);
+        } catch (\Throwable) {
+            abort(404);
+        }
+
+        $body = $object['Body'];
+
+        return response()->stream(function () use ($body): void {
+            while (! $body->eof()) {
+                echo $body->read(1024 * 1024);
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+
+                flush();
+            }
+        }, $status, $headers);
+    }
+
+    private function parseByteRange(?string $rangeHeader, int $size): array|false|null
+    {
+        if ($rangeHeader === null || trim($rangeHeader) === '') {
+            return null;
+        }
+
+        if (! preg_match('/^bytes=(\d*)-(\d*)$/', trim($rangeHeader), $matches)) {
+            return false;
+        }
+
+        if ($matches[1] === '' && $matches[2] === '') {
+            return false;
+        }
+
+        if ($matches[1] === '') {
+            $suffixLength = (int) $matches[2];
+            if ($suffixLength < 1) {
+                return false;
+            }
+
+            return [
+                'start' => max(0, $size - $suffixLength),
+                'end' => $size - 1,
+            ];
+        }
+
+        $start = (int) $matches[1];
+        $end = $matches[2] === '' ? $size - 1 : (int) $matches[2];
+
+        if ($start > $end || $start >= $size) {
+            return false;
+        }
+
+        return [
+            'start' => $start,
+            'end' => min($end, $size - 1),
+        ];
+    }
+
     private function manualPaymentInstructions(): string
     {
         $custom = config('manual_payment.instructions');
@@ -542,6 +826,12 @@ class LibraryController extends Controller
 
     private function renderManualPaymentPage(LibraryItem $item): Response|RedirectResponse
     {
+        if (! $this->manualPaymentsEnabled()) {
+            return redirect()
+                ->route('library.show', $item)
+                ->with('error', 'Manual payment is not enabled for this title.');
+        }
+
         $instructions = $this->manualPaymentInstructions();
         if ($instructions === '') {
             return redirect()
@@ -576,17 +866,29 @@ class LibraryController extends Controller
         ]);
     }
 
+    private function manualPaymentsEnabled(): bool
+    {
+        return (bool) config('manual_payment.enabled');
+    }
+
     private function readingProgressPercent(?LibraryUserAccess $access, LibraryItem $item): ?int
     {
         if (! $access?->progress || ! is_array($access->progress)) {
             return null;
         }
 
-        $p = $access->progress;
+        $progress = $access->progress;
+        $modeProgress = $item->type === 'audiobook'
+            ? data_get($progress, 'audio', $progress)
+            : data_get($progress, 'reading', $progress);
 
-        if ($item->type === 'ebook' && isset($p['page'])) {
-            $page = (int) $p['page'];
-            $total = (int) ($item->page_count ?? 0);
+        if (! is_array($modeProgress)) {
+            return null;
+        }
+
+        if ($item->type === 'ebook' && isset($modeProgress['page'])) {
+            $page = (int) $modeProgress['page'];
+            $total = (int) ($modeProgress['total_pages'] ?? 0);
             if ($total < 1) {
                 $total = 100;
             }
@@ -594,17 +896,36 @@ class LibraryController extends Controller
             return (int) max(0, min(100, round(($page / $total) * 100)));
         }
 
-        if ($item->type === 'audiobook' && isset($p['position']) && $item->duration_seconds) {
-            $pos = (int) $p['position'];
-            $dur = max(1, (int) $item->duration_seconds);
+        if ($item->type === 'audiobook' && isset($modeProgress['position'], $modeProgress['duration'])) {
+            $position = (float) $modeProgress['position'];
+            $duration = max(1, (float) $modeProgress['duration']);
 
-            return (int) max(0, min(100, round(($pos / $dur) * 100)));
+            return (int) max(0, min(100, round(($position / $duration) * 100)));
         }
 
-        if (isset($p['percentage'])) {
-            return (int) max(0, min(100, round((float) $p['percentage'])));
+        if (isset($modeProgress['percentage'])) {
+            return (int) max(0, min(100, round((float) $modeProgress['percentage'])));
         }
 
         return null;
+    }
+
+    private function buildCategoryGroups(Collection $items): array
+    {
+        $groups = $items
+            ->groupBy(fn ($item) => $item->category?->slug ?? 'uncategorized')
+            ->map(function ($groupItems, $slug) {
+                $first = $groupItems->first();
+
+                return [
+                    'slug' => $slug,
+                    'name' => $first->category?->name ?? 'Uncategorized',
+                    'items' => $groupItems->values(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $groups;
     }
 }

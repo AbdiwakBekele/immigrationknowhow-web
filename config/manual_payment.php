@@ -4,18 +4,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Manual library payments (when Stripe is not configured)
+    | Manual library payments
     |--------------------------------------------------------------------------
     |
-    | Shown on the library pay page. Use plain text or multiple lines; the UI
-    | preserves line breaks. Example: bank name, account number, PayPal email,
-    | and what reference to use.
+    | Stripe is the default payment path for library purchases. Manual payments
+    | are opt-in for installs that intentionally support bank transfer, PayPal,
+    | or another offline flow.
     |
     */
+    'enabled' => filter_var(env('LIBRARY_MANUAL_PAYMENTS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+
     'instructions' => trim((string) env('MANUAL_PAYMENT_INSTRUCTIONS', '')),
 
     /*
-    | Used when MANUAL_PAYMENT_INSTRUCTIONS is empty (e.g. fresh .env).
+    | Used when manual payments are enabled and MANUAL_PAYMENT_INSTRUCTIONS is empty.
     | Replace via .env for your real bank details or PayPal email.
     */
     'default_instructions' => <<<'TXT'

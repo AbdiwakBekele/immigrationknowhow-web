@@ -138,9 +138,9 @@ const goBack = () => {
             />
         </template>
 
-        <form class="space-y-6" @submit.prevent="submitAddress">
-            <div class="space-y-2">
-                <p class="text-xs font-medium text-neutral-600">Address information</p>
+        <form class="space-y-7" @submit.prevent="submitAddress">
+            <div class="space-y-5">
+                <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Address information</p>
                 <label class="mt-1 flex cursor-pointer items-center gap-2">
                     <input
                         v-model="phoneForm.serve_client_in_location"
@@ -149,8 +149,8 @@ const goBack = () => {
                     />
                     <span class="text-sm text-neutral-700">I serve the client in their location</span>
                 </label>
-                <div class="space-y-1">
-                    <label for="street-address" class="block text-xs font-medium text-neutral-600">
+                <div>
+                    <label for="street-address" class="mb-3 block text-base font-medium text-slate-700">
                         Street address
                     </label>
                     <input
@@ -159,23 +159,22 @@ const goBack = () => {
                         type="text"
                         placeholder="Street, apt / unit"
                         autocomplete="street-address"
-                        class="w-full rounded-md border bg-white px-2.5 py-1.5 text-xs transition-all duration-200 placeholder:text-neutral-400 focus:outline-none"
+                        class="w-full rounded-2xl border bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition duration-200 placeholder:text-slate-400"
                         :class="phoneForm.errors.address
-                            ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-                            : 'border-neutral-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20'"
+                            ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100'
+                            : 'border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100'"
                         @input="handleStreetAddressChange"
                         @change="handleStreetAddressChange"
                     />
-                    <p v-if="phoneForm.errors.address" class="text-xs text-red-600">{{ phoneForm.errors.address }}</p>
-                    <p v-else-if="autocompleteStatus" class="text-xs text-neutral-500">{{ autocompleteStatus }}</p>
+                    <p v-if="phoneForm.errors.address" class="mt-2 text-sm font-medium text-red-600">{{ phoneForm.errors.address }}</p>
+                    <p v-else-if="autocompleteStatus" class="mt-2 text-sm text-slate-500">{{ autocompleteStatus }}</p>
                 </div>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <Input
                         v-model="phoneForm.city"
                         label="City"
                         placeholder="City"
                         :error="phoneForm.errors.city"
-                        size="compact"
                         required
                         autocomplete="address-level2"
                     />
@@ -184,7 +183,6 @@ const goBack = () => {
                         label="State"
                         placeholder="State"
                         :error="phoneForm.errors.state"
-                        size="compact"
                         required
                         autocomplete="address-level1"
                     />
@@ -193,19 +191,18 @@ const goBack = () => {
                         label="Postal code"
                         placeholder="ZIP / postal"
                         :error="phoneForm.errors.postal_code"
-                        size="compact"
                         required
                         autocomplete="postal-code"
                     />
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Select
                         v-model="phoneForm.country"
                         :options="countryOptions"
                         label="Country"
                         placeholder="Country"
                         :error="phoneForm.errors.country"
-                        size="compact"
+                        size="auth"
                         required
                     />
                     <Select
@@ -214,29 +211,29 @@ const goBack = () => {
                         label="Language"
                         placeholder="Select language"
                         :error="phoneForm.errors.preferred_language"
-                        size="compact"
+                        size="auth"
                         required
                     />
                 </div>
             </div>
 
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    class="!rounded-md border border-neutral-200 bg-white !px-2.5 !py-1.5 !text-xs text-neutral-700 hover:bg-neutral-50"
+                    size="md"
+                    class="justify-center border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 sm:justify-start"
                     @click="goBack"
                 >
-                    <ArrowLeftIcon class="h-3.5 w-3.5" />
+                    <ArrowLeftIcon class="h-4 w-4" />
                     Back
                 </Button>
                 <Button
                     type="submit"
                     variant="primary"
-                    size="sm"
+                    size="lg"
                     :loading="phoneForm.processing"
-                    class="min-w-[10rem] !py-1.5 !text-xs !rounded-md"
+                    class="min-w-[11rem]"
                 >
                     Continue
                 </Button>

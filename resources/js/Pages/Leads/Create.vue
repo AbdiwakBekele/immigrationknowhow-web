@@ -67,6 +67,16 @@ const contactMethods = [
 
 const messageLength = computed(() => form.message.length);
 const isMessageValid = computed(() => form.message.length >= 2);
+
+const formatProviderRating = (rating) => {
+    if (rating === null || rating === undefined || String(rating).trim() === '') {
+        return 'New';
+    }
+
+    const value = Number(rating);
+
+    return Number.isFinite(value) ? value.toFixed(1) : 'New';
+};
 </script>
 
 <template>
@@ -282,7 +292,7 @@ const isMessageValid = computed(() => form.message.length >= 2);
                                     </div>
                                     <div class="flex items-center gap-1 mt-1">
                                         <StarSolid class="w-4 h-4 text-secondary-500" />
-                                        <span class="text-sm text-slate-600">{{ provider.average_rating?.toFixed(1) || 'New' }}</span>
+                                        <span class="text-sm text-slate-600">{{ formatProviderRating(provider.average_rating) }}</span>
                                         <span class="text-sm text-slate-400">({{ provider.total_reviews }} reviews)</span>
                                     </div>
                                 </div>

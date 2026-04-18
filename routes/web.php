@@ -7,6 +7,7 @@ use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LibraryController;
+use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\OnboardingController;
@@ -39,6 +40,10 @@ Route::post('/locale', function (Request $request) {
 
 // Public library access
 Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
+Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('library.ebooks');
+Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('library.audiobooks');
+Route::redirect('/library/ebooks', '/ebooks', 301);
+Route::redirect('/library/audiobooks', '/audiobooks', 301);
 
 // Purchasable video files (admin digital products — separate from Library)
 Route::get('/videos', [VideoProductController::class, 'index'])->name('videos.index');
@@ -121,6 +126,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/address-detail', [Auth\AddressDetailsController::class, 'sendOtp'])->name('address-detail.send');
     Route::get('/address-detail/otp', [Auth\AddressDetailsController::class, 'showOtp'])->name('address-detail.otp');
     Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
+
+    Route::get('/api/locations/states', [LocationLookupController::class, 'states'])->name('locations.states');
+    Route::get('/api/locations/search', [LocationLookupController::class, 'search'])->name('locations.search');
 });
 
 // Onboarding — requires verified phone
@@ -128,6 +136,27 @@ Route::middleware(['auth', 'phone.verified'])->group(function () {
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::post('/onboarding/progress', [OnboardingController::class, 'saveProgress'])->name('onboarding.progress');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
+});
+
+// Digital Library checkout and protected media stay available after sign-in, even before onboarding is complete.
+Route::middleware(['auth'])->prefix('library')->name('library.')->group(function () {
+    Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
+    Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
+    Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
+        ->middleware('throttle:10,1')
+        ->name('pay');
+    Route::post('/{item:slug}/manual-payment', [LibraryController::class, 'storeManualPayment'])
+        ->middleware('throttle:10,1')
+        ->name('manual-payment');
+    Route::get('/{item:slug}/read', [LibraryController::class, 'read'])->name('read');
+    Route::get('/{item:slug}/media', [LibraryController::class, 'media'])->name('media');
+    Route::post('/{item:slug}/progress', [LibraryController::class, 'updateProgress'])
+        ->middleware('throttle:120,1')
+        ->name('progress');
+    Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
+    Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
+    Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
+    Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
 });
 
 // Routes requiring completed onboarding
@@ -139,6 +168,11 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
     // Profile
     Route::get('/profile', [User\ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [User\ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/password', [User\ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::patch('/profile/notifications', [User\ProfileController::class, 'updateNotifications'])->name('profile.notifications');
+    Route::post('/profile/provider-invites', [User\ProfileController::class, 'storeProviderInvite'])->name('profile.provider-invites.store');
+    Route::post('/profile/avatar', [User\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+    Route::delete('/profile/avatar', [User\ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
     Route::delete('/profile', [User\ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Messaging
@@ -163,24 +197,6 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
         Route::get('/', [User\ContractController::class, 'index'])->name('index');
         Route::patch('/{lead}/send', [User\ContractController::class, 'send'])->name('send');
         Route::patch('/{lead}/end', [User\ContractController::class, 'end'])->name('end');
-    });
-
-    // Digital Library (e-books & audiobooks only — videos use /videos)
-    Route::prefix('library')->name('library.')->group(function () {
-        Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('ebooks');
-        Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('audiobooks');
-        Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
-        Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
-        Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
-            ->middleware('throttle:10,1')
-            ->name('pay');
-        Route::post('/{item:slug}/manual-payment', [LibraryController::class, 'storeManualPayment'])
-            ->middleware('throttle:10,1')
-            ->name('manual-payment');
-        Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
-        Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
-        Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
-        Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
     });
 
     // Video digital products (file downloads / Stripe)

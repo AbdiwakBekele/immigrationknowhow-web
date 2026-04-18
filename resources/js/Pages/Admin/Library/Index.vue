@@ -1,8 +1,8 @@
 <script setup>
 import { computed, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { BookOpenIcon, DocumentTextIcon, MusicalNoteIcon } from '@heroicons/vue/24/outline';
+import { BookOpenIcon, DocumentTextIcon, MusicalNoteIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     items: Object,
@@ -34,6 +34,14 @@ const uploadForm = useForm({
     author_id: '',
     new_author_name: '',
     description: '',
+    publisher: '',
+    published_at: '',
+    isbn: '',
+    page_count: '',
+    language: '',
+    estimated_reading_minutes: '',
+    difficulty_level: '',
+    recommended_age_group: '',
     file: null,
     pdf_file: null,
     audio_file: null,
@@ -117,7 +125,24 @@ const submitUpload = () => {
         .post(route('admin.library.store'), {
             forceFormData: true,
             onSuccess: () => {
-                uploadForm.reset('title', 'description', 'file', 'pdf_file', 'audio_file', 'cover_image', 'price', 'new_author_name');
+                uploadForm.reset(
+                    'title',
+                    'description',
+                    'publisher',
+                    'published_at',
+                    'isbn',
+                    'page_count',
+                    'language',
+                    'estimated_reading_minutes',
+                    'difficulty_level',
+                    'recommended_age_group',
+                    'file',
+                    'pdf_file',
+                    'audio_file',
+                    'cover_image',
+                    'price',
+                    'new_author_name',
+                );
                 uploadForm.price = '0';
                 uploadForm.type = props.types?.[0]?.value ?? '';
                 uploadForm.all_regions = false;
@@ -129,6 +154,16 @@ const submitUpload = () => {
                 uploadForm.currency = 'USD';
             },
         });
+};
+
+const destroyItem = (item) => {
+    if (!confirm(`Delete "${item.title}" from the library? This removes the stored PDF/audio files too.`)) {
+        return;
+    }
+
+    router.delete(route('admin.library.destroy', item.slug), {
+        preserveScroll: true,
+    });
 };
 </script>
 
@@ -190,11 +225,11 @@ const submitUpload = () => {
                         </select>
                         <p v-if="uploadForm.errors.category_id" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.category_id }}</p>
                     </div>
-                    <div class="lg:col-span-2">
-                        <label class="mb-1 block text-sm font-medium text-gray-700">Author</label>
-                        <p class="mb-2 text-xs text-gray-500">
-                            Choose an existing author or add a new name once; the same author can be linked to many titles.
-                        </p>
+	                    <div class="lg:col-span-2">
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Author</label>
+	                        <p class="mb-2 text-xs text-gray-500">
+	                            Choose an existing author or add a new name once; the same author can be linked to many titles.
+	                        </p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                                 <select
@@ -215,10 +250,50 @@ const submitUpload = () => {
                                     placeholder="Or enter a new author name"
                                 >
                                 <p v-if="uploadForm.errors.new_author_name" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.new_author_name }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+	                            </div>
+	                        </div>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Publisher</label>
+	                        <input v-model="uploadForm.publisher" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+	                        <p v-if="uploadForm.errors.publisher" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.publisher }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Published date</label>
+	                        <input v-model="uploadForm.published_at" type="date" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+	                        <p v-if="uploadForm.errors.published_at" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.published_at }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">ISBN</label>
+	                        <input v-model="uploadForm.isbn" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+	                        <p v-if="uploadForm.errors.isbn" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.isbn }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Pages count</label>
+	                        <input v-model="uploadForm.page_count" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+	                        <p v-if="uploadForm.errors.page_count" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.page_count }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Language</label>
+	                        <input v-model="uploadForm.language" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="English">
+	                        <p v-if="uploadForm.errors.language" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.language }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Estimated reading time (minutes)</label>
+	                        <input v-model="uploadForm.estimated_reading_minutes" type="number" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+	                        <p v-if="uploadForm.errors.estimated_reading_minutes" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.estimated_reading_minutes }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Difficulty level</label>
+	                        <input v-model="uploadForm.difficulty_level" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="Beginner">
+	                        <p v-if="uploadForm.errors.difficulty_level" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.difficulty_level }}</p>
+	                    </div>
+	                    <div>
+	                        <label class="mb-1 block text-sm font-medium text-gray-700">Recommended age group</label>
+	                        <input v-model="uploadForm.recommended_age_group" type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="All">
+	                        <p v-if="uploadForm.errors.recommended_age_group" class="mt-1 text-xs text-red-600">{{ uploadForm.errors.recommended_age_group }}</p>
+	                    </div>
+	                </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700">Regions</label>
@@ -411,8 +486,25 @@ const submitUpload = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <Link :href="route('library.show', item.slug)" class="shrink-0 text-indigo-600 hover:text-indigo-500">View</Link>
-                            </div>
+	                                <div class="flex shrink-0 items-center gap-2">
+	                                    <Link :href="route('library.show', item.slug)" class="text-indigo-600 hover:text-indigo-500">View</Link>
+	                                    <Link
+	                                        :href="route('admin.library.edit', item.slug)"
+	                                        class="inline-flex rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-white"
+	                                        title="Edit"
+	                                    >
+	                                        <PencilSquareIcon class="h-4 w-4" />
+	                                    </Link>
+	                                    <button
+	                                        type="button"
+	                                        class="inline-flex rounded-lg border border-gray-200 p-1.5 text-red-600 hover:bg-red-50"
+	                                        title="Delete"
+	                                        @click="destroyItem(item)"
+	                                    >
+	                                        <TrashIcon class="h-4 w-4" />
+	                                    </button>
+	                                </div>
+	                            </div>
                         </div>
                     </div>
                 </div>

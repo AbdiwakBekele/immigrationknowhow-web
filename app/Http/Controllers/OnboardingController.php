@@ -10,6 +10,7 @@ use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\ServiceTypeOptions;
 use App\Support\StripeProviderSubscriptionCheckout;
+use App\Support\UsStateOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,13 +49,14 @@ class OnboardingController extends Controller
             : collect();
 
         return Inertia::render('Onboarding/Index', [
-            'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'country', 'preferred_language']),
+            'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
             'initialStep' => $initialStep,
             'isProvider' => $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
                 : ServiceTypeOptions::userIntakeOptions(),
             'countryOptions' => CountryOptions::selectOptions(),
+            'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
             'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
@@ -112,11 +114,24 @@ class OnboardingController extends Controller
         DB::transaction(function () use ($user, $request, $isProvider, &$providerForCheckout, &$planForCheckout) {
             $data = $request->all();
             $onboardingData = array_merge($user->onboarding_data ?? [], [
+                'location' => array_merge($user->onboarding_data['location'] ?? [], [
+                    'city' => $data['city'] ?? null,
+                    'state' => $data['state'] ?? null,
+                    'postal_code' => $data['postal_code'] ?? null,
+                    'country' => $data['country'] ?? null,
+                    'county' => $data['county'] ?? null,
+                    'label' => $data['location_label'] ?? null,
+                ]),
                 'business' => array_merge($user->onboarding_data['business'] ?? [], $data['business'] ?? []),
-                'services' => array_merge($user->onboarding_data['services'] ?? [], $data['services'] ?? []),
+                'services' => array_merge(
+                    $user->onboarding_data['services'] ?? [],
+                    $data['services'] ?? [],
+                    ['services_needed' => $data['services_needed'] ?? data_get($user->onboarding_data, 'services.services_needed', [])]
+                ),
                 'pricing' => array_merge($user->onboarding_data['pricing'] ?? [], $data['pricing'] ?? []),
                 'service-area' => array_merge($user->onboarding_data['service-area'] ?? [], $data['service-area'] ?? []),
                 'subscription' => array_merge($user->onboarding_data['subscription'] ?? [], $data['subscription'] ?? []),
+                'profile' => array_merge($user->onboarding_data['profile'] ?? [], $data['profile'] ?? []),
             ]);
 
             $user->update([

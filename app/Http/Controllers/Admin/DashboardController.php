@@ -14,6 +14,7 @@ use App\Models\Review;
 use App\Models\ServiceProvider;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,8 +29,10 @@ class DashboardController extends Controller
             'total' => User::count(),
             'this_month' => User::where('created_at', '>=', $monthStart)->count(),
             'today' => User::where('created_at', '>=', $today)->count(),
-            'verified' => User::verified()->count(),
-            'active' => User::where('last_login_at', '>=', now()->subDays(30))->count(),
+            'verified' => User::whereNotNull('email_verified_at')->count(),
+            'active' => Schema::hasColumn('users', 'last_login_at')
+                ? User::where('last_login_at', '>=', now()->subDays(30))->count()
+                : 0,
         ];
 
         $providerStats = [
@@ -44,14 +47,11 @@ class DashboardController extends Controller
                 BackgroundCheckStatus::PENDING,
                 BackgroundCheckStatus::CONSIDER,
             ])->distinct('service_provider_id')->count('service_provider_id'),
-            'active' => ServiceProvider::active()->acceptingClients()->count(),
-            'active_today' => ServiceProvider::query()
-                ->where('is_active', true)
-                ->where('accepting_clients', true)
-                ->whereHas('user', function ($query) use ($today) {
-                    $query->where('last_login_at', '>=', $today);
-                })
+            'active' => ServiceProvider::query()
+                ->when(method_exists(ServiceProvider::class, 'scopeActive'), fn ($q) => $q->active())
+                ->when(method_exists(ServiceProvider::class, 'scopeAcceptingClients'), fn ($q) => $q->acceptingClients())
                 ->count(),
+            'active_today' => $this->getActiveProvidersTodayCount($today),
         ];
 
         $backgroundCheckStats = [
@@ -71,37 +71,20 @@ class DashboardController extends Controller
             'total' => Lead::count(),
             'this_month' => Lead::where('created_at', '>=', $monthStart)->count(),
             'today' => Lead::where('created_at', '>=', $today)->count(),
-            'open' => Lead::open()->count(),
+            'open' => method_exists(Lead::class, 'scopeOpen') ? Lead::open()->count() : 0,
             'converted' => Lead::where('status', LeadStatus::CONVERTED)->count(),
             'conversion_rate' => $this->calculateConversionRate(),
         ];
 
         $reviewStats = [
             'total' => Review::count(),
-            'pending_moderation' => Review::where('is_approved', false)->count(),
+            'pending_moderation' => Schema::hasColumn('reviews', 'is_approved')
+                ? Review::where('is_approved', false)->count()
+                : 0,
             'average_rating' => round((float) Review::avg('rating'), 1),
         ];
 
-        $libraryStats = [
-            'total_items' => LibraryItem::count(),
-            'ebooks' => LibraryItem::where('type', 'ebook')->count(),
-            'audiobooks' => LibraryItem::where('type', 'audiobook')->count(),
-            'total_downloads' => LibraryItem::sum('download_count'),
-            'ebooks_sold_today' => LibraryUserAccess::query()
-                ->whereNotNull('purchased_at')
-                ->where('purchased_at', '>=', $today)
-                ->whereHas('libraryItem', function ($query) {
-                    $query->where('type', 'ebook');
-                })
-                ->count(),
-            'ebook_revenue_today' => (float) LibraryUserAccess::query()
-                ->whereNotNull('purchased_at')
-                ->where('purchased_at', '>=', $today)
-                ->whereHas('libraryItem', function ($query) {
-                    $query->where('type', 'ebook');
-                })
-                ->sum('purchase_amount'),
-        ];
+        $libraryStats = $this->getLibraryStats($today);
 
         $recentUsers = User::latest()
             ->limit(6)
@@ -141,9 +124,10 @@ class DashboardController extends Controller
                 'count' => $item->count,
             ]);
 
-        $serviceTypeDistribution = ServiceProvider::active()
+        $serviceTypeDistribution = ServiceProvider::query()
+            ->when(method_exists(ServiceProvider::class, 'scopeActive'), fn ($q) => $q->active())
             ->get()
-            ->flatMap(fn ($provider) => $provider->service_types)
+            ->flatMap(fn ($provider) => $provider->service_types ?? [])
             ->countBy()
             ->map(fn ($count, $type) => [
                 'type' => ServiceType::tryFrom($type)?->label() ?? $type,
@@ -181,5 +165,75 @@ class DashboardController extends Controller
         $converted = Lead::where('status', LeadStatus::CONVERTED)->count();
 
         return round(($converted / $total) * 100, 1);
+    }
+
+    protected function getActiveProvidersTodayCount($today): int
+    {
+        $query = ServiceProvider::query();
+
+        if (Schema::hasColumn('service_providers', 'is_active')) {
+            $query->where('is_active', true);
+        }
+
+        if (Schema::hasColumn('service_providers', 'accepting_clients')) {
+            $query->where('accepting_clients', true);
+        }
+
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            $query->whereHas('user', function ($q) use ($today) {
+                $q->where('last_login_at', '>=', $today);
+            });
+        } else {
+            return 0;
+        }
+
+        return $query->count();
+    }
+
+    protected function getLibraryStats($today): array
+    {
+        $stats = [
+            'total_items' => LibraryItem::count(),
+            'ebooks' => LibraryItem::where('type', 'ebook')->count(),
+            'audiobooks' => LibraryItem::where('type', 'audiobook')->count(),
+            'total_downloads' => Schema::hasColumn('library_items', 'download_count')
+                ? (int) LibraryItem::sum('download_count')
+                : 0,
+            'ebooks_sold_today' => 0,
+            'ebook_revenue_today' => 0.0,
+        ];
+
+        if (!Schema::hasTable('library_user_access')) {
+            return $stats;
+        }
+
+        $hasPurchasedAt = Schema::hasColumn('library_user_access', 'purchased_at');
+        $hasPurchaseAmount = Schema::hasColumn('library_user_access', 'purchase_amount');
+        $hasLibraryItemId = Schema::hasColumn('library_user_access', 'library_item_id');
+
+        if (!$hasPurchasedAt || !$hasLibraryItemId) {
+            return $stats;
+        }
+
+        $salesQuery = LibraryUserAccess::query()
+            ->whereNotNull('purchased_at')
+            ->where('purchased_at', '>=', $today)
+            ->whereHas('libraryItem', function ($query) {
+                $query->where('type', 'ebook');
+            });
+
+        $stats['ebooks_sold_today'] = (int) $salesQuery->count();
+
+        if ($hasPurchaseAmount) {
+            $stats['ebook_revenue_today'] = (float) LibraryUserAccess::query()
+                ->whereNotNull('purchased_at')
+                ->where('purchased_at', '>=', $today)
+                ->whereHas('libraryItem', function ($query) {
+                    $query->where('type', 'ebook');
+                })
+                ->sum('purchase_amount');
+        }
+
+        return $stats;
     }
 }

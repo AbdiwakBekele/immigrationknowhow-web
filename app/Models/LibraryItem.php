@@ -21,6 +21,7 @@ class LibraryItem extends Model
 
     /** Disk for e-book / audiobook binaries (not publicly linked). */
     public const LIBRARY_MEDIA_DISK = 'library_media';
+    public const LEGACY_LIBRARY_MEDIA_DISK = 'library_media_local';
 
     public const TYPE_DEFINITIONS = [
         'ebook' => [
@@ -52,7 +53,10 @@ class LibraryItem extends Model
     ];
 
     protected $appends = [
+        'author',
         'cover_image_url',
+        'duration_formatted',
+        'file_size_formatted',
         'has_audio_companion',
     ];
 
@@ -68,7 +72,10 @@ class LibraryItem extends Model
         'author_id',
         'publisher',
         'publication_year',
+        'published_at',
         'isbn',
+        'page_count',
+        'language',
         'tags',
         'file_path',
         'file_name',
@@ -80,6 +87,9 @@ class LibraryItem extends Model
         'audio_file_type',
         'cover_image',
         'duration_seconds',
+        'estimated_reading_minutes',
+        'difficulty_level',
+        'recommended_age_group',
         'narrator',
         'is_premium',
         'price',
@@ -104,6 +114,10 @@ class LibraryItem extends Model
             'file_size' => 'integer',
             'audio_file_size' => 'integer',
             'duration_seconds' => 'integer',
+            'estimated_reading_minutes' => 'integer',
+            'page_count' => 'integer',
+            'publication_year' => 'integer',
+            'published_at' => 'date:Y-m-d',
             'download_count' => 'integer',
             'view_count' => 'integer',
         ];
@@ -143,6 +157,9 @@ class LibraryItem extends Model
         if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
             return self::LIBRARY_MEDIA_DISK;
         }
+        if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+            return self::LEGACY_LIBRARY_MEDIA_DISK;
+        }
         if (Storage::disk('public')->exists($this->file_path)) {
             return 'public';
         }
@@ -161,6 +178,9 @@ class LibraryItem extends Model
         if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->audio_file_path)) {
             return self::LIBRARY_MEDIA_DISK;
         }
+        if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->audio_file_path)) {
+            return self::LEGACY_LIBRARY_MEDIA_DISK;
+        }
         if (Storage::disk('public')->exists($this->audio_file_path)) {
             return 'public';
         }
@@ -173,7 +193,7 @@ class LibraryItem extends Model
         if (! $this->file_path) {
             return;
         }
-        foreach ([self::LIBRARY_MEDIA_DISK, 'public'] as $disk) {
+        foreach (array_unique([self::LIBRARY_MEDIA_DISK, self::LEGACY_LIBRARY_MEDIA_DISK, 'public']) as $disk) {
             if (Storage::disk($disk)->exists($this->file_path)) {
                 Storage::disk($disk)->delete($this->file_path);
             }
@@ -185,7 +205,7 @@ class LibraryItem extends Model
         if (! $this->audio_file_path) {
             return;
         }
-        foreach ([self::LIBRARY_MEDIA_DISK, 'public'] as $disk) {
+        foreach (array_unique([self::LIBRARY_MEDIA_DISK, self::LEGACY_LIBRARY_MEDIA_DISK, 'public']) as $disk) {
             if (Storage::disk($disk)->exists($this->audio_file_path)) {
                 Storage::disk($disk)->delete($this->audio_file_path);
             }
@@ -315,6 +335,8 @@ class LibraryItem extends Model
         return $query->where(function ($q) use ($search) {
             $q->where('title', 'like', "%{$search}%")
                 ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('publisher', 'like', "%{$search}%")
+                ->orWhere('isbn', 'like', "%{$search}%")
                 ->orWhereHas('libraryAuthor', function ($authorQuery) use ($search) {
                     $authorQuery->where('name', 'like', "%{$search}%");
                 });

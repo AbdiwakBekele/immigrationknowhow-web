@@ -98,6 +98,10 @@ class LoginController extends Controller
             return redirect()->route('address-detail');
         }
 
+        if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate()) {
+            return redirect()->intended(route('dashboard'));
+        }
+
         if (! $user->hasCompletedOnboarding()) {
             return redirect()->route('onboarding.index');
         }
@@ -111,6 +115,13 @@ class LoginController extends Controller
         }
 
         return redirect()->intended(route('dashboard'));
+    }
+
+    private function hasIntendedLibraryCheckout(Request $request): bool
+    {
+        $intended = $request->session()->get('url.intended');
+
+        return is_string($intended) && (bool) preg_match('#/library/[^/]+/pay(?:\?|$)#', $intended);
     }
 
     public function destroy(Request $request): RedirectResponse

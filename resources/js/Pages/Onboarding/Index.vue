@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -16,12 +16,15 @@ const props = defineProps({
     isProvider: Boolean,
     serviceTypes: Array,
     countryOptions: Array,
+    stateOptions: { type: Array, default: () => [] },
     languageOptions: Array,
     existingData: Object,
     subscriptionPlans: Array,
     /** True when STRIPE_SECRET is set — paid plans can use Checkout (dashboard Price or dynamic price_data). */
     stripeBillingReady: { type: Boolean, default: false },
 });
+
+const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
 
 const currentStep = ref(props.initialStep ?? (props.isProvider ? 4 : 2));
 const totalSteps = computed(() => (props.isProvider ? 6 : 3));
@@ -32,6 +35,10 @@ const isUserStepTwo = computed(() => !props.isProvider && currentStep.value === 
 const isUserStepThree = computed(() => !props.isProvider && currentStep.value === 3);
 const hasSubscriptionPlans = computed(() => (props.subscriptionPlans || []).length > 0);
 const selectedBillingCycle = ref('monthly');
+const userServiceTypeOptions = computed(() => [
+    { value: SELECT_SERVICE_LATER_VALUE, label: 'I will select one later on' },
+    ...(props.serviceTypes || []),
+]);
 const hasCheckoutReadyPlans = computed(() =>
     (props.subscriptionPlans || []).some(
         (plan) => Number(plan.price_cents || 0) <= 0 || props.stripeBillingReady,
@@ -57,6 +64,10 @@ const onboardingHeading = computed(() => {
 const formData = ref({
     services_needed: [],
     city: props.user?.city || '',
+    state: props.user?.state || '',
+    postal_code: props.user?.postal_code || '',
+    county: props.existingData?.location?.county || '',
+    location_label: props.existingData?.location?.label || '',
     country: props.user?.country || 'US',
     preferred_language: props.user?.preferred_language || 'en',
     business: {
@@ -89,6 +100,12 @@ const formData = ref({
     subscription: {
         plan_uuid: '',
     },
+    profile: {
+        has_children: false,
+        children_ages: [],
+        has_pets: false,
+        pet_types: [],
+    },
 });
 
 const mergeExistingOnboarding = () => {
@@ -104,6 +121,18 @@ const mergeExistingOnboarding = () => {
     }
     if (e.location?.city) {
         formData.value.city = e.location.city;
+    }
+    if (e.location?.state) {
+        formData.value.state = e.location.state;
+    }
+    if (e.location?.postal_code) {
+        formData.value.postal_code = e.location.postal_code;
+    }
+    if (e.location?.county) {
+        formData.value.county = e.location.county;
+    }
+    if (e.location?.label) {
+        formData.value.location_label = e.location.label;
     }
     if (e.location?.country) {
         formData.value.country = e.location.country;
@@ -122,6 +151,15 @@ const mergeExistingOnboarding = () => {
     }
     if (e.subscription && typeof e.subscription === 'object') {
         formData.value.subscription = { ...formData.value.subscription, ...e.subscription };
+    }
+    if (e.profile && typeof e.profile === 'object') {
+        formData.value.profile = {
+            ...formData.value.profile,
+            has_children: Boolean(e.profile.has_children),
+            children_ages: Array.isArray(e.profile.children_ages) ? e.profile.children_ages : [],
+            has_pets: Boolean(e.profile.has_pets),
+            pet_types: Array.isArray(e.profile.pet_types) ? e.profile.pet_types : [],
+        };
     }
 };
 
@@ -144,10 +182,160 @@ onMounted(() => {
 });
 
 const saving = ref(false);
+const stateOptions = ref(props.stateOptions || []);
+const locationQuery = ref(formData.value.location_label || '');
+const locationResults = ref([]);
+const locationSearchLoading = ref(false);
+const locationDropdownOpen = ref(false);
+const locationSearchMessage = ref('');
+const childAgeInput = ref('');
+const petTypeInput = ref('');
+let locationSearchTimer = null;
+
+const hasStateDropdown = computed(() => stateOptions.value.length > 0);
+const canSearchUsLocations = computed(() => formData.value.country === 'US' && Boolean(formData.value.state));
+const selectedLocationSummary = computed(() => {
+    if (formData.value.location_label) {
+        return formData.value.location_label;
+    }
+
+    const cityState = [formData.value.city, formData.value.state].filter(Boolean).join(', ');
+    return [cityState, formData.value.postal_code].filter(Boolean).join(' ');
+});
+
+const typeLabel = (type) => ({ zip: 'ZIP', city: 'City', county: 'County' }[type] || 'Location');
+
+const resetSelectedLocation = () => {
+    formData.value.city = '';
+    formData.value.postal_code = '';
+    formData.value.county = '';
+    formData.value.location_label = '';
+    locationQuery.value = '';
+    locationResults.value = [];
+    locationDropdownOpen.value = false;
+    locationSearchMessage.value = '';
+};
+
+const loadStateOptions = async (country) => {
+    try {
+        const response = await fetch(route('locations.states', { country }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`State lookup failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        stateOptions.value = Array.isArray(payload.states) ? payload.states : [];
+    } catch {
+        stateOptions.value = [];
+    }
+};
+
+const searchLocations = async () => {
+    const query = locationQuery.value.trim();
+    if (!canSearchUsLocations.value || query.length < 2) {
+        locationResults.value = [];
+        locationSearchMessage.value = '';
+        return;
+    }
+
+    locationSearchLoading.value = true;
+    locationSearchMessage.value = '';
+
+    try {
+        const response = await fetch(route('locations.search', {
+            country: formData.value.country,
+            state_id: formData.value.state,
+            q: query,
+        }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Location search failed with status ${response.status}`);
+        }
+
+        const payload = await response.json();
+        locationResults.value = Array.isArray(payload.results) ? payload.results : [];
+        locationSearchMessage.value = locationResults.value.length ? '' : 'No matching locations found in this state.';
+    } catch {
+        locationResults.value = [];
+        locationSearchMessage.value = 'Location search is unavailable right now.';
+    } finally {
+        locationSearchLoading.value = false;
+    }
+};
+
+const queueLocationSearch = () => {
+    clearTimeout(locationSearchTimer);
+
+    const query = locationQuery.value.trim();
+    if (query.length < 2) {
+        locationResults.value = [];
+        locationDropdownOpen.value = false;
+        locationSearchMessage.value = '';
+        return;
+    }
+
+    locationDropdownOpen.value = true;
+    locationSearchTimer = setTimeout(searchLocations, 250);
+};
+
+const selectLocationResult = (result) => {
+    formData.value.country = 'US';
+    formData.value.state = result.state_id || formData.value.state;
+    formData.value.city = result.city || (result.type === 'county' ? '' : result.value || '');
+    formData.value.postal_code = result.zip || '';
+    formData.value.county = result.county || '';
+    formData.value.location_label = result.label || '';
+    locationQuery.value = result.label || '';
+    locationResults.value = [];
+    locationDropdownOpen.value = false;
+    locationSearchMessage.value = '';
+};
+
+const hideLocationDropdown = () => {
+    setTimeout(() => {
+        locationDropdownOpen.value = false;
+    }, 180);
+};
+
+watch(
+    () => formData.value.country,
+    async (country, previousCountry) => {
+        if (country === previousCountry) return;
+
+        formData.value.state = '';
+        resetSelectedLocation();
+        await loadStateOptions(country);
+    },
+);
+
+watch(
+    () => formData.value.state,
+    (state, previousState) => {
+        if (state === previousState) return;
+        resetSelectedLocation();
+    },
+);
 
 const completeOnboarding = async () => {
     saving.value = true;
     const payload = JSON.parse(JSON.stringify(formData.value));
+    if (!payload.profile.has_children) {
+        payload.profile.children_ages = [];
+    }
+    if (!payload.profile.has_pets) {
+        payload.profile.pet_types = [];
+    }
     if (!props.isProvider) {
         payload.languages = [payload.preferred_language || 'en'];
     }
@@ -160,9 +348,9 @@ const completeOnboarding = async () => {
 };
 
 const userServiceType = computed({
-    get: () => formData.value.services_needed?.[0] || '',
+    get: () => formData.value.services_needed?.[0] || SELECT_SERVICE_LATER_VALUE,
     set: (value) => {
-        formData.value.services_needed = value ? [value] : [];
+        formData.value.services_needed = value && value !== SELECT_SERVICE_LATER_VALUE ? [value] : [];
     },
 });
 
@@ -183,6 +371,38 @@ const goToProviderSubscriptionStep = () => {
 
 const goToStepThree = () => {
     currentStep.value = 3;
+};
+
+const addChildAge = () => {
+    const age = Number(childAgeInput.value);
+    if (!Number.isInteger(age) || age < 0 || age > 25) {
+        return;
+    }
+
+    if (!formData.value.profile.children_ages.includes(age)) {
+        formData.value.profile.children_ages.push(age);
+    }
+
+    childAgeInput.value = '';
+};
+
+const removeChildAge = (age) => {
+    formData.value.profile.children_ages = formData.value.profile.children_ages.filter((item) => item !== age);
+};
+
+const addPetType = () => {
+    const pet = petTypeInput.value.trim();
+    if (!pet || formData.value.profile.pet_types.includes(pet)) {
+        petTypeInput.value = '';
+        return;
+    }
+
+    formData.value.profile.pet_types.push(pet);
+    petTypeInput.value = '';
+};
+
+const removePetType = (pet) => {
+    formData.value.profile.pet_types = formData.value.profile.pet_types.filter((item) => item !== pet);
 };
 
 const goBack = () => {
@@ -294,40 +514,205 @@ onMounted(() => {
             </div>
         </template>
 
-        <div class="rounded-2xl border border-neutral-200/80 bg-white p-4 shadow-sm sm:p-5">
-            <div v-if="isUserStepTwo" class="space-y-2.5">
+        <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+            <div v-if="isUserStepTwo" class="space-y-5">
                 <Select
                     v-model="userServiceType"
-                    :options="serviceTypes"
+                    :options="userServiceTypeOptions"
                     label="Select service type"
-                    placeholder="e.g. Attorney, Tutor, Accountant"
-                    size="compact"
-                    required
+                    placeholder="Choose a service now or later"
+                    size="auth"
                 />
-                <Input
-                    v-model="formData.city"
-                    label="Location"
-                    placeholder="Enter city/location"
-                    size="compact"
-                    required
-                />
-                <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Select
                         v-model="formData.country"
                         :options="countryOptions"
                         label="Country"
                         placeholder="Select country"
-                        size="compact"
+                        size="auth"
                         required
                     />
                     <Select
-                        v-model="formData.preferred_language"
-                        :options="languageOptions"
-                        label="Language preference"
-                        placeholder="Select language"
-                        size="compact"
+                        v-if="hasStateDropdown"
+                        v-model="formData.state"
+                        :options="stateOptions"
+                        label="State"
+                        placeholder="Select state"
+                        size="auth"
                         required
                     />
+                    <Input
+                        v-else
+                        v-model="formData.state"
+                        label="State / region"
+                        placeholder="Enter state or region"
+                        required
+                    />
+                </div>
+
+                <div v-if="formData.country === 'US'" class="space-y-3">
+                    <label class="mb-3 block text-base font-medium text-slate-700">
+                        City, ZIP, or county
+                        <span class="ml-0.5 text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <input
+                            v-model="locationQuery"
+                            type="text"
+                            class="w-full rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 pr-28 text-base text-slate-900 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                            :disabled="!canSearchUsLocations"
+                            :placeholder="canSearchUsLocations ? 'Start typing ZIP, city, or county' : 'Select a state first'"
+                            autocomplete="off"
+                            @input="queueLocationSearch"
+                            @focus="locationQuery.length >= 2 && canSearchUsLocations ? (locationDropdownOpen = true) : null"
+                            @blur="hideLocationDropdown"
+                        >
+                        <div
+                            v-if="locationSearchLoading"
+                            class="pointer-events-none absolute inset-y-0 right-5 flex items-center text-sm text-slate-500"
+                        >
+                            Searching...
+                        </div>
+
+                        <div
+                            v-if="locationDropdownOpen && canSearchUsLocations && (locationResults.length || locationSearchMessage)"
+                            class="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-2xl border border-slate-200 bg-white py-1.5 text-base shadow-lg"
+                        >
+                            <button
+                                v-for="result in locationResults"
+                                :key="result.label"
+                                type="button"
+                                class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-primary-50"
+                                @mousedown.prevent="selectLocationResult(result)"
+                            >
+                                <span class="mt-0.5 rounded-lg bg-primary-50 px-2 py-1 text-xs font-bold uppercase tracking-wide text-primary-700">
+                                    {{ typeLabel(result.type) }}
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate font-medium text-neutral-900">{{ result.label }}</span>
+                                    <span v-if="result.county" class="block truncate text-sm text-neutral-500">
+                                        {{ result.county }} County
+                                    </span>
+                                </span>
+                            </button>
+                            <p v-if="!locationResults.length && locationSearchMessage" class="px-4 py-3 text-sm text-neutral-500">
+                                {{ locationSearchMessage }}
+                            </p>
+                        </div>
+                    </div>
+                    <p v-if="selectedLocationSummary" class="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-800">
+                        Selected location: {{ selectedLocationSummary }}
+                        <span v-if="formData.county">({{ formData.county }} County)</span>
+                    </p>
+                </div>
+
+                <Input
+                    v-else
+                    v-model="formData.city"
+                    label="City / location"
+                    placeholder="Enter city or location"
+                    required
+                />
+
+                <Select
+                    v-model="formData.preferred_language"
+                    :options="languageOptions"
+                    label="Language preference"
+                    placeholder="Select language"
+                    size="auth"
+                    required
+                />
+
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-white bg-white p-4 shadow-sm">
+                            <input
+                                v-model="formData.profile.has_children"
+                                type="checkbox"
+                                class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            >
+                            <span>
+                                <span class="block text-sm font-semibold text-slate-900">I have children</span>
+                                <span class="mt-1 block text-xs leading-5 text-slate-500">Ages help us match family support like tutoring or child care.</span>
+                            </span>
+                        </label>
+
+                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-white bg-white p-4 shadow-sm">
+                            <input
+                                v-model="formData.profile.has_pets"
+                                type="checkbox"
+                                class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            >
+                            <span>
+                                <span class="block text-sm font-semibold text-slate-900">I have pets</span>
+                                <span class="mt-1 block text-xs leading-5 text-slate-500">Pets help us recommend providers like pet sitters and pet care.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <div v-if="formData.profile.has_children" class="mt-4">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Children ages</label>
+                        <div class="flex gap-2">
+                            <input
+                                v-model="childAgeInput"
+                                type="number"
+                                min="0"
+                                max="25"
+                                class="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                placeholder="Add age"
+                                @keydown.enter.prevent="addChildAge"
+                            >
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                                @click="addChildAge"
+                            >
+                                Add
+                            </button>
+                        </div>
+                        <div v-if="formData.profile.children_ages.length" class="mt-3 flex flex-wrap gap-2">
+                            <button
+                                v-for="age in formData.profile.children_ages"
+                                :key="`child-age-${age}`"
+                                type="button"
+                                class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"
+                                @click="removeChildAge(age)"
+                            >
+                                Age {{ age }} x
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="formData.profile.has_pets" class="mt-4">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Pet types</label>
+                        <div class="flex gap-2">
+                            <input
+                                v-model="petTypeInput"
+                                type="text"
+                                class="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                placeholder="Dog, cat, bird..."
+                                @keydown.enter.prevent="addPetType"
+                            >
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
+                                @click="addPetType"
+                            >
+                                Add
+                            </button>
+                        </div>
+                        <div v-if="formData.profile.pet_types.length" class="mt-3 flex flex-wrap gap-2">
+                            <button
+                                v-for="pet in formData.profile.pet_types"
+                                :key="`pet-${pet}`"
+                                type="button"
+                                class="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                                @click="removePetType(pet)"
+                            >
+                                {{ pet }} x
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div v-else-if="isUserStepThree" class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
@@ -638,30 +1023,30 @@ onMounted(() => {
                 </p>
             </div>
 
-            <div class="mt-4 flex items-center justify-between gap-3 border-t border-neutral-100 pt-4">
+            <div class="mt-7 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    class="!rounded-md border border-neutral-200 bg-white !px-2.5 !py-1.5 !text-xs text-neutral-700 hover:bg-neutral-50"
+                    size="md"
+                    class="justify-center border border-stone-300 bg-white text-stone-700 hover:bg-stone-50 sm:justify-start"
                     @click="goBack"
                 >
-                    <ArrowLeftIcon class="h-3.5 w-3.5" />
+                    <ArrowLeftIcon class="h-4 w-4" />
                     Back
                 </Button>
-                <Button v-if="isProviderBusinessStep" variant="primary" size="sm" class="!py-1.5 !text-xs !rounded-md" @click="goToProviderPricingStep">
+                <Button v-if="isProviderBusinessStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToProviderPricingStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
-                <Button v-else-if="isProviderPricingStep" variant="primary" size="sm" class="!py-1.5 !text-xs !rounded-md" @click="goToProviderSubscriptionStep">
+                <Button v-else-if="isProviderPricingStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToProviderSubscriptionStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
-                <Button v-else-if="isUserStepTwo" variant="primary" size="sm" class="!py-1.5 !text-xs !rounded-md" @click="goToStepThree">
+                <Button v-else-if="isUserStepTwo" variant="primary" size="lg" class="min-w-[11rem]" @click="goToStepThree">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
-                <Button v-else variant="primary" size="sm" class="!py-1.5 !text-xs" :loading="saving" :disabled="!canFinishProviderOnboarding" @click="completeOnboarding">
+                <Button v-else variant="primary" size="lg" class="min-w-[11rem]" :loading="saving" :disabled="!canFinishProviderOnboarding" @click="completeOnboarding">
                     {{ finishButtonLabel }}
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>

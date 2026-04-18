@@ -38,7 +38,7 @@ const props = defineProps({
     size: {
         type: String,
         default: 'default',
-        validator: (v) => ['default', 'compact'].includes(v),
+        validator: (v) => ['default', 'compact', 'auth'].includes(v),
     },
 });
 
@@ -68,16 +68,19 @@ const handleChange = (value) => {
 };
 
 const labelClasses = computed(() =>
-    props.size === 'compact'
-        ? 'mb-1 block text-xs font-medium text-neutral-600'
-        : 'mb-1.5 block text-sm font-medium text-neutral-700',
+    ({
+        compact: 'mb-1 block text-xs font-medium text-neutral-600',
+        auth: 'mb-3 block text-base font-medium text-slate-700',
+        default: 'mb-1.5 block text-sm font-medium text-neutral-700',
+    }[props.size]),
 );
 
 const buttonClasses = computed(() => {
-    const sizeClasses =
-        props.size === 'compact'
-            ? 'rounded-lg py-2 pl-3 pr-9 text-xs'
-            : 'rounded-xl py-2.5 pl-3.5 pr-10 text-sm';
+    const sizeClasses = {
+        compact: 'rounded-lg py-2 pl-3 pr-9 text-xs',
+        auth: 'rounded-2xl py-4 pl-5 pr-12 text-base shadow-sm',
+        default: 'rounded-xl py-2.5 pl-3.5 pr-10 text-sm',
+    }[props.size];
 
     return [
         `relative w-full cursor-pointer bg-white text-left border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 ${sizeClasses}`,
@@ -85,6 +88,18 @@ const buttonClasses = computed(() => {
         props.disabled ? 'bg-neutral-100 cursor-not-allowed' : '',
     ];
 });
+
+const optionsClasses = computed(() =>
+    props.size === 'auth'
+        ? 'absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-2xl bg-white py-1.5 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none'
+        : 'absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-sm',
+);
+
+const optionClasses = computed(() =>
+    props.size === 'auth'
+        ? 'relative cursor-pointer select-none py-3.5 pl-12 pr-5'
+        : 'relative cursor-pointer select-none py-2.5 pl-10 pr-4',
+);
 </script>
 
 <template>
@@ -112,7 +127,7 @@ const buttonClasses = computed(() => {
                 leave-to-class="opacity-0"
             >
                 <ListboxOptions
-                    class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none text-sm"
+                    :class="optionsClasses"
                 >
                     <ListboxOption
                         v-for="option in options"
@@ -123,7 +138,7 @@ const buttonClasses = computed(() => {
                     >
                         <li
                             :class="[
-                                'relative cursor-pointer select-none py-2.5 pl-10 pr-4',
+                                optionClasses,
                                 active ? 'bg-primary-50 text-primary-900' : 'text-neutral-900',
                             ]"
                         >
@@ -132,7 +147,10 @@ const buttonClasses = computed(() => {
                             </span>
                             <span
                                 v-if="selected"
-                                class="absolute inset-y-0 left-0 flex items-center pl-3 text-primary-600"
+                                :class="[
+                                    'absolute inset-y-0 left-0 flex items-center text-primary-600',
+                                    size === 'auth' ? 'pl-4' : 'pl-3',
+                                ]"
                             >
                                 <CheckIcon class="h-5 w-5" aria-hidden="true" />
                             </span>

@@ -4,8 +4,9 @@
 /public/build
 /public/hot
 /public/storage
+/storage/framework/testing/disks/
+/storage/framework/views/*.php
 /storage/logs/*.log
 /storage/logs
-
 
 

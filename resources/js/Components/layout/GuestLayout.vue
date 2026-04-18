@@ -31,11 +31,11 @@ defineProps({
         <div
             class="mx-auto min-h-[calc(100vh-2rem)] max-w-[1600px] overflow-hidden rounded-[2.5rem] border border-white/50 bg-[#f4f5f7] shadow-[0_30px_80px_-30px_rgba(15,23,42,0.28)] lg:min-h-[900px]"
         >
-            <div class="grid h-full min-h-[inherit] lg:grid-cols-[0.95fr_1.15fr]">
+            <div class="grid h-full min-h-[inherit] lg:grid-cols-[1.1fr_0.9fr]">
                 <!-- LEFT PANEL -->
-                <div class="flex h-full items-center px-6 py-8 sm:px-10 lg:px-14 xl:px-20">
-                    <div class="mx-auto flex w-full max-w-[540px] flex-col">
-                        <div class="mb-10 flex justify-center lg:justify-start">
+                <div class="flex h-full items-center px-5 py-8 sm:px-8 lg:px-8 xl:px-10">
+                    <div class="mx-auto flex w-full max-w-[760px] flex-col">
+                        <div class="mb-10 flex justify-center">
                             <Link :href="route('home')" class="group inline-flex">
                                 <BrandLogo
                                     context="site"
@@ -47,7 +47,7 @@ defineProps({
                             </Link>
                         </div>
 
-                        <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(30,41,59,0.12)] sm:p-8 lg:p-10">
+                        <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(30,41,59,0.12)] sm:p-8 lg:p-9 xl:p-10">
                             <div class="mb-8 text-center lg:text-left">
                                 <h1 class="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
                                     <slot name="title">Welcome</slot>
@@ -78,7 +78,7 @@ defineProps({
                 </div>
 
                 <!-- RIGHT PANEL -->
-                <div class="hidden h-full p-6 lg:block xl:p-6">
+                <div class="hidden h-full p-4 lg:block xl:p-5">
                     <div class="relative h-full w-full overflow-hidden rounded-[2.25rem]">
                         <!-- Background image -->
                         <div

@@ -99,9 +99,20 @@ class RegisterController extends Controller
         Auth::login($user);
 
         if ($effectiveRole === UserRole::USER->value) {
+            if ($this->hasIntendedLibraryCheckout($request)) {
+                return redirect()->intended(route('onboarding.index'));
+            }
+
             return redirect()->route('onboarding.index');
         }
 
         return redirect()->route('address-detail');
+    }
+
+    private function hasIntendedLibraryCheckout(Request $request): bool
+    {
+        $intended = $request->session()->get('url.intended');
+
+        return is_string($intended) && (bool) preg_match('#/library/[^/]+/pay(?:\?|$)#', $intended);
     }
 }

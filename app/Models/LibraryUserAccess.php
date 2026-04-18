@@ -51,9 +51,25 @@ class LibraryUserAccess extends Model
     }
 
     // Methods
-    public function updateProgress(array $progress): void
+    public function updateProgress(array $progress, ?string $mode = null): void
     {
-        $this->update(['progress' => $progress]);
+        $cleanProgress = collect($progress)
+            ->filter(fn ($value) => $value !== null)
+            ->all();
+
+        if ($mode === null) {
+            $this->update(['progress' => $cleanProgress]);
+
+            return;
+        }
+
+        $current = is_array($this->progress) ? $this->progress : [];
+        $modeProgress = is_array($current[$mode] ?? null) ? $current[$mode] : [];
+        $current[$mode] = array_merge($modeProgress, $cleanProgress, [
+            'updated_at' => now()->toIso8601String(),
+        ]);
+
+        $this->update(['progress' => $current]);
     }
 
     public function toggleFavorite(): void

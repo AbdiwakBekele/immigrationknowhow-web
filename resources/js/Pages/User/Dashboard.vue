@@ -92,6 +92,16 @@ const firstInitial = (...values) => {
     return 'U';
 };
 
+const formatProviderRating = (rating) => {
+    if (rating === null || rating === undefined || String(rating).trim() === '') {
+        return 'New';
+    }
+
+    const value = Number(rating);
+
+    return Number.isFinite(value) ? value.toFixed(1) : 'New';
+};
+
 /** First featured library item cover for the Library shortcut “avatar”. */
 const libraryShortcutCoverUrl = computed(() => {
     for (const item of props.libraryItems ?? []) {
@@ -333,7 +343,7 @@ const purchaseRowPrice = (purchase) => {
                                         <div class="flex items-center gap-1 mt-1">
                                             <StarSolid class="w-4 h-4 text-secondary-500" />
                                             <span class="text-sm text-slate-600">
-                                                {{ provider.average_rating?.toFixed(1) || 'New' }}
+                                                {{ formatProviderRating(provider.average_rating) }}
                                             </span>
                                             <span class="text-sm text-slate-400">({{ provider.total_reviews }})</span>
                                         </div>

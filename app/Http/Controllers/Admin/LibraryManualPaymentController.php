@@ -47,7 +47,7 @@ class LibraryManualPaymentController extends Controller
                 ->with('error', 'Library item is missing or inactive.');
         }
 
-        $requiresPaidAccess = in_array($item->type, ['audiobook', 'video'], true);
+        $requiresPaidAccess = $item->is_premium || (float) ($item->price ?? 0) > 0;
         if (! $item->is_premium && ! $requiresPaidAccess) {
             return redirect()
                 ->route('admin.library-manual-payments.index')
@@ -70,6 +70,6 @@ class LibraryManualPaymentController extends Controller
 
         return redirect()
             ->route('admin.library-manual-payments.index')
-            ->with('success', 'Access granted. The user can download from their library.');
+            ->with('success', 'Access granted. The user can read or listen from their library.');
     }
 }
