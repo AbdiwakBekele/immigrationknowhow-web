@@ -39,8 +39,6 @@ const props = defineProps({
     backgroundCheckStatuses: { type: Array, default: () => [] },
 });
 
-const page = usePage();
-
 const search = ref(props.filters.search || '');
 const roleFilter = ref(props.filters.role || '');
 const statusFilter = ref(props.filters.status || '');
