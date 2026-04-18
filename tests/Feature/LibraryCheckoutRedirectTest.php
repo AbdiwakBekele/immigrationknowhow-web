@@ -20,7 +20,7 @@ class LibraryCheckoutRedirectTest extends TestCase
             ->assertSessionHas('url.intended', route('library.pay', $item));
     }
 
-    public function test_login_returns_regular_user_to_library_payment_screen_before_onboarding(): void
+    public function test_login_with_intended_library_pay_redirects_to_address_detail_when_phone_unverified(): void
     {
         $item = $this->createPremiumLibraryItem();
         $user = $this->createUser([
@@ -34,10 +34,11 @@ class LibraryCheckoutRedirectTest extends TestCase
                 'password' => 'Password123!',
                 'remember' => false,
             ])
-            ->assertRedirect(route('library.pay', $item));
+            ->assertRedirect(route('address-detail'))
+            ->assertSessionHas('url.intended', route('library.pay', $item));
     }
 
-    public function test_registration_returns_new_user_to_library_payment_screen(): void
+    public function test_registration_with_intended_library_pay_redirects_to_address_detail(): void
     {
         $item = $this->createPremiumLibraryItem();
 
@@ -50,7 +51,8 @@ class LibraryCheckoutRedirectTest extends TestCase
                 'password_confirmation' => 'Password123!',
                 'role' => 'user',
             ])
-            ->assertRedirect(route('library.pay', $item));
+            ->assertRedirect(route('address-detail'))
+            ->assertSessionHas('url.intended', route('library.pay', $item));
 
         $this->assertAuthenticated();
     }

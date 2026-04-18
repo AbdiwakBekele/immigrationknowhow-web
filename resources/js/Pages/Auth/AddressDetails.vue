@@ -1,14 +1,18 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Button from '@/Components/ui/Button.vue';
+import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
 import LocationCountryStatePick from '@/Components/address/LocationCountryStatePick.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
+import { parsePlaceToAddressFields } from '@/utils/googlePlaceAddress';
+import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER, SIGNUP_STEP } from '@/constants/authFlowProgress';
 
 const props = defineProps({
+    isProvider: { type: Boolean, default: false },
     address: { type: String, default: '' },
     city: { type: String, default: '' },
     state: { type: String, default: '' },
@@ -20,10 +24,28 @@ const props = defineProps({
     countryOptions: { type: Array, required: true },
     stateOptions: { type: Array, default: () => [] },
     languageOptions: { type: Array, required: true },
+    coverageArea: {
+        type: Object,
+        default: () => ({ country: 'US', state: '', postal_code: '' }),
+    },
+    serviceArea: {
+        type: Object,
+        default: () => ({
+            remote: false,
+            in_person: true,
+            radius: null,
+            areas: [],
+            serve_client_in_location: false,
+        }),
+    },
 });
 
+const pageTitle = computed(() => (props.isProvider ? 'Coverage area' : 'Address details'));
+
+const progressTotal = computed(() => (props.isProvider ? SIGNUP_FLOW_STEPS_PROVIDER : SIGNUP_FLOW_STEPS_USER));
+
 const phoneForm = useForm({
-    serve_client_in_location: false,
+    serve_client_in_location: props.serviceArea?.serve_client_in_location ?? false,
     address: props.address,
     city: props.city,
     state: props.state,
@@ -32,29 +54,22 @@ const phoneForm = useForm({
     county: props.county,
     location_label: props.location_label,
     preferred_language: props.preferred_language,
+    coverage_country: props.coverageArea?.country || props.country || 'US',
+    coverage_state: props.coverageArea?.state || props.state || '',
+    coverage_postal_code: props.coverageArea?.postal_code || '',
+    service_area: {
+        remote: props.serviceArea?.remote ?? false,
+        in_person: props.serviceArea?.in_person ?? true,
+        radius: props.serviceArea?.radius ?? null,
+        areas: props.serviceArea?.areas ?? [],
+    },
 });
+
+const coverageCityHold = ref('');
+const coveragePostalHold = ref('');
 
 const autocompleteStatus = ref('');
 let autocompleteDebounce = null;
-
-const getAddressComponent = (components, type) =>
-    components.find((component) => Array.isArray(component.types) && component.types.includes(type));
-
-const componentLongText = (component) => component?.long_name ?? component?.longText ?? '';
-
-/** Street line only — city, state, ZIP, and country come from the same internal lookup as onboarding. */
-const syncStreetLineFromPlace = (place) => {
-    const components = place.addressComponents ?? place.address_components ?? [];
-    const streetNumber = componentLongText(getAddressComponent(components, 'street_number'));
-    const route = componentLongText(getAddressComponent(components, 'route'));
-    const street = [streetNumber, route].filter(Boolean).join(' ').trim();
-
-    if (street) {
-        phoneForm.address = street;
-    } else if (place.formattedAddress || place.formatted_address) {
-        phoneForm.address = place.formattedAddress ?? place.formatted_address;
-    }
-};
 
 const runStreetAutocomplete = async () => {
     const query = String(phoneForm.address || '').trim();
@@ -64,9 +79,7 @@ const runStreetAutocomplete = async () => {
     }
 
     try {
-        const endpoint = route('address-detail.autocomplete', {
-            query,
-        });
+        const endpoint = route('address-detail.autocomplete', { query });
         const response = await fetch(endpoint, {
             headers: {
                 Accept: 'application/json',
@@ -84,7 +97,13 @@ const runStreetAutocomplete = async () => {
             return;
         }
 
-        syncStreetLineFromPlace(payload.data);
+        const parsed = parsePlaceToAddressFields(payload.data);
+        phoneForm.address = parsed.address_line_1;
+        phoneForm.country = parsed.country;
+        await nextTick();
+        phoneForm.city = parsed.city;
+        phoneForm.state = parsed.state;
+        phoneForm.postal_code = parsed.postal_code;
         autocompleteStatus.value = '';
     } catch {
         autocompleteStatus.value = 'Unable to autocomplete this address right now.';
@@ -95,15 +114,40 @@ const handleStreetAddressChange = () => {
     if (autocompleteDebounce) {
         clearTimeout(autocompleteDebounce);
     }
-
-    autocompleteDebounce = setTimeout(() => {
-        runStreetAutocomplete();
-    }, 300);
+    autocompleteDebounce = setTimeout(runStreetAutocomplete, 300);
 };
 
 const submitAddress = () => {
+    const debugPayload = {
+        isProvider: props.isProvider,
+        coverage_country: phoneForm.coverage_country,
+        coverage_state: phoneForm.coverage_state,
+        coverage_postal_code: phoneForm.coverage_postal_code,
+        city: phoneForm.city,
+        state: phoneForm.state,
+        country: phoneForm.country,
+        postal_code: phoneForm.postal_code,
+    };
+
+    console.log('[FLOW_DEBUG] Step 2 submit -> expecting Step 3 next', debugPayload);
+
     phoneForm.post(route('address-detail.send'), {
         preserveScroll: true,
+        onStart: () => {
+            console.log('[FLOW_DEBUG] Step 2 request started', { endpoint: route('address-detail.send') });
+        },
+        onSuccess: (page) => {
+            console.log('[FLOW_DEBUG] Step 2 request success', {
+                nextUrl: page?.url || window.location.href,
+                expectedStep: 3,
+            });
+        },
+        onError: (errors) => {
+            console.log('[FLOW_DEBUG] Step 2 request validation errors', errors);
+        },
+        onFinish: () => {
+            console.log('[FLOW_DEBUG] Step 2 request finished', { processing: phoneForm.processing });
+        },
     });
 };
 
@@ -113,13 +157,13 @@ const goBack = () => {
 </script>
 
 <template>
-    <Head title="Address details" />
+    <Head :title="pageTitle" />
 
     <GuestLayout>
-        <template #title>Address details</template>
+        <template #title>{{ pageTitle }}</template>
         <template #subtitle />
         <template #progress>
-            <AuthFlowProgress :current-step="2" :total-steps="5" />
+            <AuthFlowProgress :current-step="SIGNUP_STEP.ADDRESS" :total-steps="progressTotal" />
         </template>
         <template #side-image>
             <img
@@ -130,7 +174,88 @@ const goBack = () => {
         </template>
 
         <form class="space-y-7" @submit.prevent="submitAddress">
-            <div class="space-y-5">
+            <div v-if="isProvider" class="space-y-5">
+                <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Coverage area</p>
+                <p class="text-sm text-neutral-600">
+                    Select the country and state or region where you offer services. You will enter your full business address in a later step.
+                </p>
+
+                <label class="mt-1 flex cursor-pointer items-center gap-2">
+                    <input
+                        v-model="phoneForm.serve_client_in_location"
+                        type="checkbox"
+                        class="h-4 w-4 rounded border-neutral-300 text-primary-600"
+                    />
+                    <span class="text-sm text-neutral-700">I serve the client in their location</span>
+                </label>
+
+                <LocationCountryStatePick
+                    v-model:country="phoneForm.coverage_country"
+                    v-model:state="phoneForm.coverage_state"
+                    v-model:city="coverageCityHold"
+                    v-model:postal-code="coveragePostalHold"
+                    v-model:county="phoneForm.county"
+                    v-model:location-label="phoneForm.location_label"
+                    country-state-only
+                    :country-options="countryOptions"
+                    :initial-state-options="stateOptions"
+                />
+
+                <Input
+                    v-model="phoneForm.coverage_postal_code"
+                    label="ZIP / postal code"
+                    placeholder="e.g. 48226"
+                    size="compact"
+                    :required="phoneForm.coverage_country === 'US'"
+                />
+                <p v-if="phoneForm.errors.coverage_postal_code" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_postal_code }}</p>
+
+                <p v-if="phoneForm.errors.coverage_country" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_country }}</p>
+                <p v-if="phoneForm.errors.coverage_state" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_state }}</p>
+
+                <div class="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-600">Service area</h3>
+                    <p class="text-xs text-neutral-500">How you meet clients in your coverage region.</p>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input
+                                v-model="phoneForm.service_area.in_person"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-neutral-300 text-primary-600"
+                            />
+                            <span class="text-sm text-neutral-700">In-person services</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input
+                                v-model="phoneForm.service_area.remote"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-neutral-300 text-primary-600"
+                            />
+                            <span class="text-sm text-neutral-700">Remote / virtual services</span>
+                        </label>
+                    </div>
+                    <Input
+                        v-if="phoneForm.service_area.in_person"
+                        v-model="phoneForm.service_area.radius"
+                        type="number"
+                        label="Service radius (miles)"
+                        placeholder="e.g. 25"
+                        size="compact"
+                    />
+                </div>
+
+                <Select
+                    v-model="phoneForm.preferred_language"
+                    :options="languageOptions"
+                    label="Language"
+                    placeholder="Select language"
+                    :error="phoneForm.errors.preferred_language"
+                    size="auth"
+                    required
+                />
+            </div>
+
+            <div v-else class="space-y-5">
                 <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Address information</p>
                 <label class="mt-1 flex cursor-pointer items-center gap-2">
                     <input

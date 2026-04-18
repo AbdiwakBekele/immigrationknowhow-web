@@ -61,7 +61,7 @@ class LocationLookupTest extends TestCase
 
     public function test_onboarding_completion_saves_selected_location_details(): void
     {
-        $user = $this->createUser();
+        $user = $this->createUser(['phone' => '15555550111', 'phone_verified_at' => now()]);
 
         $this->actingAs($user)
             ->post(route('onboarding.complete'), [
@@ -90,7 +90,7 @@ class LocationLookupTest extends TestCase
 
     public function test_user_can_complete_onboarding_without_selecting_a_service_type(): void
     {
-        $user = $this->createUser();
+        $user = $this->createUser(['phone' => '15555550112', 'phone_verified_at' => now()]);
 
         $this->actingAs($user)
             ->post(route('onboarding.complete'), [

@@ -131,13 +131,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/address-detail/otp', [Auth\AddressDetailsController::class, 'showOtp'])->name('address-detail.otp');
     Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
 
+    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+
     Route::get('/api/locations/states', [LocationLookupController::class, 'states'])->name('locations.states');
     Route::get('/api/locations/search', [LocationLookupController::class, 'search'])->name('locations.search');
 });
 
-// Onboarding — requires verified phone
+// Onboarding actions — require verified phone
 Route::middleware(['auth', 'phone.verified'])->group(function () {
-    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::post('/onboarding/progress', [OnboardingController::class, 'saveProgress'])->name('onboarding.progress');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 });

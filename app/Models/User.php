@@ -196,6 +196,34 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->isProvider() || $this->hasProviderRegistration();
     }
 
+    /**
+     * Step 2 of signup is saved (coverage for providers, address for clients).
+     */
+    public function hasCompletedSignupAddressStep(): bool
+    {
+        if ($this->followsProviderOnboarding()) {
+            $c = $this->onboarding_data['coverage_area'] ?? [];
+            if (empty($c['country']) || $c['state'] === null || $c['state'] === '') {
+                return false;
+            }
+            if (strtoupper((string) ($c['country'] ?? '')) === 'US' && ! filled($c['postal_code'] ?? null)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        if (! $this->city || ! $this->state || ! $this->country) {
+            return false;
+        }
+
+        if (strtoupper((string) $this->country) === 'US' && ! filled($this->postal_code)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasAnyRole([UserRole::ADMIN->value, UserRole::SUPER_ADMIN->value]);
@@ -212,6 +240,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Signup phone verification is valid only when timestamp exists and phone is stored.
+     */
+    public function hasCompletedSignupPhoneStep(): bool
+    {
+        return filled($this->phone) && ! is_null($this->phone_verified_at);
+    }
+
+    /**
      * First page this user should land on after login (or admin impersonation).
      */
     public function defaultAuthenticatedHomeUrl(): string
@@ -224,8 +260,10 @@ class User extends Authenticatable implements MustVerifyEmail
             return route('affiliate.dashboard');
         }
 
-        if ($this->isProvider() && ! $this->phone_verified_at && ! $this->isAdmin()) {
-            return route('address-detail');
+        if (! $this->isAffiliate() && ! $this->hasCompletedSignupPhoneStep() && ! $this->isAdmin()) {
+            return $this->hasCompletedSignupAddressStep()
+                ? route('onboarding.index', ['step' => 3])
+                : route('address-detail');
         }
 
         if (! $this->hasCompletedOnboarding()) {

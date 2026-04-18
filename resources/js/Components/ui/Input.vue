@@ -34,6 +34,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 const attrs = useAttrs();
+const forwardedAttrs = computed(() => {
+    const { size, ...rest } = attrs;
+    void size;
+
+    return rest;
+});
 
 const inputId = computed(() => {
     if (props.id) return props.id;
@@ -62,7 +68,7 @@ const updateValue = (event) => {
 
         <input
             :id="inputId"
-            v-bind="attrs"
+            v-bind="forwardedAttrs"
             :type="type"
             :value="modelValue"
             @input="updateValue"

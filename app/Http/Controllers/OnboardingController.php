@@ -8,12 +8,14 @@ use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
+use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
 use App\Support\StripeProviderSubscriptionCheckout;
 use App\Support\UsStateOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,14 +33,43 @@ class OnboardingController extends Controller
             return $this->redirectToDashboard();
         }
 
+        $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
+        $requestedStep = (int) $request->integer('step', 4);
+
+        Log::channel('single')->info('FLOW_DEBUG onboarding.index entry', [
+            'user_id' => $user->id,
+            'requested_step' => $requestedStep,
+            'needs_phone_verification' => $needsPhone,
+            'has_completed_signup_address_step' => $user->hasCompletedSignupAddressStep(),
+            'phone_verified_at' => $user->phone_verified_at,
+            'phone_present' => filled($user->phone),
+            'is_provider_flow' => $user->followsProviderOnboarding(),
+        ]);
+
+        if ($needsPhone && ! $user->hasCompletedSignupAddressStep()) {
+            return redirect()->route('address-detail');
+        }
+
         $isProvider = $user->followsProviderOnboarding();
         if ($isProvider && ! $user->isProvider()) {
             $user->assignRole(UserRole::PROVIDER->value);
         }
-        $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
-        $initialStep = $isProvider
-            ? max(4, min(7, $requestedStep))
-            : max(2, min(3, $requestedStep));
+
+        if ($needsPhone) {
+            $initialStep = 3;
+        } else {
+            $initialStep = $isProvider
+                ? max(4, min(7, $requestedStep))
+                : max(4, min(5, $requestedStep));
+        }
+
+        Log::channel('single')->info('FLOW_DEBUG onboarding.index resolved step', [
+            'user_id' => $user->id,
+            'requested_step' => $requestedStep,
+            'initial_step' => $initialStep,
+            'needs_phone_verification' => $needsPhone,
+            'is_provider_flow' => $isProvider,
+        ]);
 
         $subscriptionPlans = $isProvider
             ? SubscriptionPlan::query()
@@ -49,8 +80,15 @@ class OnboardingController extends Controller
             : collect();
 
         return Inertia::render('Onboarding/Index', [
-            'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
+            'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'address', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
             'initialStep' => $initialStep,
+            'requiresPhoneVerification' => $needsPhone,
+            'phoneVerification' => $needsPhone
+                ? [
+                    'phone' => $user->phone ?? '',
+                    'phoneDialOptions' => PhoneDialOptions::selectOptions(),
+                ]
+                : null,
             'isProvider' => $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
@@ -76,10 +114,9 @@ class OnboardingController extends Controller
     protected function getProviderSteps(): array
     {
         return [
-            ['key' => 'location', 'title' => 'Location', 'description' => 'Where you are based'],
+            ['key' => 'location', 'title' => 'Address', 'description' => 'Your business street address'],
             ['key' => 'business', 'title' => 'Business', 'description' => 'Tell clients about your practice'],
             ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'How you charge'],
-            ['key' => 'service-area', 'title' => 'Service area', 'description' => 'How you meet clients'],
             ['key' => 'subscription', 'title' => 'Subscription', 'description' => 'Pick your provider plan'],
             ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
@@ -104,6 +141,15 @@ class OnboardingController extends Controller
     public function complete(Request $request): RedirectResponse|SymfonyResponse
     {
         $user = auth()->user();
+
+        if (! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate()) {
+            if (! $user->hasCompletedSignupAddressStep()) {
+                return redirect()->route('address-detail');
+            }
+
+            return redirect()->route('onboarding.index', ['step' => 3]);
+        }
+
         $isProvider = $user->followsProviderOnboarding();
         $providerForCheckout = null;
         $planForCheckout = null;
@@ -135,7 +181,10 @@ class OnboardingController extends Controller
                 'profile' => array_merge($user->onboarding_data['profile'] ?? [], $data['profile'] ?? []),
             ]);
 
+            $lineOne = $data['address_line_1'] ?? $data['address'] ?? null;
+
             $user->update([
+                'address' => $lineOne ?? $user->address,
                 'city' => $data['city'] ?? $onboardingData['location']['city'] ?? $user->city,
                 'state' => $data['state'] ?? $onboardingData['location']['state'] ?? $user->state,
                 'country' => $data['country'] ?? $onboardingData['location']['country'] ?? $user->country ?? 'US',
