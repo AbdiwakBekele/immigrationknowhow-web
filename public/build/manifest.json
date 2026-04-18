@@ -2751,7 +2751,7 @@
     "src": "node_modules/pdfjs-dist/build/pdf.worker.mjs"
   },
   "resources/js/app.js": {
-    "file": "assets/app-CUPsarOM.js",
+    "file": "assets/app-BKjyU6de.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -2763,7 +2763,7 @@
       "_utils-BWePKzUu.js"
     ],
     "css": [
-      "assets/app--rAsb91a.css"
+      "assets/app-Bk_kIv8T.css"
     ]
   }
 }

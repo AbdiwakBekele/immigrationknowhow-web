@@ -6,6 +6,7 @@ use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ImpersonationActorId;
 use App\Support\UserHomeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -326,7 +327,9 @@ class UserController extends Controller
 
     public function stopImpersonating(Request $request): RedirectResponse
     {
-        $originalUserId = session()->pull('impersonating');
+        $originalUserId = ImpersonationActorId::fromSession(
+            session()->pull('impersonating')
+        );
 
         if (! $originalUserId) {
             return redirect()->route('dashboard');

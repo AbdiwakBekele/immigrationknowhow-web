@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Message;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Support\ImpersonationActorId;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
@@ -87,19 +88,22 @@ class HandleInertiaRequests extends Middleware
                 'otp_sent' => fn () => $request->session()->get('otp_sent'),
             ],
             'impersonation' => static function () use ($request) {
-                $impersonatorId = $request->session()->get('impersonating');
+                $impersonatorId = ImpersonationActorId::fromSession(
+                    $request->session()->get('impersonating')
+                );
 
                 if (! $impersonatorId || ! $request->user()) {
                     return null;
                 }
 
-                if ((int) $request->user()->id === (int) $impersonatorId) {
+                if ((int) $request->user()->id === $impersonatorId) {
                     return null;
                 }
 
                 $impersonator = User::query()
                     ->select(['id', 'first_name', 'last_name', 'email'])
-                    ->find($impersonatorId);
+                    ->whereKey($impersonatorId)
+                    ->first();
 
                 if (! $impersonator) {
                     return null;

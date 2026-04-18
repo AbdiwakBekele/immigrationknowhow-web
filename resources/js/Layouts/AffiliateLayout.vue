@@ -30,7 +30,6 @@ const logout = () => router.post('/logout');
 
 <template>
     <div class="min-h-screen bg-slate-50">
-        <ImpersonationBanner />
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"
