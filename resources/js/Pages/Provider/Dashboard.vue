@@ -418,11 +418,18 @@ const deleteConversation = (conversationUuid) => {
                     <div class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 class="font-semibold mb-4">Quick Actions</h3>
                         <div class="space-y-3">
-                            <Link 
+                            <Link
+                                :href="route('provider.profile.index')"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
+                            >
+                                <span>My profile</span>
+                                <ArrowRightIcon class="w-4 h-4" />
+                            </Link>
+                            <Link
                                 :href="route('provider.profile.edit')"
                                 class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
-                                <span>Edit Profile</span>
+                                <span>Edit listing details</span>
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link 

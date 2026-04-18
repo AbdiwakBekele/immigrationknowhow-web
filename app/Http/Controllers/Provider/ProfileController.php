@@ -3,9 +3,17 @@
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Models\Lead;
+use App\Models\LibraryUserAccess;
+use App\Models\Message;
+use App\Models\ProviderProfilePost;
 use App\Models\ServiceProvider;
+use App\Models\User;
+use App\Support\CountryOptions;
+use App\Support\LanguageOptions;
 use App\Support\ProviderShareMeta;
 use App\Support\ServiceTypeOptions;
+use App\Support\UsStateOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +28,25 @@ class ProfileController extends Controller
         $user = auth()->user();
         $provider = $user->serviceProvider;
 
+        $profileFeed = $provider
+            ? $provider->profilePosts()
+                ->latest()
+                ->limit(50)
+                ->get()
+                ->map(fn (ProviderProfilePost $post) => $post->toFeedPayload())
+                ->values()
+                ->all()
+            : [];
+
+        $profileStats = [
+            'completion' => $provider ? $this->providerListingCompletion($provider, $user) : 0,
+            'unread_messages' => Message::unreadIncomingCountFor($user),
+            'purchased_products' => LibraryUserAccess::query()->where('user_id', $user->id)->count(),
+            'matched_providers' => $provider
+                ? Lead::query()->where('service_provider_id', $provider->id)->count()
+                : 0,
+        ];
+
         return Inertia::render('Provider/Profile/Index', [
             'user' => array_merge($user->only([
                 'id',
@@ -28,7 +55,16 @@ class ProfileController extends Controller
                 'email',
                 'phone',
                 'avatar',
+                'created_at',
+                'city',
+                'state',
+                'country',
+                'preferred_language',
             ]), ['avatar_url' => $user->avatar_url]),
+            'profileFeed' => $profileFeed,
+            'profileStats' => $profileStats,
+            'languageOptions' => LanguageOptions::selectOptions(),
+            'countryOptions' => CountryOptions::selectOptions(),
             'provider' => $provider ? $provider->only([
                 'id',
                 'business_name',
@@ -71,10 +107,69 @@ class ProfileController extends Controller
         ]);
     }
 
+    private function providerListingCompletion(ServiceProvider $provider, User $user): int
+    {
+        $score = 0;
+        if ($provider->business_name) {
+            $score += 14;
+        }
+        if ($provider->tagline) {
+            $score += 9;
+        }
+        if ($provider->bio) {
+            $score += 9;
+        }
+        if ($provider->description) {
+            $score += 9;
+        }
+        if ($provider->business_email) {
+            $score += 9;
+        }
+        if ($provider->business_phone) {
+            $score += 9;
+        }
+        if ($provider->website) {
+            $score += 5;
+        }
+        if ($provider->service_types && count($provider->service_types)) {
+            $score += 12;
+        }
+        if ($provider->languages_offered && count($provider->languages_offered)) {
+            $score += 12;
+        }
+        if ($provider->service_areas && count($provider->service_areas)) {
+            $score += 7;
+        }
+        if ($user->avatar) {
+            $score += 5;
+        }
+
+        return min(100, $score);
+    }
+
     public function edit(): Response
     {
         $user = auth()->user();
         $provider = $user->serviceProvider;
+
+        $profileFeed = $provider
+            ? $provider->profilePosts()
+                ->latest()
+                ->limit(100)
+                ->get()
+                ->map(fn (ProviderProfilePost $post) => $post->toFeedPayload())
+                ->values()
+                ->all()
+            : [];
+
+        $profileStats = [
+            'completion' => $provider ? $this->providerListingCompletion($provider, $user) : 0,
+            'unread_messages' => Message::unreadIncomingCountFor($user),
+            'purchased_products' => LibraryUserAccess::query()->where('user_id', $user->id)->count(),
+            'matched_providers' => $provider
+                ? Lead::query()->where('service_provider_id', $provider->id)->count()
+                : 0,
+        ];
 
         return Inertia::render('Provider/Profile/Edit', [
             'user' => array_merge($user->only([
@@ -84,8 +179,16 @@ class ProfileController extends Controller
                 'email',
                 'phone',
                 'avatar',
+                'created_at',
+                'city',
+                'state',
+                'country',
+                'preferred_language',
             ]), ['avatar_url' => $user->avatar_url]),
+            'profileStats' => $profileStats,
+            'languageOptions' => LanguageOptions::selectOptions(),
             'providerShare' => $provider ? ProviderShareMeta::forProvider($provider) : null,
+            'profileFeed' => $profileFeed,
             'provider' => $provider ? $provider->only([
                 'id',
                 'business_name',
@@ -122,8 +225,13 @@ class ProfileController extends Controller
                 'tiktok_url',
                 'verification_status',
                 'accepting_clients',
+                'average_rating',
+                'total_reviews',
             ]) : null,
             'serviceTypes' => ServiceTypeOptions::selectOptions('provider'),
+            'countryOptions' => CountryOptions::selectOptions(),
+            'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
+            'defaultLocationCountry' => $user->country ?? 'US',
         ]);
     }
 
@@ -159,7 +267,7 @@ class ProfileController extends Controller
             'serves_in_person' => ['boolean'],
             'service_radius_miles' => ['nullable', 'integer', 'min:1', 'max:500'],
             'service_areas' => ['nullable', 'array'],
-            'service_areas.*' => ['string', 'max:100'],
+            'service_areas.*' => ['string', 'max:255'],
             'license_number' => ['nullable', 'string', 'max:100'],
             'license_state' => ['nullable', 'string', 'max:100'],
             'license_expiry' => ['nullable', 'date'],
@@ -270,7 +378,7 @@ class ProfileController extends Controller
         $user->update(['avatar' => $path]);
 
         return redirect()
-            ->route('provider.profile.edit')
+            ->route('provider.profile.index')
             ->with('success', 'Profile photo updated.');
     }
 

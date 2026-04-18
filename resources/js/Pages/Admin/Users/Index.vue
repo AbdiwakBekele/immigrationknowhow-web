@@ -27,6 +27,9 @@ import {
     ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline';
 
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
+
 const props = defineProps({
     users: { type: Object, required: true },
     selectedUser: { type: Object, default: null },
@@ -1339,6 +1342,17 @@ const impersonateUser = (row) => {
                             "
                         >
                             Cancel
+                        </Button>
+
+                        <Button
+                            v-if="!isEditMode && canImpersonateSelected"
+                            type="button"
+                            variant="secondary"
+                            class="!border-blue-200 !bg-white !text-blue-800 hover:!bg-blue-50"
+                            @click="impersonateSelectedUser"
+                        >
+                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
+                            View as this user
                         </Button>
 
                         <Button

@@ -151,6 +151,17 @@ const purchaseRowPrice = (purchase) => {
                     <p class="mt-0.5 text-sm text-slate-500">
                         Here's what's happening with your immigration journey.
                     </p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span
+                            v-if="stats?.preferredLanguageLabel"
+                            class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                        >
+                            {{ stats.preferredLanguageLabel }}
+                        </span>
+                        <span class="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            {{ stats?.profileCompletion ?? 0 }}% complete
+                        </span>
+                    </div>
                 </div>
                 <span class="hidden rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 sm:inline-flex">
                     Your dashboard

@@ -248,6 +248,9 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::get('/profile/edit', [Provider\ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [Provider\ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [Provider\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+        Route::post('/profile/feed', [Provider\ProfilePostController::class, 'store'])->name('profile-posts.store');
+        Route::patch('/profile/feed/{profilePost}', [Provider\ProfilePostController::class, 'update'])->name('profile-posts.update');
+        Route::delete('/profile/feed/{profilePost}', [Provider\ProfilePostController::class, 'destroy'])->name('profile-posts.destroy');
 
         // Leads
         Route::get('/leads', [Provider\LeadsController::class, 'index'])->name('leads.index');

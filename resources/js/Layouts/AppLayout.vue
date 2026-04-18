@@ -171,6 +171,7 @@ const userAvatarInitial = computed(() => {
 <template>
     <!-- Authenticated: match AdminLayout shell -->
     <div v-if="user" class="min-h-screen bg-slate-100">
+        <ImpersonationBanner />
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"

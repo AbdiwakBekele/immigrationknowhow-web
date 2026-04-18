@@ -1,6 +1,11 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
     // Use IPv4 loopback so `public/hot` matches Laravel/Herd reliably (avoids [::1] vs 127.0.0.1 split and odd HMR/client edge cases on Windows).
@@ -12,6 +17,9 @@ export default defineConfig({
     },
     optimizeDeps: {
         include: ['@stripe/stripe-js'],
+        // pdfjs-dist triggers a Vite 8 dep-optimizer crash (chunk.fileName / exportsData).
+        // Exclude it so dev resolves the published ESM directly instead of pre-bundling.
+        exclude: ['pdfjs-dist'],
     },
     plugins: [
         laravel({
@@ -30,6 +38,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': '/resources/js',
+            'pdfjs-dist': path.resolve(projectRoot, 'node_modules/pdfjs-dist'),
         },
     },
     build: {

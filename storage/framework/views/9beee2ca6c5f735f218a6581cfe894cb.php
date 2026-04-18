@@ -15,12 +15,7 @@
 
         <!-- Scripts -->
         <?php echo app('Tighten\Ziggy\BladeRouteGenerator')->generate(); ?>
-        <?php if(app()->environment('local')): ?>
-            <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
-            <script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>
-        <?php else: ?>
-            <?php echo app('Illuminate\Foundation\Vite')(['resources/js/app.js']); ?>
-        <?php endif; ?>
+        <?php echo app('Illuminate\Foundation\Vite')(['resources/js/app.js']); ?>
         <?php $__inertiaSsrResponse = app(\Inertia\Ssr\SsrState::class)->setPage($page)->dispatch();  if ($__inertiaSsrResponse) { echo $__inertiaSsrResponse->head; } ?>
     </head>
     <body class="font-sans antialiased bg-gray-50 text-gray-900">

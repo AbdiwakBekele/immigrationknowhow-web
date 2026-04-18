@@ -22,9 +22,16 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
+        $hot = public_path('hot');
+        if (is_file($hot)) {
+            $contents = @file_get_contents($hot) ?: '';
+
+            return hash('xxh128', 'vite-hot|'.$contents.'|'.(string) filemtime($hot));
+        }
+
         $manifest = public_path('build/manifest.json');
         if (is_file($manifest)) {
-            return (string) filemtime($manifest);
+            return hash_file('xxh128', $manifest);
         }
 
         return parent::version($request);

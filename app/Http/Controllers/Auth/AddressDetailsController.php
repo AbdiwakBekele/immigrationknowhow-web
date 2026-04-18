@@ -8,6 +8,7 @@ use App\Services\PhoneVerificationService;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
+use App\Support\UsStateOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,8 @@ class AddressDetailsController extends Controller
             return $this->redirectToNextStep($user);
         }
 
+        $onboardingLocation = $user->onboarding_data['location'] ?? [];
+
         return Inertia::render('Auth/AddressDetails', [
             'phone' => $user->phone ?? '',
             'isProvider' => $user->followsProviderOnboarding(),
@@ -44,8 +47,11 @@ class AddressDetailsController extends Controller
             'state' => $user->state ?? '',
             'country' => $user->country ?? 'US',
             'postal_code' => $user->postal_code ?? '',
+            'county' => $onboardingLocation['county'] ?? '',
+            'location_label' => $onboardingLocation['label'] ?? '',
             'preferred_language' => $user->preferred_language ?? 'en',
             'countryOptions' => CountryOptions::selectOptions(),
+            'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
             'languageOptions' => LanguageOptions::selectOptions(),
             'phoneDialOptions' => PhoneDialOptions::selectOptions(),
         ]);
@@ -72,6 +78,7 @@ class AddressDetailsController extends Controller
 
         if (! filled($apiKey)) {
             Log::channel('single')->warning('AddressDetails autocomplete missing API key.');
+
             return response()->json([
                 'ok' => false,
                 'message' => 'Google API key is missing.',
@@ -135,6 +142,7 @@ class AddressDetailsController extends Controller
                 'query' => $query,
                 'country' => $country,
             ]);
+
             return response()->json([
                 'ok' => true,
                 'data' => null,
@@ -199,6 +207,7 @@ class AddressDetailsController extends Controller
             Log::channel('single')->info('AddressDetails sendOtp skipped because phone is already verified.', [
                 'user_id' => $user->id,
             ]);
+
             return $this->redirectToNextStep($user);
         }
 
@@ -207,7 +216,9 @@ class AddressDetailsController extends Controller
             'city' => ['sometimes', 'required', 'string', 'max:120'],
             'state' => ['sometimes', 'required', 'string', 'max:120'],
             'country' => ['sometimes', 'required', 'string', Rule::in(CountryOptions::codes())],
-            'postal_code' => ['sometimes', 'required', 'string', 'max:32'],
+            'postal_code' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'county' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'location_label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferred_language' => ['sometimes', 'required', 'string', Rule::in(array_keys(LanguageOptions::labels()))],
             'phone' => ['sometimes', 'required', 'string', 'min:10', 'max:32'],
         ]);
@@ -222,9 +233,13 @@ class AddressDetailsController extends Controller
         $state = $validated['state'] ?? $user->state;
         $country = $validated['country'] ?? $user->country;
         $postalCode = $validated['postal_code'] ?? $user->postal_code;
+        $county = $validated['county'] ?? data_get($user->onboarding_data, 'location.county');
+        $locationLabel = $validated['location_label'] ?? data_get($user->onboarding_data, 'location.label');
         $preferred = $validated['preferred_language'] ?? $user->preferred_language;
 
-        if (! $city || ! $state || ! $country || ! $postalCode || ! $preferred) {
+        $countryUpper = strtoupper((string) $country);
+
+        if (! $city || ! $state || ! $country || ! $preferred) {
             Log::channel('single')->warning('AddressDetails sendOtp blocked due to incomplete address details.', [
                 'user_id' => $user->id,
                 'resolved_values' => [
@@ -236,17 +251,34 @@ class AddressDetailsController extends Controller
                     'preferred_language' => $preferred,
                 ],
             ]);
+
             return back()->withErrors(['address' => 'Please complete your address details first.']);
         }
+
+        if ($countryUpper === 'US' && ! filled($postalCode)) {
+            return back()->withErrors(['postal_code' => 'Please choose a ZIP or city for your state (United States).']);
+        }
+
+        $onboardingData = array_merge($user->onboarding_data ?? [], [
+            'location' => array_merge($user->onboarding_data['location'] ?? [], [
+                'city' => $city,
+                'state' => $state,
+                'postal_code' => $postalCode,
+                'country' => $country,
+                'county' => $county,
+                'label' => $locationLabel,
+            ]),
+        ]);
 
         $user->update([
             'address' => $address,
             'city' => $city,
             'state' => $state,
             'country' => $country,
-            'postal_code' => $postalCode,
+            'postal_code' => $postalCode ?: null,
             'preferred_language' => $preferred,
             'languages' => [$preferred],
+            'onboarding_data' => $onboardingData,
         ]);
 
         Log::channel('single')->info('AddressDetails sendOtp persisted user address details.', [
@@ -257,6 +289,8 @@ class AddressDetailsController extends Controller
                 'state' => $state,
                 'country' => $country,
                 'postal_code' => $postalCode,
+                'county' => $county,
+                'location_label' => $locationLabel,
                 'preferred_language' => $preferred,
             ],
         ]);
@@ -266,6 +300,7 @@ class AddressDetailsController extends Controller
             Log::channel('single')->info('AddressDetails sendOtp completed without phone send; redirecting to OTP step.', [
                 'user_id' => $user->id,
             ]);
+
             return redirect()->route('address-detail.otp');
         }
 

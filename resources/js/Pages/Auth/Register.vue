@@ -49,7 +49,7 @@ const roleOptions = [
     },
 ];
 
-const totalSteps = computed(() => (form.role === 'user' ? 3 : 5));
+const totalSteps = computed(() => (form.role === 'user' ? 3 : 6));
 
 const serviceTypeLabel = computed(() =>
     form.role === 'provider' ? 'Service you provide' : 'Service you need'

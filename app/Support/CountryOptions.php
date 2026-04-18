@@ -34,6 +34,9 @@ class CountryOptions
     }
 
     /**
+     * Intake country/region choices (signup, onboarding, address, profile).
+     * Order matches product UI. Code EU is a regional bucket, not an ISO country.
+     *
      * @return array<string, string>
      */
     public static function labels(): array
@@ -41,36 +44,8 @@ class CountryOptions
         return [
             'US' => 'United States',
             'CA' => 'Canada',
-            'GB' => 'United Kingdom',
-            'AU' => 'Australia',
-            'DE' => 'Germany',
-            'FR' => 'France',
-            'IT' => 'Italy',
-            'ES' => 'Spain',
-            'NL' => 'Netherlands',
-            'SE' => 'Sweden',
-            'NO' => 'Norway',
-            'IN' => 'India',
-            'CN' => 'China',
-            'JP' => 'Japan',
-            'KR' => 'South Korea',
-            'PH' => 'Philippines',
-            'MX' => 'Mexico',
-            'BR' => 'Brazil',
-            'NG' => 'Nigeria',
-            'ET' => 'Ethiopia',
-            'KE' => 'Kenya',
-            'GH' => 'Ghana',
-            'ZA' => 'South Africa',
-            'IL' => 'Israel',
-            'TR' => 'Turkey',
-            'PL' => 'Poland',
-            'UA' => 'Ukraine',
-            'RU' => 'Russia',
-            'EG' => 'Egypt',
-            'SA' => 'Saudi Arabia',
-            'AE' => 'United Arab Emirates',
-            'OTHER' => 'Other / not listed',
+            'EU' => 'Europe',
+            'GB' => 'Great Britain',
         ];
     }
 }
