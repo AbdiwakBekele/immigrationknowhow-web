@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\UsZipSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -109,6 +110,44 @@ class LocationLookupTest extends TestCase
         $this->assertTrue($user->onboarding_completed);
         $this->assertSame([], data_get($user->onboarding_data, 'services.services_needed', []));
         $this->assertSame('Livonia, MI', data_get($user->onboarding_data, 'location.label'));
+    }
+
+    public function test_uszip_seeder_imports_adminer_sql_gzip_dump(): void
+    {
+        $basePath = tempnam(sys_get_temp_dir(), 'uszips-test-');
+        @unlink($basePath);
+        $path = $basePath.'.sql.gz';
+
+        $sql = <<<'SQL'
+-- Adminer 4.8.4 MySQL dump
+INSERT INTO `uszips` (`zip`, `lat`, `lng`, `city`, `state_id`, `state_name`, `zcta`, `parent_zcta`, `population`, `density`, `county_fips`, `county_name`, `county_weights`, `county_names_all`, `county_fips_all`, `imprecise`, `military`, `timezone`) VALUES
+('48150', '42.36837', '-83.35271', 'Livonia', 'MI', 'Michigan', 1, NULL, 27986, 1316.5, '26163', 'Wayne', '{\"26163\": 100}', 'Wayne', '26163', 0, 0, 'America/Detroit'),
+('90012', '34.06178', '-118.23898', 'Los Angeles', 'CA', 'California', 1, NULL, 31103, 3574.2, '06037', 'Los Angeles', '{\"06037\": 100}', 'Los Angeles', '06037', 0, 0, 'America/Los_Angeles');
+SQL;
+
+        $handle = gzopen($path, 'wb9');
+        gzwrite($handle, $sql);
+        gzclose($handle);
+
+        $_SERVER['USZIPS_SQL_PATH'] = $path;
+        $_ENV['USZIPS_SQL_PATH'] = $path;
+        putenv("USZIPS_SQL_PATH={$path}");
+
+        try {
+            $this->seed(UsZipSeeder::class);
+        } finally {
+            unset($_SERVER['USZIPS_SQL_PATH'], $_ENV['USZIPS_SQL_PATH']);
+            putenv('USZIPS_SQL_PATH');
+            @unlink($path);
+        }
+
+        $this->assertDatabaseCount('uszips', 2);
+        $this->assertDatabaseHas('uszips', [
+            'zip' => '48150',
+            'city' => 'Livonia',
+            'state_id' => 'MI',
+            'county_name' => 'Wayne',
+        ]);
     }
 
     private function seedUsZipRows(): void

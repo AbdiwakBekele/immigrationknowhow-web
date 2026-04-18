@@ -27,8 +27,8 @@ import {
     ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline';
 
-const page = usePage();
-const authUser = computed(() => page.props.auth?.user);
+const inertiaPage = usePage();
+const authUser = computed(() => inertiaPage.props.auth?.user);
 
 const props = defineProps({
     users: { type: Object, required: true },
@@ -428,7 +428,7 @@ const fullAddress = computed(() => {
 const targetRoleName = (row) => row?.role_name || row?.roles?.[0]?.name || 'user';
 
 const canImpersonate = (row) => {
-    const me = page.props.auth?.user;
+    const me = inertiaPage.props.auth?.user;
     if (!me || !row || row.id === me.id) {
         return false;
     }
