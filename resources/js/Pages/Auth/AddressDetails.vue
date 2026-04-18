@@ -3,9 +3,9 @@ import { ref } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
-import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
 import Select from '@/Components/ui/Select.vue';
+import LocationCountryStatePick from '@/Components/address/LocationCountryStatePick.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
@@ -14,8 +14,11 @@ const props = defineProps({
     state: { type: String, default: '' },
     country: { type: String, default: 'US' },
     postal_code: { type: String, default: '' },
+    county: { type: String, default: '' },
+    location_label: { type: String, default: '' },
     preferred_language: { type: String, default: 'en' },
     countryOptions: { type: Array, required: true },
+    stateOptions: { type: Array, default: () => [] },
     languageOptions: { type: Array, required: true },
 });
 
@@ -26,6 +29,8 @@ const phoneForm = useForm({
     state: props.state,
     country: props.country,
     postal_code: props.postal_code,
+    county: props.county,
+    location_label: props.location_label,
     preferred_language: props.preferred_language,
 });
 
@@ -36,33 +41,19 @@ const getAddressComponent = (components, type) =>
     components.find((component) => Array.isArray(component.types) && component.types.includes(type));
 
 const componentLongText = (component) => component?.long_name ?? component?.longText ?? '';
-const componentShortText = (component) => component?.short_name ?? component?.shortText ?? '';
 
-const syncFormFromPlace = (place) => {
+/** Street line only — city, state, ZIP, and country come from the same internal lookup as onboarding. */
+const syncStreetLineFromPlace = (place) => {
     const components = place.addressComponents ?? place.address_components ?? [];
     const streetNumber = componentLongText(getAddressComponent(components, 'street_number'));
     const route = componentLongText(getAddressComponent(components, 'route'));
     const street = [streetNumber, route].filter(Boolean).join(' ').trim();
-    const city =
-        componentLongText(getAddressComponent(components, 'locality')) ||
-        componentLongText(getAddressComponent(components, 'postal_town')) ||
-        componentLongText(getAddressComponent(components, 'administrative_area_level_2'));
-    const state =
-        componentShortText(getAddressComponent(components, 'administrative_area_level_1')) ||
-        componentLongText(getAddressComponent(components, 'administrative_area_level_1'));
-    const postalCode = componentLongText(getAddressComponent(components, 'postal_code'));
-    const country = componentShortText(getAddressComponent(components, 'country'));
 
     if (street) {
         phoneForm.address = street;
     } else if (place.formattedAddress || place.formatted_address) {
         phoneForm.address = place.formattedAddress ?? place.formatted_address;
     }
-
-    if (city) phoneForm.city = city;
-    if (state) phoneForm.state = state;
-    if (postalCode) phoneForm.postal_code = postalCode;
-    if (country) phoneForm.country = country;
 };
 
 const runStreetAutocomplete = async () => {
@@ -93,7 +84,7 @@ const runStreetAutocomplete = async () => {
             return;
         }
 
-        syncFormFromPlace(payload.data);
+        syncStreetLineFromPlace(payload.data);
         autocompleteStatus.value = '';
     } catch {
         autocompleteStatus.value = 'Unable to autocomplete this address right now.';
@@ -169,52 +160,32 @@ const goBack = () => {
                     <p v-if="phoneForm.errors.address" class="mt-2 text-sm font-medium text-red-600">{{ phoneForm.errors.address }}</p>
                     <p v-else-if="autocompleteStatus" class="mt-2 text-sm text-slate-500">{{ autocompleteStatus }}</p>
                 </div>
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                    <Input
-                        v-model="phoneForm.city"
-                        label="City"
-                        placeholder="City"
-                        :error="phoneForm.errors.city"
-                        required
-                        autocomplete="address-level2"
-                    />
-                    <Input
-                        v-model="phoneForm.state"
-                        label="State"
-                        placeholder="State"
-                        :error="phoneForm.errors.state"
-                        required
-                        autocomplete="address-level1"
-                    />
-                    <Input
-                        v-model="phoneForm.postal_code"
-                        label="Postal code"
-                        placeholder="ZIP / postal"
-                        :error="phoneForm.errors.postal_code"
-                        required
-                        autocomplete="postal-code"
-                    />
-                </div>
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <Select
-                        v-model="phoneForm.country"
-                        :options="countryOptions"
-                        label="Country"
-                        placeholder="Country"
-                        :error="phoneForm.errors.country"
-                        size="auth"
-                        required
-                    />
-                    <Select
-                        v-model="phoneForm.preferred_language"
-                        :options="languageOptions"
-                        label="Language"
-                        placeholder="Select language"
-                        :error="phoneForm.errors.preferred_language"
-                        size="auth"
-                        required
-                    />
-                </div>
+
+                <LocationCountryStatePick
+                    v-model:country="phoneForm.country"
+                    v-model:state="phoneForm.state"
+                    v-model:city="phoneForm.city"
+                    v-model:postal-code="phoneForm.postal_code"
+                    v-model:county="phoneForm.county"
+                    v-model:location-label="phoneForm.location_label"
+                    :country-options="countryOptions"
+                    :initial-state-options="stateOptions"
+                />
+
+                <p v-if="phoneForm.errors.country" class="text-sm font-medium text-red-600">{{ phoneForm.errors.country }}</p>
+                <p v-if="phoneForm.errors.state" class="text-sm font-medium text-red-600">{{ phoneForm.errors.state }}</p>
+                <p v-if="phoneForm.errors.city" class="text-sm font-medium text-red-600">{{ phoneForm.errors.city }}</p>
+                <p v-if="phoneForm.errors.postal_code" class="text-sm font-medium text-red-600">{{ phoneForm.errors.postal_code }}</p>
+
+                <Select
+                    v-model="phoneForm.preferred_language"
+                    :options="languageOptions"
+                    label="Language"
+                    placeholder="Select language"
+                    :error="phoneForm.errors.preferred_language"
+                    size="auth"
+                    required
+                />
             </div>
 
             <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">

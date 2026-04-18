@@ -382,19 +382,19 @@ const initialFor = (...values) => {
     <AppLayout>
         <div class="bg-slate-100 px-4 py-6 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-[1600px] space-y-6">
-                <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                    <div class="relative h-52 bg-slate-900">
+                <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div class="relative z-0 h-36 overflow-hidden rounded-t-lg bg-slate-900 sm:h-40 md:h-44">
                         <img
                             src="/images/immigrationlawyer.jpg"
                             alt=""
                             class="h-full w-full object-cover opacity-70"
                         >
                         <div class="absolute inset-0 bg-slate-950/35" />
-                        <div class="absolute bottom-4 left-4 right-4 flex flex-wrap items-end justify-between gap-4 text-white sm:left-6 sm:right-6">
-                            <div>
-                                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-blue-100">User Profile</p>
-                                <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">{{ displayName }}</h1>
-                                <p class="mt-2 flex items-center gap-2 text-sm text-slate-100">
+                        <div class="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white sm:bottom-4 sm:left-6 sm:right-6">
+                            <div class="min-w-0 pr-2">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100 sm:text-sm">User Profile</p>
+                                <h1 class="mt-1 text-2xl font-semibold tracking-tight sm:mt-2 sm:text-3xl md:text-4xl">{{ displayName }}</h1>
+                                <p class="mt-1 flex items-center gap-2 text-xs text-slate-100 sm:mt-2 sm:text-sm">
                                     <MapPinIcon class="h-4 w-4" />
                                     {{ locationSummary }}
                                 </p>
@@ -406,10 +406,10 @@ const initialFor = (...values) => {
                         </div>
                     </div>
 
-                    <div class="px-4 pb-5 sm:px-6">
-                        <div class="-mt-12 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                            <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
-                                <div class="relative h-28 w-28 shrink-0 rounded-lg border-4 border-white bg-blue-600 shadow-lg">
+                    <div class="relative z-10 rounded-b-lg bg-white px-4 pb-5 pt-8 sm:px-6 sm:pt-10">
+                        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                                <div class="relative -mt-6 h-24 w-24 shrink-0 rounded-lg border-4 border-white bg-blue-600 shadow-lg sm:-mt-8 sm:h-28 sm:w-28">
                                     <img
                                         v-if="hasAvatar"
                                         :src="user.avatar_url"
@@ -427,7 +427,7 @@ const initialFor = (...values) => {
                                         <CameraIcon class="h-4 w-4" />
                                     </button>
                                 </div>
-                                <div class="pt-2 sm:pb-1">
+                                <div class="min-w-0 flex-1 pt-1 sm:max-w-xl sm:pb-1 sm:pt-3 lg:pt-4">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                                             {{ languageLabel(profileForm.preferred_language) }}

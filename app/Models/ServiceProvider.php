@@ -138,6 +138,11 @@ class ServiceProvider extends Model
         return $this->hasMany(LibraryItem::class, 'provider_id');
     }
 
+    public function profilePosts(): HasMany
+    {
+        return $this->hasMany(ProviderProfilePost::class);
+    }
+
     // Accessors
     public function getDisplayNameAttribute(): string
     {

@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SlideOver from '@/Components/ui/SlideOver.vue';
@@ -23,7 +23,11 @@ import {
     PhoneIcon,
     MapPinIcon,
     GlobeAltIcon,
+    ArrowRightOnRectangleIcon,
 } from '@heroicons/vue/24/outline';
+
+const page = usePage();
+const authUser = computed(() => page.props.auth?.user);
 
 const props = defineProps({
     users: { type: Object, required: true },
@@ -419,6 +423,39 @@ const fullAddress = computed(() => {
 
     return parts.length ? parts.join(', ') : '—';
 });
+
+function userHasSuperAdminRole(user) {
+    if (!user?.roles?.length) {
+        return false;
+    }
+    return user.roles.some((r) => (typeof r === 'string' ? r : r?.name) === 'super_admin');
+}
+
+const canImpersonateSelected = computed(() => {
+    const sel = props.selectedUser;
+    const me = authUser.value;
+    if (!sel || !me) {
+        return false;
+    }
+    if (sel.id === me.id) {
+        return false;
+    }
+    const meRoles = me.roles || [];
+    if (!meRoles.includes('admin') && !meRoles.includes('super_admin')) {
+        return false;
+    }
+    if (userHasSuperAdminRole(sel) && !meRoles.includes('super_admin')) {
+        return false;
+    }
+    return true;
+});
+
+function impersonateSelectedUser() {
+    if (!props.selectedUser?.id || !canImpersonateSelected.value) {
+        return;
+    }
+    router.post(`/admin/users/${props.selectedUser.id}/impersonate`);
+}
 </script>
 
 <template>
@@ -1285,6 +1322,17 @@ const fullAddress = computed(() => {
                             "
                         >
                             Cancel
+                        </Button>
+
+                        <Button
+                            v-if="!isEditMode && canImpersonateSelected"
+                            type="button"
+                            variant="secondary"
+                            class="!border-blue-200 !bg-white !text-blue-800 hover:!bg-blue-50"
+                            @click="impersonateSelectedUser"
+                        >
+                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
+                            View as this user
                         </Button>
 
                         <Button

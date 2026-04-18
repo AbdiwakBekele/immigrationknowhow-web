@@ -37,7 +37,7 @@ class OnboardingController extends Controller
         }
         $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
         $initialStep = $isProvider
-            ? max(4, min(6, $requestedStep))
+            ? max(4, min(7, $requestedStep))
             : max(2, min(3, $requestedStep));
 
         $subscriptionPlans = $isProvider
@@ -76,6 +76,7 @@ class OnboardingController extends Controller
     protected function getProviderSteps(): array
     {
         return [
+            ['key' => 'location', 'title' => 'Location', 'description' => 'Where you are based'],
             ['key' => 'business', 'title' => 'Business', 'description' => 'Tell clients about your practice'],
             ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'How you charge'],
             ['key' => 'service-area', 'title' => 'Service area', 'description' => 'How you meet clients'],

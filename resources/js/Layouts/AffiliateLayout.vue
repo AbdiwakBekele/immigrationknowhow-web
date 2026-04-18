@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import ImpersonationBanner from '@/Components/layout/ImpersonationBanner.vue';
 import {
     ArrowRightOnRectangleIcon,
     BanknotesIcon,
@@ -29,6 +30,7 @@ const logout = () => router.post('/logout');
 
 <template>
     <div class="min-h-screen bg-slate-50">
+        <ImpersonationBanner />
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"

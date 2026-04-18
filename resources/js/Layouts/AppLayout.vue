@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import ImpersonationBanner from '@/Components/layout/ImpersonationBanner.vue';
 import { Transition } from 'vue';
 import {
     Bars3Icon,
@@ -170,6 +171,7 @@ const userAvatarInitial = computed(() => {
 <template>
     <!-- Authenticated: match AdminLayout shell -->
     <div v-if="user" class="min-h-screen bg-slate-100">
+        <ImpersonationBanner />
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"
