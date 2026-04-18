@@ -3,17 +3,14 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
-use App\Models\Affiliate;
-use App\Models\AffiliateReferral;
-use App\Models\IdentityVerification;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -81,17 +78,18 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getInitialsAttribute(): string
     {
         return strtoupper(
-            substr($this->first_name, 0, 1) . substr($this->last_name, 0, 1)
+            substr($this->first_name, 0, 1).substr($this->last_name, 0, 1)
         );
     }
 
     public function getAvatarUrlAttribute(): ?string
     {
         if ($this->avatar) {
-            return str_starts_with($this->avatar, 'http') 
-                ? $this->avatar 
-                : asset('storage/' . $this->avatar);
+            return str_starts_with($this->avatar, 'http')
+                ? $this->avatar
+                : asset('storage/'.$this->avatar);
         }
+
         return null;
     }
 
@@ -213,6 +211,38 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasRole(UserRole::SUPER_ADMIN->value);
     }
 
+    /**
+     * First page this user should land on after login (or admin impersonation).
+     */
+    public function defaultAuthenticatedHomeUrl(): string
+    {
+        if ($this->isAffiliate() && ! $this->hasVerifiedEmail()) {
+            return route('verification.notice');
+        }
+
+        if ($this->isAffiliate()) {
+            return route('affiliate.dashboard');
+        }
+
+        if ($this->isProvider() && ! $this->phone_verified_at && ! $this->isAdmin()) {
+            return route('address-detail');
+        }
+
+        if (! $this->hasCompletedOnboarding()) {
+            return route('onboarding.index');
+        }
+
+        if ($this->isAdmin()) {
+            return route('admin.dashboard');
+        }
+
+        if ($this->isProvider()) {
+            return route('provider.dashboard');
+        }
+
+        return route('dashboard');
+    }
+
     public function hasCompletedOnboarding(): bool
     {
         return $this->onboarding_completed;
@@ -235,6 +265,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isVerified(): bool
     {
         $verification = $this->getLatestVerification();
+
         return $verification && $verification->status === 'approved';
     }
 

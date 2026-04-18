@@ -278,30 +278,50 @@ class UserController extends Controller
 
     public function impersonate(User $user): RedirectResponse
     {
-        if (! auth()->user()->hasRole('super_admin')) {
+        $actor = auth()->user();
+
+        if (! $actor->isAdmin()) {
             abort(403);
         }
 
-        if ($user->id === auth()->id()) {
+        if (session()->has('impersonating')) {
+            return back()->withErrors(['error' => 'You are already viewing as another user. Exit impersonation first.']);
+        }
+
+        if ($user->id === $actor->id) {
             return back()->withErrors(['error' => 'You cannot impersonate yourself.']);
         }
 
-        session()->put('impersonating', auth()->id());
+        if ($user->isSuperAdmin() && ! $actor->isSuperAdmin()) {
+            return back()->withErrors(['error' => 'Only a super admin can switch into a super admin account.']);
+        }
+
+        session()->put('impersonating', [
+            'id' => $actor->id,
+            'name' => $actor->full_name,
+        ]);
         auth()->login($user);
 
-        return redirect('/dashboard')
-            ->with('info', "You are now impersonating {$user->full_name}.");
+        return redirect()->to($user->defaultAuthenticatedHomeUrl())
+            ->with('info', "You are now viewing the site as {$user->full_name}.");
     }
 
     public function stopImpersonating(): RedirectResponse
     {
-        $originalUserId = session()->pull('impersonating');
+        $payload = session()->pull('impersonating');
+        $originalUserId = is_array($payload) ? ($payload['id'] ?? null) : $payload;
 
         if ($originalUserId) {
-            auth()->loginUsingId($originalUserId);
+            $original = User::find($originalUserId);
+            if ($original) {
+                auth()->login($original);
+
+                return redirect()->route('admin.dashboard')
+                    ->with('success', 'You are signed back in as your admin account.');
+            }
         }
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Stopped impersonating.');
+        return redirect()->route('login')
+            ->with('warning', 'Your admin session could not be restored. Please sign in again.');
     }
 }

@@ -21,9 +21,16 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
+        $hot = public_path('hot');
+        if (is_file($hot)) {
+            $contents = @file_get_contents($hot) ?: '';
+
+            return hash('xxh128', 'vite-hot|'.$contents.'|'.(string) filemtime($hot));
+        }
+
         $manifest = public_path('build/manifest.json');
         if (is_file($manifest)) {
-            return (string) filemtime($manifest);
+            return hash_file('xxh128', $manifest);
         }
 
         return parent::version($request);
@@ -78,6 +85,25 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
                 'otp_sent' => fn () => $request->session()->get('otp_sent'),
             ],
+            'impersonation' => function () use ($request) {
+                $payload = $request->session()->get('impersonating');
+                if (! $payload) {
+                    return ['active' => false];
+                }
+
+                $id = is_array($payload) ? ($payload['id'] ?? null) : $payload;
+                $name = is_array($payload) ? ($payload['name'] ?? null) : null;
+
+                if (! $id) {
+                    return ['active' => false];
+                }
+
+                return [
+                    'active' => true,
+                    'original_admin_id' => (int) $id,
+                    'original_admin_name' => $name,
+                ];
+            },
         ];
     }
 }

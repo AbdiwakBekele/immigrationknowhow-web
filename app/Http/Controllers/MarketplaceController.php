@@ -109,6 +109,7 @@ class MarketplaceController extends Controller
         $provider->load([
             'user:id,first_name,last_name,avatar,city,state,country',
             'reviews' => fn ($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
+            'profilePosts' => fn ($q) => $q->latest()->limit(50),
         ]);
 
         if ($viewer && ! $isOwner) {
@@ -128,8 +129,15 @@ class MarketplaceController extends Controller
             fn (ServiceProvider $p) => $p->append('primary_service_type')
         );
 
+        $profileFeed = $provider->profilePosts
+            ->map(fn ($post) => $post->toFeedPayload())
+            ->values()
+            ->all();
+        $provider->unsetRelation('profilePosts');
+
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
+            'profileFeed' => $profileFeed,
             'similarProviders' => $similarProviders,
             'canContactProvider' => auth()->check() && ! auth()->user()->isProvider(),
             'isOwnListingPreview' => $isOwner,

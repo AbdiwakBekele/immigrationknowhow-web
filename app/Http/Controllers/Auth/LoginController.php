@@ -37,7 +37,7 @@ class LoginController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
             ]);
@@ -57,31 +57,7 @@ class LoginController extends Controller
      */
     protected function homeUrlForUser(User $user): string
     {
-        if ($user->isAffiliate() && ! $user->hasVerifiedEmail()) {
-            return route('verification.notice');
-        }
-
-        if ($user->isAffiliate()) {
-            return route('affiliate.dashboard');
-        }
-
-        if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
-            return route('address-detail');
-        }
-
-        if (! $user->hasCompletedOnboarding()) {
-            return route('onboarding.index');
-        }
-
-        if ($user->isAdmin()) {
-            return route('admin.dashboard');
-        }
-
-        if ($user->isProvider()) {
-            return route('provider.dashboard');
-        }
-
-        return route('dashboard');
+        return $user->defaultAuthenticatedHomeUrl();
     }
 
     protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse

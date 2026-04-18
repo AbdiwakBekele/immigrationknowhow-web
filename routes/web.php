@@ -90,6 +90,10 @@ Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
+Route::post('/impersonate/stop', [Admin\UserController::class, 'stopImpersonating'])
+    ->middleware('auth')
+    ->name('impersonate.stop');
+
 Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->prefix('affiliate')->name('affiliate.')->group(function () {
     Route::get('/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');
     Route::post('/email/verification-notification', AffiliateAuth\EmailVerificationNotificationController::class)
@@ -244,6 +248,9 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::get('/profile/edit', [Provider\ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [Provider\ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [Provider\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
+        Route::post('/profile/feed', [Provider\ProfilePostController::class, 'store'])->name('profile-posts.store');
+        Route::patch('/profile/feed/{profilePost}', [Provider\ProfilePostController::class, 'update'])->name('profile-posts.update');
+        Route::delete('/profile/feed/{profilePost}', [Provider\ProfilePostController::class, 'destroy'])->name('profile-posts.destroy');
 
         // Leads
         Route::get('/leads', [Provider\LeadsController::class, 'index'])->name('leads.index');
@@ -314,6 +321,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
 
         // Users
         Route::get('/users/check-email', [Admin\UserController::class, 'checkEmail'])->name('users.check-email');
+        Route::post('/users/{user}/impersonate', [Admin\UserController::class, 'impersonate'])->name('users.impersonate');
         Route::resource('users', Admin\UserController::class);
         Route::get('/subscribers', [Admin\SubscriberController::class, 'index'])->name('subscribers.index');
 

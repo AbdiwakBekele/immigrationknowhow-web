@@ -1,10 +1,11 @@
 <script setup>
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
+import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
-import { 
+import Button from '@/Components/ui/Button.vue';
+import {
     ArrowLeftIcon,
-    UserCircleIcon,
     CameraIcon,
     BuildingOfficeIcon,
     CurrencyDollarIcon,
@@ -16,23 +17,126 @@ import {
     EyeIcon,
     CheckCircleIcon,
     ExclamationTriangleIcon,
+    VideoCameraIcon,
+    NewspaperIcon,
+    PencilSquareIcon,
+    BookOpenIcon,
+    ChatBubbleLeftRightIcon,
+    SparklesIcon,
+    UserPlusIcon,
+    LinkIcon,
 } from '@heroicons/vue/24/outline';
-import { ref, computed } from 'vue';
+import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
+import { ref, computed, reactive } from 'vue';
+import LocationCountryStatePick from '@/Components/address/LocationCountryStatePick.vue';
 
 const props = defineProps({
+    user: { type: Object, required: true },
     provider: { type: Object, required: true },
     serviceTypes: { type: Array, default: () => [] },
     /** Canonical public listing URL and copy for social shares */
     providerShare: { type: Object, default: null },
+    profileFeed: { type: Array, default: () => [] },
+    profileStats: { type: Object, default: () => ({}) },
+    languageOptions: { type: Array, default: () => [] },
+    countryOptions: { type: Array, default: () => [] },
+    stateOptions: { type: Array, default: () => [] },
+    defaultLocationCountry: { type: String, default: 'US' },
 });
 
 const page = usePage();
-const user = computed(() => page.props.auth?.user);
-const hasAvatar = computed(() => Boolean(user.value?.avatar_url));
-const avatarInitial = computed(() => {
-    const source = form.business_name || user.value?.first_name || 'P';
-    return source.trim().charAt(0).toUpperCase();
+
+const fallbackLanguageOptions = [
+    { value: 'en', label: 'English' },
+    { value: 'es', label: 'Spanish' },
+];
+
+const languageOpts = computed(() => (
+    props.languageOptions?.length ? props.languageOptions : fallbackLanguageOptions
+));
+
+const normalizeLanguageValue = (value) => {
+    if (!value) return '';
+    const raw = String(value).trim();
+    const direct = languageOpts.value.find((option) => option.value === raw);
+    if (direct) return direct.value;
+    const byLabel = languageOpts.value.find((option) => option.label.toLowerCase() === raw.toLowerCase());
+    return byLabel?.value || raw;
+};
+
+const languageLabel = (code) => (
+    languageOpts.value.find((option) => option.value === normalizeLanguageValue(code))?.label
+    || String(code || '').toUpperCase()
+);
+
+const displayName = computed(() => {
+    const first = props.user?.first_name?.trim();
+    const last = props.user?.last_name?.trim();
+    const full = [first, last].filter(Boolean).join(' ').trim();
+    return full || 'Your profile';
 });
+
+const locationSummary = computed(() => {
+    const fromAccount = [props.user?.city, props.user?.state, props.user?.country].filter(Boolean).join(', ').trim();
+    if (fromAccount) return fromAccount;
+    const areas = props.provider?.service_areas;
+    if (Array.isArray(areas) && areas.length) {
+        return areas.join(', ');
+    }
+    return 'Location not set';
+});
+
+const memberSinceLabel = computed(() => {
+    const raw = props.user?.created_at;
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(d);
+});
+
+const completionPercent = computed(() => Number(props.profileStats?.completion || 0));
+
+const insightCards = computed(() => [
+    {
+        label: 'Profile',
+        value: `${completionPercent.value}%`,
+        detail: 'Complete',
+        icon: CheckCircleIcon,
+        tone: 'text-blue-700 bg-blue-50 border-blue-100',
+    },
+    {
+        label: 'Messages',
+        value: props.profileStats?.unread_messages || 0,
+        detail: 'Unread',
+        icon: ChatBubbleLeftRightIcon,
+        tone: 'text-emerald-700 bg-emerald-50 border-emerald-100',
+    },
+    {
+        label: 'Library',
+        value: props.profileStats?.purchased_products || 0,
+        detail: 'Owned',
+        icon: BookOpenIcon,
+        tone: 'text-slate-700 bg-slate-50 border-slate-200',
+    },
+    {
+        label: 'Matches',
+        value: props.profileStats?.matched_providers || 0,
+        detail: 'Providers',
+        icon: SparklesIcon,
+        tone: 'text-rose-700 bg-rose-50 border-rose-100',
+    },
+]);
+
+const publicListingUrl = computed(() => {
+    if (!props.provider?.slug) return '';
+    const path = route('marketplace.show', props.provider.slug);
+    if (typeof window !== 'undefined') {
+        return `${window.location.origin}${path}`;
+    }
+    return path;
+});
+
+const hasAvatar = computed(() => Boolean(props.user?.avatar_url));
 
 const form = useForm({
     // Business Info
@@ -91,9 +195,35 @@ const form = useForm({
     accepting_clients: props.provider?.accepting_clients ?? true,
 });
 
+const avatarInitial = computed(() => {
+    const first = props.user?.first_name?.trim();
+    if (first) return first.charAt(0).toUpperCase();
+    const last = props.user?.last_name?.trim();
+    if (last) return last.charAt(0).toUpperCase();
+    const source = form.business_name || props.provider?.business_name || 'P';
+    return String(source).trim().charAt(0).toUpperCase();
+});
+
 const avatarInput = ref(null);
-const newServiceArea = ref('');
 const newSpecialization = ref('');
+const serviceAreaPickError = ref('');
+
+const serviceAreaPick = reactive({
+    country: props.defaultLocationCountry || 'US',
+    state: '',
+    city: '',
+    postal_code: '',
+    county: '',
+    location_label: '',
+});
+
+const resetServiceAreaPickFields = () => {
+    serviceAreaPick.state = '';
+    serviceAreaPick.city = '';
+    serviceAreaPick.postal_code = '';
+    serviceAreaPick.county = '';
+    serviceAreaPick.location_label = '';
+};
 
 const languageOptions = [
     { code: 'en', label: 'English' },
@@ -224,11 +354,54 @@ const healthCertificateFileUrl = (path) => {
     return `/storage/${path}`;
 };
 
-const addServiceArea = () => {
-    if (newServiceArea.value && !form.service_areas.includes(newServiceArea.value)) {
-        form.service_areas.push(newServiceArea.value);
-        newServiceArea.value = '';
+const buildServiceAreaLabelFromPick = () => {
+    const p = serviceAreaPick;
+    let label = (p.location_label || '').trim();
+    if (!label) {
+        const cityState = [p.city, p.state].filter(Boolean).join(', ');
+        label = [cityState, p.postal_code].filter(Boolean).join(' ').trim();
     }
+    if (!label) {
+        return '';
+    }
+    if (p.country && p.country !== 'US') {
+        label = `${label} (${p.country})`;
+    }
+    return label.length > 255 ? label.slice(0, 252) + '...' : label;
+};
+
+const addServiceAreaFromPick = () => {
+    serviceAreaPickError.value = '';
+    if (!serviceAreaPick.state?.trim()) {
+        serviceAreaPickError.value = 'Select or enter a state / region first.';
+        return;
+    }
+    if (serviceAreaPick.country === 'US') {
+        const hasPick =
+            (serviceAreaPick.location_label || '').trim() ||
+            (serviceAreaPick.postal_code || '').trim() ||
+            (serviceAreaPick.city || '').trim();
+        if (!hasPick) {
+            serviceAreaPickError.value = 'Search and choose a city, ZIP, or county (United States).';
+            return;
+        }
+    } else if (!(serviceAreaPick.city || '').trim()) {
+        serviceAreaPickError.value = 'Enter a city or location.';
+        return;
+    }
+
+    const label = buildServiceAreaLabelFromPick();
+    if (!label) {
+        serviceAreaPickError.value = 'Could not build a service area label from your selection.';
+        return;
+    }
+    if (form.service_areas.includes(label)) {
+        serviceAreaPickError.value = 'This service area is already in your list.';
+        return;
+    }
+
+    form.service_areas.push(label);
+    resetServiceAreaPickFields();
 };
 
 const removeServiceArea = (index) => {
@@ -275,97 +448,193 @@ const verificationStatusLabel = computed(() => {
     if (status === 'rejected') return { text: 'Verification Rejected', class: 'bg-red-100 text-red-700' };
     return { text: 'Not Verified', class: 'bg-slate-100 text-slate-700' };
 });
+
+const feedForm = useForm({
+    type: 'video',
+    url: '',
+    title: '',
+    caption: '',
+});
+
+const feedEditForm = useForm({
+    type: 'video',
+    url: '',
+    title: '',
+    caption: '',
+});
+
+const editingFeedUuid = ref(null);
+
+const submitFeedPost = () => {
+    feedForm.post(route('provider.profile-posts.store'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            feedForm.reset();
+            feedForm.type = 'video';
+        },
+    });
+};
+
+const startEditFeedPost = (post) => {
+    editingFeedUuid.value = post.uuid;
+    feedEditForm.clearErrors();
+    feedEditForm.type = post.type;
+    feedEditForm.url = post.url;
+    feedEditForm.title = post.title || '';
+    feedEditForm.caption = post.caption || '';
+};
+
+const cancelEditFeedPost = () => {
+    editingFeedUuid.value = null;
+    feedEditForm.reset();
+    feedEditForm.type = 'video';
+};
+
+const saveFeedPost = () => {
+    if (!editingFeedUuid.value) {
+        return;
+    }
+    feedEditForm.patch(route('provider.profile-posts.update', editingFeedUuid.value), {
+        preserveScroll: true,
+        onSuccess: () => cancelEditFeedPost(),
+    });
+};
+
+const deleteFeedPost = (uuid) => {
+    if (!window.confirm('Remove this item from your public profile?')) {
+        return;
+    }
+    router.delete(route('provider.profile-posts.destroy', uuid), { preserveScroll: true });
+};
+
+const formatFeedDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
 </script>
 
 <template>
     <Head title="Edit Profile" />
 
     <ProviderLayout>
-        <div class="admin-page-container">
-                <!-- Header -->
-                <section class="admin-hero-card mb-6">
-                    <div class="flex items-center justify-between">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <Link
-                                :href="route('provider.profile.index')"
-                                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-                                aria-label="Back to profile"
-                            >
-                                <ArrowLeftIcon class="h-5 w-5" />
-                            </Link>
-                            <h1 class="text-2xl font-display font-bold text-slate-900">Edit Profile</h1>
-                        </div>
-                        <p class="admin-subtitle mt-2">Update your business information and settings.</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span :class="['px-3 py-1 rounded-full text-sm font-medium', verificationStatusLabel.class]">
-                            {{ verificationStatusLabel.text }}
-                        </span>
-                        <ProfileSharePanel
-                            v-if="providerShare"
-                            :share="providerShare"
-                            trigger-variant="outline"
-                            menu-align="right"
-                        />
-                        <Link
-                            :href="route('marketplace.show', { provider: provider.slug })"
-                            class="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-slate-700 transition-colors hover:bg-slate-50"
+        <div class="bg-slate-100 px-4 py-6 sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-[1600px] space-y-6">
+                <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div class="relative z-0 h-36 overflow-hidden rounded-t-lg bg-slate-900 sm:h-40 md:h-44">
+                        <img
+                            src="/images/immigrationlawyer.jpg"
+                            alt=""
+                            class="h-full w-full object-cover opacity-70"
                         >
-                            <EyeIcon class="h-4 w-4" />
-                            Preview
+                        <div class="absolute inset-0 bg-slate-950/35" />
+                        <Link
+                            :href="route('provider.profile.index')"
+                            class="absolute left-4 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur transition hover:bg-white/20 sm:left-6 sm:top-4"
+                        >
+                            <ArrowLeftIcon class="h-4 w-4" />
+                            Overview
                         </Link>
+                        <div class="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-3 text-white sm:bottom-4 sm:left-6 sm:right-6">
+                            <div class="min-w-0 pr-2">
+                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-blue-100 sm:text-sm">My profile</p>
+                                <h1 class="mt-1 text-2xl font-semibold tracking-tight sm:mt-2 sm:text-3xl md:text-4xl">{{ displayName }}</h1>
+                                <p class="mt-1 flex items-center gap-2 text-xs text-slate-100 sm:mt-2 sm:text-sm">
+                                    <MapPinIcon class="h-4 w-4 shrink-0" />
+                                    {{ locationSummary }}
+                                </p>
+                            </div>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                :disabled="avatarUploading"
+                                @click="avatarInput?.click()"
+                            >
+                                <CameraIcon class="h-4 w-4" />
+                                Change photo
+                            </Button>
+                        </div>
                     </div>
+
+                    <div class="relative z-10 rounded-b-lg bg-white px-4 pb-5 pt-8 sm:px-6 sm:pt-10">
+                        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                                <div class="relative -mt-6 h-24 w-24 shrink-0 rounded-lg border-4 border-white bg-blue-600 shadow-lg sm:-mt-8 sm:h-28 sm:w-28">
+                                    <img
+                                        v-if="hasAvatar"
+                                        :src="user.avatar_url"
+                                        :alt="displayName"
+                                        class="h-full w-full rounded-md object-cover"
+                                    >
+                                    <div
+                                        v-else
+                                        class="flex h-full w-full items-center justify-center rounded-md text-4xl font-bold text-white"
+                                    >
+                                        {{ avatarInitial }}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="absolute -bottom-2 -right-2 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+                                        :disabled="avatarUploading"
+                                        @click="avatarInput?.click()"
+                                    >
+                                        <CameraIcon class="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <div class="min-w-0 flex-1 pt-1 sm:max-w-xl sm:pb-1 sm:pt-3 lg:pt-4">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                            {{ languageLabel(user.preferred_language) }}
+                                        </span>
+                                        <span class="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                            {{ completionPercent }}% complete
+                                        </span>
+                                        <span :class="['rounded-full border px-3 py-1 text-xs font-semibold', verificationStatusLabel.class]">
+                                            {{ verificationStatusLabel.text }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                                        Keep your account and listing details current so clients can find you, understand your services, and reach out with confidence.
+                                    </p>
+                                    <p class="mt-2 text-xs text-slate-500">
+                                        JPEG, PNG, GIF, WebP, or BMP. Max 5&nbsp;MB.
+                                    </p>
+                                    <p v-if="avatarClientError" class="mt-2 text-sm text-red-600">{{ avatarClientError }}</p>
+                                    <p v-else-if="page.props.errors?.avatar" class="mt-2 text-sm text-red-600">{{ page.props.errors.avatar }}</p>
+                                </div>
+                            </div>
+
+                            <div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 lg:w-auto">
+                                <div
+                                    v-for="card in insightCards"
+                                    :key="card.label"
+                                    class="rounded-lg border bg-white p-4 shadow-sm"
+                                >
+                                    <div :class="['mb-3 inline-flex rounded-lg border p-2', card.tone]">
+                                        <component :is="card.icon" class="h-4 w-4" />
+                                    </div>
+                                    <p class="text-2xl font-semibold text-slate-950">{{ card.value }}</p>
+                                    <p class="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">{{ card.detail }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input
+                            ref="avatarInput"
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,image/jpeg,image/png,image/gif,image/webp,image/bmp"
+                            class="hidden"
+                            :disabled="avatarUploading"
+                            @change="uploadAvatar"
+                        >
                     </div>
                 </section>
 
-                <form @submit.prevent="updateProfile" class="space-y-6">
-                    <!-- Profile Photo -->
-                    <div class="bg-white rounded-2xl shadow-soft p-6">
-                        <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Profile Photo</h2>
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-                            <div class="relative shrink-0">
-                                <img
-                                    v-if="hasAvatar"
-                                    :src="user?.avatar_url"
-                                    class="h-24 w-24 rounded-2xl object-cover bg-slate-100 ring-1 ring-slate-200/80"
-                                    alt="Provider profile photo"
-                                />
-                                <div
-                                    v-else
-                                    class="flex h-24 w-24 items-center justify-center rounded-2xl bg-primary-600 text-3xl font-bold text-white ring-1 ring-primary-500/60"
-                                    aria-hidden="true"
-                                >
-                                    {{ avatarInitial }}
-                                </div>
-                                <button 
-                                    type="button"
-                                    :disabled="avatarUploading"
-                                    class="absolute bottom-0 right-0 rounded-full border border-slate-200 bg-white p-2 shadow-lg transition-colors hover:bg-slate-50 disabled:opacity-50"
-                                    aria-label="Change profile photo"
-                                    @click="avatarInput?.click()"
-                                >
-                                    <CameraIcon class="h-4 w-4 text-slate-600" />
-                                </button>
-                                <input 
-                                    ref="avatarInput"
-                                    type="file"
-                                    accept=".jpg,.jpeg,.png,.gif,.webp,.bmp,image/jpeg,image/png,image/gif,image/webp,image/bmp"
-                                    class="sr-only"
-                                    :disabled="avatarUploading"
-                                    @change="uploadAvatar"
-                                />
-                            </div>
-                            <div class="min-w-0 flex-1 space-y-2">
-                                <p class="text-sm text-slate-600">Upload a professional headshot or logo. This appears on your public listing.</p>
-                                <p class="text-xs text-slate-500">JPEG, PNG, GIF, WebP, or BMP. Max 5&nbsp;MB.</p>
-                                <p v-if="avatarClientError" class="text-sm text-red-600">{{ avatarClientError }}</p>
-                                <p v-else-if="page.props.errors?.avatar" class="text-sm text-red-600">{{ page.props.errors.avatar }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Business Information -->
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
+                    <div class="space-y-6">
+                        <form id="provider-profile-edit-form" class="space-y-6" @submit.prevent="updateProfile">
+                            <!-- Business Information -->
                     <div class="bg-white rounded-2xl shadow-soft p-6">
                         <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Business Information</h2>
                         <div class="space-y-4">
@@ -589,24 +858,34 @@ const verificationStatusLabel = computed(() => {
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">Specific Service Areas</label>
-                                <div class="flex gap-2 mb-2">
-                                    <input 
-                                        v-model="newServiceArea"
-                                        type="text"
-                                        class="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                        placeholder="Add a city, county, or state"
-                                        @keyup.enter.prevent="addServiceArea"
-                                    />
-                                    <button type="button" @click="addServiceArea" class="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors">
-                                        <PlusIcon class="h-5 w-5" />
-                                    </button>
-                                </div>
-                                <div v-if="form.service_areas.length" class="flex flex-wrap gap-2">
-                                    <span 
-                                        v-for="(area, index) in form.service_areas" 
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Specific service areas</label>
+                                <p class="text-xs text-slate-500 mb-4">
+                                    Same location search as client signup: choose country and state, then for the United States search by city, ZIP, or county. Add each area you serve.
+                                </p>
+                                <LocationCountryStatePick
+                                    v-model:country="serviceAreaPick.country"
+                                    v-model:state="serviceAreaPick.state"
+                                    v-model:city="serviceAreaPick.city"
+                                    v-model:postal-code="serviceAreaPick.postal_code"
+                                    v-model:county="serviceAreaPick.county"
+                                    v-model:location-label="serviceAreaPick.location_label"
+                                    :country-options="countryOptions"
+                                    :initial-state-options="stateOptions"
+                                />
+                                <p v-if="serviceAreaPickError" class="mt-2 text-sm text-red-600">{{ serviceAreaPickError }}</p>
+                                <button
+                                    type="button"
+                                    class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+                                    @click="addServiceAreaFromPick"
+                                >
+                                    <PlusIcon class="h-5 w-5" />
+                                    Add to service areas
+                                </button>
+                                <div v-if="form.service_areas.length" class="mt-4 flex flex-wrap gap-2">
+                                    <span
+                                        v-for="(area, index) in form.service_areas"
                                         :key="index"
-                                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full"
+                                        class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-sm"
                                     >
                                         {{ area }}
                                         <button type="button" @click="removeServiceArea(index)" class="hover:text-red-600 transition-colors">
@@ -875,21 +1154,279 @@ const verificationStatusLabel = computed(() => {
                         </div>
                         <p class="mt-2 text-xs text-slate-500">Turn this off if you're not taking on new clients right now</p>
                     </div>
-
-                    <!-- Submit -->
-                    <div class="flex justify-end gap-3 pb-8">
-                        <Link :href="route('provider.profile.index')" class="px-6 py-3 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors">
-                            Cancel
-                        </Link>
-                        <button 
-                            type="submit" 
-                            class="px-8 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
-                            :disabled="form.processing"
-                        >
-                            {{ form.processing ? 'Saving...' : 'Save Changes' }}
-                        </button>
-                    </div>
                 </form>
+
+                <!-- Public profile feed (outside profile form — avoids nested forms; shown above Save) -->
+                <div id="public-profile-feed" class="bg-white rounded-2xl shadow-soft p-6 mt-6 scroll-mt-24">
+                    <h2 class="text-lg font-display font-bold text-slate-900 mb-1">Public profile feed</h2>
+                    <p class="text-sm text-slate-600 mb-4">
+                        Share YouTube, TikTok, Vimeo, or Instagram videos/reels, plus article links. Newest posts appear on your public listing in a feed.
+                    </p>
+                    <p v-if="page.props.flash?.success" class="mb-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                        {{ page.props.flash.success }}
+                    </p>
+                    <p v-if="page.props.errors?.feed" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                        {{ Array.isArray(page.props.errors.feed) ? page.props.errors.feed[0] : page.props.errors.feed }}
+                    </p>
+
+                    <form class="space-y-4 mb-8 pb-8 border-b border-slate-100" @submit.prevent="submitFeedPost">
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                                <select
+                                    v-model="feedForm.type"
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                >
+                                    <option value="video">Video (YouTube, TikTok, Vimeo, Instagram, …)</option>
+                                    <option value="article">Article / blog link</option>
+                                </select>
+                                <p v-if="feedForm.errors.type" class="mt-1 text-sm text-red-600">{{ feedForm.errors.type }}</p>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1">URL</label>
+                                <input
+                                    v-model="feedForm.url"
+                                    type="url"
+                                    required
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="https://"
+                                />
+                                <p v-if="feedForm.errors.url" class="mt-1 text-sm text-red-600">{{ feedForm.errors.url }}</p>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Headline <span class="text-slate-400 font-normal">(optional)</span></label>
+                                <input
+                                    v-model="feedForm.title"
+                                    type="text"
+                                    maxlength="255"
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                />
+                                <p v-if="feedForm.errors.title" class="mt-1 text-sm text-red-600">{{ feedForm.errors.title }}</p>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Caption <span class="text-slate-400 font-normal">(optional)</span></label>
+                                <textarea
+                                    v-model="feedForm.caption"
+                                    rows="2"
+                                    maxlength="2000"
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                />
+                                <p v-if="feedForm.errors.caption" class="mt-1 text-sm text-red-600">{{ feedForm.errors.caption }}</p>
+                            </div>
+                        </div>
+                        <button
+                            type="submit"
+                            class="px-6 py-2.5 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+                            :disabled="feedForm.processing"
+                        >
+                            {{ feedForm.processing ? 'Adding…' : 'Add to feed' }}
+                        </button>
+                    </form>
+
+                    <div v-if="!profileFeed.length" class="text-sm text-slate-500 py-4 text-center bg-slate-50 rounded-xl">
+                        No feed items yet. Add a video or article above.
+                    </div>
+                    <ul v-else class="space-y-4">
+                        <li
+                            v-for="post in profileFeed"
+                            :key="post.uuid"
+                            class="rounded-xl border border-slate-200 p-4"
+                        >
+                            <template v-if="editingFeedUuid === post.uuid">
+                                <form class="space-y-3" @submit.prevent="saveFeedPost">
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-600 mb-1">Type</label>
+                                        <select
+                                            v-model="feedEditForm.type"
+                                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                                        >
+                                            <option value="video">Video</option>
+                                            <option value="article">Article</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-600 mb-1">URL</label>
+                                        <input
+                                            v-model="feedEditForm.url"
+                                            type="url"
+                                            required
+                                            class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                                        />
+                                        <p v-if="feedEditForm.errors.url" class="mt-1 text-xs text-red-600">{{ feedEditForm.errors.url }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-600 mb-1">Headline</label>
+                                        <input v-model="feedEditForm.title" type="text" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-600 mb-1">Caption</label>
+                                        <textarea v-model="feedEditForm.caption" rows="2" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="submit"
+                                            class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+                                            :disabled="feedEditForm.processing"
+                                        >
+                                            Save
+                                        </button>
+                                        <button type="button" class="px-4 py-2 border border-slate-200 text-sm rounded-lg" @click="cancelEditFeedPost">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </template>
+                            <template v-else>
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-1">
+                                            <span class="inline-flex items-center gap-1 font-medium text-slate-700">
+                                                <VideoCameraIcon v-if="post.type === 'video'" class="h-4 w-4 text-primary-600" />
+                                                <NewspaperIcon v-else class="h-4 w-4 text-sky-600" />
+                                                {{ post.platform_label || (post.type === 'video' ? 'Video' : 'Article') }}
+                                            </span>
+                                            <span>· {{ formatFeedDate(post.created_at) }}</span>
+                                        </div>
+                                        <p v-if="post.title" class="font-medium text-slate-900 truncate">{{ post.title }}</p>
+                                        <a
+                                            :href="post.url"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="text-sm text-primary-600 hover:underline break-all"
+                                        >{{ post.url }}</a>
+                                        <p v-if="post.caption" class="text-sm text-slate-600 mt-2 line-clamp-2">{{ post.caption }}</p>
+                                    </div>
+                                    <div class="flex shrink-0 gap-1">
+                                        <button
+                                            type="button"
+                                            class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                            aria-label="Edit feed item"
+                                            @click="startEditFeedPost(post)"
+                                        >
+                                            <PencilSquareIcon class="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
+                                            aria-label="Remove feed item"
+                                            @click="deleteFeedPost(post.uuid)"
+                                        >
+                                            <TrashIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </li>
+                    </ul>
+                </div>
+
+                        <div class="mt-6 flex justify-end gap-3 pb-8">
+                            <Link
+                                :href="route('provider.profile.index')"
+                                class="rounded-xl border border-slate-200 px-6 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                            >
+                                Cancel
+                            </Link>
+                            <button
+                                type="submit"
+                                form="provider-profile-edit-form"
+                                class="rounded-xl bg-primary-600 px-8 py-3 font-semibold text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
+                                :disabled="form.processing"
+                            >
+                                {{ form.processing ? 'Saving...' : 'Save Changes' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <aside class="space-y-6">
+                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="border-b border-slate-200 px-5 py-4">
+                                <h2 class="text-lg font-semibold text-slate-950">Listing actions</h2>
+                                <p class="mt-1 text-sm text-slate-500">Share and preview your public profile.</p>
+                            </div>
+                            <div class="flex flex-col gap-3 p-5">
+                                <ProfileSharePanel
+                                    v-if="providerShare"
+                                    :share="providerShare"
+                                    trigger-variant="outline"
+                                    menu-align="left"
+                                />
+                                <Link
+                                    :href="route('marketplace.show', { provider: provider.slug })"
+                                    class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    <EyeIcon class="h-4 w-4" />
+                                    Preview listing
+                                </Link>
+                            </div>
+                        </section>
+
+                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="border-b border-slate-200 px-5 py-4">
+                                <h2 class="text-lg font-semibold text-slate-950">Matching Providers</h2>
+                                <p class="mt-1 text-sm text-slate-500">Based on language, location, family, pets, and service needs.</p>
+                            </div>
+                            <div class="p-6 text-sm text-slate-500">
+                                <p>
+                                    A complete listing helps the right clients discover you. New inquiries appear in
+                                    <Link :href="route('provider.leads.index')" class="font-semibold text-blue-700 hover:text-blue-800">Leads</Link>.
+                                </p>
+                            </div>
+                        </section>
+
+                        <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                            <div class="mb-5 flex items-start gap-3">
+                                <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-emerald-700">
+                                    <UserPlusIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-semibold text-slate-950">Invite A Provider</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Recommend a service provider you trust.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="mb-3 block text-base font-medium text-slate-700">Public profile link</label>
+                                <input
+                                    type="text"
+                                    readonly
+                                    :value="publicListingUrl || 'Publish your listing to get a link.'"
+                                    class="w-full cursor-default rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
+                                >
+                            </div>
+                        </section>
+
+                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="border-b border-slate-200 px-5 py-4">
+                                <div class="flex items-center gap-2">
+                                    <LinkIcon class="h-5 w-5 text-slate-500" />
+                                    <h2 class="text-lg font-semibold text-slate-950">Profile snapshot</h2>
+                                </div>
+                                <p class="mt-1 text-sm text-slate-500">Quick summary.</p>
+                            </div>
+                            <div class="p-5">
+                                <dl class="space-y-3 text-sm">
+                                    <div v-if="memberSinceLabel" class="flex justify-between gap-4">
+                                        <dt class="text-slate-500">Member since</dt>
+                                        <dd class="text-right font-medium text-slate-900">{{ memberSinceLabel }}</dd>
+                                    </div>
+                                    <div class="flex justify-between gap-4">
+                                        <dt class="text-slate-500">Business</dt>
+                                        <dd class="truncate text-right font-medium text-slate-900">{{ provider?.business_name }}</dd>
+                                    </div>
+                                    <div class="flex justify-between gap-4">
+                                        <dt class="text-slate-500">Rating</dt>
+                                        <dd class="flex items-center justify-end gap-1 font-medium text-slate-900">
+                                            <StarSolid class="h-4 w-4 text-amber-500" />
+                                            {{ Number(provider?.average_rating || 0).toFixed(1) }}
+                                            <span class="text-slate-500">({{ provider?.total_reviews || 0 }})</span>
+                                        </dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </section>
+                    </aside>
+                </div>
+            </div>
         </div>
     </ProviderLayout>
 </template>

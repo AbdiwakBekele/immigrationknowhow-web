@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import ImpersonationBanner from '@/Components/layout/ImpersonationBanner.vue';
 import { adminMainNavItems, adminSettingsNavItems } from '@/config/adminSidebarNav.js';
 import {
     Bars3Icon,
@@ -94,6 +95,7 @@ const isActive = (href) => {
 
 <template>
     <div class="min-h-screen bg-slate-100">
+        <ImpersonationBanner />
         <Transition
             enter-active-class="transition-opacity duration-300"
             enter-from-class="opacity-0"

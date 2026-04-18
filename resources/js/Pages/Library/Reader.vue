@@ -11,8 +11,8 @@ import {
     PlayIcon,
 } from '@heroicons/vue/24/outline';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?worker&url';
+import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 

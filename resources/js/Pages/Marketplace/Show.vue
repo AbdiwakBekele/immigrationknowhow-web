@@ -2,6 +2,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
+import ProviderProfileFeed from '@/Components/marketplace/ProviderProfileFeed.vue';
 import { 
     CheckBadgeIcon,
     MapPinIcon,
@@ -34,6 +35,7 @@ const props = defineProps({
         required: true,
         validator: (v) => v && typeof v.url === 'string' && typeof v.title === 'string',
     },
+    profileFeed: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -272,6 +274,12 @@ const resolveAvatar = (person, fallback) => {
                                 </div>
                             </div>
                         </div>
+
+                        <ProviderProfileFeed
+                            :posts="profileFeed"
+                            :business-name="provider.business_name || ''"
+                            :avatar-url="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=80`)"
+                        />
 
                         <!-- Pricing Section -->
                         <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
