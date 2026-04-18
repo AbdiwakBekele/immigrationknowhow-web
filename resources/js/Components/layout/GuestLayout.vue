@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 
 defineProps({
     panelBadge: {
@@ -48,6 +49,7 @@ defineProps({
                         </div>
 
                         <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(30,41,59,0.12)] sm:p-8 lg:p-9 xl:p-10">
+                            <ImpersonationBanner />
                             <div class="mb-8 text-center lg:text-left">
                                 <h1 class="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
                                     <slot name="title">Welcome</slot>

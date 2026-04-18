@@ -6,10 +6,13 @@ use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\UserHomeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -276,32 +279,84 @@ class UserController extends Controller
             ->with('success', 'User deleted successfully.');
     }
 
-    public function impersonate(User $user): RedirectResponse
+    public function impersonate(Request $request, User $user): RedirectResponse
     {
-        if (! auth()->user()->hasRole('super_admin')) {
+        $actor = auth()->user();
+
+        if (! $actor?->isAdmin()) {
             abort(403);
         }
 
-        if ($user->id === auth()->id()) {
+        if (session()->has('impersonating')) {
+            return back()->withErrors(['error' => 'You are already viewing the site as another user.']);
+        }
+
+        if ($user->id === $actor->id) {
             return back()->withErrors(['error' => 'You cannot impersonate yourself.']);
         }
 
-        session()->put('impersonating', auth()->id());
-        auth()->login($user);
+        if (! $actor->isSuperAdmin() && $user->isAdmin()) {
+            return back()->withErrors(['error' => 'Only a super administrator can impersonate another administrator.']);
+        }
 
-        return redirect('/dashboard')
-            ->with('info', "You are now impersonating {$user->full_name}.");
+        if (! $user->is_active) {
+            return back()->withErrors(['error' => 'You cannot impersonate an inactive user.']);
+        }
+
+        $targetUser = User::query()
+            ->whereKey($user->getKey())
+            ->with('roles')
+            ->firstOrFail();
+
+        $actorId = $actor->id;
+
+        Auth::guard('web')->logout();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        $request->session()->put('impersonating', $actorId);
+        Auth::guard('web')->login($targetUser);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->regenerate();
+
+        return redirect()->to(UserHomeUrl::afterAuthentication($targetUser))
+            ->with('info', "You are now viewing the site as {$targetUser->full_name}.");
     }
 
-    public function stopImpersonating(): RedirectResponse
+    public function stopImpersonating(Request $request): RedirectResponse
     {
         $originalUserId = session()->pull('impersonating');
 
-        if ($originalUserId) {
-            auth()->loginUsingId($originalUserId);
+        if (! $originalUserId) {
+            return redirect()->route('dashboard');
         }
 
-        return redirect()->route('admin.dashboard')
-            ->with('success', 'Stopped impersonating.');
+        $original = User::query()
+            ->whereKey($originalUserId)
+            ->with('roles')
+            ->first();
+
+        if (! $original) {
+            Auth::guard('web')->logout();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->with('warning', 'Your administrator session could not be restored. Please sign in again.');
+        }
+
+        Auth::guard('web')->logout();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        Auth::guard('web')->login($original);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->regenerate();
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'You are back in your administrator account.');
     }
 }

@@ -1,6 +1,7 @@
 <script setup>
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { route } from 'ziggy-js';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import SlideOver from '@/Components/ui/SlideOver.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -23,6 +24,7 @@ import {
     PhoneIcon,
     MapPinIcon,
     GlobeAltIcon,
+    ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -33,6 +35,8 @@ const props = defineProps({
     roles: { type: Array, default: () => [] },
     backgroundCheckStatuses: { type: Array, default: () => [] },
 });
+
+const page = usePage();
 
 const search = ref(props.filters.search || '');
 const roleFilter = ref(props.filters.role || '');
@@ -419,6 +423,36 @@ const fullAddress = computed(() => {
 
     return parts.length ? parts.join(', ') : '—';
 });
+
+const targetRoleName = (row) => row?.role_name || row?.roles?.[0]?.name || 'user';
+
+const canImpersonate = (row) => {
+    const me = page.props.auth?.user;
+    if (!me || !row || row.id === me.id) {
+        return false;
+    }
+
+    const roles = me.roles || [];
+    const isSuper = roles.includes('super_admin');
+    const isAdminUser = roles.includes('admin') || isSuper;
+
+    if (!isAdminUser) {
+        return false;
+    }
+
+    const targetRole = targetRoleName(row);
+    if (!isSuper && (targetRole === 'admin' || targetRole === 'super_admin')) {
+        return false;
+    }
+
+    return true;
+};
+
+const impersonateUser = (row) => {
+    if (!canImpersonate(row)) return;
+
+    router.post(route('admin.users.impersonate', { user: row.id }));
+};
 </script>
 
 <template>
@@ -672,6 +706,16 @@ const fullAddress = computed(() => {
                                             <EyeIcon class="h-5 w-5" />
                                         </button>
                                         <button
+                                            v-if="canImpersonate(user)"
+                                            type="button"
+                                            class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-violet-600 transition hover:bg-violet-50 hover:text-violet-800"
+                                            title="View site as this user"
+                                            aria-label="Impersonate user"
+                                            @click="impersonateUser(user)"
+                                        >
+                                            <ArrowsRightLeftIcon class="h-5 w-5" />
+                                        </button>
+                                        <button
                                             type="button"
                                             class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                                             title="Edit user"
@@ -741,6 +785,16 @@ const fullAddress = computed(() => {
                                     @click="openDrawer(user.id)"
                                 >
                                     <EyeIcon class="h-5 w-5" />
+                                </button>
+                                <button
+                                    v-if="canImpersonate(user)"
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-violet-600 transition hover:bg-violet-50 hover:text-violet-800"
+                                    title="View site as this user"
+                                    aria-label="Impersonate user"
+                                    @click="impersonateUser(user)"
+                                >
+                                    <ArrowsRightLeftIcon class="h-5 w-5" />
                                 </button>
                                 <button
                                     type="button"

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 import {
     HomeIcon,
     InboxIcon,
@@ -318,6 +319,7 @@ onUnmounted(() => {
             </header>
 
             <main class="p-4 sm:p-6 lg:p-8">
+                <ImpersonationBanner />
                 <slot />
             </main>
         </div>
