@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -10,10 +10,15 @@ import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/vue/20/solid';
 import { CheckIcon } from '@heroicons/vue/24/solid';
 import { SparklesIcon, CreditCardIcon } from '@heroicons/vue/24/outline';
 import LocationCountryStatePick from '@/Components/address/LocationCountryStatePick.vue';
+import OnboardingPhoneVerification from '@/Components/onboarding/OnboardingPhoneVerification.vue';
+import { parsePlaceToAddressFields } from '@/utils/googlePlaceAddress';
+import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER } from '@/constants/authFlowProgress';
 
 const props = defineProps({
     user: Object,
     initialStep: Number,
+    requiresPhoneVerification: { type: Boolean, default: false },
+    phoneVerification: { type: Object, default: null },
     isProvider: Boolean,
     serviceTypes: Array,
     countryOptions: Array,
@@ -27,14 +32,16 @@ const props = defineProps({
 
 const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
 
-const currentStep = ref(props.initialStep ?? (props.isProvider ? 4 : 2));
-const totalSteps = computed(() => (props.isProvider ? 7 : 3));
+const currentStep = ref(props.requiresPhoneVerification ? 3 : (props.initialStep ?? 4));
+
+const pageTitle = computed(() => (props.requiresPhoneVerification ? 'Phone verification' : 'Onboarding'));
+const totalSteps = computed(() => (props.isProvider ? SIGNUP_FLOW_STEPS_PROVIDER : SIGNUP_FLOW_STEPS_USER));
 const isProviderLocationStep = computed(() => props.isProvider && currentStep.value === 4);
 const isProviderBusinessStep = computed(() => props.isProvider && currentStep.value === 5);
 const isProviderPricingStep = computed(() => props.isProvider && currentStep.value === 6);
 const isProviderSubscriptionStep = computed(() => props.isProvider && currentStep.value === 7);
-const isUserStepTwo = computed(() => !props.isProvider && currentStep.value === 2);
-const isUserStepThree = computed(() => !props.isProvider && currentStep.value === 3);
+const isUserPreferencesStep = computed(() => !props.isProvider && currentStep.value === 4);
+const isUserCongratulationsStep = computed(() => !props.isProvider && currentStep.value === 5);
 const hasSubscriptionPlans = computed(() => (props.subscriptionPlans || []).length > 0);
 const selectedBillingCycle = ref('monthly');
 const userServiceTypeOptions = computed(() => [
@@ -48,8 +55,11 @@ const hasCheckoutReadyPlans = computed(() =>
 );
 
 const onboardingHeading = computed(() => {
+    if (props.requiresPhoneVerification) {
+        return 'Phone verification';
+    }
     if (isProviderLocationStep.value) {
-        return "Where you're based";
+        return 'Address details';
     }
     if (isProviderBusinessStep.value) {
         return 'Business information';
@@ -60,7 +70,7 @@ const onboardingHeading = computed(() => {
     if (isProviderSubscriptionStep.value) {
         return 'Choose your subscription';
     }
-    if (isUserStepThree.value) {
+    if (isUserCongratulationsStep.value) {
         return 'Congratulations';
     }
     return props.isProvider ? 'Business information' : 'Service preferences';
@@ -68,6 +78,8 @@ const onboardingHeading = computed(() => {
 
 const formData = ref({
     services_needed: [],
+    address_line_1: props.existingData?.location?.street || props.user?.address || '',
+    address_line_2: props.existingData?.location?.address_line_2 || '',
     city: props.user?.city || '',
     state: props.user?.state || '',
     postal_code: props.user?.postal_code || '',
@@ -142,6 +154,21 @@ const mergeExistingOnboarding = () => {
     if (e.location?.country) {
         formData.value.country = e.location.country;
     }
+    if (e.location?.street) {
+        formData.value.address_line_1 = e.location.street;
+    }
+    if (e.location?.address_line_2) {
+        formData.value.address_line_2 = e.location.address_line_2;
+    }
+    if (props.isProvider && e.coverage_area && typeof e.coverage_area === 'object') {
+        const cov = e.coverage_area;
+        if (cov.country && !formData.value.country) {
+            formData.value.country = cov.country;
+        }
+        if (cov.state && !formData.value.state) {
+            formData.value.state = cov.state;
+        }
+    }
     if (e.language?.preferred) {
         formData.value.preferred_language = e.language.preferred;
     }
@@ -169,6 +196,101 @@ const mergeExistingOnboarding = () => {
 };
 
 mergeExistingOnboarding();
+
+const providerAddressMode = ref('autocomplete');
+const providerAutocompleteStatus = ref('');
+let providerAddressDebounce = null;
+const providerAddressStateOptions = ref([...(props.stateOptions || [])]);
+
+async function loadProviderAddressStates(countryCode) {
+    const code = countryCode || 'US';
+    try {
+        const response = await fetch(route('locations.states', { country: code }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`State lookup failed (${response.status})`);
+        }
+        const payload = await response.json();
+        providerAddressStateOptions.value = Array.isArray(payload.states) ? payload.states : [];
+    } catch {
+        providerAddressStateOptions.value = [];
+    }
+}
+
+function onProviderAddressCountryChange() {
+    formData.value.state = '';
+    void loadProviderAddressStates(formData.value.country);
+}
+
+async function applyParsedPlaceToProviderAddress(parsed) {
+    formData.value.address_line_1 = parsed.address_line_1;
+    if (parsed.address_line_2) {
+        formData.value.address_line_2 = parsed.address_line_2;
+    }
+    formData.value.city = parsed.city;
+    formData.value.postal_code = parsed.postal_code;
+    formData.value.country = parsed.country;
+    await loadProviderAddressStates(parsed.country);
+    formData.value.state = parsed.state;
+}
+
+async function runProviderAddressAutocomplete() {
+    const query = String(formData.value.address_line_1 || '').trim();
+    if (query.length < 3) {
+        providerAutocompleteStatus.value = '';
+        return;
+    }
+    try {
+        const response = await fetch(route('address-detail.autocomplete', { query }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Autocomplete failed (${response.status})`);
+        }
+        const payload = await response.json();
+        if (!payload?.ok || !payload?.data) {
+            providerAutocompleteStatus.value = '';
+            return;
+        }
+        const parsed = parsePlaceToAddressFields(payload.data);
+        await applyParsedPlaceToProviderAddress(parsed);
+        providerAutocompleteStatus.value = '';
+    } catch {
+        providerAutocompleteStatus.value = 'Unable to autocomplete this address right now.';
+    }
+}
+
+function onProviderAddressLineInput() {
+    if (providerAddressMode.value !== 'autocomplete') {
+        return;
+    }
+    if (providerAddressDebounce) {
+        clearTimeout(providerAddressDebounce);
+    }
+    providerAddressDebounce = setTimeout(() => {
+        void runProviderAddressAutocomplete();
+    }, 300);
+}
+
+watch(
+    currentStep,
+    async (step) => {
+        if (props.requiresPhoneVerification) {
+            return;
+        }
+        if (props.isProvider && step === 4) {
+            await loadProviderAddressStates(formData.value.country || 'US');
+        }
+    },
+    { immediate: true },
+);
 
 onMounted(() => {
     const reg = props.existingData?.registration?.service_type;
@@ -236,8 +358,8 @@ const goToProviderBusinessStep = () => {
     currentStep.value = 5;
 };
 
-const goToStepThree = () => {
-    currentStep.value = 3;
+const goToUserCongratulationsStep = () => {
+    currentStep.value = 5;
 };
 
 const addChildAge = () => {
@@ -273,8 +395,13 @@ const removePetType = (pet) => {
 };
 
 const goBack = () => {
-    if (!props.isProvider && currentStep.value === 3) {
-        currentStep.value = 2;
+    if (props.requiresPhoneVerification) {
+        router.visit(route('address-detail'));
+        return;
+    }
+
+    if (!props.isProvider && currentStep.value === 5) {
+        currentStep.value = 4;
         return;
     }
 
@@ -296,7 +423,7 @@ const goBack = () => {
         return;
     }
 
-    router.visit(route('address-detail.otp'));
+    router.visit(route('address-detail'));
 };
 
 const selectedPlan = computed(() => (props.subscriptionPlans || []).find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null);
@@ -357,7 +484,7 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="Onboarding" />
+    <Head :title="pageTitle" />
 
     <GuestLayout>
         <template #title>{{ onboardingHeading }}</template>
@@ -366,7 +493,22 @@ onMounted(() => {
             <AuthFlowProgress :current-step="currentStep" :total-steps="totalSteps" />
         </template>
         <template #side-image>
-            <div class="relative h-full w-full overflow-hidden">
+            <div v-if="requiresPhoneVerification" class="relative h-full w-full overflow-hidden">
+                <img
+                    src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80"
+                    alt="Phone verification"
+                    class="h-full w-full object-cover"
+                />
+                <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div class="pointer-events-none absolute bottom-0 left-0 right-0 p-6 text-white">
+                    <p class="mb-2 inline-flex rounded-full bg-sky-500/70 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
+                        Secure sign-up
+                    </p>
+                    <h3 class="text-2xl font-bold leading-tight">Verify your mobile number</h3>
+                    <p class="mt-2 text-sm text-white/90">We will text you a code to protect your account.</p>
+                </div>
+            </div>
+            <div v-else class="relative h-full w-full overflow-hidden">
                 <img
                     src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1400&q=80"
                     alt="Onboarding support"
@@ -386,16 +528,136 @@ onMounted(() => {
         </template>
 
         <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
-            <div v-if="isUserStepTwo || isProviderLocationStep" class="space-y-5">
+            <OnboardingPhoneVerification
+                v-if="requiresPhoneVerification && phoneVerification"
+                :phone="phoneVerification.phone"
+                :phone-dial-options="phoneVerification.phoneDialOptions"
+            />
+            <template v-else>
+            <div v-if="isUserPreferencesStep || isProviderLocationStep" class="space-y-5">
                 <Select
-                    v-if="isUserStepTwo"
+                    v-if="isUserPreferencesStep"
                     v-model="userServiceType"
                     :options="userServiceTypeOptions"
                     label="Select service type"
                     placeholder="Choose a service now or later"
                     size="auth"
                 />
+
+                <div v-if="isProviderLocationStep" class="space-y-5">
+                    <p class="text-sm text-neutral-600">
+                        Enter your business street address. Search with Google Places or fill the fields manually.
+                    </p>
+                    <fieldset class="space-y-2">
+                        <legend class="mb-2 text-sm font-medium text-slate-700">How would you like to enter your street address?</legend>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                                <input
+                                    v-model="providerAddressMode"
+                                    type="radio"
+                                    value="autocomplete"
+                                    class="h-4 w-4 border-neutral-300 text-primary-600"
+                                />
+                                Search
+                            </label>
+                            <label class="flex cursor-pointer items-center gap-2 text-sm text-neutral-800">
+                                <input
+                                    v-model="providerAddressMode"
+                                    type="radio"
+                                    value="manual"
+                                    class="h-4 w-4 border-neutral-300 text-primary-600"
+                                />
+                                Manual entry
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <div v-if="providerAddressMode === 'autocomplete'">
+                        <label for="provider-street-autocomplete" class="mb-3 block text-sm font-medium text-slate-700">
+                            Street address search
+                        </label>
+                        <input
+                            id="provider-street-autocomplete"
+                            v-model="formData.address_line_1"
+                            type="text"
+                            autocomplete="street-address"
+                            placeholder="Start typing your address"
+                            class="w-full rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                            @input="onProviderAddressLineInput"
+                            @change="onProviderAddressLineInput"
+                        >
+                        <p v-if="providerAutocompleteStatus" class="mt-2 text-sm text-slate-500">{{ providerAutocompleteStatus }}</p>
+                        <p class="mt-2 text-xs text-slate-500">
+                            We will fill city, state, ZIP, and country from the best matching place. You can edit them below.
+                        </p>
+                    </div>
+
+                    <template v-else>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <Input
+                                v-model="formData.address_line_1"
+                                label="Address line 1"
+                                placeholder="Street address, P.O. box"
+                                size="compact"
+                                required
+                            />
+                            <Input
+                                v-model="formData.address_line_2"
+                                label="Address line 2 (optional)"
+                                placeholder="Apt, suite, unit, building"
+                                size="compact"
+                            />
+                        </div>
+                    </template>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <Input
+                            v-model="formData.city"
+                            label="City"
+                            placeholder="City"
+                            size="compact"
+                            required
+                        />
+                        <Select
+                            v-if="providerAddressStateOptions.length > 0"
+                            v-model="formData.state"
+                            :options="providerAddressStateOptions"
+                            label="State"
+                            placeholder="Select state"
+                            size="auth"
+                            required
+                        />
+                        <Input
+                            v-else
+                            v-model="formData.state"
+                            label="State / region"
+                            placeholder="State or region"
+                            size="compact"
+                            required
+                        />
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <Input
+                            v-model="formData.postal_code"
+                            label="ZIP / postal code"
+                            placeholder="Postal code"
+                            size="compact"
+                            required
+                        />
+                        <Select
+                            v-model="formData.country"
+                            :options="countryOptions"
+                            label="Country"
+                            placeholder="Select country"
+                            size="auth"
+                            required
+                            @update:model-value="onProviderAddressCountryChange"
+                        />
+                    </div>
+                </div>
+
                 <LocationCountryStatePick
+                    v-if="isUserPreferencesStep"
                     v-model:country="formData.country"
                     v-model:state="formData.state"
                     v-model:city="formData.city"
@@ -406,7 +668,7 @@ onMounted(() => {
                     :initial-state-options="stateOptions"
                 />
 
-                <template v-if="isUserStepTwo">
+                <template v-if="isUserPreferencesStep">
                 <Select
                     v-model="formData.preferred_language"
                     :options="languageOptions"
@@ -509,7 +771,7 @@ onMounted(() => {
                 </div>
                 </template>
             </div>
-            <div v-else-if="isUserStepThree" class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <div v-else-if="isUserCongratulationsStep" class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
                 <h2 class="text-base font-semibold text-emerald-800">Congratulations!</h2>
                 <p class="text-sm text-emerald-700">
                     Your preferences are saved. Click the button below to complete setup.
@@ -591,35 +853,6 @@ onMounted(() => {
                     />
                     <span class="text-sm text-neutral-700">Offer free initial consultations</span>
                 </label>
-                <div class="space-y-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Service Area</h2>
-                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <label class="flex cursor-pointer items-center gap-2">
-                            <input
-                                type="checkbox"
-                                v-model="formData['service-area'].in_person"
-                                class="h-4 w-4 rounded border-neutral-300 text-primary-600"
-                            />
-                            <span class="text-sm text-neutral-700">In-person services</span>
-                        </label>
-                        <label class="flex cursor-pointer items-center gap-2">
-                            <input
-                                type="checkbox"
-                                v-model="formData['service-area'].remote"
-                                class="h-4 w-4 rounded border-neutral-300 text-primary-600"
-                            />
-                            <span class="text-sm text-neutral-700">Remote / virtual services</span>
-                        </label>
-                    </div>
-                    <Input
-                        v-if="formData['service-area'].in_person"
-                        v-model="formData['service-area'].radius"
-                        type="number"
-                        label="Service radius (miles)"
-                        placeholder="25"
-                        size="compact"
-                    />
-                </div>
             </div>
             <div v-else-if="isProviderSubscriptionStep" class="space-y-6">
                 <div
@@ -840,7 +1073,7 @@ onMounted(() => {
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
-                <Button v-else-if="isUserStepTwo" variant="primary" size="lg" class="min-w-[11rem]" @click="goToStepThree">
+                <Button v-else-if="isUserPreferencesStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToUserCongratulationsStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
@@ -849,6 +1082,7 @@ onMounted(() => {
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
             </div>
+            </template>
         </div>
     </GuestLayout>
     </template>

@@ -8,6 +8,7 @@ import Button from '@/Components/ui/Button.vue';
 import Select from '@/Components/ui/Select.vue';
 import { UserIcon, BriefcaseIcon } from '@heroicons/vue/24/outline';
 import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
+import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER } from '@/constants/authFlowProgress';
 
 const props = defineProps({
     roles: {
@@ -49,7 +50,7 @@ const roleOptions = [
     },
 ];
 
-const totalSteps = computed(() => (form.role === 'user' ? 3 : 6));
+const totalSteps = computed(() => (form.role === 'user' ? SIGNUP_FLOW_STEPS_USER : SIGNUP_FLOW_STEPS_PROVIDER));
 
 const serviceTypeLabel = computed(() =>
     form.role === 'provider' ? 'Service you provide' : 'Service you need'

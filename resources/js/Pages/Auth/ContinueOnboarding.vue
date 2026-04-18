@@ -5,6 +5,7 @@ import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Button from '@/Components/ui/Button.vue';
 import Input from '@/Components/ui/Input.vue';
 import { ArrowRightIcon } from '@heroicons/vue/20/solid';
+import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER } from '@/constants/authFlowProgress';
 
 const props = defineProps({
     user: Object,
@@ -14,8 +15,13 @@ const props = defineProps({
     existingData: Object,
 });
 
+const progressTotal = computed(() => (props.isProvider ? SIGNUP_FLOW_STEPS_PROVIDER : SIGNUP_FLOW_STEPS_USER));
+const progressCurrent = computed(() => progressTotal.value);
+
 const onboardingHeading = computed(() =>
-    props.isProvider ? 'Step 5/5 - Review and finish profile' : 'Step 5/5 - Review and finish account'
+    props.isProvider
+        ? `Step ${SIGNUP_FLOW_STEPS_PROVIDER}/${SIGNUP_FLOW_STEPS_PROVIDER} - Review and finish profile`
+        : `Step ${SIGNUP_FLOW_STEPS_USER}/${SIGNUP_FLOW_STEPS_USER} - Review and finish account`,
 );
 const onboardingDescription = computed(() =>
     props.isProvider
@@ -125,7 +131,7 @@ const pricingModels = [
                     IK
                 </div>
                 <div class="mb-4">
-                    <AuthFlowProgress :current-step="5" :total-steps="5" />
+                    <AuthFlowProgress :current-step="progressCurrent" :total-steps="progressTotal" />
                 </div>
                 <h1 class="text-xl font-semibold text-neutral-900">
                     {{ onboardingHeading }}

@@ -9,24 +9,24 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsurePhoneVerified
 {
     /**
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        if (! $user || $user->phone_verified_at || $user->isAdmin() || ! $user->followsProviderOnboarding()) {
+        if (! $user || $user->hasCompletedSignupPhoneStep() || $user->isAdmin() || $user->isAffiliate()) {
             return $next($request);
         }
 
-        if (! $user->isProvider()) {
-            $user->assignRole('provider');
-        }
-
-        if ($request->routeIs('address-detail', 'address-detail.*', 'logout')) {
+        if ($request->routeIs('address-detail', 'address-detail.*', 'logout', 'onboarding.index')) {
             return $next($request);
         }
 
-        return redirect()->route('address-detail');
+        if (! $user->hasCompletedSignupAddressStep()) {
+            return redirect()->route('address-detail');
+        }
+
+        return redirect()->route('onboarding.index', ['step' => 3]);
     }
 }

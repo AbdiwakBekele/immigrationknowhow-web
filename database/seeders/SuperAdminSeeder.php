@@ -14,7 +14,7 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::updateOrCreate(
+        $user = User::firstOrCreate(
             ['email' => env('SUPER_ADMIN_EMAIL', 'admin@example.com')],
             [
                 'first_name' => env('SUPER_ADMIN_FIRST_NAME', 'Super'),
@@ -27,7 +27,7 @@ class SuperAdminSeeder extends Seeder
             ]
         );
 
-        // Keep this account aligned with the highest-privilege role.
+        // Keep this account aligned with the highest-privilege role (idempotent: no duplicate users).
         $user->syncRoles([UserRole::SUPER_ADMIN->value]);
     }
 }

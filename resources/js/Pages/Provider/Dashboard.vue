@@ -220,48 +220,47 @@ const deleteConversation = (conversationUuid) => {
             </div>
 
             <section class="admin-hero-card">
-                <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Provider overview</p>
-                        <h1 class="mt-2 admin-title">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Provider overview</p>
+                    <div class="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h1 class="admin-title min-w-0">
                             Welcome back, {{ user.first_name }}
                         </h1>
-                        <p class="admin-subtitle">
-                            Track leads, profile visibility, reviews, and conversion performance in one place.
-                        </p>
+                        <Link
+                            :href="route('provider.profile.index')"
+                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:justify-start"
+                        >
+                            <EyeIcon class="h-5 w-5" />
+                            View Profile
+                        </Link>
                     </div>
-
-                    <div class="flex flex-wrap items-center gap-3 md:ml-auto md:justify-end lg:flex-nowrap">
-                    <Link
-                        :href="route('provider.subscriptions.index')"
-                        class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-                    >
-                        <CurrencyDollarIcon class="h-5 w-5" />
-                        Subscriptions
-                    </Link>
-                    <Link
-                        :href="route('provider.background-check.index')"
-                        :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium', verificationStatus.color]"
-                    >
-                        <component :is="verificationStatus.icon" class="h-5 w-5" />
-                        {{ verificationStatus.text }}
-                    </Link>
-                    <Link
-                        v-if="canStartBackgroundCheck"
-                        :href="route('provider.background-check.index')"
-                        class="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
-                    >
-                        <CheckBadgeIcon class="h-5 w-5" />
-                        Start Background Check
-                    </Link>
-                    <Link
-                        :href="route('provider.profile.index')"
-                        class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                    >
-                        <EyeIcon class="h-5 w-5" />
-                        View Profile
-                    </Link>
-                </div>
+                    <p class="admin-subtitle mt-3">
+                        Track leads, profile visibility, reviews, and conversion performance in one place.
+                    </p>
+                    <div class="mt-4 flex flex-wrap justify-end gap-3 sm:mt-3">
+                        <Link
+                            :href="route('provider.subscriptions.index')"
+                            class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                            <CurrencyDollarIcon class="h-5 w-5" />
+                            Subscriptions
+                        </Link>
+                        <Link
+                            :href="route('provider.background-check.index')"
+                            :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium', verificationStatus.color]"
+                        >
+                            <component :is="verificationStatus.icon" class="h-5 w-5" />
+                            {{ verificationStatus.text }}
+                        </Link>
+                        <Link
+                            v-if="canStartBackgroundCheck"
+                            :href="route('provider.background-check.index')"
+                            class="inline-flex items-center gap-2 rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-700"
+                        >
+                            <CheckBadgeIcon class="h-5 w-5" />
+                            Start Background Check
+                        </Link>
+                    </div>
                 </div>
             </section>
 

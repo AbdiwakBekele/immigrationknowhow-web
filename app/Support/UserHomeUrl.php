@@ -19,8 +19,10 @@ final class UserHomeUrl
             return route('affiliate.dashboard');
         }
 
-        if ($user->isProvider() && ! $user->phone_verified_at && ! $user->isAdmin()) {
-            return route('address-detail');
+        if (! $user->isAffiliate() && ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin()) {
+            return $user->hasCompletedSignupAddressStep()
+                ? route('onboarding.index', ['step' => 3])
+                : route('address-detail');
         }
 
         if (! $user->hasCompletedOnboarding()) {

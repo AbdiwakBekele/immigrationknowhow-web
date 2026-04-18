@@ -13,6 +13,8 @@ const locationLabel = defineModel('locationLabel', { default: '' });
 const props = defineProps({
     countryOptions: { type: Array, required: true },
     initialStateOptions: { type: Array, default: () => [] },
+    /** Only country + state (e.g. provider coverage area). City/ZIP UI is hidden. */
+    countryStateOnly: { type: Boolean, default: false },
 });
 
 const stateOptions = ref(props.initialStateOptions || []);
@@ -197,7 +199,7 @@ watch(
             />
         </div>
 
-        <div v-if="country === 'US'" class="space-y-3">
+        <div v-if="!countryStateOnly && country === 'US'" class="space-y-3">
             <label class="mb-3 block text-base font-medium text-slate-700">
                 City, ZIP, or county
                 <span class="ml-0.5 text-red-500">*</span>
@@ -254,7 +256,7 @@ watch(
         </div>
 
         <Input
-            v-else
+            v-else-if="!countryStateOnly"
             v-model="city"
             label="City / location"
             placeholder="Enter city or location"
