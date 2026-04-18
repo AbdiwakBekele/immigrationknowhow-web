@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Message;
 use App\Models\PlatformSetting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
@@ -85,23 +86,31 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
                 'otp_sent' => fn () => $request->session()->get('otp_sent'),
             ],
-            'impersonation' => function () use ($request) {
-                $payload = $request->session()->get('impersonating');
-                if (! $payload) {
-                    return ['active' => false];
+            'impersonation' => static function () use ($request) {
+                $impersonatorId = $request->session()->get('impersonating');
+
+                if (! $impersonatorId || ! $request->user()) {
+                    return null;
                 }
 
-                $id = is_array($payload) ? ($payload['id'] ?? null) : $payload;
-                $name = is_array($payload) ? ($payload['name'] ?? null) : null;
+                if ((int) $request->user()->id === (int) $impersonatorId) {
+                    return null;
+                }
 
-                if (! $id) {
-                    return ['active' => false];
+                $impersonator = User::query()
+                    ->select(['id', 'first_name', 'last_name', 'email'])
+                    ->find($impersonatorId);
+
+                if (! $impersonator) {
+                    return null;
                 }
 
                 return [
-                    'active' => true,
-                    'original_admin_id' => (int) $id,
-                    'original_admin_name' => $name,
+                    'original_user_id' => $impersonator->id,
+                    'original_full_name' => $impersonator->full_name,
+                    'original_email' => $impersonator->email,
+                    'viewing_as_full_name' => $request->user()->full_name,
+                    'viewing_as_email' => $request->user()->email,
                 ];
             },
         ];

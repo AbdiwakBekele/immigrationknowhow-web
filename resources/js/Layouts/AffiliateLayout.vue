@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
-import ImpersonationBanner from '@/Components/layout/ImpersonationBanner.vue';
+import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 import {
     ArrowRightOnRectangleIcon,
     BanknotesIcon,
@@ -107,6 +107,7 @@ const logout = () => router.post('/logout');
             </header>
 
             <main class="p-4 sm:p-6 lg:p-8">
+                <ImpersonationBanner />
                 <slot />
             </main>
         </div>

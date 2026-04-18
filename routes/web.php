@@ -90,9 +90,9 @@ Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
 
-Route::post('/impersonate/stop', [Admin\UserController::class, 'stopImpersonating'])
+Route::post('/impersonation/leave', [Admin\UserController::class, 'stopImpersonating'])
     ->middleware('auth')
-    ->name('impersonate.stop');
+    ->name('impersonation.leave');
 
 Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->prefix('affiliate')->name('affiliate.')->group(function () {
     Route::get('/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');

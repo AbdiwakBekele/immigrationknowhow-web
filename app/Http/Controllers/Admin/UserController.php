@@ -6,10 +6,13 @@ use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\UserHomeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -276,52 +279,84 @@ class UserController extends Controller
             ->with('success', 'User deleted successfully.');
     }
 
-    public function impersonate(User $user): RedirectResponse
+    public function impersonate(Request $request, User $user): RedirectResponse
     {
         $actor = auth()->user();
 
-        if (! $actor->isAdmin()) {
+        if (! $actor?->isAdmin()) {
             abort(403);
         }
 
         if (session()->has('impersonating')) {
-            return back()->withErrors(['error' => 'You are already viewing as another user. Exit impersonation first.']);
+            return back()->withErrors(['error' => 'You are already viewing the site as another user.']);
         }
 
         if ($user->id === $actor->id) {
             return back()->withErrors(['error' => 'You cannot impersonate yourself.']);
         }
 
-        if ($user->isSuperAdmin() && ! $actor->isSuperAdmin()) {
-            return back()->withErrors(['error' => 'Only a super admin can switch into a super admin account.']);
+        if (! $actor->isSuperAdmin() && $user->isAdmin()) {
+            return back()->withErrors(['error' => 'Only a super administrator can impersonate another administrator.']);
         }
 
-        session()->put('impersonating', [
-            'id' => $actor->id,
-            'name' => $actor->full_name,
-        ]);
-        auth()->login($user);
+        if (! $user->is_active) {
+            return back()->withErrors(['error' => 'You cannot impersonate an inactive user.']);
+        }
 
-        return redirect()->to($user->defaultAuthenticatedHomeUrl())
-            ->with('info', "You are now viewing the site as {$user->full_name}.");
+        $targetUser = User::query()
+            ->whereKey($user->getKey())
+            ->with('roles')
+            ->firstOrFail();
+
+        $actorId = $actor->id;
+
+        Auth::guard('web')->logout();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        $request->session()->put('impersonating', $actorId);
+        Auth::guard('web')->login($targetUser);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->regenerate();
+
+        return redirect()->to(UserHomeUrl::afterAuthentication($targetUser))
+            ->with('info', "You are now viewing the site as {$targetUser->full_name}.");
     }
 
-    public function stopImpersonating(): RedirectResponse
+    public function stopImpersonating(Request $request): RedirectResponse
     {
-        $payload = session()->pull('impersonating');
-        $originalUserId = is_array($payload) ? ($payload['id'] ?? null) : $payload;
+        $originalUserId = session()->pull('impersonating');
 
-        if ($originalUserId) {
-            $original = User::find($originalUserId);
-            if ($original) {
-                auth()->login($original);
-
-                return redirect()->route('admin.dashboard')
-                    ->with('success', 'You are signed back in as your admin account.');
-            }
+        if (! $originalUserId) {
+            return redirect()->route('dashboard');
         }
 
-        return redirect()->route('login')
-            ->with('warning', 'Your admin session could not be restored. Please sign in again.');
+        $original = User::query()
+            ->whereKey($originalUserId)
+            ->with('roles')
+            ->first();
+
+        if (! $original) {
+            Auth::guard('web')->logout();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->with('warning', 'Your administrator session could not be restored. Please sign in again.');
+        }
+
+        Auth::guard('web')->logout();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        Auth::guard('web')->login($original);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $request->session()->regenerate();
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'You are back in your administrator account.');
     }
 }

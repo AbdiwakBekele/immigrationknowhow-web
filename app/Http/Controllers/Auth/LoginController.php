@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\UserHomeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,7 +58,7 @@ class LoginController extends Controller
      */
     protected function homeUrlForUser(User $user): string
     {
-        return $user->defaultAuthenticatedHomeUrl();
+        return UserHomeUrl::afterAuthentication($user);
     }
 
     protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse
