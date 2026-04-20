@@ -54,6 +54,26 @@ class AdminUserImpersonationTest extends TestCase
         $this->assertTrue(session()->has('impersonating'));
     }
 
+    public function test_admin_impersonating_incomplete_service_needer_lands_on_step_two(): void
+    {
+        $admin = $this->makeUser(['email' => 'admin-step2@example.com']);
+        $admin->assignRole(UserRole::ADMIN->value);
+        $target = $this->makeUser([
+            'email' => 'incomplete-user@example.com',
+            'onboarding_completed' => false,
+            'phone_verified_at' => null,
+            'city' => null,
+            'state' => null,
+            'country' => null,
+            'postal_code' => null,
+        ]);
+        $target->assignRole(UserRole::USER->value);
+
+        $response = $this->actingAs($admin)->post(route('admin.users.impersonate', $target));
+
+        $response->assertRedirect(route('onboarding.index', ['step' => 2]));
+    }
+
     public function test_regular_admin_cannot_impersonate_super_admin(): void
     {
         $admin = $this->makeUser();
@@ -90,9 +110,9 @@ class AdminUserImpersonationTest extends TestCase
         $this->actingAs($admin)->post(route('admin.users.impersonate', $target));
         $this->assertSame($target->id, auth()->id());
 
-        $response = $this->post(route('impersonate.stop'));
+        $response = $this->post(route('impersonation.leave'));
 
-        $response->assertRedirect(route('admin.dashboard'));
+        $response->assertRedirect(route('admin.users.index'));
         $this->assertSame($admin->id, auth()->id());
         $this->assertFalse(session()->has('impersonating'));
     }

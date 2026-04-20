@@ -6,6 +6,8 @@ use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\EmailTemplate;
+use App\Notifications\RoleAwareTransactionalEmailNotification;
 use App\Support\ImpersonationActorId;
 use App\Support\UserHomeUrl;
 use Illuminate\Http\JsonResponse;
@@ -196,6 +198,11 @@ class UserController extends Controller
         ]);
 
         $user->assignRole($validated['role']);
+        $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_INVITE, $user, [
+            'role' => $validated['role'],
+            'dashboard_link' => route('login'),
+            'activation_link' => route('login'),
+        ]));
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User created successfully.');
@@ -321,7 +328,7 @@ class UserController extends Controller
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $request->session()->regenerate();
 
-        return redirect()->to(UserHomeUrl::afterAuthentication($targetUser))
+        return redirect()->to(UserHomeUrl::afterAuthentication($targetUser, isImpersonating: true))
             ->with('info', "You are now viewing the site as {$targetUser->full_name}.");
     }
 

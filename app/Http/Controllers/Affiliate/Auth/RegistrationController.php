@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Affiliate\Auth;
 use App\Actions\Affiliates\RegisterAffiliateAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Affiliates\StoreAffiliateRegistrationRequest;
+use App\Models\EmailTemplate;
+use App\Notifications\RoleAwareTransactionalEmailNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -24,6 +26,10 @@ class RegistrationController extends Controller
     public function store(StoreAffiliateRegistrationRequest $request): RedirectResponse
     {
         $user = $this->registerAffiliate->handle($request->validated());
+        $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
+            'role' => 'affiliate',
+            'dashboard_link' => route('affiliate.profile.edit'),
+        ]));
         $user->sendEmailVerificationNotification();
 
         Auth::login($user);

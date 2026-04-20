@@ -37,6 +37,10 @@ class AddressDetailsController extends Controller
             return $this->redirectToNextStep($user);
         }
 
+        if (! $user->followsProviderOnboarding()) {
+            return redirect()->route('onboarding.index', ['step' => 2]);
+        }
+
         if (! $user->isAdmin() && ! $user->isAffiliate() && $user->hasCompletedSignupAddressStep()) {
             return redirect()->route('onboarding.index', ['step' => 3]);
         }

@@ -32,16 +32,20 @@ const props = defineProps({
 
 const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
 
-const currentStep = ref(props.requiresPhoneVerification ? 3 : (props.initialStep ?? 4));
+const currentStep = ref(props.initialStep ?? (props.requiresPhoneVerification ? 3 : 4));
 
-const pageTitle = computed(() => (props.requiresPhoneVerification ? 'Phone verification' : 'Onboarding'));
+const pageTitle = computed(() => (
+    props.requiresPhoneVerification && currentStep.value === 3
+        ? 'Phone verification'
+        : 'Onboarding'
+));
 const totalSteps = computed(() => (props.isProvider ? SIGNUP_FLOW_STEPS_PROVIDER : SIGNUP_FLOW_STEPS_USER));
 const isProviderLocationStep = computed(() => props.isProvider && currentStep.value === 4);
 const isProviderBusinessStep = computed(() => props.isProvider && currentStep.value === 5);
 const isProviderPricingStep = computed(() => props.isProvider && currentStep.value === 6);
 const isProviderSubscriptionStep = computed(() => props.isProvider && currentStep.value === 7);
-const isUserPreferencesStep = computed(() => !props.isProvider && currentStep.value === 4);
-const isUserCongratulationsStep = computed(() => !props.isProvider && currentStep.value === 5);
+const isUserAddressStep = computed(() => !props.isProvider && currentStep.value === 2);
+const isUserCongratulationsStep = computed(() => !props.isProvider && currentStep.value === 4);
 const hasSubscriptionPlans = computed(() => (props.subscriptionPlans || []).length > 0);
 const selectedBillingCycle = ref('monthly');
 const userServiceTypeOptions = computed(() => [
@@ -55,7 +59,7 @@ const hasCheckoutReadyPlans = computed(() =>
 );
 
 const onboardingHeading = computed(() => {
-    if (props.requiresPhoneVerification) {
+    if (props.requiresPhoneVerification && currentStep.value === 3) {
         return 'Phone verification';
     }
     if (isProviderLocationStep.value) {
@@ -69,6 +73,12 @@ const onboardingHeading = computed(() => {
     }
     if (isProviderSubscriptionStep.value) {
         return 'Choose your subscription';
+    }
+    if (isUserAddressStep.value) {
+        return 'Address details';
+    }
+    if (props.requiresPhoneVerification && currentStep.value === 3) {
+        return 'Phone verification';
     }
     if (isUserCongratulationsStep.value) {
         return 'Congratulations';
@@ -311,6 +321,8 @@ onMounted(() => {
 const saving = ref(false);
 const childAgeInput = ref('');
 const petTypeInput = ref('');
+const userAddressError = ref('');
+const submittingUserAddress = ref(false);
 
 const completeOnboarding = async () => {
     saving.value = true;
@@ -328,6 +340,70 @@ const completeOnboarding = async () => {
     router.post(route('onboarding.complete'), payload, {
         onFinish: () => {
             saving.value = false;
+        },
+    });
+};
+
+const submitUserAddressStep = () => {
+    console.log('[FLOW_DEBUG] Step 2 Continue clicked', {
+        currentStep: currentStep.value,
+        isProvider: props.isProvider,
+        requiresPhoneVerification: props.requiresPhoneVerification,
+        city: formData.value.city,
+        state: formData.value.state,
+        country: formData.value.country,
+        postal_code: formData.value.postal_code,
+    });
+
+    userAddressError.value = '';
+
+    if (!formData.value.city || !formData.value.state || !formData.value.country) {
+        userAddressError.value = 'Please complete city, state, and country to continue.';
+        console.log('[FLOW_DEBUG] Step 2 blocked by validation', {
+            reason: 'missing city/state/country',
+        });
+        return;
+    }
+
+    if (String(formData.value.country).toUpperCase() === 'US' && !formData.value.postal_code) {
+        userAddressError.value = 'Please add a ZIP code to continue.';
+        console.log('[FLOW_DEBUG] Step 2 blocked by validation', {
+            reason: 'missing US postal code',
+        });
+        return;
+    }
+
+    router.post(route('address-detail.send'), {
+        address: formData.value.address_line_1,
+        city: formData.value.city,
+        state: formData.value.state,
+        country: formData.value.country,
+        postal_code: formData.value.postal_code,
+        county: formData.value.county,
+        location_label: formData.value.location_label,
+        preferred_language: formData.value.preferred_language,
+    }, {
+        preserveState: false,
+        onStart: () => {
+            submittingUserAddress.value = true;
+            console.log('[FLOW_DEBUG] Step 2 request started', {
+                endpoint: route('address-detail.send'),
+            });
+        },
+        onSuccess: () => {
+            userAddressError.value = '';
+            currentStep.value = 3;
+            console.log('[FLOW_DEBUG] Step 2 request success -> moving to Step 3');
+        },
+        onError: (errors) => {
+            userAddressError.value = 'Please review your address details and try again.';
+            console.log('[FLOW_DEBUG] Step 2 request error', errors);
+        },
+        onFinish: () => {
+            submittingUserAddress.value = false;
+            console.log('[FLOW_DEBUG] Step 2 request finished', {
+                currentStep: currentStep.value,
+            });
         },
     });
 };
@@ -355,10 +431,6 @@ const goToProviderSubscriptionStep = () => {
 };
 
 const goToProviderBusinessStep = () => {
-    currentStep.value = 5;
-};
-
-const goToUserCongratulationsStep = () => {
     currentStep.value = 5;
 };
 
@@ -395,13 +467,27 @@ const removePetType = (pet) => {
 };
 
 const goBack = () => {
-    if (props.requiresPhoneVerification) {
-        router.visit(route('address-detail'));
+    console.log('[FLOW_DEBUG] Back clicked', {
+        currentStep: currentStep.value,
+        isProvider: props.isProvider,
+        requiresPhoneVerification: props.requiresPhoneVerification,
+    });
+
+    if (props.requiresPhoneVerification && currentStep.value === 3) {
+        if (props.isProvider) {
+            router.visit(route('address-detail'));
+        } else {
+            currentStep.value = 2;
+        }
         return;
     }
 
-    if (!props.isProvider && currentStep.value === 5) {
-        currentStep.value = 4;
+    if (!props.isProvider && currentStep.value === 4) {
+        currentStep.value = props.requiresPhoneVerification ? 3 : 2;
+        return;
+    }
+    if (!props.isProvider && currentStep.value === 3) {
+        currentStep.value = 2;
         return;
     }
 
@@ -423,7 +509,12 @@ const goBack = () => {
         return;
     }
 
-    router.visit(route('address-detail'));
+    if (props.isProvider) {
+        router.visit(route('address-detail'));
+        return;
+    }
+
+    router.visit(route('onboarding.index', { step: 2 }));
 };
 
 const selectedPlan = computed(() => (props.subscriptionPlans || []).find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null);
@@ -493,7 +584,7 @@ onMounted(() => {
             <AuthFlowProgress :current-step="currentStep" :total-steps="totalSteps" />
         </template>
         <template #side-image>
-            <div v-if="requiresPhoneVerification" class="relative h-full w-full overflow-hidden">
+            <div v-if="requiresPhoneVerification && currentStep === 3" class="relative h-full w-full overflow-hidden">
                 <img
                     src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80"
                     alt="Phone verification"
@@ -529,14 +620,15 @@ onMounted(() => {
 
         <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
             <OnboardingPhoneVerification
-                v-if="requiresPhoneVerification && phoneVerification"
+                v-if="requiresPhoneVerification && phoneVerification && currentStep === 3"
                 :phone="phoneVerification.phone"
                 :phone-dial-options="phoneVerification.phoneDialOptions"
+                :is-provider="isProvider"
             />
             <template v-else>
-            <div v-if="isUserPreferencesStep || isProviderLocationStep" class="space-y-5">
+            <div v-if="isUserAddressStep || isProviderLocationStep" class="space-y-5">
                 <Select
-                    v-if="isUserPreferencesStep"
+                    v-if="isUserAddressStep"
                     v-model="userServiceType"
                     :options="userServiceTypeOptions"
                     label="Select service type"
@@ -657,7 +749,7 @@ onMounted(() => {
                 </div>
 
                 <LocationCountryStatePick
-                    v-if="isUserPreferencesStep"
+                    v-if="isUserAddressStep"
                     v-model:country="formData.country"
                     v-model:state="formData.state"
                     v-model:city="formData.city"
@@ -668,7 +760,7 @@ onMounted(() => {
                     :initial-state-options="stateOptions"
                 />
 
-                <template v-if="isUserPreferencesStep">
+                <template v-if="isUserAddressStep">
                 <Select
                     v-model="formData.preferred_language"
                     :options="languageOptions"
@@ -677,104 +769,14 @@ onMounted(() => {
                     size="auth"
                     required
                 />
+                <p v-if="userAddressError" class="text-sm font-medium text-red-600">{{ userAddressError }}</p>
 
-                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-white bg-white p-4 shadow-sm">
-                            <input
-                                v-model="formData.profile.has_children"
-                                type="checkbox"
-                                class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            >
-                            <span>
-                                <span class="block text-sm font-semibold text-slate-900">I have children</span>
-                                <span class="mt-1 block text-xs leading-5 text-slate-500">Ages help us match family support like tutoring or child care.</span>
-                            </span>
-                        </label>
-
-                        <label class="flex cursor-pointer items-start gap-3 rounded-2xl border border-white bg-white p-4 shadow-sm">
-                            <input
-                                v-model="formData.profile.has_pets"
-                                type="checkbox"
-                                class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            >
-                            <span>
-                                <span class="block text-sm font-semibold text-slate-900">I have pets</span>
-                                <span class="mt-1 block text-xs leading-5 text-slate-500">Pets help us recommend providers like pet sitters and pet care.</span>
-                            </span>
-                        </label>
-                    </div>
-
-                    <div v-if="formData.profile.has_children" class="mt-4">
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Children ages</label>
-                        <div class="flex gap-2">
-                            <input
-                                v-model="childAgeInput"
-                                type="number"
-                                min="0"
-                                max="25"
-                                class="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                                placeholder="Add age"
-                                @keydown.enter.prevent="addChildAge"
-                            >
-                            <button
-                                type="button"
-                                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                                @click="addChildAge"
-                            >
-                                Add
-                            </button>
-                        </div>
-                        <div v-if="formData.profile.children_ages.length" class="mt-3 flex flex-wrap gap-2">
-                            <button
-                                v-for="age in formData.profile.children_ages"
-                                :key="`child-age-${age}`"
-                                type="button"
-                                class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"
-                                @click="removeChildAge(age)"
-                            >
-                                Age {{ age }} x
-                            </button>
-                        </div>
-                    </div>
-
-                    <div v-if="formData.profile.has_pets" class="mt-4">
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Pet types</label>
-                        <div class="flex gap-2">
-                            <input
-                                v-model="petTypeInput"
-                                type="text"
-                                class="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-                                placeholder="Dog, cat, bird..."
-                                @keydown.enter.prevent="addPetType"
-                            >
-                            <button
-                                type="button"
-                                class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
-                                @click="addPetType"
-                            >
-                                Add
-                            </button>
-                        </div>
-                        <div v-if="formData.profile.pet_types.length" class="mt-3 flex flex-wrap gap-2">
-                            <button
-                                v-for="pet in formData.profile.pet_types"
-                                :key="`pet-${pet}`"
-                                type="button"
-                                class="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
-                                @click="removePetType(pet)"
-                            >
-                                {{ pet }} x
-                            </button>
-                        </div>
-                    </div>
-                </div>
                 </template>
             </div>
             <div v-else-if="isUserCongratulationsStep" class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
                 <h2 class="text-base font-semibold text-emerald-800">Congratulations!</h2>
                 <p class="text-sm text-emerald-700">
-                    Your preferences are saved. Click the button below to complete setup.
+                    Your profile is ready. Click the button below to complete setup.
                 </p>
             </div>
 
@@ -1065,15 +1067,15 @@ onMounted(() => {
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
+                <Button v-else-if="isUserAddressStep" variant="primary" size="lg" class="min-w-[11rem]" :loading="submittingUserAddress" :disabled="submittingUserAddress" @click="submitUserAddressStep">
+                    Continue
+                    <ArrowRightIcon class="h-4 w-4" />
+                </Button>
                 <Button v-else-if="isProviderBusinessStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToProviderPricingStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
                 <Button v-else-if="isProviderPricingStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToProviderSubscriptionStep">
-                    Continue
-                    <ArrowRightIcon class="h-4 w-4" />
-                </Button>
-                <Button v-else-if="isUserPreferencesStep" variant="primary" size="lg" class="min-w-[11rem]" @click="goToUserCongratulationsStep">
                     Continue
                     <ArrowRightIcon class="h-4 w-4" />
                 </Button>
