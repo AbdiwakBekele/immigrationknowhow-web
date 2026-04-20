@@ -34,4 +34,8 @@ return [
             ? trim((string) $w)
             : '',
     ],
+
+    'inbound_email' => [
+        'webhook_secret' => env('INBOUND_EMAIL_WEBHOOK_SECRET', ''),
+    ],
 ];

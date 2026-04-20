@@ -14,6 +14,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    isProvider: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const otpForm = useForm({
@@ -228,7 +232,12 @@ const goBack = () => {
         return;
     }
 
-    router.visit(route('address-detail'));
+    if (props.isProvider) {
+        router.visit(route('address-detail'));
+        return;
+    }
+
+    router.visit(route('onboarding.index', { step: 2 }));
 };
 </script>
 

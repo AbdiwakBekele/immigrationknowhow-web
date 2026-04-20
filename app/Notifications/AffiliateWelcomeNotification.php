@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\EmailTemplate;
+use App\Support\TransactionalEmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -18,11 +20,19 @@ class AffiliateWelcomeNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $dashboardLink = route('affiliate.dashboard');
+        $renderer = app(TransactionalEmailTemplateRenderer::class);
+        $payload = $renderer->render(EmailTemplate::EVENT_WELCOME, $notifiable, [
+            'role' => 'affiliate',
+            'dashboard_link' => $dashboardLink,
+            'activation_link' => $dashboardLink,
+        ]);
+
         return (new MailMessage)
-            ->subject('Welcome to the affiliate program')
+            ->subject($payload['subject'])
             ->greeting('Welcome '.$notifiable->first_name.'!')
-            ->line('Your affiliate account is now ready to use.')
-            ->action('Open affiliate dashboard', route('affiliate.dashboard'))
+            ->line($payload['body'])
+            ->action($payload['action_label'] ?: 'Open affiliate dashboard', $payload['action_url'] ?: $dashboardLink)
             ->line('Thanks for partnering with ImmigrationKnowHow.');
     }
 

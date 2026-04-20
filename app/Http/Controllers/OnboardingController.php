@@ -34,7 +34,8 @@ class OnboardingController extends Controller
         }
 
         $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
-        $requestedStep = (int) $request->integer('step', 4);
+        $isProvider = $user->followsProviderOnboarding();
+        $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index entry', [
             'user_id' => $user->id,
@@ -46,21 +47,22 @@ class OnboardingController extends Controller
             'is_provider_flow' => $user->followsProviderOnboarding(),
         ]);
 
-        if ($needsPhone && ! $user->hasCompletedSignupAddressStep()) {
+        if ($needsPhone && $isProvider && ! $user->hasCompletedSignupAddressStep()) {
             return redirect()->route('address-detail');
         }
 
-        $isProvider = $user->followsProviderOnboarding();
         if ($isProvider && ! $user->isProvider()) {
             $user->assignRole(UserRole::PROVIDER->value);
         }
 
-        if ($needsPhone) {
+        if ($needsPhone && ! $isProvider) {
+            $initialStep = max(2, min(3, $requestedStep));
+        } elseif ($needsPhone) {
             $initialStep = 3;
         } else {
             $initialStep = $isProvider
                 ? max(4, min(7, $requestedStep))
-                : max(4, min(5, $requestedStep));
+                : max(4, min(4, $requestedStep));
         }
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index resolved step', [

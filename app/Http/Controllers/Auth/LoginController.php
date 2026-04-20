@@ -71,10 +71,8 @@ class LoginController extends Controller
             return redirect()->intended(route('affiliate.dashboard'));
         }
 
-        if (! $user->isAffiliate() && ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin()) {
-            return $user->hasCompletedSignupAddressStep()
-                ? redirect()->route('onboarding.index', ['step' => 3])
-                : redirect()->route('address-detail');
+        if (! $user->isAffiliate() && ! $user->hasCompletedOnboarding()) {
+            return redirect()->route('onboarding.index');
         }
 
         if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate()) {
