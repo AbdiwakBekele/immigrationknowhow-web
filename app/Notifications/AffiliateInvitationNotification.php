@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\EmailTemplate;
 use App\Models\AffiliateInvite;
+use App\Support\TransactionalEmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -23,12 +25,22 @@ class AffiliateInvitationNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $inviteLink = route('affiliate.invites.show', ['token' => $this->token]);
+        $renderer = app(TransactionalEmailTemplateRenderer::class);
+        $payload = $renderer->render(EmailTemplate::EVENT_INVITE, null, [
+            'role' => 'affiliate',
+            'first_name' => $this->invite->name,
+            'full_name' => $this->invite->name,
+            'email' => $this->invite->email,
+            'invite_link' => $inviteLink,
+            'activation_link' => $inviteLink,
+        ]);
+
         return (new MailMessage)
-            ->subject('You have been invited to join the affiliate program')
+            ->subject($payload['subject'])
             ->greeting('Hello '.$this->invite->name.'!')
-            ->line('You have been invited to join the ImmigrationKnowHow affiliate program.')
-            ->line('Complete your setup to verify your email, access your referral dashboard, and track earnings.')
-            ->action('Accept invitation', route('affiliate.invites.show', ['token' => $this->token]))
+            ->line($payload['body'])
+            ->action($payload['action_label'] ?: 'Accept invitation', $payload['action_url'] ?: $inviteLink)
             ->line('This invitation link expires in 7 days.');
     }
 }

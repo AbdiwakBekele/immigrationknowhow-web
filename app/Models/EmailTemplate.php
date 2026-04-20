@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class EmailTemplate extends Model
+{
+    use HasFactory;
+
+    public const EVENT_INVITE = 'invite';
+
+    public const EVENT_WELCOME = 'welcome';
+
+    public const EVENT_ACCOUNT_ACTIVATION = 'account_activation';
+
+    protected $fillable = [
+        'event_key',
+        'role',
+        'name',
+        'subject',
+        'body',
+        'action_label',
+        'action_url',
+        'is_active',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
+
+    public static function supportedEvents(): array
+    {
+        return [
+            self::EVENT_INVITE,
+            self::EVENT_WELCOME,
+            self::EVENT_ACCOUNT_ACTIVATION,
+        ];
+    }
+
+    public static function supportedRoles(): array
+    {
+        return array_merge([null], UserRole::values());
+    }
+}

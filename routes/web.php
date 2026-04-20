@@ -15,6 +15,7 @@ use App\Http\Controllers\Provider;
 use App\Http\Controllers\User;
 use App\Http\Controllers\VideoProductController;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
+use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
 use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Http\Request;
@@ -63,6 +64,7 @@ Route::get('/dv-lottery', fn () => redirect('https://dvprogram.state.gov/'))->na
 Route::prefix('webhooks')->name('webhooks.')->group(function () {
     Route::post('/checkr', CheckrWebhookController::class)->name('checkr');
     Route::post('/stripe', StripeLibraryWebhookController::class)->name('stripe');
+    Route::post('/email/inbound', InboundEmailWebhookController::class)->name('email.inbound');
 });
 
 /*
@@ -316,6 +318,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('index');
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/email-logs', [Admin\EmailLogController::class, 'index'])->name('email-logs.index');
         Route::post('/notifications/read-all', [Admin\NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [Admin\NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
@@ -391,6 +394,9 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::middleware('role:super_admin')->group(function () {
             Route::get('/settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
             Route::patch('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+            Route::get('/email-templates', [Admin\EmailTemplateController::class, 'index'])->name('email-templates.index');
+            Route::get('/email-templates/{emailTemplate}', [Admin\EmailTemplateController::class, 'show'])->name('email-templates.show');
+            Route::patch('/email-templates/{emailTemplate}', [Admin\EmailTemplateController::class, 'update'])->name('email-templates.update');
             Route::get('/subscription-plans', [Admin\SubscriptionPlanController::class, 'index'])->name('subscription-plans.index');
             Route::get('/subscription-plans/create', [Admin\SubscriptionPlanController::class, 'create'])->name('subscription-plans.create');
             Route::post('/subscription-plans', [Admin\SubscriptionPlanController::class, 'store'])->name('subscription-plans.store');

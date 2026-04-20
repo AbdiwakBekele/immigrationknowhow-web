@@ -43,5 +43,7 @@ return [
             ? trim((string) $m)
             : 'gpt-4o-mini',
         'summary_max_pdf_bytes' => (int) env('OPENAI_SUMMARY_MAX_PDF_BYTES', 5242880),
+    'inbound_email' => [
+        'webhook_secret' => env('INBOUND_EMAIL_WEBHOOK_SECRET', ''),
     ],
 ];

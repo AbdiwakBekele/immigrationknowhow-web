@@ -24,7 +24,11 @@ class EnsurePhoneVerified
         }
 
         if (! $user->hasCompletedSignupAddressStep()) {
-            return redirect()->route('address-detail');
+            if ($user->followsProviderOnboarding()) {
+                return redirect()->route('address-detail');
+            }
+
+            return redirect()->route('onboarding.index', ['step' => 2]);
         }
 
         return redirect()->route('onboarding.index', ['step' => 3]);

@@ -261,9 +261,13 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         if (! $this->isAffiliate() && ! $this->hasCompletedSignupPhoneStep() && ! $this->isAdmin()) {
-            return $this->hasCompletedSignupAddressStep()
-                ? route('onboarding.index', ['step' => 3])
-                : route('address-detail');
+            if ($this->followsProviderOnboarding()) {
+                return $this->hasCompletedSignupAddressStep()
+                    ? route('onboarding.index', ['step' => 3])
+                    : route('address-detail');
+            }
+
+            return route('onboarding.index', ['step' => 2]);
         }
 
         if (! $this->hasCompletedOnboarding()) {

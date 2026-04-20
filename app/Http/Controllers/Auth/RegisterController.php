@@ -8,6 +8,8 @@ use App\Enums\AffiliateCommissionTrigger;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\RoleAwareTransactionalEmailNotification;
+use App\Models\EmailTemplate;
 use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
 use Illuminate\Http\RedirectResponse;
@@ -83,6 +85,10 @@ class RegisterController extends Controller
 
         RoleHelper::ensureExists($effectiveRole);
         $user->assignRole($effectiveRole);
+        $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
+            'role' => $effectiveRole,
+            'dashboard_link' => route('dashboard'),
+        ]));
 
         $referral = $this->attachAffiliateReferral->handle($user, $request);
         if ($referral) {
@@ -98,7 +104,12 @@ class RegisterController extends Controller
 
         Auth::login($user);
 
-        // Everyone completes address (step 2) and phone / OTP (step 3) before onboarding.
+        // Service needers complete step 2 directly on onboarding.
+        if ($effectiveRole === UserRole::USER->value) {
+            return redirect()->route('onboarding.index', ['step' => 2]);
+        }
+
+        // Providers still complete coverage area before phone verification.
         return redirect()->route('address-detail');
     }
 }

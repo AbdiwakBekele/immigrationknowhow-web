@@ -191,7 +191,7 @@ class AffiliateProgramTest extends TestCase
             'role' => UserRole::USER->value,
         ]);
 
-        $response->assertRedirect(route('address-detail'));
+        $response->assertRedirect(route('onboarding.index', ['step' => 2]));
 
         $referredUser = User::where('email', 'referred@example.com')->firstOrFail();
         $referral = AffiliateReferral::where('referred_user_id', $referredUser->id)->firstOrFail();
