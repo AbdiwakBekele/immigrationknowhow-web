@@ -34,4 +34,14 @@ return [
             ? trim((string) $w)
             : '',
     ],
+
+    'openai' => [
+        'api_key' => ($k = env('OPENAI_API_KEY')) !== null && (string) $k !== ''
+            ? trim((string) $k)
+            : '',
+        'model' => ($m = env('OPENAI_MODEL')) !== null && (string) $m !== ''
+            ? trim((string) $m)
+            : 'gpt-4o-mini',
+        'summary_max_pdf_bytes' => (int) env('OPENAI_SUMMARY_MAX_PDF_BYTES', 5242880),
+    ],
 ];

@@ -100,6 +100,11 @@ class LibraryItem extends Model
         'view_count',
         'meta_title',
         'meta_description',
+        'ai_summary',
+        'ai_summary_generated_at',
+        'ai_summary_status',
+        'ai_summary_attempted_at',
+        'ai_summary_last_error',
     ];
 
     protected function casts(): array
@@ -118,6 +123,8 @@ class LibraryItem extends Model
             'page_count' => 'integer',
             'publication_year' => 'integer',
             'published_at' => 'date:Y-m-d',
+            'ai_summary_generated_at' => 'datetime',
+            'ai_summary_attempted_at' => 'datetime',
             'download_count' => 'integer',
             'view_count' => 'integer',
         ];

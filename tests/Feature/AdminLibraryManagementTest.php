@@ -61,9 +61,8 @@ class AdminLibraryManagementTest extends TestCase
             'is_featured' => false,
         ]);
 
-        $response->assertRedirect(route('admin.library.index'));
-
         $item = LibraryItem::where('title', 'Sleepwalking Uncovered A Comprehensive Guide for Families')->firstOrFail();
+        $response->assertRedirect(route('admin.library.show', $item->slug));
 
         $this->assertSame('John Smith', $item->publisher);
         $this->assertSame('2025-11-11', $item->published_at?->format('Y-m-d'));

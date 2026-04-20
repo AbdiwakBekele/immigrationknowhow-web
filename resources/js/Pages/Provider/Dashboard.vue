@@ -425,6 +425,13 @@ const deleteConversation = (conversationUuid) => {
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link
+                                :href="route('library.my')"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
+                            >
+                                <span>My library</span>
+                                <ArrowRightIcon class="w-4 h-4" />
+                            </Link>
+                            <Link
                                 :href="route('provider.profile.edit')"
                                 class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >

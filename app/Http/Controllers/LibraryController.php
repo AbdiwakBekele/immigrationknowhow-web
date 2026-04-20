@@ -230,6 +230,15 @@ class LibraryController extends Controller
                 ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe to enable card checkout. Run php artisan config:clear after changing .env.'
                 : ($manualPaymentsAvailable ? null : 'Online checkout is not available right now. Please try again later or contact support.'));
 
+        Log::info('Library show: summary payload prepared', [
+            'library_item_id' => $item->id,
+            'user_id' => auth()->id(),
+            'has_access' => $hasAccess,
+            'summary_status' => $item->ai_summary_status,
+            'summary_chars' => mb_strlen((string) ($item->ai_summary ?? '')),
+            'summary_url_enabled' => $item->type === 'ebook' && $hasAccess,
+        ]);
+
         return Inertia::render('Library/Show', [
             'item' => $item,
             'relatedItems' => $relatedItems,
@@ -241,6 +250,9 @@ class LibraryController extends Controller
             'manualPaymentPending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
             'mediaUrls' => $hasAccess ? $this->readerMediaUrls($item) : [],
             'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
+            'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
+            'summaryUrl' => ($item->type === 'ebook' && $hasAccess) ? route('library.summary', $item) : null,
+            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
 
@@ -263,6 +275,53 @@ class LibraryController extends Controller
             'mediaUrl' => route('library.media', $item),
             'mediaUrls' => $this->readerMediaUrls($item),
             'progressUrl' => route('library.progress', $item),
+            'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
+            'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
+            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
+        ]);
+    }
+
+    public function myLibrary(Request $request): Response
+    {
+        $user = $request->user();
+
+        $purchased = LibraryItem::query()
+            ->active()
+            ->whereHas('userAccess', function ($q) use ($user) {
+                $q->where('user_id', $user->id)->whereNotNull('purchased_at');
+            })
+            ->with([
+                'libraryAuthor',
+                'userAccess' => function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                },
+            ])
+            ->orderByDesc(
+                LibraryUserAccess::query()
+                    ->select('purchased_at')
+                    ->whereColumn('library_item_id', 'library_items.id')
+                    ->where('user_id', $user->id)
+                    ->limit(1)
+            )
+            ->paginate(12, ['*'], 'purchased_page')
+            ->withQueryString();
+
+        $available = LibraryItem::query()
+            ->active()
+            ->where(function ($q) use ($user) {
+                $q->whereDoesntHave('userAccess', function ($access) use ($user) {
+                    $access->where('user_id', $user->id)->whereNotNull('purchased_at');
+                });
+            })
+            ->with(['libraryAuthor', 'category'])
+            ->orderByDesc('is_featured')
+            ->orderByDesc('created_at')
+            ->paginate(12, ['*'], 'available_page')
+            ->withQueryString();
+
+        return Inertia::render('Library/MyLibrary', [
+            'purchasedItems' => $purchased->toArray(),
+            'availableItems' => $available->toArray(),
         ]);
     }
 
@@ -610,6 +669,46 @@ class LibraryController extends Controller
         }
 
         return back();
+    }
+
+    public function summary(Request $request, LibraryItem $item): JsonResponse|RedirectResponse
+    {
+        abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($item);
+        abort_unless($item->type === 'ebook', 404);
+        abort_unless($this->userHasAccess($item), 403);
+
+        $fresh = LibraryItem::query()->whereKey($item->id)->firstOrFail();
+        Log::info('Library AI summary: user requested summary retrieval', [
+            'library_item_id' => $fresh->id,
+            'user_id' => auth()->id(),
+            'has_summary' => (bool) $fresh->ai_summary,
+            'status' => $fresh->ai_summary_status,
+        ]);
+
+        $message = null;
+        if (! $fresh->ai_summary) {
+            $message = 'Summary not available yet. It is generated when admin uploads this ebook.';
+        }
+
+        if ($request->expectsJson()) {
+            Log::info('Library AI summary: user summary response sent', [
+                'library_item_id' => $fresh->id,
+                'user_id' => auth()->id(),
+                'status' => $fresh->ai_summary_status,
+                'summary_chars' => mb_strlen((string) ($fresh->ai_summary ?? '')),
+                'has_message' => (bool) $message,
+            ]);
+
+            return response()->json([
+                'summary' => $fresh->ai_summary,
+                'status' => $fresh->ai_summary_status,
+                'message' => $message,
+                'generated_at' => optional($fresh->ai_summary_generated_at)?->toIso8601String(),
+            ]);
+        }
+
+        return $message ? back()->with('info', $message) : back();
     }
 
     private function stripeIsConfigured(): bool

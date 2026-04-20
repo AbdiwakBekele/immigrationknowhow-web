@@ -16,7 +16,8 @@ import {
     ShieldCheckIcon,
 } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolid } from '@heroicons/vue/24/solid';
-import { ref, computed, onBeforeUnmount, onMounted } from 'vue';
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue';
+import { renderSafeMarkdown } from '@/utils/markdown';
 
 const props = defineProps({
     item: { type: Object, required: true },
@@ -29,13 +30,27 @@ const props = defineProps({
     manualPaymentPending: { type: Boolean, default: false },
     mediaUrls: { type: Object, default: () => ({}) },
     progressUrl: { type: String, default: null },
+    summary: { type: String, default: null },
+    summaryUrl: { type: String, default: null },
+    summaryStatus: { type: String, default: null },
 });
 
 const page = usePage();
 const isOpening = ref(false);
 const isFavorited = ref(props.userAccess?.is_favorite || false);
-const activeDetailTab = ref('details');
+const activeDetailTab = ref('more');
 const landingAudioRef = ref(null);
+const summaryText = ref(props.summary || '');
+const summaryLoading = ref(false);
+const summaryError = ref('');
+
+console.group('[Library Show] Summary initial state');
+console.info('Item slug:', props.item?.slug);
+console.info('User has access:', props.hasAccess);
+console.info('Summary status:', props.summaryStatus || 'not_generated');
+console.info('Summary prop chars:', (props.summary || '').length);
+console.info('Summary URL available:', Boolean(props.summaryUrl));
+console.groupEnd();
 
 const savedAudioProgress = computed(() => {
     const progress = props.userAccess?.progress ?? {};
@@ -138,6 +153,13 @@ const addAccessLabel = computed(() => {
     if (hasAudioCompanion.value) return 'Add to library';
     return props.item.type === 'ebook' ? 'Add to library & read' : 'Add to library & listen';
 });
+const canShowSummaryTab = computed(() => props.item.type === 'ebook');
+const canRequestSummary = computed(() => (
+    props.hasAccess
+    && Boolean(props.summaryUrl)
+    && !summaryText.value
+));
+const renderedSummaryHtml = computed(() => renderSafeMarkdown(summaryText.value));
 
 const formatDate = (value) => {
     if (!value) return null;
@@ -196,6 +218,76 @@ const csrfToken = () => {
 
     return rawToken ? decodeURIComponent(rawToken) : '';
 };
+
+const loadSummary = async () => {
+    if (!props.summaryUrl || summaryLoading.value) {
+        console.warn('[Library Show] Summary request skipped', {
+            hasSummaryUrl: Boolean(props.summaryUrl),
+            summaryLoading: summaryLoading.value,
+        });
+        return;
+    }
+
+    summaryLoading.value = true;
+    summaryError.value = '';
+    console.info('[Library Show] Summary request started', {
+        itemSlug: props.item?.slug,
+        summaryStatus: props.summaryStatus,
+    });
+
+    const token = csrfToken();
+    const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (token) {
+        headers['X-XSRF-TOKEN'] = token;
+    }
+
+    try {
+        const response = await fetch(props.summaryUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({}),
+        });
+        if (!response.ok) {
+            throw new Error('Summary request failed');
+        }
+        const payload = await response.json();
+        console.info('[Library Show] Summary response received', {
+            status: payload?.status,
+            generatedAt: payload?.generated_at,
+            summaryChars: (payload?.summary || '').length,
+            hasMessage: Boolean(payload?.message),
+        });
+        summaryText.value = payload.summary || '';
+        if (!summaryText.value) {
+            summaryError.value = payload.message || 'Summary not available yet for this ebook.';
+            console.warn('[Library Show] Summary empty', {
+                message: summaryError.value,
+            });
+        }
+    } catch (error) {
+        console.error('[Library Show] Summary request failed', error);
+        summaryError.value = 'Could not load summary right now. Please try again.';
+    } finally {
+        summaryLoading.value = false;
+        console.info('[Library Show] Summary request finished');
+    }
+};
+
+watch(activeDetailTab, (tab) => {
+    if (tab !== 'summary') return;
+
+    console.info('[Library Show] Summary tab opened', {
+        hasSummaryText: Boolean(summaryText.value),
+        summaryTextChars: summaryText.value.length,
+        summaryStatus: props.summaryStatus,
+        canRequestSummary: canRequestSummary.value,
+    });
+});
 
 const landingAudioPayload = () => ({
     position: Math.floor(landingAudioCurrentTime.value),
@@ -308,6 +400,9 @@ const moreInfoFacts = computed(() => ([
 ]).filter((fact) => fact.value !== null && fact.value !== undefined && String(fact.value).trim() !== ''));
 
 onMounted(() => {
+    if (canShowSummaryTab.value) {
+        activeDetailTab.value = 'summary';
+    }
     document.addEventListener('visibilitychange', handleLandingAudioVisibility);
     window.addEventListener('pagehide', flushLandingAudioProgress);
 });
@@ -514,16 +609,17 @@ onBeforeUnmount(() => {
 
 	                            <div class="border-t border-slate-100/90 bg-slate-50/40 px-5 py-6 sm:px-8 sm:py-8">
 	                                <div
-	                                    v-if="moreInfoFacts.length"
+	                                    v-if="canShowSummaryTab || moreInfoFacts.length || item.description"
 	                                    class="mb-5 inline-flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200"
 	                                >
 	                                    <button
+	                                        v-if="canShowSummaryTab"
 	                                        type="button"
 	                                        class="rounded-lg px-4 py-2 text-sm font-semibold transition"
-	                                        :class="activeDetailTab === 'details' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
-	                                        @click="activeDetailTab = 'details'"
+	                                        :class="activeDetailTab === 'summary' ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'"
+	                                        @click="activeDetailTab = 'summary'"
 	                                    >
-	                                        Details
+	                                        Summary
 	                                    </button>
 	                                    <button
 	                                        type="button"
@@ -535,18 +631,15 @@ onBeforeUnmount(() => {
 	                                    </button>
 	                                </div>
 
-	                                <div v-if="activeDetailTab === 'details' || !moreInfoFacts.length">
-	                                    <h2 class="font-display text-lg font-bold text-slate-900 sm:text-xl">
-	                                        About this {{ item.type === 'ebook' ? 'book' : 'audiobook' }}
-	                                    </h2>
-	                                    <div class="prose prose-slate prose-sm mt-3 max-w-none sm:prose-base prose-p:leading-relaxed">
-	                                        <p class="whitespace-pre-line text-slate-600">
+	                                <dl v-if="activeDetailTab === 'more'" class="space-y-3">
+	                                    <div class="rounded-xl bg-white px-4 py-4 text-sm ring-1 ring-slate-100">
+	                                        <h2 class="font-display text-lg font-bold text-slate-900 sm:text-xl">
+	                                            About this {{ item.type === 'ebook' ? 'book' : 'audiobook' }}
+	                                        </h2>
+	                                        <p class="mt-2 whitespace-pre-line leading-relaxed text-slate-600">
 	                                            {{ item.description || 'No description available yet.' }}
 	                                        </p>
 	                                    </div>
-	                                </div>
-
-	                                <dl v-else class="space-y-3">
 	                                    <div
 	                                        v-for="fact in moreInfoFacts"
 	                                        :key="fact.label"
@@ -556,6 +649,40 @@ onBeforeUnmount(() => {
 	                                        <dd class="text-slate-600">{{ fact.value }}</dd>
 	                                    </div>
 	                                </dl>
+
+	                                <div v-else class="space-y-3">
+	                                    <div class="flex items-center justify-between gap-3">
+	                                        <h2 class="font-display text-lg font-bold text-slate-900 sm:text-xl">
+	                                            AI Summary
+	                                        </h2>
+	                                        <button
+	                                            v-if="canRequestSummary"
+	                                            type="button"
+	                                            class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+	                                            :disabled="summaryLoading"
+	                                            @click="loadSummary"
+	                                        >
+	                                            {{ summaryLoading ? 'Loading summary...' : 'Summarize this book' }}
+	                                        </button>
+	                                    </div>
+
+	                                    <p v-if="summaryStatus === 'failed'" class="text-sm text-amber-700">
+	                                        Summary generation failed previously for this book. Check logs before retrying via code/admin.
+	                                    </p>
+	                                    <p v-if="summaryError" class="text-sm text-red-600">{{ summaryError }}</p>
+	                                    <div
+	                                        v-else-if="summaryText"
+	                                        class="prose prose-slate prose-sm max-w-none sm:prose-base"
+	                                        v-html="renderedSummaryHtml"
+	                                    >
+	                                    </div>
+	                                    <p v-else-if="canRequestSummary" class="text-sm text-slate-600">
+	                                        Summary will appear here when ready.
+	                                    </p>
+	                                    <p v-else class="text-sm text-slate-600">
+	                                        Purchase this ebook to unlock its AI summary.
+	                                    </p>
+	                                </div>
 	                            </div>
 
                             <div

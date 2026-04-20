@@ -145,6 +145,7 @@ Route::middleware(['auth', 'phone.verified'])->group(function () {
 
 // Digital Library checkout and protected media stay available after sign-in, even before onboarding is complete.
 Route::middleware(['auth'])->prefix('library')->name('library.')->group(function () {
+    Route::get('/my', [LibraryController::class, 'myLibrary'])->name('my');
     Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
     Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
     Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
@@ -158,6 +159,9 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
     Route::post('/{item:slug}/progress', [LibraryController::class, 'updateProgress'])
         ->middleware('throttle:120,1')
         ->name('progress');
+    Route::post('/{item:slug}/summary', [LibraryController::class, 'summary'])
+        ->middleware('throttle:10,1')
+        ->name('summary');
     Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
     Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
     Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
@@ -344,6 +348,10 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
             ->name('library-manual-payments.index');
         Route::post('/library-manual-payments/{libraryUserAccess}/approve', [Admin\LibraryManualPaymentController::class, 'approve'])
             ->name('library-manual-payments.approve');
+        Route::post('/library/{library}/generate-summary', [Admin\LibraryController::class, 'generateSummary'])
+            ->name('library.generate-summary');
+        Route::get('/library/{library}/media', [Admin\LibraryController::class, 'media'])
+            ->name('library.media');
         Route::resource('library', Admin\LibraryController::class);
         Route::resource('library-categories', Admin\LibraryCategoryController::class);
 

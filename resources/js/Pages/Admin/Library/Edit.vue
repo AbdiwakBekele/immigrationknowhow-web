@@ -86,6 +86,17 @@ const formatBytes = (bytes) => {
 };
 
 const submit = () => {
+    console.group('[Admin Library] Update started');
+    console.info('Preparing library update request');
+    console.info('Item slug:', props.item.slug);
+    console.info('Title:', form.title);
+    console.info('Type:', form.type);
+    console.info('Replacing PDF:', Boolean(form.pdf_file));
+    console.info('Replacing audiobook file:', Boolean(form.file));
+    console.info('Replacing companion audio:', Boolean(form.audio_file));
+    console.info('Price/Currency:', form.price, form.currency);
+    console.groupEnd();
+
     if (form.new_author_name?.trim()) {
         form.author_id = '';
     }
@@ -103,6 +114,21 @@ const submit = () => {
         .post(route('admin.library.update', props.item.slug), {
             forceFormData: true,
             preserveScroll: true,
+            onStart: () => {
+                console.info('[Admin Library] POST update request dispatched');
+            },
+            onSuccess: () => {
+                console.info('[Admin Library] Update success');
+                if (form.type === 'ebook') {
+                    console.info('[Admin Library] Ebook update may queue AI summary regeneration when needed');
+                }
+            },
+            onError: (errors) => {
+                console.error('[Admin Library] Update failed with validation/response errors', errors);
+            },
+            onFinish: () => {
+                console.info('[Admin Library] Update request finished');
+            },
         });
 };
 
@@ -140,10 +166,10 @@ const destroyItem = () => {
                     </div>
                     <div class="flex gap-2">
                         <Link
-                            :href="route('library.show', item.slug)"
+                            :href="route('admin.library.show', item.slug)"
                             class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                         >
-                            View public page
+                            View admin page
                         </Link>
                         <button
                             type="button"

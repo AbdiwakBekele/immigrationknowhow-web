@@ -15,6 +15,7 @@ import {
     CreditCardIcon,
     Bars3Icon,
     BellIcon,
+    BookOpenIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -62,6 +63,7 @@ const navigation = [
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'My Library', href: '/library/my', icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
