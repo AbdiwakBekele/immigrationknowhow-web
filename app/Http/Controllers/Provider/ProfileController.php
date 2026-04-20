@@ -16,6 +16,7 @@ use App\Support\ServiceTypeOptions;
 use App\Support\UsStateOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -27,8 +28,10 @@ class ProfileController extends Controller
     {
         $user = auth()->user();
         $provider = $user->serviceProvider;
+        $hasProfilePostsTable = Schema::hasTable('provider_profile_posts');
 
         $profileFeed = $provider
+            && $hasProfilePostsTable
             ? $provider->profilePosts()
                 ->latest()
                 ->limit(50)
@@ -151,8 +154,10 @@ class ProfileController extends Controller
     {
         $user = auth()->user();
         $provider = $user->serviceProvider;
+        $hasProfilePostsTable = Schema::hasTable('provider_profile_posts');
 
         $profileFeed = $provider
+            && $hasProfilePostsTable
             ? $provider->profilePosts()
                 ->latest()
                 ->limit(100)

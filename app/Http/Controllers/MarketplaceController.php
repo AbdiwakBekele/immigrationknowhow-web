@@ -6,6 +6,7 @@ use App\Enums\ServiceType;
 use App\Models\ServiceProvider;
 use App\Support\ProviderShareMeta;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -106,11 +107,14 @@ class MarketplaceController extends Controller
         // Public visitors only see active listings; providers can preview their own (e.g. from Edit Profile)
         abort_unless($provider->is_active || $isOwner, 404);
 
-        $provider->load([
+        $relations = [
             'user:id,first_name,last_name,avatar,city,state,country',
             'reviews' => fn ($q) => $q->approved()->with('user:id,first_name,last_name,avatar')->latest()->limit(10),
-            'profilePosts' => fn ($q) => $q->latest()->limit(50),
-        ]);
+        ];
+        if (Schema::hasTable('provider_profile_posts')) {
+            $relations['profilePosts'] = fn ($q) => $q->latest()->limit(50);
+        }
+        $provider->load($relations);
 
         if ($viewer && ! $isOwner) {
             $viewerCountry = is_string($viewer->country) ? trim($viewer->country) : '';
@@ -129,15 +133,17 @@ class MarketplaceController extends Controller
             fn (ServiceProvider $p) => $p->append('primary_service_type')
         );
 
-        $profileFeed = $provider->profilePosts
-            ->map(fn ($post) => $post->toFeedPayload())
-            ->values()
-            ->all();
-        $provider->unsetRelation('profilePosts');
+        $profileFeed = collect();
+        if (Schema::hasTable('provider_profile_posts') && $provider->relationLoaded('profilePosts')) {
+            $profileFeed = $provider->profilePosts
+                ->map(fn ($post) => $post->toFeedPayload())
+                ->values();
+            $provider->unsetRelation('profilePosts');
+        }
 
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
-            'profileFeed' => $profileFeed,
+            'profileFeed' => $profileFeed->all(),
             'similarProviders' => $similarProviders,
             'canContactProvider' => auth()->check() && ! auth()->user()->isProvider(),
             'isOwnListingPreview' => $isOwner,
