@@ -51,6 +51,8 @@ let landingAudioWasRestored = false;
 /** Full URL for Stripe / manual pay step — use a real `<a href>` so navigation works even if an Inertia visit stalls (e.g. slow Stripe API). */
 const libraryPayUrl = computed(() => route('library.pay', { item: props.item.slug }));
 
+const libraryCartAddUrl = computed(() => route('library.cart.add', { item: props.item.slug }));
+
 const formatFileSize = (bytes) => {
     if (!bytes) return 'N/A';
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -750,6 +752,16 @@ onBeforeUnmount(() => {
                                             <span v-if="item.price" class="opacity-95">· {{ item.currency ?? 'USD' }} {{ item.price }}</span>
                                         </template>
                                     </a>
+                                    <Link
+                                        v-if="!manualPaymentPending && libraryPaymentMode === 'stripe'"
+                                        :href="libraryCartAddUrl"
+                                        method="post"
+                                        as="button"
+                                        type="button"
+                                        class="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-slate-50"
+                                    >
+                                        Add to cart
+                                    </Link>
                                     <a
                                         v-else-if="manualPaymentPending && libraryPaymentMode !== 'unavailable'"
                                         :href="libraryPayUrl"

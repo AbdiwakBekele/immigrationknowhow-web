@@ -87,6 +87,18 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
                 'otp_sent' => fn () => $request->session()->get('otp_sent'),
             ],
+            'library_cart_count' => static function () use ($request): int {
+                if (! $request->user()) {
+                    return 0;
+                }
+
+                $raw = $request->session()->get('library_cart_ids', []);
+                if (! is_array($raw)) {
+                    return 0;
+                }
+
+                return count(array_unique(array_filter(array_map('intval', $raw))));
+            },
             'impersonation' => static function () use ($request) {
                 $impersonatorId = ImpersonationActorId::fromSession(
                     $request->session()->get('impersonating')
