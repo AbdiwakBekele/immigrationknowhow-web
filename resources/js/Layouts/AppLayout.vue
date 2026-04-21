@@ -88,7 +88,7 @@ const userNavigation = computed(() => [
     { name: 'Library', href: '/library', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Reviews', href: '/reviews', icon: StarIcon },
-];
+]);
 
 
 const readXsrfCookie = () => {
