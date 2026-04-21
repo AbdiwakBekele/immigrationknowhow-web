@@ -57,7 +57,7 @@ const scrolled = ref(false);
 const navigation = [
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
-    { name: 'Library', href: '/library', icon: BookOpenIcon },
+    { name: 'Library', href: '/library/my', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
 ];
 
