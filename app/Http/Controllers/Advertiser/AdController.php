@@ -6,6 +6,7 @@ use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdPayment;
+use App\Support\StripeConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -139,7 +140,6 @@ class AdController extends Controller
             return redirect()->route("{$adsRouteNamePrefix}.pay", $ad)->with('error', 'Stripe is not configured for ad payments.');
         }
 
-        Stripe::setApiKey((string) config('services.stripe.secret'));
         $amountCents = max(0, (int) $ad->price_cents);
         $currency = strtolower($this->defaultCurrency());
 
@@ -147,29 +147,38 @@ class AdController extends Controller
             return redirect()->route("{$adsRouteNamePrefix}.pay", $ad)->with('error', 'Ad price is below Stripe minimum for card payments.');
         }
 
-        $session = StripeCheckoutSession::create([
-            'mode' => 'payment',
-            'customer_email' => auth()->user()->email,
-            'client_reference_id' => (string) auth()->id(),
-            'success_url' => route("{$adsRouteNamePrefix}.purchase.return", [], true).'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route("{$adsRouteNamePrefix}.purchase.cancel", $ad, true),
-            'metadata' => [
-                'app' => 'advertiser_ad',
-                'ad_id' => (string) $ad->id,
-                'user_id' => (string) auth()->id(),
-            ],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => $currency,
-                    'unit_amount' => $amountCents,
-                    'product_data' => [
-                        'name' => 'Ad publication fee',
-                        'description' => 'One-time payment to publish ad: '.$ad->title,
-                    ],
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::create([
+                'mode' => 'payment',
+                'customer_email' => auth()->user()->email,
+                'client_reference_id' => (string) auth()->id(),
+                'success_url' => route("{$adsRouteNamePrefix}.purchase.return", [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route("{$adsRouteNamePrefix}.purchase.cancel", $ad, true),
+                'metadata' => [
+                    'app' => 'advertiser_ad',
+                    'ad_id' => (string) $ad->id,
+                    'user_id' => (string) auth()->id(),
                 ],
-                'quantity' => 1,
-            ]],
-        ]);
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => $currency,
+                        'unit_amount' => $amountCents,
+                        'product_data' => [
+                            'name' => 'Ad publication fee',
+                            'description' => 'One-time payment to publish ad: '.$ad->title,
+                        ],
+                    ],
+                    'quantity' => 1,
+                ]],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route("{$adsRouteNamePrefix}.pay", $ad)
+                ->with('error', config('app.debug')
+                    ? 'Payment could not start: '.$e->getMessage()
+                    : 'Payment could not start. Please try again.');
+        }
 
         AdPayment::query()->create([
             'ad_id' => $ad->id,
@@ -206,8 +215,16 @@ class AdController extends Controller
             return redirect()->route($adsIndexRoute)->with('error', 'Payments are not configured.');
         }
 
-        Stripe::setApiKey((string) config('services.stripe.secret'));
-        $session = StripeCheckoutSession::retrieve($sessionId);
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route($adsIndexRoute)
+                ->with('error', config('app.debug')
+                    ? 'Could not verify payment: '.$e->getMessage()
+                    : 'Could not verify payment. Please contact support.');
+        }
 
         $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
         if ($metadataUserId !== (int) auth()->id()) {
@@ -322,11 +339,7 @@ class AdController extends Controller
 
     private function stripeIsConfigured(): bool
     {
-        $secret = config('services.stripe.secret');
-        $publishable = config('services.stripe.key');
-
-        return is_string($secret) && $secret !== ''
-            && is_string($publishable) && $publishable !== '';
+        return StripeConfig::checkoutConfigured();
     }
 
     private function adsRouteNamePrefix(Request $request): string

@@ -19,6 +19,7 @@ const sidebarOpen = ref(false);
 
 const navigation = [
     { name: 'Dashboard', href: '/affiliate/dashboard', icon: HomeIcon },
+    { name: 'DV Lottery', href: 'https://dvprogram.state.gov/', icon: LinkIcon, external: true },
     { name: 'Earnings', href: '/affiliate/earnings', icon: ChartBarIcon },
     { name: 'Payouts', href: '/affiliate/payouts', icon: BanknotesIcon },
     { name: 'Profile', href: '/affiliate/profile', icon: UserCircleIcon },
@@ -69,20 +70,31 @@ const logout = () => router.post('/logout');
             </div>
 
             <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-                <Link
-                    v-for="item in navigation"
-                    :key="item.name"
-                    :href="item.href"
-                    :class="[
-                        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                        isActive(item.href)
-                            ? 'bg-violet-50 text-violet-700'
-                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                    ]"
-                >
-                    <component :is="item.icon" class="h-5 w-5" />
-                    {{ item.name }}
-                </Link>
+                <template v-for="item in navigation" :key="item.name">
+                    <a
+                        v-if="item.external"
+                        :href="item.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    >
+                        <component :is="item.icon" class="h-5 w-5" />
+                        {{ item.name }}
+                    </a>
+                    <Link
+                        v-else
+                        :href="item.href"
+                        :class="[
+                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                            isActive(item.href)
+                                ? 'bg-violet-50 text-violet-700'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                        ]"
+                    >
+                        <component :is="item.icon" class="h-5 w-5" />
+                        {{ item.name }}
+                    </Link>
+                </template>
             </nav>
         </aside>
 

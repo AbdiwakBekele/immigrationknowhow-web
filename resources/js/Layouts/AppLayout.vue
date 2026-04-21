@@ -76,6 +76,12 @@ const navigation = computed(() => [
     { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
     { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
+    {
+        name: 'DV Lottery',
+        href: 'https://dvprogram.state.gov/',
+        icon: BookOpenIcon,
+        external: true,
+    },
 ]);
 
 const userNavigation = computed(() => [
@@ -88,6 +94,7 @@ const userNavigation = computed(() => [
     { name: 'Library', href: '/library', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Reviews', href: '/reviews', icon: StarIcon },
+    { name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon },
 ]);
 
 
@@ -251,49 +258,63 @@ const userAvatarInitial = computed(() => {
                 <p class="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                     Menu
                 </p>
-                <Link
-                    v-for="item in userNavigation"
-                    :key="item.name + item.href"
-                    :href="item.href"
-                    :aria-label="
-                        item.name === 'Messages' && unreadMessages > 0
-                            ? `${item.name}, ${unreadMessages} unread`
-                            : item.name === 'Cart' && libraryCartCount > 0
-                              ? `${item.name}, ${libraryCartCount} items`
-                              : item.name
-                    "
-                    :class="[
-                        'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
-                        isActive(item.href)
-                            ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
-                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
-                    ]"
-                    @click="sidebarOpen = false"
-                >
-                    <span
-                        :class="[
-                            'relative inline-flex rounded-lg p-1.5 transition-colors',
-                            isActive(item.href)
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
-                        ]"
+                <template v-for="item in userNavigation" :key="item.name + item.href">
+                    <a
+                        v-if="item.external"
+                        :href="item.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all duration-150 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        @click="sidebarOpen = false"
                     >
-                        <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
-                        <span
-                            v-if="item.name === 'Messages' && unreadMessages > 0"
-                            class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
-                        >
-                            {{ unreadMessagesLabel }}
+                        <span class="relative inline-flex rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-colors group-hover:bg-sky-50 group-hover:text-sky-700">
+                            <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
                         </span>
+                        <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
+                    </a>
+                    <Link
+                        v-else
+                        :href="item.href"
+                        :aria-label="
+                            item.name === 'Messages' && unreadMessages > 0
+                                ? `${item.name}, ${unreadMessages} unread`
+                                : item.name === 'Cart' && libraryCartCount > 0
+                                  ? `${item.name}, ${libraryCartCount} items`
+                                  : item.name
+                        "
+                        :class="[
+                            'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                            isActive(item.href)
+                                ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
+                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
+                        ]"
+                        @click="sidebarOpen = false"
+                    >
                         <span
-                            v-if="item.name === 'Cart' && libraryCartCount > 0"
-                            class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                            :class="[
+                                'relative inline-flex rounded-lg p-1.5 transition-colors',
+                                isActive(item.href)
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
+                            ]"
                         >
-                            {{ cartCountLabel }}
+                            <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                            <span
+                                v-if="item.name === 'Messages' && unreadMessages > 0"
+                                class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                            >
+                                {{ unreadMessagesLabel }}
+                            </span>
+                            <span
+                                v-if="item.name === 'Cart' && libraryCartCount > 0"
+                                class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                            >
+                                {{ cartCountLabel }}
+                            </span>
                         </span>
-                    </span>
-                    <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
-                </Link>
+                        <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
+                    </Link>
+                </template>
 
             </nav>
 
@@ -426,19 +447,29 @@ const userAvatarInitial = computed(() => {
                     </div>
 
                     <div class="hidden items-center space-x-1 md:flex">
-                        <Link
-                            v-for="item in navigation"
-                            :key="item.name"
-                            :href="item.href"
-                            :class="[
-                                'rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200',
-                                isActive(item.href)
-                                    ? 'bg-sky-50 text-sky-700'
-                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                            ]"
-                        >
-                            {{ item.name }}
-                        </Link>
+                        <template v-for="item in navigation" :key="item.name">
+                            <a
+                                v-if="item.external"
+                                :href="item.href"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900"
+                            >
+                                {{ item.name }}
+                            </a>
+                            <Link
+                                v-else
+                                :href="item.href"
+                                :class="[
+                                    'rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200',
+                                    isActive(item.href)
+                                        ? 'bg-sky-50 text-sky-700'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                                ]"
+                            >
+                                {{ item.name }}
+                            </Link>
+                        </template>
                     </div>
 
                     <div class="ml-auto flex items-center space-x-4">

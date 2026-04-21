@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Video\FulfillVideoStripeCheckout;
 use App\Models\VideoEmbed;
 use App\Models\VideoUserAccess;
+use App\Support\StripeConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -181,8 +182,6 @@ class VideoProductController extends Controller
             return redirect()->route('videos.show', $video)->with('error', 'Payments are not configured yet.');
         }
 
-        Stripe::setApiKey((string) config('services.stripe.secret'));
-
         $currency = strtolower((string) ($video->currency ?? 'USD'));
         $unitAmount = (int) round($price * 100);
         if ($currency === 'usd' && $unitAmount < 50) {
@@ -194,29 +193,38 @@ class VideoProductController extends Controller
             $description = 'Digital video';
         }
 
-        $session = StripeCheckoutSession::create([
-            'ui_mode' => 'embedded_page',
-            'mode' => 'payment',
-            'customer_email' => auth()->user()->email,
-            'client_reference_id' => (string) auth()->id(),
-            'return_url' => route('videos.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-            'metadata' => [
-                'app' => 'video',
-                'video_id' => (string) $video->id,
-                'user_id' => (string) auth()->id(),
-            ],
-            'line_items' => [[
-                'price_data' => [
-                    'currency' => $currency,
-                    'unit_amount' => $unitAmount,
-                    'product_data' => [
-                        'name' => $video->title,
-                        'description' => $description,
-                    ],
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::create([
+                'ui_mode' => 'embedded_page',
+                'mode' => 'payment',
+                'customer_email' => auth()->user()->email,
+                'client_reference_id' => (string) auth()->id(),
+                'return_url' => route('videos.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'metadata' => [
+                    'app' => 'video',
+                    'video_id' => (string) $video->id,
+                    'user_id' => (string) auth()->id(),
                 ],
-                'quantity' => 1,
-            ]],
-        ]);
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => $currency,
+                        'unit_amount' => $unitAmount,
+                        'product_data' => [
+                            'name' => $video->title,
+                            'description' => $description,
+                        ],
+                    ],
+                    'quantity' => 1,
+                ]],
+            ]);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('videos.show', $video)
+                ->with('error', config('app.debug')
+                    ? 'Payment could not start: '.$e->getMessage()
+                    : 'Payment could not start. Please try again.');
+        }
 
         $clientSecret = $session->client_secret;
         if (! is_string($clientSecret) || $clientSecret === '') {
@@ -283,8 +291,16 @@ class VideoProductController extends Controller
             return redirect()->route('videos.index')->with('error', 'Payments are not configured.');
         }
 
-        Stripe::setApiKey($secret);
-        $session = StripeCheckoutSession::retrieve($sessionId);
+        try {
+            Stripe::setApiKey($secret);
+            $session = StripeCheckoutSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('videos.index')
+                ->with('error', config('app.debug')
+                    ? 'Could not verify payment: '.$e->getMessage()
+                    : 'Could not verify payment. Please contact support.');
+        }
 
         $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
         if ($metadataUserId !== (int) auth()->id()) {
@@ -305,10 +321,6 @@ class VideoProductController extends Controller
 
     private function stripeIsConfigured(): bool
     {
-        $secret = config('services.stripe.secret');
-        $publishable = config('services.stripe.key');
-
-        return is_string($secret) && $secret !== ''
-            && is_string($publishable) && $publishable !== '';
+        return StripeConfig::checkoutConfigured();
     }
 }
