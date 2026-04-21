@@ -202,7 +202,7 @@ const purchaseRowPrice = (purchase) => {
                 </Link>
 
                 <Link
-                    :href="route('library.index')"
+                    :href="route('library.my')"
                     class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
                 >
                     <div
@@ -435,7 +435,7 @@ const purchaseRowPrice = (purchase) => {
                         <div v-if="libraryItems?.length" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                             <div class="flex items-center justify-between p-4 border-b border-slate-100">
                                 <h3 class="font-semibold text-slate-900">From the Library</h3>
-                                <Link :href="route('library.index')" class="text-sm text-primary-600 hover:text-primary-700">
+                                <Link :href="route('library.my')" class="text-sm text-primary-600 hover:text-primary-700">
                                     Browse all
                                 </Link>
                             </div>
@@ -482,7 +482,7 @@ const purchaseRowPrice = (purchase) => {
                         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                             <div class="flex items-center justify-between p-4 border-b border-slate-100">
                                 <h3 class="font-semibold text-slate-900">Your Purchases</h3>
-                                <Link :href="route('library.index')" class="text-sm text-primary-600 hover:text-primary-700">
+                                <Link :href="route('library.my')" class="text-sm text-primary-600 hover:text-primary-700">
                                     Open library
                                 </Link>
                             </div>

@@ -13,6 +13,7 @@ import {
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import { renderSafeMarkdown } from '@/utils/markdown';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -22,6 +23,9 @@ const props = defineProps({
     mediaUrl: { type: String, required: true },
     mediaUrls: { type: Object, default: () => ({}) },
     progressUrl: { type: String, required: true },
+    summary: { type: String, default: null },
+    summaryUrl: { type: String, default: null },
+    summaryStatus: { type: String, default: null },
 });
 
 const pdfMediaUrl = computed(() => props.mediaUrls?.pdf || (props.item.type === 'ebook' ? props.mediaUrl : null));
@@ -49,6 +53,10 @@ const zoom = ref(1);
 const audioCurrentTime = ref(Number(audioProgress.value?.position) || 0);
 const audioDuration = ref(Number(audioProgress.value?.duration) || props.item.duration_seconds || 0);
 const isAudioPlaying = ref(false);
+const aiSummary = ref(props.summary || '');
+const summaryLoading = ref(false);
+const summaryError = ref('');
+const renderedSummaryHtml = computed(() => renderSafeMarkdown(aiSummary.value));
 
 let pdfDocument = null;
 let renderTask = null;
@@ -107,6 +115,44 @@ const persistProgress = async (mode, progress, keepalive = false) => {
         });
     } catch {
         // Progress autosave should never interrupt reading or listening.
+    }
+};
+
+const loadSummary = async () => {
+    if (!props.summaryUrl || summaryLoading.value || aiSummary.value) return;
+
+    summaryLoading.value = true;
+    summaryError.value = '';
+
+    const token = csrfToken();
+    const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    if (token) {
+        headers['X-XSRF-TOKEN'] = token;
+    }
+
+    try {
+        const response = await fetch(props.summaryUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify({}),
+        });
+        if (!response.ok) {
+            throw new Error('Summary request failed');
+        }
+        const payload = await response.json();
+        aiSummary.value = payload.summary || '';
+        if (!aiSummary.value) {
+            summaryError.value = payload.message || 'Summary not available yet for this ebook.';
+        }
+    } catch {
+        summaryError.value = 'Could not load summary right now. Please try again.';
+    } finally {
+        summaryLoading.value = false;
     }
 };
 
@@ -641,6 +687,37 @@ onBeforeUnmount(() => {
                             Access stays inside your account and this player keeps your place for next time.
                         </p>
                     </div>
+                </section>
+
+                <section
+                    v-if="hasPdf"
+                    class="rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:p-5"
+                >
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-base font-semibold text-white sm:text-lg">AI Summary</h2>
+                        <button
+                            type="button"
+                            class="rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:bg-white/10"
+                            :disabled="summaryLoading"
+                            @click="loadSummary"
+                        >
+                            {{ summaryLoading ? 'Loading summary...' : 'Summarize this book' }}
+                        </button>
+                    </div>
+
+                    <p v-if="summaryStatus === 'failed'" class="mt-3 text-sm text-amber-300">
+                        Summary generation already failed once for this ebook. Check server logs.
+                    </p>
+                    <p v-if="summaryError" class="mt-3 text-sm text-rose-300">{{ summaryError }}</p>
+                    <div
+                        v-else-if="aiSummary"
+                        class="prose prose-invert mt-3 max-w-none text-sm leading-relaxed"
+                        v-html="renderedSummaryHtml"
+                    >
+                    </div>
+                    <p v-else class="mt-3 text-sm text-slate-300">
+                        Summary will appear here when ready.
+                    </p>
                 </section>
             </div>
         </div>
