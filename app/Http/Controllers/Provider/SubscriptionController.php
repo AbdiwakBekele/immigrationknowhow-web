@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
+use App\Support\StripeConfig;
 use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,8 +44,7 @@ class SubscriptionController extends Controller
             ->limit(12)
             ->get();
 
-        $stripeSecret = config('services.stripe.secret');
-        $stripeBillingConfigured = is_string($stripeSecret) && trim($stripeSecret) !== '';
+        $stripeBillingConfigured = StripeConfig::hasSecretKey();
 
         return Inertia::render('Provider/Subscriptions/Index', [
             'plans' => $plans,
@@ -102,31 +102,36 @@ class SubscriptionController extends Controller
             return back()->with('error', 'This plan does not require checkout.');
         }
 
-        Stripe::setApiKey((string) config('services.stripe.secret'));
-
-        $session = StripeCheckoutSession::create([
-            'mode' => 'subscription',
-            'customer_email' => $request->user()->email,
-            'client_reference_id' => (string) $request->user()->id,
-            'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
-            'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
-            'line_items' => $lineItems,
-            'metadata' => [
-                'app' => 'provider_subscription',
-                'provider_id' => (string) $provider->id,
-                'user_id' => (string) $request->user()->id,
-                'plan_uuid' => (string) $plan->uuid,
-                'plan_name' => (string) $plan->name,
-            ],
-            'subscription_data' => [
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::create([
+                'mode' => 'subscription',
+                'customer_email' => $request->user()->email,
+                'client_reference_id' => (string) $request->user()->id,
+                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
+                'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
+                'line_items' => $lineItems,
                 'metadata' => [
+                    'app' => 'provider_subscription',
                     'provider_id' => (string) $provider->id,
                     'user_id' => (string) $request->user()->id,
                     'plan_uuid' => (string) $plan->uuid,
-                    'app' => 'provider_subscription',
+                    'plan_name' => (string) $plan->name,
                 ],
-            ],
-        ]);
+                'subscription_data' => [
+                    'metadata' => [
+                        'provider_id' => (string) $provider->id,
+                        'user_id' => (string) $request->user()->id,
+                        'plan_uuid' => (string) $plan->uuid,
+                        'app' => 'provider_subscription',
+                    ],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', config('app.debug')
+                ? 'Subscription checkout could not start: '.$e->getMessage()
+                : 'Subscription checkout could not start. Please try again.');
+        }
 
         $checkoutUrl = $session->url;
         if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
@@ -150,30 +155,41 @@ class SubscriptionController extends Controller
             return back()->with('error', 'Selected plan is not configured.');
         }
 
-        $secret = config('services.stripe.secret');
-        if (! is_string($secret) || $secret === '') {
+        if (! StripeConfig::hasSecretKey()) {
             return back()->with('error', 'Stripe is not configured.');
         }
 
-        Stripe::setApiKey($secret);
-        $stripeSub = StripeSubscription::retrieve($subscription->stripe_subscription_id);
-        $itemId = $stripeSub->items->data[0]->id ?? null;
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $stripeSub = StripeSubscription::retrieve($subscription->stripe_subscription_id);
+            $itemId = $stripeSub->items->data[0]->id ?? null;
+        } catch (\Throwable $e) {
+            return back()->with('error', config('app.debug')
+                ? 'Could not load subscription: '.$e->getMessage()
+                : 'Could not load subscription right now. Please try again.');
+        }
         if (! is_string($itemId) || $itemId === '') {
             return back()->with('error', 'Unable to update subscription items.');
         }
 
-        StripeSubscription::update($subscription->stripe_subscription_id, [
-            'items' => [[
-                'id' => $itemId,
-                'price' => $plan->stripe_price_id,
-            ]],
-            'metadata' => [
-                'plan_uuid' => $plan->uuid,
-                'provider_id' => (string) $provider->id,
-                'app' => 'provider_subscription',
-            ],
-            'proration_behavior' => 'create_prorations',
-        ]);
+        try {
+            StripeSubscription::update($subscription->stripe_subscription_id, [
+                'items' => [[
+                    'id' => $itemId,
+                    'price' => $plan->stripe_price_id,
+                ]],
+                'metadata' => [
+                    'plan_uuid' => $plan->uuid,
+                    'provider_id' => (string) $provider->id,
+                    'app' => 'provider_subscription',
+                ],
+                'proration_behavior' => 'create_prorations',
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', config('app.debug')
+                ? 'Could not change plan: '.$e->getMessage()
+                : 'Could not change plan right now. Please try again.');
+        }
 
         $subscription->update([
             'subscription_plan_id' => $plan->id,
@@ -193,15 +209,20 @@ class SubscriptionController extends Controller
             return back()->with('error', 'No active subscription found.');
         }
 
-        $secret = config('services.stripe.secret');
-        if (! is_string($secret) || $secret === '') {
+        if (! StripeConfig::hasSecretKey()) {
             return back()->with('error', 'Stripe is not configured.');
         }
 
-        Stripe::setApiKey($secret);
-        StripeSubscription::update($subscription->stripe_subscription_id, [
-            'cancel_at_period_end' => true,
-        ]);
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            StripeSubscription::update($subscription->stripe_subscription_id, [
+                'cancel_at_period_end' => true,
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', config('app.debug')
+                ? 'Could not cancel subscription: '.$e->getMessage()
+                : 'Could not cancel subscription right now. Please try again.');
+        }
 
         $subscription->update([
             'cancel_at_period_end' => true,
@@ -222,15 +243,20 @@ class SubscriptionController extends Controller
             return back()->with('error', 'No Stripe subscription found.');
         }
 
-        $secret = config('services.stripe.secret');
-        if (! is_string($secret) || $secret === '') {
+        if (! StripeConfig::hasSecretKey()) {
             return back()->with('error', 'Stripe is not configured.');
         }
 
-        Stripe::setApiKey($secret);
-        StripeSubscription::update($subscription->stripe_subscription_id, [
-            'cancel_at_period_end' => false,
-        ]);
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            StripeSubscription::update($subscription->stripe_subscription_id, [
+                'cancel_at_period_end' => false,
+            ]);
+        } catch (\Throwable $e) {
+            return back()->with('error', config('app.debug')
+                ? 'Could not resume subscription: '.$e->getMessage()
+                : 'Could not resume subscription right now. Please try again.');
+        }
 
         $subscription->update([
             'cancel_at_period_end' => false,

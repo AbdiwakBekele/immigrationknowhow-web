@@ -255,7 +255,16 @@ const logout = () => {
                         <h3 class="text-sm font-semibold text-white">Resources</h3>
                         <ul class="mt-4 space-y-3">
                             <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Digital Library</a></li>
-                            <li><a href="/dv-lottery" class="text-sm text-slate-400 hover:text-white transition-colors">DV Lottery</a></li>
+                            <li>
+                                <a
+                                    href="https://dvprogram.state.gov/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-sm text-slate-400 hover:text-white transition-colors"
+                                >
+                                    Official DV Lottery Website
+                                </a>
+                            </li>
                             <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Videos</a></li>
                             <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Guides</a></li>
                         </ul>

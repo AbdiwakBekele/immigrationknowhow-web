@@ -73,6 +73,14 @@ const features = [
                         <Link href="/library" class="text-gray-600 hover:text-gray-900 font-medium">
                             Library
                         </Link>
+                        <a
+                            href="https://dvprogram.state.gov/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-gray-600 hover:text-gray-900 font-medium"
+                        >
+                            DV Lottery
+                        </a>
                         <Link href="/login" class="text-gray-600 hover:text-gray-900 font-medium">
                             Sign In
                         </Link>
@@ -348,6 +356,16 @@ const features = [
                         <ul class="space-y-2 text-sm">
                             <li><Link href="/help" class="hover:text-white">Help Center</Link></li>
                             <li><Link href="/contact" class="hover:text-white">Contact Us</Link></li>
+                            <li>
+                                <a
+                                    href="https://dvprogram.state.gov/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="hover:text-white"
+                                >
+                                    Official DV Lottery Website
+                                </a>
+                            </li>
                             <li v-if="supportEmail"><a :href="`mailto:${supportEmail}`" class="hover:text-white">{{ supportEmail }}</a></li>
                             <li v-if="supportPhone"><a :href="`tel:${supportPhone}`" class="hover:text-white">{{ supportPhone }}</a></li>
                             <li v-if="supportAddress" class="text-gray-400">{{ supportAddress }}</li>

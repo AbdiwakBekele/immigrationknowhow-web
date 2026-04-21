@@ -7,6 +7,7 @@ use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
+use App\Support\StripeConfig;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -865,8 +866,21 @@ class LibraryController extends Controller
                 ->with('error', 'Payments are not configured.');
         }
 
-        Stripe::setApiKey($secret);
-        $session = StripeCheckoutSession::retrieve($sessionId);
+        try {
+            Stripe::setApiKey($secret);
+            $session = StripeCheckoutSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            Log::error('Stripe library checkout return failed', [
+                'session_id' => $sessionId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('library.index')
+                ->with('error', config('app.debug')
+                    ? 'Could not verify payment: '.$e->getMessage()
+                    : 'Could not verify payment. Please contact support.');
+        }
 
         $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
         if ($metadataUserId !== (int) auth()->id()) {
@@ -1025,11 +1039,7 @@ class LibraryController extends Controller
 
     private function stripeIsConfigured(): bool
     {
-        $secret = config('services.stripe.secret');
-        $publishable = config('services.stripe.key');
-
-        return is_string($secret) && $secret !== ''
-            && is_string($publishable) && $publishable !== '';
+        return StripeConfig::checkoutConfigured();
     }
 
     private function requiresPaidAccess(LibraryItem $item): bool

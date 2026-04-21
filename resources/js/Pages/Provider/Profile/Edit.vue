@@ -1352,7 +1352,7 @@ const formatFeedDate = (iso) => {
                                     menu-align="left"
                                 />
                                 <Link
-                                    :href="route('marketplace.show', { provider: provider.slug })"
+                                    :href="route('marketplace.show', provider.slug)"
                                     class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                                 >
                                     <EyeIcon class="h-4 w-4" />
