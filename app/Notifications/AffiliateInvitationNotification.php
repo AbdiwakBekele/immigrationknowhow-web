@@ -8,6 +8,7 @@ use App\Support\TransactionalEmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Symfony\Component\Mime\Email;
 
 class AffiliateInvitationNotification extends Notification
 {
@@ -41,6 +42,14 @@ class AffiliateInvitationNotification extends Notification
             ->greeting('Hello '.$this->invite->name.'!')
             ->line($payload['body'])
             ->action($payload['action_label'] ?: 'Accept invitation', $payload['action_url'] ?: $inviteLink)
-            ->line('This invitation link expires in 7 days.');
+            ->line('This invitation link expires in 7 days.')
+            ->withSymfonyMessage(function (Email $message) use ($payload): void {
+                $headers = $message->getHeaders();
+                $headers->addTextHeader('X-IKH-Event-Key', EmailTemplate::EVENT_INVITE);
+
+                if (! empty($payload['template_id'])) {
+                    $headers->addTextHeader('X-IKH-Template-ID', (string) $payload['template_id']);
+                }
+            });
     }
 }

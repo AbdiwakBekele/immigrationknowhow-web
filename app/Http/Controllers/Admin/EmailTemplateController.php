@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EmailTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,6 +16,13 @@ class EmailTemplateController extends Controller
     public function index(Request $request): Response
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        if (! Schema::hasTable('email_templates')) {
+            return Inertia::render('Admin/Settings/EmailTemplates', [
+                'templates' => [],
+                'email_templates_table_missing' => true,
+            ]);
+        }
 
         return Inertia::render('Admin/Settings/EmailTemplates', [
             'templates' => EmailTemplate::query()
@@ -33,6 +41,7 @@ class EmailTemplateController extends Controller
                     'subject' => $template->subject,
                     'is_active' => $template->is_active,
                 ])->values(),
+            'email_templates_table_missing' => false,
         ]);
     }
 
