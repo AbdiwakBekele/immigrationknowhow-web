@@ -1,16 +1,27 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { TrashIcon } from '@heroicons/vue/24/outline';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     ads: { type: Array, default: () => [] },
     adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
+    adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
+    adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
+});
+
+const layoutComponent = computed(() => {
+    if (props.adPortal?.portal === 'provider') return ProviderLayout;
+    if (props.adPortal?.portal === 'user') return AppLayout;
+    return AdvertiserLayout;
 });
 
 const destroyAd = (uuid) => {
     if (!window.confirm('Delete this ad?')) return;
-    router.delete(route('advertiser.ads.destroy', uuid));
+    router.delete(route(`${props.adsRouteNamePrefix}.destroy`, uuid));
 };
 
 const statusClass = (status) => {
@@ -23,7 +34,7 @@ const statusClass = (status) => {
 <template>
     <Head title="My Ads" />
 
-    <AdvertiserLayout>
+    <component :is="layoutComponent">
         <div class="mx-auto max-w-6xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h1 class="text-2xl font-semibold text-slate-900">My ads</h1>
@@ -34,7 +45,7 @@ const statusClass = (status) => {
             </div>
 
             <div class="flex justify-end">
-                <Link href="/advertiser/ads/create" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
+                <Link :href="route(`${adsRouteNamePrefix}.create`)" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
                     Create ad
                 </Link>
             </div>
@@ -89,7 +100,7 @@ const statusClass = (status) => {
                         </dl>
 
                         <div class="flex items-center justify-between">
-                            <Link :href="route('advertiser.ads.edit', ad.uuid)" class="text-sm font-medium text-primary-700 hover:text-primary-800">
+                            <Link :href="route(`${adsRouteNamePrefix}.edit`, ad.uuid)" class="text-sm font-medium text-primary-700 hover:text-primary-800">
                                 Manage
                             </Link>
                             <button
@@ -107,6 +118,6 @@ const statusClass = (status) => {
             </div>
             <div v-else class="rounded-2xl border border-slate-200 bg-white px-6 py-8 text-sm text-slate-500 shadow-sm">No ads yet.</div>
         </div>
-    </AdvertiserLayout>
+    </component>
 </template>
 

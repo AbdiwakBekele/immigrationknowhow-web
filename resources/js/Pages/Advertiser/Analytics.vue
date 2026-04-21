@@ -1,17 +1,28 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
-defineProps({
+const props = defineProps({
     summary: { type: Object, default: () => ({ views: 0, clicks: 0, ctr: 0 }) },
     ads: { type: Array, default: () => [] },
+    adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
+    adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
+});
+
+const layoutComponent = computed(() => {
+    if (props.adPortal?.portal === 'provider') return ProviderLayout;
+    if (props.adPortal?.portal === 'user') return AppLayout;
+    return AdvertiserLayout;
 });
 </script>
 
 <template>
     <Head title="Ad Analytics" />
 
-    <AdvertiserLayout>
+    <component :is="layoutComponent">
         <div class="mx-auto max-w-6xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h1 class="text-2xl font-semibold text-slate-900">Ad analytics</h1>
@@ -36,7 +47,7 @@ defineProps({
             <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                     <h2 class="text-lg font-semibold text-slate-900">Per-ad performance</h2>
-                    <Link href="/advertiser/ads" class="text-sm font-medium text-primary-700 hover:text-primary-800">
+                    <Link :href="route(`${adsRouteNamePrefix}.index`)" class="text-sm font-medium text-primary-700 hover:text-primary-800">
                         Manage ads
                     </Link>
                 </div>
@@ -54,6 +65,6 @@ defineProps({
                 <div v-else class="px-6 py-8 text-sm text-slate-500">No ad analytics yet.</div>
             </div>
         </div>
-    </AdvertiserLayout>
+    </component>
 </template>
 

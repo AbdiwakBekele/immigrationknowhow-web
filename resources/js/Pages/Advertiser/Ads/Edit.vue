@@ -1,11 +1,22 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     ad: { type: Object, required: true },
     adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
     publicUrl: { type: String, default: '' },
+    adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
+    adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
+});
+
+const layoutComponent = computed(() => {
+    if (props.adPortal?.portal === 'provider') return ProviderLayout;
+    if (props.adPortal?.portal === 'user') return AppLayout;
+    return AdvertiserLayout;
 });
 
 const form = useForm({
@@ -16,7 +27,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.patch(route('advertiser.ads.update', props.ad.uuid));
+    form.patch(route(`${props.adsRouteNamePrefix}.update`, props.ad.uuid));
 };
 
 </script>
@@ -24,7 +35,7 @@ const submit = () => {
 <template>
     <Head :title="`Edit ${ad.title}`" />
 
-    <AdvertiserLayout>
+    <component :is="layoutComponent">
         <div class="mx-auto max-w-5xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h1 class="text-2xl font-semibold text-slate-900">Edit ad</h1>
@@ -85,19 +96,19 @@ const submit = () => {
                             {{ adPostingPrice.currency }} {{ (Number(adPostingPrice.amount_cents || 0) / 100).toFixed(2) }}
                         </p>
                         <Link
-                            :href="route('advertiser.ads.pay', ad.uuid)"
+                            :href="route(`${adsRouteNamePrefix}.pay`, ad.uuid)"
                             class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
                         >
                             Continue to pay & publish
                         </Link>
                     </div>
 
-                    <Link href="/advertiser/ads" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
+                    <Link :href="route(`${adsRouteNamePrefix}.index`)" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
                         Back to ads
                     </Link>
                 </div>
             </div>
         </div>
-    </AdvertiserLayout>
+    </component>
 </template>
 

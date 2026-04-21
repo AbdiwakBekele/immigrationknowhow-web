@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class AdController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $user = auth()->user();
         $ads = Ad::query()
@@ -31,13 +32,17 @@ class AdController extends Controller
         return Inertia::render('Advertiser/Ads/Index', [
             'ads' => $ads,
             'adPostingPrice' => $this->adPricingPayload(),
+            'adsRouteNamePrefix' => $this->adsRouteNamePrefix($request),
+            'adPortal' => $this->adPortalPayload($request),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Advertiser/Ads/Create', [
             'adPostingPrice' => $this->adPricingPayload(),
+            'adsRouteNamePrefix' => $this->adsRouteNamePrefix($request),
+            'adPortal' => $this->adPortalPayload($request),
         ]);
     }
 
@@ -58,7 +63,8 @@ class AdController extends Controller
             'published_at' => $priceCents > 0 ? null : now(),
         ]);
 
-        $redirectRoute = $priceCents > 0 ? 'advertiser.ads.pay' : 'advertiser.ads.edit';
+        $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
+        $redirectRoute = $priceCents > 0 ? "{$adsRouteNamePrefix}.pay" : "{$adsRouteNamePrefix}.edit";
 
         return redirect()
             ->route($redirectRoute, $ad)
@@ -67,7 +73,7 @@ class AdController extends Controller
                 : 'Ad created and published.');
     }
 
-    public function edit(Ad $ad): Response
+    public function edit(Request $request, Ad $ad): Response
     {
         $this->authorizeAd($ad);
 
@@ -75,21 +81,26 @@ class AdController extends Controller
             'ad' => $this->toAdPayload($ad),
             'adPostingPrice' => $this->adPricingPayload(),
             'publicUrl' => URL::route('ads.public.show', ['ad' => $ad->uuid]),
+            'adsRouteNamePrefix' => $this->adsRouteNamePrefix($request),
+            'adPortal' => $this->adPortalPayload($request),
         ]);
     }
 
-    public function pay(Ad $ad): Response|RedirectResponse
+    public function pay(Request $request, Ad $ad): Response|RedirectResponse
     {
         $this->authorizeAd($ad);
+        $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
 
         if ($ad->status === 'published' || $ad->paid_at !== null) {
-            return redirect()->route('advertiser.ads.edit', $ad)->with('info', 'This ad is already published.');
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already published.');
         }
 
         return Inertia::render('Advertiser/Ads/Pay', [
             'ad' => $this->toAdPayload($ad),
             'adPostingPrice' => $this->adPricingPayload(),
             'publicUrl' => URL::route('ads.public.show', ['ad' => $ad->uuid]),
+            'adsRouteNamePrefix' => $adsRouteNamePrefix,
+            'adPortal' => $this->adPortalPayload($request),
         ]);
     }
 
@@ -107,24 +118,25 @@ class AdController extends Controller
         return back()->with('success', 'Ad updated.');
     }
 
-    public function destroy(Ad $ad): RedirectResponse
+    public function destroy(Request $request, Ad $ad): RedirectResponse
     {
         $this->authorizeAd($ad);
         $ad->delete();
 
-        return redirect()->route('advertiser.ads.index')->with('success', 'Ad deleted.');
+        return redirect()->route($this->adsRouteName($request, 'index'))->with('success', 'Ad deleted.');
     }
 
-    public function checkout(Ad $ad): Response|RedirectResponse|SymfonyResponse
+    public function checkout(Request $request, Ad $ad): Response|RedirectResponse|SymfonyResponse
     {
         $this->authorizeAd($ad);
+        $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
 
         if ($ad->paid_at !== null || $ad->status === 'published') {
-            return redirect()->route('advertiser.ads.edit', $ad)->with('info', 'This ad is already paid and published.');
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already paid and published.');
         }
 
         if (! $this->stripeIsConfigured()) {
-            return redirect()->route('advertiser.ads.pay', $ad)->with('error', 'Stripe is not configured for ad payments.');
+            return redirect()->route("{$adsRouteNamePrefix}.pay", $ad)->with('error', 'Stripe is not configured for ad payments.');
         }
 
         Stripe::setApiKey((string) config('services.stripe.secret'));
@@ -132,15 +144,15 @@ class AdController extends Controller
         $currency = strtolower($this->defaultCurrency());
 
         if ($currency === 'usd' && $amountCents < 50) {
-            return redirect()->route('advertiser.ads.pay', $ad)->with('error', 'Ad price is below Stripe minimum for card payments.');
+            return redirect()->route("{$adsRouteNamePrefix}.pay", $ad)->with('error', 'Ad price is below Stripe minimum for card payments.');
         }
 
         $session = StripeCheckoutSession::create([
             'mode' => 'payment',
             'customer_email' => auth()->user()->email,
             'client_reference_id' => (string) auth()->id(),
-            'success_url' => route('advertiser.ads.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('advertiser.ads.purchase.cancel', $ad, true),
+            'success_url' => route("{$adsRouteNamePrefix}.purchase.return", [], true).'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route("{$adsRouteNamePrefix}.purchase.cancel", $ad, true),
             'metadata' => [
                 'app' => 'advertiser_ad',
                 'ad_id' => (string) $ad->id,
@@ -176,7 +188,7 @@ class AdController extends Controller
 
         $checkoutUrl = $session->url;
         if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
-            return redirect()->route('advertiser.ads.pay', $ad)->with('error', 'Could not start checkout.');
+            return redirect()->route("{$adsRouteNamePrefix}.pay", $ad)->with('error', 'Could not start checkout.');
         }
 
         return Inertia::location($checkoutUrl);
@@ -184,13 +196,14 @@ class AdController extends Controller
 
     public function purchaseReturn(Request $request, FulfillAdvertiserStripeCheckout $fulfill): RedirectResponse
     {
+        $adsIndexRoute = $this->adsRouteName($request, 'index');
         $sessionId = $request->query('session_id');
         if (! is_string($sessionId) || $sessionId === '') {
-            return redirect()->route('advertiser.ads.index')->with('error', 'Missing payment confirmation.');
+            return redirect()->route($adsIndexRoute)->with('error', 'Missing payment confirmation.');
         }
 
         if (! $this->stripeIsConfigured()) {
-            return redirect()->route('advertiser.ads.index')->with('error', 'Payments are not configured.');
+            return redirect()->route($adsIndexRoute)->with('error', 'Payments are not configured.');
         }
 
         Stripe::setApiKey((string) config('services.stripe.secret'));
@@ -207,17 +220,17 @@ class AdController extends Controller
         $ad = Ad::query()->whereKey($adId)->where('user_id', auth()->id())->first();
 
         if ($ad) {
-            return redirect()->route('advertiser.ads.edit', $ad)->with('success', 'Payment successful. Your ad is now published.');
+            return redirect()->route($adsIndexRoute)->with('success', 'Payment successful. Your ad is now published.');
         }
 
-        return redirect()->route('advertiser.ads.index')->with('success', 'Payment successful.');
+        return redirect()->route($adsIndexRoute)->with('success', 'Payment successful.');
     }
 
-    public function purchaseCancel(Ad $ad): RedirectResponse
+    public function purchaseCancel(Request $request, Ad $ad): RedirectResponse
     {
         $this->authorizeAd($ad);
 
-        return redirect()->route('advertiser.ads.pay', $ad)->with('info', 'Checkout was cancelled.');
+        return redirect()->route($this->adsRouteName($request, 'pay'), $ad)->with('info', 'Checkout was cancelled.');
     }
 
     private function validateAd(Request $request): array
@@ -314,6 +327,52 @@ class AdController extends Controller
 
         return is_string($secret) && $secret !== ''
             && is_string($publishable) && $publishable !== '';
+    }
+
+    private function adsRouteNamePrefix(Request $request): string
+    {
+        $routeName = (string) $request->route()?->getName();
+        if (Str::startsWith($routeName, 'provider.ads.')) {
+            return 'provider.ads';
+        }
+
+        if (Str::startsWith($routeName, 'user.ads.')) {
+            return 'user.ads';
+        }
+
+        return 'advertiser.ads';
+    }
+
+    private function adsRouteName(Request $request, string $action): string
+    {
+        return $this->adsRouteNamePrefix($request).'.'.$action;
+    }
+
+    private function adPortalPayload(Request $request): array
+    {
+        $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
+        $dashboardRouteName = match ($adsRouteNamePrefix) {
+            'user.ads' => 'dashboard',
+            'provider.ads' => 'provider.dashboard',
+            default => 'advertiser.dashboard',
+        };
+
+        $analyticsRouteName = match ($adsRouteNamePrefix) {
+            'user.ads' => 'user.ads.analytics',
+            'provider.ads' => 'provider.ads.analytics',
+            default => 'advertiser.analytics',
+        };
+
+        return [
+            'portal' => match ($adsRouteNamePrefix) {
+                'user.ads' => 'user',
+                'provider.ads' => 'provider',
+                default => 'advertiser',
+            },
+            'dashboardHref' => route($dashboardRouteName),
+            'adsHref' => route($adsRouteNamePrefix.'.index'),
+            'analyticsHref' => route($analyticsRouteName),
+        ];
     }
 }
 

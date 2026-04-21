@@ -14,6 +14,8 @@ import {
     ClipboardDocumentListIcon,
     VideoCameraIcon,
     StarIcon,
+    MegaphoneIcon,
+    ChartBarIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -66,6 +68,8 @@ const userNavigation = [
     { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'My Ads', href: '/ads', icon: MegaphoneIcon },
+    { name: 'Ad Analytics', href: '/ads/analytics', icon: ChartBarIcon },
     { name: 'Library', href: '/library', icon: BookOpenIcon },
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Reviews', href: '/reviews', icon: StarIcon },

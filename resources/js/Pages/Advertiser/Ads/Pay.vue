@@ -1,17 +1,28 @@
 <script setup>
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     ad: { type: Object, required: true },
     adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
     publicUrl: { type: String, default: '' },
+    adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
+    adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
+});
+
+const layoutComponent = computed(() => {
+    if (props.adPortal?.portal === 'provider') return ProviderLayout;
+    if (props.adPortal?.portal === 'user') return AppLayout;
+    return AdvertiserLayout;
 });
 
 const form = useForm({});
 
 const checkout = () => {
-    form.post(route('advertiser.ads.checkout', props.ad.uuid), {
+    form.post(route(`${props.adsRouteNamePrefix}.checkout`, props.ad.uuid), {
         preserveScroll: true,
     });
 };
@@ -20,7 +31,7 @@ const checkout = () => {
 <template>
     <Head :title="`Pay & Publish - ${ad.title}`" />
 
-    <AdvertiserLayout>
+    <component :is="layoutComponent">
         <div class="mx-auto max-w-5xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h1 class="text-2xl font-semibold text-slate-900">Pay & publish</h1>
@@ -74,12 +85,12 @@ const checkout = () => {
                         </button>
                     </div>
 
-                    <Link :href="route('advertiser.ads.edit', ad.uuid)" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
+                    <Link :href="route(`${adsRouteNamePrefix}.edit`, ad.uuid)" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
                         Back to edit
                     </Link>
                 </div>
             </div>
         </div>
-    </AdvertiserLayout>
+    </component>
 </template>
 

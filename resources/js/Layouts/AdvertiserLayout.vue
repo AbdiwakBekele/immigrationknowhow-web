@@ -14,12 +14,12 @@ import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const sidebarOpen = ref(false);
-
-const navigation = [
-    { name: 'Dashboard', href: '/advertiser/dashboard', icon: HomeIcon },
-    { name: 'My Ads', href: '/advertiser/ads', icon: MegaphoneIcon },
-    { name: 'Ad Analytics', href: '/advertiser/analytics', icon: ChartBarIcon },
-];
+const adPortal = computed(() => page.props.adPortal || {});
+const navigation = computed(() => [
+    { name: 'Dashboard', href: adPortal.value.dashboardHref || '/advertiser/dashboard', icon: HomeIcon },
+    { name: 'My Ads', href: adPortal.value.adsHref || '/advertiser/ads', icon: MegaphoneIcon },
+    { name: 'Ad Analytics', href: adPortal.value.analyticsHref || '/advertiser/analytics', icon: ChartBarIcon },
+]);
 
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
@@ -67,7 +67,7 @@ const userAvatarInitial = computed(() => {
                 >
                     <XMarkIcon class="h-5 w-5" />
                 </button>
-                <Link href="/advertiser/dashboard" class="inline-flex items-center gap-2 text-slate-900">
+                <Link :href="adPortal.dashboardHref || '/advertiser/dashboard'" class="inline-flex items-center gap-2 text-slate-900">
                     <MegaphoneIcon class="h-7 w-7 text-primary-600" />
                     <span class="text-lg font-semibold">Advertiser Portal</span>
                 </Link>

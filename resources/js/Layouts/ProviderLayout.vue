@@ -16,6 +16,7 @@ import {
     Bars3Icon,
     BellIcon,
     BookOpenIcon,
+    MegaphoneIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -63,6 +64,8 @@ const navigation = [
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
+    { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
     { name: 'My Library', href: '/library/my', icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
@@ -77,6 +80,16 @@ const logout = () => {
 
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
+
+    if (href === '/provider/ads/analytics') {
+        return path === href || path.startsWith(`${href}/`);
+    }
+
+    if (href === '/provider/ads') {
+        return (path === href || path.startsWith(`${href}/`))
+            && !path.startsWith('/provider/ads/analytics');
+    }
+
     let target = typeof href === 'string' ? href : '';
     if (target.startsWith('http://') || target.startsWith('https://')) {
         try {
