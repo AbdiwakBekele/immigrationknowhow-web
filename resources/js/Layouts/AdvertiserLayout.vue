@@ -7,6 +7,7 @@ import {
     MegaphoneIcon,
     HomeIcon,
     ChartBarIcon,
+    LinkIcon,
     ArrowRightOnRectangleIcon,
 } from '@heroicons/vue/24/outline';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
@@ -17,6 +18,7 @@ const sidebarOpen = ref(false);
 const adPortal = computed(() => page.props.adPortal || {});
 const navigation = computed(() => [
     { name: 'Dashboard', href: adPortal.value.dashboardHref || '/advertiser/dashboard', icon: HomeIcon },
+    { name: 'DV Lottery', href: 'https://dvprogram.state.gov/', icon: LinkIcon, external: true },
     { name: 'My Ads', href: adPortal.value.adsHref || '/advertiser/ads', icon: MegaphoneIcon },
     { name: 'Ad Analytics', href: adPortal.value.analyticsHref || '/advertiser/analytics', icon: ChartBarIcon },
 ]);
@@ -74,19 +76,31 @@ const userAvatarInitial = computed(() => {
             </div>
 
             <nav class="flex-1 space-y-1 overflow-y-auto px-4 py-5">
-                <Link
-                    v-for="item in navigation"
-                    :key="item.href + item.name"
-                    :href="item.href"
-                    :class="[
-                        'flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition',
-                        isActive(item.href) ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                    ]"
-                    @click="sidebarOpen = false"
-                >
-                    <component :is="item.icon" class="h-5 w-5" />
-                    <span>{{ item.name }}</span>
-                </Link>
+                <template v-for="item in navigation" :key="item.href + item.name">
+                    <a
+                        v-if="item.external"
+                        :href="item.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                        @click="sidebarOpen = false"
+                    >
+                        <component :is="item.icon" class="h-5 w-5" />
+                        <span>{{ item.name }}</span>
+                    </a>
+                    <Link
+                        v-else
+                        :href="item.href"
+                        :class="[
+                            'flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition',
+                            isActive(item.href) ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                        ]"
+                        @click="sidebarOpen = false"
+                    >
+                        <component :is="item.icon" class="h-5 w-5" />
+                        <span>{{ item.name }}</span>
+                    </Link>
+                </template>
             </nav>
 
             <div class="shrink-0 border-t border-slate-200 p-4">

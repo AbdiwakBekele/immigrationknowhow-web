@@ -24,6 +24,7 @@ use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
 use App\Http\Controllers\WelcomeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -192,6 +193,7 @@ Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function 
 
     // User Dashboard
     Route::get('/dashboard', [User\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/user/dv-lottery', fn () => Inertia::render('User/DvLottery/Index'))->name('user.dv-lottery.index');
 
     // Profile
     Route::get('/profile', [User\ProfileController::class, 'edit'])->name('profile.edit');
@@ -292,6 +294,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
     ->group(function () {
 
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/dv-lottery', fn () => Inertia::render('Provider/DvLottery/Index'))->name('dv-lottery.index');
         Route::get('/subscriptions', [Provider\SubscriptionController::class, 'index'])->name('subscriptions.index');
         Route::post('/subscriptions/checkout/{plan:uuid}', [Provider\SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
         Route::post('/subscriptions/{subscription:uuid}/cancel', [Provider\SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
@@ -388,6 +391,7 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
 
         Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('index');
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
+        Route::get('/dv-lottery', fn () => Inertia::render('Admin/DvLottery/Index'))->name('dv-lottery.index');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/email-logs', [Admin\EmailLogController::class, 'index'])->name('email-logs.index');
         Route::post('/notifications/read-all', [Admin\NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');

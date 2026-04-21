@@ -352,32 +352,43 @@ class OnboardingController extends Controller
             return null;
         }
 
-        Stripe::setApiKey((string) config('services.stripe.secret'));
-        $session = StripeCheckoutSession::create([
-            'mode' => 'subscription',
-            'customer_email' => $request->user()->email,
-            'client_reference_id' => (string) $request->user()->id,
-            'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
-            'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
-            'line_items' => $lineItems,
-            'metadata' => [
-                'app' => 'provider_subscription',
-                'provider_id' => (string) $provider->id,
-                'user_id' => (string) $request->user()->id,
-                'plan_uuid' => (string) $plan->uuid,
-                'plan_name' => (string) $plan->name,
-                'source' => 'onboarding',
-            ],
-            'subscription_data' => [
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::create([
+                'mode' => 'subscription',
+                'customer_email' => $request->user()->email,
+                'client_reference_id' => (string) $request->user()->id,
+                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
+                'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
+                'line_items' => $lineItems,
                 'metadata' => [
+                    'app' => 'provider_subscription',
                     'provider_id' => (string) $provider->id,
                     'user_id' => (string) $request->user()->id,
                     'plan_uuid' => (string) $plan->uuid,
-                    'app' => 'provider_subscription',
+                    'plan_name' => (string) $plan->name,
                     'source' => 'onboarding',
                 ],
-            ],
-        ]);
+                'subscription_data' => [
+                    'metadata' => [
+                        'provider_id' => (string) $provider->id,
+                        'user_id' => (string) $request->user()->id,
+                        'plan_uuid' => (string) $plan->uuid,
+                        'app' => 'provider_subscription',
+                        'source' => 'onboarding',
+                    ],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Onboarding Stripe checkout creation failed', [
+                'provider_id' => $provider->id,
+                'plan_id' => $plan->id,
+                'user_id' => $request->user()?->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
 
         $checkoutUrl = $session->url;
         if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {

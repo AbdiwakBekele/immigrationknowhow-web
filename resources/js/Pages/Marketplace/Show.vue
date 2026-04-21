@@ -140,10 +140,10 @@ const resolveAvatar = (person, fallback) => {
 
     <AppLayout>
         <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
-            <div class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            <div class="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
                 <div
                     v-if="isOwnListingPreview"
-                    class="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-900"
+                    class="mb-4 rounded-2xl border border-primary-200/80 bg-gradient-to-r from-primary-50 to-sky-50 px-4 py-3.5 text-sm text-primary-900 shadow-sm"
                 >
                     You are previewing how your public listing looks. Visitors only see this page when your profile is active on the marketplace.
                 </div>
@@ -151,7 +151,7 @@ const resolveAvatar = (person, fallback) => {
                 <Link
                     v-if="isOwnListingPreview"
                     :href="route('provider.profile.edit')"
-                    class="group mb-6 inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-slate-900"
+                    class="group mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900"
                 >
                     <ArrowLeftIcon class="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     Back to Edit Profile
@@ -159,7 +159,7 @@ const resolveAvatar = (person, fallback) => {
                 <Link
                     v-else
                     :href="route('marketplace.index')"
-                    class="group mb-6 inline-flex items-center gap-2 text-slate-600 transition-colors hover:text-slate-900"
+                    class="group mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900"
                 >
                     <ArrowLeftIcon class="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     Back to Providers
@@ -169,18 +169,21 @@ const resolveAvatar = (person, fallback) => {
                     <!-- Main Content -->
                     <div class="lg:col-span-2 space-y-6">
                         <!-- Provider Header Card -->
-                        <div class="overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-sm">
+                        <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-sm ring-1 ring-white/70">
                             <!-- Cover Gradient -->
-                            <div class="h-36 bg-gradient-to-r from-primary-600 via-sky-500 to-cyan-500"></div>
+                            <div class="relative h-40 overflow-hidden bg-gradient-to-r from-primary-700 via-sky-600 to-cyan-500">
+                                <div class="absolute -left-8 -top-8 h-36 w-36 rounded-full bg-white/15 blur-2xl"></div>
+                                <div class="absolute -right-8 top-5 h-32 w-32 rounded-full bg-cyan-100/25 blur-2xl"></div>
+                            </div>
                             
                             <div class="px-6 pb-6 sm:px-7">
                                 <!-- Avatar & Basic Info -->
-                                <div class="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end">
+                                <div class="-mt-14 flex flex-col gap-4 sm:flex-row sm:items-end">
                                     <div class="relative">
                                         <img
                                             :src="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=96`)"
                                             :alt="provider.business_name"
-                                            class="h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-lg"
+                                            class="h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-xl"
                                         />
                                         <div v-if="provider.background_check_status === 'clear'" class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                             <CheckBadgeSolid class="h-6 w-6 text-primary-600" />
@@ -215,8 +218,8 @@ const resolveAvatar = (person, fallback) => {
                                 </div>
 
                                 <!-- Stats Row -->
-                                <div class="mt-6 flex flex-wrap gap-5 border-t border-slate-100 pt-5">
-                                    <div class="flex items-center gap-2">
+                                <div class="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+                                    <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                         <div class="flex">
                                             <template v-for="i in 5" :key="i">
                                                 <StarSolid v-if="i <= Math.round(averageRating)" class="h-5 w-5 text-secondary-500" />
@@ -226,11 +229,11 @@ const resolveAvatar = (person, fallback) => {
                                         <span class="font-semibold text-slate-900">{{ averageRating.toFixed(1) }}</span>
                                         <span class="text-slate-500">({{ totalReviews }} {{ totalReviews === 1 ? 'review' : 'reviews' }})</span>
                                     </div>
-                                    <div v-if="provider.years_experience" class="flex items-center gap-2 text-slate-600">
+                                    <div v-if="provider.years_experience" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
                                         <BriefcaseIcon class="h-5 w-5" />
                                         <span>{{ provider.years_experience }} years experience</span>
                                     </div>
-                                    <div v-if="provider.user?.city || provider.user?.state" class="flex items-center gap-2 text-slate-600">
+                                    <div v-if="provider.user?.city || provider.user?.state" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600">
                                         <MapPinIcon class="h-5 w-5" />
                                         <span>{{ [provider.user?.city, provider.user?.state].filter(Boolean).join(', ') }}</span>
                                     </div>
@@ -238,14 +241,17 @@ const resolveAvatar = (person, fallback) => {
 
                                 <!-- Tags -->
                                 <div class="mt-4 flex flex-wrap gap-2">
-                                    <span v-if="provider.serves_remote" class="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-                                        🌐 Remote Available
+                                    <span v-if="provider.serves_remote" class="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+                                        <GlobeAltIcon class="h-4 w-4" />
+                                        Remote Available
                                     </span>
-                                    <span v-if="provider.free_consultation" class="rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
-                                        ✓ Free Consultation
+                                    <span v-if="provider.free_consultation" class="inline-flex items-center gap-1 rounded-full border border-green-100 bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
+                                        <CheckBadgeIcon class="h-4 w-4" />
+                                        Free Consultation
                                     </span>
-                                    <span v-if="provider.serves_in_person" class="rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
-                                        📍 In-Person
+                                    <span v-if="provider.serves_in_person" class="inline-flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
+                                        <MapPinIcon class="h-4 w-4" />
+                                        In-Person
                                     </span>
                                 </div>
                             </div>
@@ -387,7 +393,7 @@ const resolveAvatar = (person, fallback) => {
                     <!-- Sidebar -->
                     <div class="space-y-6 lg:col-span-1">
                         <!-- Contact Card -->
-                        <div class="sticky top-24 rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
+                        <div class="sticky top-24 rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                             <div class="text-center mb-6">
                                 <div class="text-sm text-slate-500 mb-1">Starting from</div>
                                 <div class="text-3xl font-display font-bold text-slate-900">

@@ -68,6 +68,7 @@ const navigation = [
     { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
     { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
+    { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
@@ -217,37 +218,51 @@ onUnmounted(() => {
                 </p>
 
                 <div class="space-y-1.5">
-                <Link
-                    v-for="item in navigation"
-                    :key="item.href"
-                    :href="item.href"
-                    :aria-label="item.name === 'Messages' && unreadMessages > 0 ? `${item.name}, ${unreadMessages} unread` : item.name"
-                    :class="[
-                        'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
-                        isActive(item.href)
-                            ? 'bg-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.65)]'
-                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
-                    ]"
-                    @click="sidebarOpen = false"
-                >
-                    <span
-                        :class="[
-                            'relative inline-flex rounded-lg p-1.5 transition-colors',
-                            isActive(item.href)
-                                ? 'bg-white/20 text-white'
-                                : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700',
-                        ]"
-                    >
-                        <component :is="item.icon" class="h-5 w-5" />
-                        <span
-                            v-if="item.name === 'Messages' && unreadMessages > 0"
-                            class="absolute -right-0.5 -top-0.5 z-10 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                    <template v-for="item in navigation" :key="item.href">
+                        <a
+                            v-if="item.external"
+                            :href="item.href"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-slate-600 transition-all duration-150 hover:bg-slate-50 hover:text-slate-900"
+                            @click="sidebarOpen = false"
                         >
-                            {{ unreadMessagesLabel }}
-                        </span>
-                    </span>
-                    <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
-                </Link>
+                            <span class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-colors group-hover:bg-blue-50 group-hover:text-blue-700">
+                                <component :is="item.icon" class="h-5 w-5" />
+                            </span>
+                            <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
+                        </a>
+                        <Link
+                            v-else
+                            :href="item.href"
+                            :aria-label="item.name === 'Messages' && unreadMessages > 0 ? `${item.name}, ${unreadMessages} unread` : item.name"
+                            :class="[
+                                'group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all duration-150',
+                                isActive(item.href)
+                                    ? 'bg-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.65)]'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                            ]"
+                            @click="sidebarOpen = false"
+                        >
+                            <span
+                                :class="[
+                                    'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-colors',
+                                    isActive(item.href)
+                                        ? 'bg-white/18 text-white'
+                                        : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700',
+                                ]"
+                            >
+                                <component :is="item.icon" class="h-5 w-5" />
+                                <span
+                                    v-if="item.name === 'Messages' && unreadMessages > 0"
+                                    class="absolute -right-0.5 -top-0.5 z-10 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                                >
+                                    {{ unreadMessagesLabel }}
+                                </span>
+                            </span>
+                            <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
+                        </Link>
+                    </template>
                 </div>
             </nav>
 
@@ -319,6 +334,12 @@ onUnmounted(() => {
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >
                             View Site
+                        </Link>
+                        <Link
+                            href="/provider/dv-lottery"
+                            class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
+                        >
+                            DV Lottery
                         </Link>
                         <button
                             type="button"

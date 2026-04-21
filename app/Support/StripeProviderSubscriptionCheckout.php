@@ -9,9 +9,7 @@ final class StripeProviderSubscriptionCheckout
 {
     public static function secretConfigured(): bool
     {
-        $secret = config('services.stripe.secret');
-
-        return is_string($secret) && trim($secret) !== '';
+        return StripeConfig::hasSecretKey();
     }
 
     /**
