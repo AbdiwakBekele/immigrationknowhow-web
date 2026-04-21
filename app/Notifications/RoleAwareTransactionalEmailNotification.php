@@ -5,11 +5,11 @@ namespace App\Notifications;
 use App\Models\User;
 use App\Support\TransactionalEmailTemplateRenderer;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Symfony\Component\Mime\Email;
 
-class RoleAwareTransactionalEmailNotification extends Notification implements ShouldQueue
+class RoleAwareTransactionalEmailNotification extends Notification
 {
     use Queueable;
 
@@ -37,6 +37,24 @@ class RoleAwareTransactionalEmailNotification extends Notification implements Sh
         if (filled($payload['action_label']) && filled($payload['action_url'])) {
             $mail->action($payload['action_label'], $payload['action_url']);
         }
+
+        $mail->withSymfonyMessage(function (Email $message) use ($payload, $notifiable): void {
+            $headers = $message->getHeaders();
+            $headers->addTextHeader('X-IKH-Event-Key', $this->eventKey);
+
+            if (! empty($payload['template_id'])) {
+                $headers->addTextHeader('X-IKH-Template-ID', (string) $payload['template_id']);
+            }
+
+            $userId = $this->user?->id;
+            if (! $userId && $notifiable instanceof User) {
+                $userId = $notifiable->id;
+            }
+
+            if ($userId) {
+                $headers->addTextHeader('X-IKH-User-ID', (string) $userId);
+            }
+        });
 
         return $mail;
     }

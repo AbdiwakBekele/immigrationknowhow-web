@@ -1,24 +1,17 @@
 <script setup>
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
-import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 import {
-    Bars3Icon,
-    BellIcon,
     BookOpenIcon,
     BookmarkIcon,
     CalendarDaysIcon,
     DocumentTextIcon,
-    EnvelopeIcon,
     ListBulletIcon,
     MagnifyingGlassIcon,
-    MapPinIcon,
     MusicalNoteIcon,
-    PhoneIcon,
     ShoppingCartIcon,
     Squares2X2Icon,
-    UserCircleIcon,
-    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { computed, ref, watch } from 'vue';
 
@@ -34,7 +27,6 @@ const props = defineProps({
 });
 
 const page = usePage();
-const mobileMenuOpen = ref(false);
 const viewMode = ref('grid');
 
 const search = ref(props.filters?.search || '');
@@ -54,16 +46,7 @@ const locale = ref(normalizeLocale(page.props.locale));
 
 const user = computed(() => page.props.auth?.user ?? null);
 const isAuthenticated = computed(() => Boolean(user.value));
-const branding = computed(() => page.props.branding || {});
-const companyName = computed(() => branding.value.company_name || 'Immigrant Knowhow');
-const footerTagline = computed(() => (
-    branding.value.footer_tagline
-    || 'Immigrant Knowhow is where real support meets community. We help immigrants navigate life in a new country through trusted services, expert guidance, and meaningful human connection.'
-));
-const supportEmail = computed(() => branding.value.support_email || 'hello@immigrantknowhow.com');
-const supportPhone = computed(() => branding.value.support_phone || '(646) 466-5105');
-const supportAddress = computed(() => branding.value.support_address || '767 Broadway #627 Manhattan, NY 10003');
-
+const cartCount = computed(() => Number(page.props.library_cart_count ?? 0) || 0);
 const storefrontRoute = computed(() => {
     if (props.forcedType === 'ebook') {
         return 'library.ebooks';
@@ -100,13 +83,6 @@ const hasActiveFilters = computed(() => Boolean(
     || selectedAccess.value
     || (selectedSort.value && selectedSort.value !== 'newest')
 ));
-
-const navLinks = computed(() => [
-    { label: 'Community', href: route('home') },
-    { label: 'Services', href: route('marketplace.index') },
-    { label: 'Country', href: route('library.ebooks') },
-    { label: 'Contact', href: `mailto:${supportEmail.value}` },
-]);
 
 watch(
     () => page.props.locale,
@@ -245,140 +221,22 @@ const actionHref = (item) => {
     return showUrl(item);
 };
 
-const activePath = computed(() => (page.url || '').split('?')[0] || '/');
-const isActiveHref = (href) => {
-    if (!href || href.startsWith('mailto:')) {
-        return false;
-    }
-
-    try {
-        const url = new URL(href, window.location.origin);
-        return activePath.value === url.pathname;
-    } catch {
-        return activePath.value === href;
-    }
-};
 </script>
 
 <template>
-    <Head :title="props.forcedType === 'audiobook' ? 'Audiobooks' : 'eBooks'" />
+    <Head
+        :title="
+            props.forcedType === 'audiobook'
+                ? 'Audiobooks'
+                : props.forcedType === 'ebook'
+                  ? 'eBooks'
+                  : 'Library'
+        "
+    />
 
-    <div class="min-h-screen bg-white text-neutral-950">
-        <header class="border-b border-neutral-200 bg-white">
-            <div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-                <Link :href="route('home')" class="flex items-center">
-                    <BrandLogo
-                        context="site"
-                        :show-name="false"
-                        mark-class="flex h-8 w-32 items-center justify-start overflow-hidden rounded-none bg-transparent"
-                        image-class="h-full w-auto object-contain object-left"
-                    />
-                </Link>
-
-                <nav class="hidden items-center gap-7 md:flex">
-                    <a
-                        v-for="link in navLinks"
-                        :key="link.label"
-                        :href="link.href"
-                        :class="[
-                            'text-sm font-medium transition hover:text-blue-700',
-                            isActiveHref(link.href) ? 'text-blue-700' : 'text-neutral-700',
-                        ]"
-                    >
-                        {{ link.label }}
-                    </a>
-                </nav>
-
-                <div class="hidden items-center gap-3 md:flex">
-                    <template v-if="isAuthenticated">
-                        <Link
-                            :href="route('dashboard')"
-                            class="inline-flex items-center gap-2 text-sm font-semibold text-blue-700"
-                        >
-                            <UserCircleIcon class="h-5 w-5" />
-                            {{ user?.first_name || user?.name || 'Account' }}
-                        </Link>
-                        <Link
-                            :href="route('logout')"
-                            method="post"
-                            as="button"
-                            type="button"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
-                            aria-label="Sign out"
-                        >
-                            <XMarkIcon class="h-5 w-5" />
-                        </Link>
-                    </template>
-                    <template v-else>
-                        <Link :href="route('login')" class="text-sm font-medium text-neutral-700 hover:text-blue-700">
-                            Sign in
-                        </Link>
-                        <Link
-                            :href="route('register')"
-                            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                        >
-                            Sign up
-                        </Link>
-                    </template>
-                    <BellIcon class="h-5 w-5 text-neutral-400" aria-hidden="true" />
-                </div>
-
-                <button
-                    type="button"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-700 md:hidden"
-                    aria-label="Open menu"
-                    @click="mobileMenuOpen = true"
-                >
-                    <Bars3Icon class="h-5 w-5" />
-                </button>
-            </div>
-
-            <div v-if="mobileMenuOpen" class="border-t border-neutral-200 bg-white md:hidden">
-                <div class="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-                    <div class="mb-4 flex items-center justify-between">
-                        <span class="text-sm font-semibold text-neutral-900">Menu</span>
-                        <button
-                            type="button"
-                            class="rounded-lg p-2 text-neutral-600 hover:bg-neutral-100"
-                            aria-label="Close menu"
-                            @click="mobileMenuOpen = false"
-                        >
-                            <XMarkIcon class="h-5 w-5" />
-                        </button>
-                    </div>
-                    <div class="grid gap-2">
-                        <a
-                            v-for="link in navLinks"
-                            :key="link.label"
-                            :href="link.href"
-                            class="rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
-                            @click="mobileMenuOpen = false"
-                        >
-                            {{ link.label }}
-                        </a>
-                        <Link
-                            v-if="!isAuthenticated"
-                            :href="route('login')"
-                            class="rounded-lg px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                            @click="mobileMenuOpen = false"
-                        >
-                            Sign in or create account
-                        </Link>
-                        <Link
-                            v-else
-                            :href="route('dashboard')"
-                            class="rounded-lg px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                            @click="mobileMenuOpen = false"
-                        >
-                            My account
-                        </Link>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main>
-            <section class="relative overflow-hidden border-b border-neutral-200 bg-neutral-100">
+    <AppLayout>
+        <div class="min-h-full space-y-6 text-neutral-950 lg:space-y-8">
+                    <section class="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 sm:rounded-2xl">
                 <div
                     class="absolute inset-0 bg-cover bg-center opacity-20"
                     style="background-image: url('/images/airportcrowd.jpg')"
@@ -526,7 +384,7 @@ const isActiveHref = (href) => {
                 </div>
             </section>
 
-            <section class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+            <section class="rounded-2xl border border-slate-200/80 bg-white px-4 py-8 shadow-sm sm:px-6 sm:py-10">
                 <div
                     v-if="page.props.flash?.success || page.props.flash?.info || page.props.flash?.error"
                     class="mb-6 rounded-lg border px-4 py-3 text-sm"
@@ -540,29 +398,45 @@ const isActiveHref = (href) => {
                         {{ resultLabel }}
                     </p>
 
-                    <div class="flex items-center gap-2">
-                        <button
-                            type="button"
-                            :class="[
-                                'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition',
-                                viewMode === 'grid' ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50',
-                            ]"
-                            aria-label="Grid view"
-                            @click="viewMode = 'grid'"
+                    <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                        <Link
+                            v-if="isAuthenticated"
+                            :href="route('library.cart')"
+                            class="relative inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
                         >
-                            <Squares2X2Icon class="h-4 w-4" />
-                        </button>
-                        <button
-                            type="button"
-                            :class="[
-                                'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition',
-                                viewMode === 'list' ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50',
-                            ]"
-                            aria-label="List view"
-                            @click="viewMode = 'list'"
-                        >
-                            <ListBulletIcon class="h-4 w-4" />
-                        </button>
+                            <ShoppingCartIcon class="h-4 w-4" />
+                            Cart
+                            <span
+                                v-if="cartCount > 0"
+                                class="absolute -right-1.5 -top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white"
+                            >
+                                {{ cartCount > 99 ? '99+' : cartCount }}
+                            </span>
+                        </Link>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition',
+                                    viewMode === 'grid' ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50',
+                                ]"
+                                aria-label="Grid view"
+                                @click="viewMode = 'grid'"
+                            >
+                                <Squares2X2Icon class="h-4 w-4" />
+                            </button>
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex h-9 w-9 items-center justify-center rounded-lg border transition',
+                                    viewMode === 'list' ? 'border-blue-600 bg-blue-600 text-white' : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50',
+                                ]"
+                                aria-label="List view"
+                                @click="viewMode = 'list'"
+                            >
+                                <ListBulletIcon class="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -660,6 +534,17 @@ const isActiveHref = (href) => {
                                     <BookOpenIcon class="h-4 w-4" />
                                     {{ actionLabel(item) }}
                                 </Link>
+                                <Link
+                                    v-else-if="isAuthenticated && !item.has_access && requiresPayment(item)"
+                                    :href="route('library.cart.add', { item: item.slug })"
+                                    method="post"
+                                    as="button"
+                                    type="button"
+                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                >
+                                    <ShoppingCartIcon class="h-4 w-4" />
+                                    {{ actionLabel(item) }}
+                                </Link>
                                 <a
                                     v-else
                                     :href="actionHref(item)"
@@ -721,67 +606,6 @@ const isActiveHref = (href) => {
                     </nav>
                 </div>
             </section>
-        </main>
-
-        <footer class="border-t border-neutral-200 bg-white">
-            <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-                <div class="grid gap-10 md:grid-cols-[1.2fr_0.7fr_1fr_1fr]">
-                    <div>
-                        <BrandLogo
-                            context="site"
-                            :show-name="false"
-                            mark-class="flex h-10 w-36 items-center justify-start overflow-hidden rounded-none bg-transparent"
-                            image-class="h-full w-auto object-contain object-left"
-                        />
-                        <p class="mt-4 max-w-sm text-sm leading-6 text-neutral-600">
-                            {{ footerTagline }}
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 class="text-sm font-semibold text-neutral-950">Links</h3>
-                        <ul class="mt-4 space-y-3 text-sm text-neutral-600">
-                            <li><Link :href="route('home')" class="hover:text-blue-700">Home</Link></li>
-                            <li><Link :href="route('marketplace.index')" class="hover:text-blue-700">Community</Link></li>
-                            <li><Link :href="route('marketplace.index')" class="hover:text-blue-700">Services</Link></li>
-                            <li><a :href="`mailto:${supportEmail}`" class="hover:text-blue-700">Contact</a></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 class="text-sm font-semibold text-neutral-950">Promise</h3>
-                        <p class="mt-4 text-sm leading-6 text-neutral-600">
-                            We're here to make immigration feel less isolating and more empowering, connecting practical help with real support.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 class="text-sm font-semibold text-neutral-950">Contact</h3>
-                        <ul class="mt-4 space-y-3 text-sm text-neutral-600">
-                            <li class="flex gap-2">
-                                <MapPinIcon class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                                <span>{{ supportAddress }}</span>
-                            </li>
-                            <li class="flex gap-2">
-                                <PhoneIcon class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                                <a :href="`tel:${supportPhone}`" class="hover:text-blue-700">{{ supportPhone }}</a>
-                            </li>
-                            <li class="flex gap-2">
-                                <EnvelopeIcon class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
-                                <a :href="`mailto:${supportEmail}`" class="hover:text-blue-700">{{ supportEmail }}</a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="mt-10 flex flex-col gap-4 border-t border-neutral-200 pt-6 text-sm text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
-                    <p>&copy; {{ new Date().getFullYear() }} {{ companyName }}</p>
-                    <div class="flex items-center gap-5">
-                        <a href="#" class="hover:text-blue-700">Terms</a>
-                        <a href="#" class="hover:text-blue-700">Privacy</a>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    </div>
+        </div>
+    </AppLayout>
 </template>

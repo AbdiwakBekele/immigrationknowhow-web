@@ -132,6 +132,9 @@ const formData = ref({
         children_ages: [],
         has_pets: false,
         pet_types: [],
+        number_of_children: null,
+        children_ages_text: '',
+        dogs_count: null,
     },
 });
 
@@ -201,6 +204,15 @@ const mergeExistingOnboarding = () => {
             children_ages: Array.isArray(e.profile.children_ages) ? e.profile.children_ages : [],
             has_pets: Boolean(e.profile.has_pets),
             pet_types: Array.isArray(e.profile.pet_types) ? e.profile.pet_types : [],
+            number_of_children:
+                e.profile.number_of_children !== undefined && e.profile.number_of_children !== null
+                    ? Number(e.profile.number_of_children)
+                    : null,
+            children_ages_text: e.profile.children_ages_text ?? '',
+            dogs_count:
+                e.profile.dogs_count !== undefined && e.profile.dogs_count !== null
+                    ? Number(e.profile.dogs_count)
+                    : null,
         };
     }
 };
@@ -327,6 +339,8 @@ const submittingUserAddress = ref(false);
 const completeOnboarding = async () => {
     saving.value = true;
     const payload = JSON.parse(JSON.stringify(formData.value));
+    const childCount = Number(payload.profile.number_of_children);
+    payload.profile.has_children = Number.isFinite(childCount) && childCount > 0;
     if (!payload.profile.has_children) {
         payload.profile.children_ages = [];
     }
@@ -373,6 +387,14 @@ const submitUserAddressStep = () => {
         return;
     }
 
+    const toNullableInt = (v) => {
+        if (v === '' || v === null || v === undefined) {
+            return null;
+        }
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    };
+
     router.post(route('address-detail.send'), {
         address: formData.value.address_line_1,
         city: formData.value.city,
@@ -382,6 +404,9 @@ const submitUserAddressStep = () => {
         county: formData.value.county,
         location_label: formData.value.location_label,
         preferred_language: formData.value.preferred_language,
+        number_of_children: toNullableInt(formData.value.profile.number_of_children),
+        children_ages_text: formData.value.profile.children_ages_text || null,
+        dogs_count: toNullableInt(formData.value.profile.dogs_count),
     }, {
         preserveState: false,
         onStart: () => {
@@ -758,6 +783,37 @@ onMounted(() => {
                     v-model:location-label="formData.location_label"
                     :country-options="countryOptions"
                     :initial-state-options="stateOptions"
+                />
+
+                <div
+                    v-if="isUserAddressStep"
+                    class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                >
+                    <Input
+                        v-model="formData.profile.number_of_children"
+                        type="number"
+                        min="0"
+                        max="30"
+                        label="Number of children"
+                        placeholder="e.g. 2"
+                        size="compact"
+                    />
+                    <Input
+                        v-model="formData.profile.children_ages_text"
+                        label="Children's ages"
+                        placeholder="e.g. 4, 7 or newborn"
+                        size="compact"
+                    />
+                </div>
+                <Input
+                    v-if="isUserAddressStep"
+                    v-model="formData.profile.dogs_count"
+                    type="number"
+                    min="0"
+                    max="50"
+                    label="Dogs (pets)"
+                    placeholder="How many dogs in the household?"
+                    size="compact"
                 />
 
                 <template v-if="isUserAddressStep">

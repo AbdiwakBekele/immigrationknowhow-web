@@ -13,6 +13,7 @@ import {
     BookOpenIcon,
     ClipboardDocumentListIcon,
     VideoCameraIcon,
+    ShoppingCartIcon,
     StarIcon,
     MegaphoneIcon,
     ChartBarIcon,
@@ -48,6 +49,19 @@ const unreadMessagesLabel = computed(() => {
     }
     return String(n);
 });
+
+const libraryCartCount = computed(() => Number(page.props.library_cart_count ?? 0) || 0);
+
+const cartCountLabel = computed(() => {
+    const n = libraryCartCount.value;
+    if (n < 1) {
+        return '';
+    }
+    if (n > 99) {
+        return '99+';
+    }
+    return String(n);
+});
 const userLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
     return typeof u === 'string' && u.trim() !== '' ? u : '/images/logo.svg';
@@ -56,15 +70,16 @@ const userLogoSrc = computed(() => {
 const sidebarOpen = ref(false);
 const scrolled = ref(false);
 
-const navigation = [
-    { name: 'Home', href: '/', icon: HomeIcon },
+/** Use Ziggy named routes (same pattern as Find Services / marketplace) so Library, Videos, etc. resolve correctly everywhere. */
+const navigation = computed(() => [
+    { name: 'Home', href: route('home'), icon: HomeIcon },
     { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
-    { name: 'Library', href: '/library/my', icon: BookOpenIcon },
-    { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
-];
+    { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
+    { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
+]);
 
-const userNavigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+const userNavigation = computed(() => [
+    { name: 'Dashboard', href: route('dashboard'), icon: HomeIcon },
     { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
     { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
@@ -74,6 +89,7 @@ const userNavigation = [
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Reviews', href: '/reviews', icon: StarIcon },
 ];
+
 
 const readXsrfCookie = () => {
     const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
@@ -148,7 +164,19 @@ const isActive = (href) => {
     if (path === target) {
         return true;
     }
-    return path.startsWith(`${target}/`);
+    if (!path.startsWith(`${target}/`)) {
+        return false;
+    }
+    // "Library" links to /library but cart/checkout live under /library/cart, /library/purchase/… — don't highlight Library there.
+    if (target === '/library') {
+        const rest = path.slice('/library/'.length);
+        const first = rest.split('/')[0] ?? '';
+        if (first === 'cart' || first === 'purchase') {
+            return false;
+        }
+    }
+
+    return true;
 };
 
 const userAvatarSrc = computed(() => {
@@ -227,7 +255,13 @@ const userAvatarInitial = computed(() => {
                     v-for="item in userNavigation"
                     :key="item.name + item.href"
                     :href="item.href"
-                    :aria-label="item.name === 'Messages' && unreadMessages > 0 ? `${item.name}, ${unreadMessages} unread` : item.name"
+                    :aria-label="
+                        item.name === 'Messages' && unreadMessages > 0
+                            ? `${item.name}, ${unreadMessages} unread`
+                            : item.name === 'Cart' && libraryCartCount > 0
+                              ? `${item.name}, ${libraryCartCount} items`
+                              : item.name
+                    "
                     :class="[
                         'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         isActive(item.href)
@@ -250,6 +284,12 @@ const userAvatarInitial = computed(() => {
                             class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
                         >
                             {{ unreadMessagesLabel }}
+                        </span>
+                        <span
+                            v-if="item.name === 'Cart' && libraryCartCount > 0"
+                            class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                        >
+                            {{ cartCountLabel }}
                         </span>
                     </span>
                     <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
@@ -317,6 +357,20 @@ const userAvatarInitial = computed(() => {
                             </span>
                         </Link>
                         <Link
+                            :href="route('library.cart')"
+                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            title="Cart"
+                            :aria-label="libraryCartCount > 0 ? `Cart, ${libraryCartCount} items` : 'Cart'"
+                        >
+                            <ShoppingCartIcon class="h-6 w-6" />
+                            <span
+                                v-if="libraryCartCount > 0"
+                                class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                            >
+                                {{ cartCountLabel }}
+                            </span>
+                        </Link>
+                        <Link
                             href="/"
                             class="hidden items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 sm:inline-flex"
                         >
@@ -378,7 +432,7 @@ const userAvatarInitial = computed(() => {
                             :href="item.href"
                             :class="[
                                 'rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200',
-                                $page.url === item.href
+                                isActive(item.href)
                                     ? 'bg-sky-50 text-sky-700'
                                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                             ]"

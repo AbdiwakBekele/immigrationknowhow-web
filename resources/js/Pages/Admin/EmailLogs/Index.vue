@@ -20,6 +20,18 @@ const formatDate = (value) => {
     return new Date(value).toLocaleString();
 };
 
+const statusBadgeClass = (status) => {
+    if (status === 'sent' || status === 'received') {
+        return 'bg-emerald-50 text-emerald-700';
+    }
+
+    if (status === 'failed') {
+        return 'bg-rose-50 text-rose-700';
+    }
+
+    return 'bg-gray-100 text-gray-600';
+};
+
 const applyFilters = (event) => {
     const formData = new FormData(event.target);
     router.get(route('admin.email-logs.index'), {
@@ -102,7 +114,14 @@ const applyFilters = (event) => {
                     <tbody class="divide-y divide-gray-100">
                         <tr v-for="row in logs.data" :key="row.id">
                             <td class="px-4 py-3 text-sm text-gray-700">{{ row.direction }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-700">{{ row.status }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                <span
+                                    class="rounded-full px-2 py-1 text-xs font-medium uppercase tracking-wide"
+                                    :class="statusBadgeClass(row.status)"
+                                >
+                                    {{ row.status }}
+                                </span>
+                            </td>
                             <td class="px-4 py-3 text-sm text-gray-900">{{ row.subject || 'No subject' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700">{{ row.from_email || 'N/A' }}</td>
                             <td class="px-4 py-3 text-sm text-gray-700">{{ row.to_email || 'N/A' }}</td>

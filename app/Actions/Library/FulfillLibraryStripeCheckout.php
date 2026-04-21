@@ -24,59 +24,96 @@ final class FulfillLibraryStripeCheckout
             return false;
         }
 
-        $itemId = (int) ($session->metadata['library_item_id'] ?? 0);
         $userId = (int) ($session->metadata['user_id'] ?? 0);
-
-        if ($itemId < 1 || $userId < 1) {
+        if ($userId < 1) {
             return false;
         }
 
-        $item = LibraryItem::query()
-            ->whereKey($itemId)
+        $itemIds = [];
+        $rawList = $session->metadata['library_item_ids'] ?? null;
+        if (is_string($rawList) && trim($rawList) !== '') {
+            $itemIds = array_values(array_unique(array_filter(array_map('intval', explode(',', $rawList)))));
+        }
+        if ($itemIds === []) {
+            $single = (int) ($session->metadata['library_item_id'] ?? 0);
+            if ($single > 0) {
+                $itemIds = [$single];
+            }
+        }
+
+        if ($itemIds === []) {
+            return false;
+        }
+
+        $items = LibraryItem::query()
+            ->whereIn('id', $itemIds)
             ->where('is_active', true)
-            ->first();
+            ->get()
+            ->keyBy('id');
 
-        $requiresPaidAccess = $item && ($item->is_premium || ((float) ($item->price ?? 0) > 0));
-
-        if (! $item || ! $requiresPaidAccess) {
+        if ($items->count() !== count(array_unique($itemIds))) {
             return false;
         }
 
-        return DB::transaction(function () use ($item, $userId, $session) {
-            /** @var LibraryUserAccess $access */
-            $access = LibraryUserAccess::query()->firstOrCreate(
-                [
-                    'user_id' => $userId,
-                    'library_item_id' => $item->id,
-                ],
-                []
-            );
+        $expectedCents = 0;
 
-            $access->refresh();
-
-            if ($access->purchased_at !== null) {
-                return true;
+        foreach ($itemIds as $id) {
+            $item = $items->get($id);
+            if (! $item) {
+                return false;
             }
 
-            $amountTotal = $session->amount_total;
-            $amount = $amountTotal !== null
-                ? round(((int) $amountTotal) / 100, 2)
-                : (float) $item->price;
+            $requiresPaidAccess = $item->is_premium || ((float) ($item->price ?? 0) > 0);
+            if (! $requiresPaidAccess) {
+                return false;
+            }
 
-            $currency = strtoupper((string) ($session->currency ?? $item->currency ?? 'USD'));
+            $expectedCents += (int) round((float) $item->price * 100);
+        }
 
+        $paidCents = (int) ($session->amount_total ?? 0);
+        if ($paidCents < 1 || abs($expectedCents - $paidCents) > 2) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($itemIds, $items, $userId, $session) {
             $paymentIntentId = $session->payment_intent;
             if (is_object($paymentIntentId) && isset($paymentIntentId->id)) {
                 $paymentIntentId = $paymentIntentId->id;
             }
+            $paymentIntentId = is_string($paymentIntentId) ? $paymentIntentId : null;
 
-            $access->update([
-                'purchased_at' => now(),
-                'purchase_amount' => $amount,
-                'purchase_currency' => $currency,
-                'stripe_checkout_session_id' => $session->id,
-                'stripe_payment_intent_id' => is_string($paymentIntentId) ? $paymentIntentId : null,
-            ]);
+            $sessionCurrency = strtoupper((string) ($session->currency ?? 'USD'));
+
+            foreach ($itemIds as $id) {
+                $item = $items->get($id);
+                if (! $item) {
+                    return false;
+                }
+
+                /** @var LibraryUserAccess $access */
+                $access = LibraryUserAccess::query()->firstOrCreate(
+                    [
+                        'user_id' => $userId,
+                        'library_item_id' => $item->id,
+                    ],
+                    []
+                );
+
+                $access->refresh();
+
+                if ($access->purchased_at !== null) {
+                    continue;
+                }
+
+                $access->update([
+                    'purchased_at' => now(),
+                    'purchase_amount' => round((float) $item->price, 2),
+                    'purchase_currency' => strtoupper((string) ($item->currency ?? $sessionCurrency)),
+                    'stripe_checkout_session_id' => $session->id,
+                    'stripe_payment_intent_id' => $paymentIntentId,
+                ]);
+            }
 
             return true;
         });

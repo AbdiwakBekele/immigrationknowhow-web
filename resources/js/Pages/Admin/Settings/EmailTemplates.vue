@@ -5,6 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
     templates: { type: Array, default: () => [] },
+    email_templates_table_missing: { type: Boolean, default: false },
 });
 
 const flash = computed(() => usePage().props.flash ?? {});
@@ -22,6 +23,15 @@ const flash = computed(() => usePage().props.flash ?? {});
 
             <div v-if="flash.success" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 {{ flash.success }}
+            </div>
+
+            <div
+                v-if="email_templates_table_missing"
+                class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+                Email templates table is not installed yet. Run
+                <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">php artisan migrate</code>
+                to enable this module.
             </div>
 
             <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">

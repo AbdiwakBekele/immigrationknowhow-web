@@ -16,7 +16,7 @@ export default defineConfig({
         },
     },
     optimizeDeps: {
-        include: ['@stripe/stripe-js'],
+        include: ['@stripe/stripe-js', 'dompurify', 'marked'],
         // pdfjs-dist triggers a Vite 8 dep-optimizer crash (chunk.fileName / exportsData).
         // Exclude it so dev resolves the published ESM directly instead of pre-bundling.
         exclude: ['pdfjs-dist'],
@@ -38,6 +38,8 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': '/resources/js',
+            dompurify: path.resolve(projectRoot, 'node_modules/dompurify/dist/purify.es.mjs'),
+            marked: path.resolve(projectRoot, 'node_modules/marked/lib/marked.esm.js'),
             'pdfjs-dist': path.resolve(projectRoot, 'node_modules/pdfjs-dist'),
         },
     },
