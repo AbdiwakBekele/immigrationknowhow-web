@@ -8,8 +8,8 @@ use App\Models\Ad;
 use App\Models\AdPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -51,16 +51,34 @@ class AdController extends Controller
         $validated = $this->validateAd($request);
         $priceCents = $this->defaultPriceCents();
         $imageUrl = $this->resolveImageUrl($request, $validated);
+        $requireApproval = (bool) config('ads.require_admin_approval', true);
+
+        if ($priceCents > 0) {
+            $status = 'pending_payment';
+            $paidAt = null;
+            $publishedAt = null;
+            $success = 'Ad created. Review and complete payment to publish it.';
+        } elseif ($requireApproval) {
+            $status = 'pending_approval';
+            $paidAt = now();
+            $publishedAt = null;
+            $success = 'Ad submitted. It will appear publicly after an administrator approves it.';
+        } else {
+            $status = 'published';
+            $paidAt = now();
+            $publishedAt = now();
+            $success = 'Ad created and published.';
+        }
 
         $ad = Ad::query()->create([
             'user_id' => $request->user()->id,
             ...$validated,
             'image_url' => $imageUrl,
-            'status' => $priceCents > 0 ? 'pending_payment' : 'published',
+            'status' => $status,
             'price_cents' => $priceCents,
             'currency' => $this->defaultCurrency(),
-            'paid_at' => $priceCents > 0 ? null : now(),
-            'published_at' => $priceCents > 0 ? null : now(),
+            'paid_at' => $paidAt,
+            'published_at' => $publishedAt,
         ]);
 
         $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
@@ -68,9 +86,7 @@ class AdController extends Controller
 
         return redirect()
             ->route($redirectRoute, $ad)
-            ->with('success', $priceCents > 0
-                ? 'Ad created. Review and complete payment to publish it.'
-                : 'Ad created and published.');
+            ->with('success', $success);
     }
 
     public function edit(Request $request, Ad $ad): Response
@@ -91,8 +107,20 @@ class AdController extends Controller
         $this->authorizeAd($ad);
         $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
 
-        if ($ad->status === 'published' || $ad->paid_at !== null) {
+        if ($ad->status === 'published') {
             return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already published.');
+        }
+
+        if ($ad->status === 'pending_approval') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is awaiting administrator approval.');
+        }
+
+        if ($ad->status === 'rejected') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad was not approved. Update it and resubmit for review if available.');
+        }
+
+        if ($ad->status !== 'pending_payment') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'Payment is not required for this ad in its current state.');
         }
 
         return Inertia::render('Advertiser/Ads/Pay', [
@@ -126,13 +154,37 @@ class AdController extends Controller
         return redirect()->route($this->adsRouteName($request, 'index'))->with('success', 'Ad deleted.');
     }
 
+    public function resubmit(Request $request, Ad $ad): RedirectResponse
+    {
+        $this->authorizeAd($ad);
+
+        abort_unless($ad->status === 'rejected', 422);
+
+        $ad->update([
+            'status' => 'pending_approval',
+            'meta' => array_merge($ad->meta ?? [], [
+                'resubmitted_at' => now()->toIso8601String(),
+            ]),
+        ]);
+
+        return back()->with('success', 'Ad resubmitted for review.');
+    }
+
     public function checkout(Request $request, Ad $ad): Response|RedirectResponse|SymfonyResponse
     {
         $this->authorizeAd($ad);
         $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
 
-        if ($ad->paid_at !== null || $ad->status === 'published') {
-            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already paid and published.');
+        if ($ad->status === 'published') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already published.');
+        }
+
+        if ($ad->status === 'pending_approval') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is awaiting administrator approval.');
+        }
+
+        if ($ad->status !== 'pending_payment') {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'Checkout is not available for this ad.');
         }
 
         if (! $this->stripeIsConfigured()) {
@@ -220,7 +272,12 @@ class AdController extends Controller
         $ad = Ad::query()->whereKey($adId)->where('user_id', auth()->id())->first();
 
         if ($ad) {
-            return redirect()->route($adsIndexRoute)->with('success', 'Payment successful. Your ad is now published.');
+            $ad->refresh();
+            $message = $ad->status === 'pending_approval'
+                ? 'Payment successful. Your ad is pending administrator approval before it goes live.'
+                : 'Payment successful. Your ad is now published.';
+
+            return redirect()->route($adsIndexRoute)->with('success', $message);
         }
 
         return redirect()->route($adsIndexRoute)->with('success', 'Payment successful.');
@@ -241,6 +298,7 @@ class AdController extends Controller
             'cta_url' => ['required', 'url:http,https', 'max:2048'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'image_file' => ['nullable', 'image', 'max:5120'],
+            'clear_image' => ['sometimes', 'boolean'],
         ]);
 
         $imageUrl = trim((string) ($validated['image_url'] ?? ''));
@@ -255,13 +313,18 @@ class AdController extends Controller
 
     private function resolveImageUrl(Request $request, array &$validated, ?string $fallback = null): ?string
     {
+        $clearImage = (bool) ($validated['clear_image'] ?? false);
         $existing = trim((string) ($validated['image_url'] ?? ''));
-        unset($validated['image_file'], $validated['image_url']);
+        unset($validated['image_file'], $validated['image_url'], $validated['clear_image']);
 
         if ($request->hasFile('image_file')) {
             $path = $request->file('image_file')->store('ads', 'public');
 
             return Storage::url($path);
+        }
+
+        if ($clearImage) {
+            return null;
         }
 
         if ($existing !== '') {
@@ -294,6 +357,7 @@ class AdController extends Controller
                 'clicks' => $clickCount,
                 'ctr' => $viewCount > 0 ? round(($clickCount / $viewCount) * 100, 2) : 0.0,
             ],
+            'meta' => $ad->meta ?? [],
         ];
     }
 
@@ -375,4 +439,3 @@ class AdController extends Controller
         ];
     }
 }
-

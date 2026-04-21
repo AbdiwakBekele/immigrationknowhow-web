@@ -15,6 +15,7 @@ export function adminMainNavItems({
     ChartBarIcon,
     BanknotesIcon,
     CreditCardIcon,
+    MegaphoneIcon,
 }) {
     return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
@@ -23,6 +24,8 @@ export function adminMainNavItems({
         { name: 'Providers', href: '/admin/providers', icon: BriefcaseIcon },
         { name: 'Background Checks', href: '/admin/background-checks', icon: ShieldCheckIcon },
         { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },
+        { name: 'Ads', href: '/admin/ads', icon: MegaphoneIcon },
+        { name: 'Ad Analytics', href: '/admin/ads/analytics', icon: ChartBarIcon },
         { name: 'Library', href: '/admin/library', icon: BookOpenIcon },
         { name: 'Pending payments', href: '/admin/library-manual-payments', icon: BanknotesIcon },
         { name: 'Videos', href: '/admin/videos', icon: VideoCameraIcon },

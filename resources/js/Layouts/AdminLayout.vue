@@ -19,6 +19,7 @@ import {
     Squares2X2Icon,
     BanknotesIcon,
     CreditCardIcon,
+    MegaphoneIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     UserCircleIcon,
@@ -45,6 +46,7 @@ const mainNavigation = computed(() =>
         ChartBarIcon,
         BanknotesIcon,
         CreditCardIcon,
+        MegaphoneIcon,
     }),
 );
 
@@ -86,6 +88,18 @@ const isActive = (href) => {
 
     if (href === '/admin/videos') {
         return path === '/admin/videos' || path.startsWith('/admin/videos/');
+    }
+
+    if (href === '/admin/ads/analytics') {
+        return path === '/admin/ads/analytics' || path.startsWith('/admin/ads/analytics/');
+    }
+
+    if (href === '/admin/ads') {
+        if (path.startsWith('/admin/ads/analytics')) {
+            return false;
+        }
+
+        return path === '/admin/ads' || path.startsWith('/admin/ads/');
     }
 
     return path.startsWith(href);

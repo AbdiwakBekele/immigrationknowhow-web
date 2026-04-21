@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\Admin\AdsAnalyticsController;
+use App\Http\Controllers\Admin\AdsController;
 use App\Http\Controllers\Advertiser;
 use App\Http\Controllers\Affiliate as AffiliatePortal;
 use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
@@ -255,6 +257,7 @@ Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function 
         Route::post('/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('checkout');
         Route::get('/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('purchase.return');
         Route::get('/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('purchase.cancel');
+        Route::post('/{ad:uuid}/resubmit', [Advertiser\AdController::class, 'resubmit'])->name('resubmit');
     });
 });
 
@@ -274,6 +277,7 @@ Route::middleware(['auth', 'role:advertiser', 'onboarding.complete'])
         Route::post('/ads/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('ads.checkout');
         Route::get('/ads/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('ads.purchase.return');
         Route::get('/ads/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('ads.purchase.cancel');
+        Route::post('/ads/{ad:uuid}/resubmit', [Advertiser\AdController::class, 'resubmit'])->name('ads.resubmit');
     });
 
 /*
@@ -329,6 +333,9 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/messages/{conversation:uuid}/unarchive', [MessagingController::class, 'unarchive'])->name('messages.unarchive');
         Route::delete('/messages/{conversation:uuid}', [MessagingController::class, 'destroy'])->name('messages.destroy');
 
+        // Provider library (separate from service-seeker /library/my page)
+        Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
+
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility
         Route::get('/verification', fn () => redirect()->route('provider.background-check.index'))->name('verification.index');
@@ -355,6 +362,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
             Route::post('/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('checkout');
             Route::get('/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('purchase.return');
             Route::get('/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('purchase.cancel');
+            Route::post('/{ad:uuid}/resubmit', [Advertiser\AdController::class, 'resubmit'])->name('resubmit');
         });
     });
 
@@ -408,6 +416,12 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/reviews', [Admin\ReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{review:uuid}/approve', [Admin\ReviewController::class, 'approve'])->name('reviews.approve');
         Route::post('/reviews/{review:uuid}/reject', [Admin\ReviewController::class, 'reject'])->name('reviews.reject');
+
+        // Sponsored ads (all users — moderation & analytics)
+        Route::get('/ads', [AdsController::class, 'index'])->name('ads.index');
+        Route::get('/ads/analytics', AdsAnalyticsController::class)->name('ads.analytics');
+        Route::post('/ads/{ad:uuid}/approve', [AdsController::class, 'approve'])->name('ads.approve');
+        Route::post('/ads/{ad:uuid}/reject', [AdsController::class, 'reject'])->name('ads.reject');
 
         // Library (manual payment queue before resource so "library-manual-payments" is not captured as {library})
         Route::get('/library-manual-payments', [Admin\LibraryManualPaymentController::class, 'index'])

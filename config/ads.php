@@ -3,5 +3,9 @@
 return [
     'default_price_cents' => (int) env('AD_POST_PRICE_CENTS', 2500),
     'currency' => strtoupper((string) env('AD_POST_CURRENCY', 'USD')),
+    /**
+     * When true, paid and free ads are not publicly visible until an admin approves them.
+     * Set ADS_REQUIRE_ADMIN_APPROVAL=false to auto-publish after payment (legacy behavior).
+     */
+    'require_admin_approval' => filter_var(env('ADS_REQUIRE_ADMIN_APPROVAL', true), FILTER_VALIDATE_BOOLEAN),
 ];
-

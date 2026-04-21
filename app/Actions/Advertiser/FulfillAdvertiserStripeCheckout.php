@@ -53,15 +53,25 @@ final class FulfillAdvertiserStripeCheckout
                 ],
             );
 
-            $ad->update([
-                'status' => 'published',
-                'paid_at' => $ad->paid_at ?? now(),
-                'published_at' => $ad->published_at ?? now(),
-                'last_paid_checkout_session_id' => $session->id,
-            ]);
+            $requireApproval = (bool) config('ads.require_admin_approval', true);
+
+            if ($requireApproval) {
+                $ad->update([
+                    'status' => 'pending_approval',
+                    'paid_at' => $ad->paid_at ?? now(),
+                    'published_at' => null,
+                    'last_paid_checkout_session_id' => $session->id,
+                ]);
+            } else {
+                $ad->update([
+                    'status' => 'published',
+                    'paid_at' => $ad->paid_at ?? now(),
+                    'published_at' => $ad->published_at ?? now(),
+                    'last_paid_checkout_session_id' => $session->id,
+                ]);
+            }
 
             return true;
         });
     }
 }
-
