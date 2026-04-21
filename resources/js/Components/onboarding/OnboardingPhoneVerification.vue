@@ -18,6 +18,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    useExternalActions: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const otpForm = useForm({
@@ -37,13 +41,22 @@ const otpInputs = ref([]);
 
 const flagClass = (iso2) => `fi fi-${String(iso2 || '').toLowerCase()}`;
 
+const normalizeLocalDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 10);
+
+const formatUsPhone = (digits) => {
+    const clean = normalizeLocalDigits(digits);
+    if (clean.length <= 3) return clean;
+    if (clean.length <= 6) return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}`;
+};
+
 function initFromStored(digits) {
     countryIso.value = 'US';
     if (!digits) {
         phoneLocal.value = '';
         return;
     }
-    phoneLocal.value = digits.startsWith('1') ? digits.slice(1) : digits;
+    phoneLocal.value = normalizeLocalDigits(digits.startsWith('1') ? digits.slice(1) : digits);
 }
 
 onMounted(() => {
@@ -77,9 +90,11 @@ const selectedDial = computed(() => {
 });
 
 const fullDigits = computed(() => {
-    const local = phoneLocal.value.replace(/\D/g, '');
+    const local = normalizeLocalDigits(phoneLocal.value);
     return `${selectedDial.value}${local}`;
 });
+
+const phoneLocalDisplay = computed(() => formatUsPhone(phoneLocal.value));
 
 const maskedPhone = computed(() => {
     const typed = fullDigits.value.replace(/\D/g, '');
@@ -202,6 +217,13 @@ const submitOtp = () => {
 };
 
 const resendOtp = () => {
+    const localDigits = normalizeLocalDigits(phoneLocal.value);
+    if (localDigits.length !== 10) {
+        resendForm.setError('phone', 'Enter a valid 10-digit phone number (123-456-7890).');
+        return;
+    }
+    resendForm.clearErrors('phone');
+
     resendForm.phone = fullDigits.value;
     console.log('[FLOW_DEBUG] Step 3 send/resend OTP', {
         phoneLast4: fullDigits.value.slice(-4),
@@ -217,6 +239,11 @@ const resendOtp = () => {
             console.log('[FLOW_DEBUG] Step 3 send/resend OTP errors', errors);
         },
     });
+};
+
+const handlePhoneInput = (event) => {
+    phoneLocal.value = normalizeLocalDigits(event?.target?.value);
+    resendForm.clearErrors('phone');
 };
 
 const editNumber = () => {
@@ -239,6 +266,33 @@ const goBack = () => {
 
     router.visit(route('onboarding.index', { step: 2 }));
 };
+
+const continueFlow = () => {
+    if (hasSentOtp.value) {
+        submitOtp();
+        return;
+    }
+
+    resendOtp();
+};
+
+const backFlow = () => {
+    if (hasSentOtp.value) {
+        editNumber();
+        return;
+    }
+
+    goBack();
+};
+
+const isContinuing = computed(() => (hasSentOtp.value ? otpForm.processing : resendForm.processing));
+
+defineExpose({
+    continueFlow,
+    backFlow,
+    isContinuing,
+    hasSentOtp,
+});
 </script>
 
 <template>
@@ -295,20 +349,22 @@ const goBack = () => {
                     </Listbox>
                     <input
                         id="onboarding-verify-phone-local"
-                        v-model="phoneLocal"
+                        :value="phoneLocalDisplay"
                         type="tel"
                         inputmode="tel"
                         autocomplete="tel-national"
-                        placeholder="6636453463"
+                        placeholder="123-456-7890"
                         required
+                        maxlength="12"
                         class="min-w-0 flex-1 border-0 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
                         :aria-invalid="!!resendForm.errors.phone"
+                        @input="handlePhoneInput"
                     />
                 </div>
                 <p v-if="resendForm.errors.phone" class="text-xs text-red-600">{{ resendForm.errors.phone }}</p>
                 <p class="text-xs text-neutral-500">Use a mobile number that can receive SMS.</p>
             </div>
-            <div class="flex items-center justify-between gap-3 pt-2">
+            <div v-if="!useExternalActions" class="flex items-center justify-between gap-3 pt-2">
                 <Button
                     type="button"
                     variant="ghost"
@@ -360,7 +416,7 @@ const goBack = () => {
                     Resend code
                 </button>
             </div>
-            <div class="flex items-center justify-between gap-3 pt-2">
+            <div v-if="!useExternalActions" class="flex items-center justify-between gap-3 pt-2">
                 <Button
                     type="button"
                     variant="ghost"

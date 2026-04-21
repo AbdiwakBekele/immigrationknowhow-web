@@ -288,6 +288,10 @@ const roleMeta = (user) => {
         return { label: 'Provider', classes: 'bg-emerald-100 text-emerald-700' };
     }
 
+    if (role === 'advertiser') {
+        return { label: 'Advertiser', classes: 'bg-fuchsia-100 text-fuchsia-700' };
+    }
+
     return { label: 'User', classes: 'bg-blue-100 text-blue-700' };
 };
 

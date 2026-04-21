@@ -12,6 +12,12 @@ final class UserHomeUrl
     public static function afterAuthentication(User $user, bool $isImpersonating = false): string
     {
         if (! $user->isAffiliate() && ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin()) {
+            if ($user->isAdvertiser()) {
+                return $user->hasCompletedSignupAddressStep()
+                    ? route('onboarding.advertiser', ['step' => 3])
+                    : route('onboarding.advertiser', ['step' => 2]);
+            }
+
             if ($user->followsProviderOnboarding()) {
                 return $user->hasCompletedSignupAddressStep()
                     ? route('onboarding.index', ['step' => 3])
@@ -19,6 +25,10 @@ final class UserHomeUrl
             }
 
             return route('onboarding.index', ['step' => 2]);
+        }
+
+        if ($user->isAdvertiser() && ! $user->hasCompletedOnboarding()) {
+            return route('onboarding.advertiser');
         }
 
         if (! $user->isAffiliate() && ! $user->hasCompletedOnboarding()) {
@@ -32,6 +42,10 @@ final class UserHomeUrl
 
             if ($user->isProvider()) {
                 return route('provider.dashboard');
+            }
+
+            if ($user->isAdvertiser()) {
+                return route('advertiser.dashboard');
             }
 
             if ($user->isAffiliate()) {
@@ -49,6 +63,14 @@ final class UserHomeUrl
             return route('affiliate.dashboard');
         }
 
+        if ($user->isAdvertiser()) {
+            return route('advertiser.dashboard');
+        }
+
+        if ($user->isAdvertiser() && ! $user->hasCompletedOnboarding()) {
+            return route('onboarding.advertiser');
+        }
+
         if (! $user->hasCompletedOnboarding()) {
             return route('onboarding.index');
         }
@@ -59,6 +81,10 @@ final class UserHomeUrl
 
         if ($user->isProvider()) {
             return route('provider.dashboard');
+        }
+
+        if ($user->isAdvertiser()) {
+            return route('advertiser.dashboard');
         }
 
         return route('dashboard');

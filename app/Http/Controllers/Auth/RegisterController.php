@@ -12,6 +12,7 @@ use App\Notifications\RoleAwareTransactionalEmailNotification;
 use App\Models\EmailTemplate;
 use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
+use App\Support\UserHomeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -31,7 +32,7 @@ class RegisterController extends Controller
     public function create(Request $request): Response
     {
         $initialRole = $request->string('role')->toString();
-        if (! in_array($initialRole, [UserRole::USER->value, UserRole::PROVIDER->value], true)) {
+        if (! in_array($initialRole, [UserRole::USER->value, UserRole::PROVIDER->value, UserRole::ADVERTISER->value], true)) {
             $initialRole = UserRole::USER->value;
         }
 
@@ -39,6 +40,7 @@ class RegisterController extends Controller
             'roles' => [
                 ['value' => UserRole::USER->value, 'label' => UserRole::USER->label(), 'description' => UserRole::USER->description()],
                 ['value' => UserRole::PROVIDER->value, 'label' => UserRole::PROVIDER->label(), 'description' => UserRole::PROVIDER->description()],
+                ['value' => UserRole::ADVERTISER->value, 'label' => UserRole::ADVERTISER->label(), 'description' => UserRole::ADVERTISER->description()],
             ],
             'initialRole' => $initialRole,
             // Provider dropdown: active rows from service_type_options with for_provider = true
@@ -62,7 +64,7 @@ class RegisterController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['nullable', 'string', 'in:'.UserRole::USER->value.','.UserRole::PROVIDER->value],
+            'role' => ['nullable', 'string', 'in:'.UserRole::USER->value.','.UserRole::PROVIDER->value.','.UserRole::ADVERTISER->value],
             'service_type' => [
                 Rule::requiredIf($effectiveRole === UserRole::PROVIDER->value),
                 'nullable',
@@ -87,7 +89,7 @@ class RegisterController extends Controller
         $user->assignRole($effectiveRole);
         $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
             'role' => $effectiveRole,
-            'dashboard_link' => route('dashboard'),
+            'dashboard_link' => UserHomeUrl::afterAuthentication($user),
         ]));
 
         $referral = $this->attachAffiliateReferral->handle($user, $request);
@@ -104,7 +106,10 @@ class RegisterController extends Controller
 
         Auth::login($user);
 
-        // Service needers complete step 2 directly on onboarding.
+        if ($effectiveRole === UserRole::ADVERTISER->value) {
+            return redirect()->route('onboarding.advertiser', ['step' => 2]);
+        }
+
         if ($effectiveRole === UserRole::USER->value) {
             return redirect()->route('onboarding.index', ['step' => 2]);
         }

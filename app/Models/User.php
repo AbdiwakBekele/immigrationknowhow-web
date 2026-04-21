@@ -114,6 +114,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(AffiliateReferral::class, 'referred_user_id');
     }
 
+    public function ads(): HasMany
+    {
+        return $this->hasMany(Ad::class);
+    }
+
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class);
@@ -180,6 +185,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->role(UserRole::AFFILIATE->value);
     }
 
+    public function scopeAdvertisers($query)
+    {
+        return $query->role(UserRole::ADVERTISER->value);
+    }
+
     // Helper Methods
     public function isProvider(): bool
     {
@@ -239,6 +249,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasRole(UserRole::SUPER_ADMIN->value);
     }
 
+    public function isAdvertiser(): bool
+    {
+        return $this->hasRole(UserRole::ADVERTISER->value);
+    }
+
     /**
      * Signup phone verification is valid only when timestamp exists and phone is stored.
      */
@@ -261,6 +276,12 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         if (! $this->isAffiliate() && ! $this->hasCompletedSignupPhoneStep() && ! $this->isAdmin()) {
+            if ($this->isAdvertiser()) {
+                return $this->hasCompletedSignupAddressStep()
+                    ? route('onboarding.advertiser', ['step' => 3])
+                    : route('onboarding.advertiser', ['step' => 2]);
+            }
+
             if ($this->followsProviderOnboarding()) {
                 return $this->hasCompletedSignupAddressStep()
                     ? route('onboarding.index', ['step' => 3])
@@ -268,6 +289,10 @@ class User extends Authenticatable implements MustVerifyEmail
             }
 
             return route('onboarding.index', ['step' => 2]);
+        }
+
+        if ($this->isAdvertiser() && ! $this->hasCompletedOnboarding()) {
+            return route('onboarding.advertiser');
         }
 
         if (! $this->hasCompletedOnboarding()) {
@@ -280,6 +305,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
         if ($this->isProvider()) {
             return route('provider.dashboard');
+        }
+
+        if ($this->isAdvertiser()) {
+            return route('advertiser.dashboard');
         }
 
         return route('dashboard');
