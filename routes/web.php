@@ -150,6 +150,16 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
     Route::get('/my', [LibraryController::class, 'myLibrary'])->name('my');
     Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
     Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
+    Route::get('/cart', [LibraryController::class, 'cart'])->name('cart');
+    Route::post('/cart/items/{item:slug}', [LibraryController::class, 'addToCart'])
+        ->middleware('throttle:60,1')
+        ->name('cart.add');
+    Route::delete('/cart/items/{item:slug}', [LibraryController::class, 'removeFromCart'])
+        ->middleware('throttle:60,1')
+        ->name('cart.remove');
+    Route::post('/cart/checkout', [LibraryController::class, 'checkoutCart'])
+        ->middleware('throttle:10,1')
+        ->name('cart.checkout');
     Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
         ->middleware('throttle:10,1')
         ->name('pay');

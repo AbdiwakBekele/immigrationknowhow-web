@@ -39,17 +39,306 @@ class LibraryController extends Controller
 
     private function abortIfNotAvailableInUserRegion(LibraryItem $item): void
     {
+        abort_unless($this->itemAvailableInUserRegion($item), 404);
+    }
+
+    private function itemAvailableInUserRegion(LibraryItem $item): bool
+    {
         $region = $this->regionForCurrentUser();
         if ($region === null) {
-            return;
+            return true;
         }
 
         $regions = $item->regions ?? null;
         if (! is_array($regions) || count($regions) === 0) {
-            return;
+            return true;
         }
 
-        abort_unless(in_array($region, $regions, true), 404);
+        return in_array($region, $regions, true);
+    }
+
+    private const LIBRARY_CART_SESSION_KEY = 'library_cart_ids';
+
+    /**
+     * @return array<int, int>
+     */
+    private function getLibraryCartIds(): array
+    {
+        $raw = session()->get(self::LIBRARY_CART_SESSION_KEY, []);
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $raw))));
+
+        return $ids;
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     */
+    private function setLibraryCartIds(array $ids): void
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        session()->put(self::LIBRARY_CART_SESSION_KEY, $ids);
+    }
+
+    /**
+     * @return Collection<int, LibraryItem>
+     */
+    private function syncAndResolveCartItems(): Collection
+    {
+        $ids = $this->getLibraryCartIds();
+        if ($ids === []) {
+            return collect();
+        }
+
+        $loaded = LibraryItem::query()
+            ->with(['category', 'libraryAuthor'])
+            ->whereIn('id', $ids)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $keep = [];
+        foreach ($ids as $id) {
+            $item = $loaded->get($id);
+            if (! $item) {
+                continue;
+            }
+            if ($this->userHasAccess($item)) {
+                continue;
+            }
+            if (! $this->itemAvailableInUserRegion($item)) {
+                continue;
+            }
+            $requiresPaid = $this->requiresPaidAccess($item);
+            if (! $requiresPaid) {
+                continue;
+            }
+            if ($item->price === null || (float) $item->price <= 0) {
+                continue;
+            }
+            $keep[] = (int) $item->id;
+        }
+
+        $this->setLibraryCartIds($keep);
+
+        if ($keep === []) {
+            return collect();
+        }
+
+        $currencyOrder = [];
+        foreach ($keep as $kid) {
+            $item = $loaded->get($kid);
+            if ($item) {
+                $currencyOrder[strtoupper((string) ($item->currency ?? 'USD'))] = true;
+            }
+        }
+        if (count($currencyOrder) > 1) {
+            $firstCurrency = strtoupper((string) ($loaded->get($keep[0])?->currency ?? 'USD'));
+            $keep = array_values(array_filter($keep, function (int $id) use ($loaded, $firstCurrency): bool {
+                $item = $loaded->get($id);
+
+                return $item && strtoupper((string) ($item->currency ?? 'USD')) === $firstCurrency;
+            }));
+            $this->setLibraryCartIds($keep);
+        }
+
+        if ($keep === []) {
+            return collect();
+        }
+
+        $models = LibraryItem::query()
+            ->with(['category', 'libraryAuthor'])
+            ->whereIn('id', $keep)
+            ->get();
+
+        return $models
+            ->sortBy(static fn (LibraryItem $item): int => array_search($item->id, $keep, true) ?: 0)
+            ->values();
+    }
+
+    public function cart(): Response
+    {
+        $items = $this->syncAndResolveCartItems();
+        $currency = strtoupper((string) ($items->first()?->currency ?? 'USD'));
+        $total = round($items->reduce(static fn (float $carry, LibraryItem $item): float => $carry + (float) ($item->price ?? 0), 0.0), 2);
+
+        $stripeConfigured = $this->stripeIsConfigured();
+        $manualAvailable = $this->manualPaymentsEnabled();
+
+        return Inertia::render('Library/Cart', [
+            'items' => $items->values(),
+            'total' => $total,
+            'currency' => $currency,
+            'stripeConfigured' => $stripeConfigured,
+            'manualPaymentsAvailable' => $manualAvailable,
+        ]);
+    }
+
+    public function addToCart(LibraryItem $item): RedirectResponse
+    {
+        abort_unless($item->is_active, 404);
+
+        if (! $this->itemAvailableInUserRegion($item)) {
+            return back()->with('error', 'This title is not available in your region.');
+        }
+
+        $requiresPaidAccess = $this->requiresPaidAccess($item);
+        if (! $item->is_premium && ! $requiresPaidAccess) {
+            return back()->with('info', 'This title is free — open it from the library without adding to cart.');
+        }
+
+        if ($item->price === null || (float) $item->price <= 0) {
+            return back()->with('error', 'This title is not available for online purchase.');
+        }
+
+        if ($this->userHasAccess($item)) {
+            return back()->with('info', 'You already have access to this title.');
+        }
+
+        $ids = $this->getLibraryCartIds();
+        if (in_array($item->id, $ids, true)) {
+            return redirect()
+                ->route('library.cart')
+                ->with('info', 'This title is already in your cart.');
+        }
+
+        $newCurrency = strtoupper((string) ($item->currency ?? 'USD'));
+        if ($ids !== []) {
+            $first = LibraryItem::query()->whereKey($ids[0])->first();
+            $firstCurrency = strtoupper((string) ($first?->currency ?? 'USD'));
+            if ($firstCurrency !== $newCurrency) {
+                return back()->with('error', 'Your cart uses '.$firstCurrency.'. Remove items or complete checkout before adding titles in '.$newCurrency.'.');
+            }
+        }
+
+        $ids[] = $item->id;
+        $this->setLibraryCartIds($ids);
+
+        return redirect()
+            ->route('library.cart')
+            ->with('success', 'Added to your cart.');
+    }
+
+    public function removeFromCart(LibraryItem $item): RedirectResponse
+    {
+        $ids = array_values(array_filter(
+            $this->getLibraryCartIds(),
+            static fn (int $id): bool => $id !== $item->id
+        ));
+        $this->setLibraryCartIds($ids);
+
+        return back()->with('success', 'Removed from cart.');
+    }
+
+    public function checkoutCart(): RedirectResponse|Response|SymfonyResponse
+    {
+        $items = $this->syncAndResolveCartItems();
+
+        if ($items->isEmpty()) {
+            return redirect()
+                ->route('library.cart')
+                ->with('error', 'Your cart is empty or the titles are no longer available.');
+        }
+
+        if (! $this->stripeIsConfigured()) {
+            if ($items->count() === 1 && $this->manualPaymentsEnabled()) {
+                return redirect()->route('library.pay', $items->first());
+            }
+
+            return redirect()
+                ->route('library.cart')
+                ->with('error', config('app.debug')
+                    ? 'Stripe checkout is not configured. Add STRIPE_KEY and STRIPE_SECRET, then run php artisan config:clear.'
+                    : 'Online checkout is not available right now. Please try again later or contact support.');
+        }
+
+        $currency = strtolower((string) ($items->first()->currency ?? 'USD'));
+        $lineItems = [];
+
+        foreach ($items as $item) {
+            $unitAmount = (int) round((float) $item->price * 100);
+            if ($currency === 'usd' && $unitAmount < 50) {
+                return redirect()
+                    ->route('library.cart')
+                    ->with('error', 'One or more prices are below the minimum for card payments. Please contact support.');
+            }
+
+            $description = Str::limit(strip_tags((string) $item->description), 450);
+            if ($description === '') {
+                $description = 'Digital library item';
+            }
+
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => $currency,
+                    'unit_amount' => $unitAmount,
+                    'product_data' => [
+                        'name' => $item->title,
+                        'description' => $description,
+                    ],
+                ],
+                'quantity' => 1,
+            ];
+        }
+
+        $totalCents = (int) array_sum(array_map(
+            static fn (array $row): int => (int) ($row['price_data']['unit_amount'] ?? 0),
+            $lineItems
+        ));
+        if ($currency === 'usd' && $totalCents < 50) {
+            return redirect()
+                ->route('library.cart')
+                ->with('error', 'The order total is below the minimum for card payments. Please contact support.');
+        }
+
+        $secret = config('services.stripe.secret');
+        Stripe::setApiKey($secret);
+
+        $itemIdsString = $items->pluck('id')->implode(',');
+
+        try {
+            $session = StripeCheckoutSession::create([
+                'mode' => 'payment',
+                'customer_email' => auth()->user()->email,
+                'client_reference_id' => (string) auth()->id(),
+                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('library.cart', [], true),
+                'metadata' => [
+                    'app' => 'library',
+                    'library_item_ids' => $itemIdsString,
+                    'user_id' => (string) auth()->id(),
+                ],
+                'line_items' => $lineItems,
+                'custom_text' => [
+                    'submit' => [
+                        'message' => 'After payment, you will return to your library to read or listen.',
+                    ],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Stripe library cart checkout session failed', [
+                'library_item_ids' => $itemIdsString,
+                'message' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('library.cart')
+                ->with('error', config('app.debug')
+                    ? 'Payment could not start: '.$e->getMessage()
+                    : 'Payment could not start. Please try again or contact support.');
+        }
+
+        $checkoutUrl = $session->url;
+        if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
+            return redirect()
+                ->route('library.cart')
+                ->with('error', 'Could not start checkout. Please try again.');
+        }
+
+        return Inertia::location($checkoutUrl);
     }
 
     public function index(Request $request): Response
@@ -586,7 +875,30 @@ class LibraryController extends Controller
 
         $fulfill($session);
 
-        $itemId = (int) ($session->metadata['library_item_id'] ?? 0);
+        $purchasedIds = [];
+        $rawMulti = $session->metadata['library_item_ids'] ?? null;
+        if (is_string($rawMulti) && trim($rawMulti) !== '') {
+            $purchasedIds = array_values(array_unique(array_filter(array_map('intval', explode(',', $rawMulti)))));
+        }
+        if ($purchasedIds === []) {
+            $single = (int) ($session->metadata['library_item_id'] ?? 0);
+            if ($single > 0) {
+                $purchasedIds = [$single];
+            }
+        }
+
+        if ($purchasedIds !== []) {
+            $current = $this->getLibraryCartIds();
+            $this->setLibraryCartIds(array_values(array_diff($current, $purchasedIds)));
+        }
+
+        if (count($purchasedIds) > 1) {
+            return redirect()
+                ->route('library.index')
+                ->with('success', 'Payment successful. Your titles are ready in your library.');
+        }
+
+        $itemId = $purchasedIds[0] ?? (int) ($session->metadata['library_item_id'] ?? 0);
         $item = LibraryItem::query()->whereKey($itemId)->first();
 
         if ($item) {

@@ -339,6 +339,9 @@ class AddressDetailsController extends Controller
             'location_label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferred_language' => ['sometimes', 'required', 'string', Rule::in(array_keys(LanguageOptions::labels()))],
             'phone' => ['sometimes', 'required', 'string', 'min:10', 'max:32'],
+            'number_of_children' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
+            'children_ages_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'dogs_count' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
         Log::channel('single')->info('AddressDetails sendOtp validated payload.', [
@@ -377,6 +380,20 @@ class AddressDetailsController extends Controller
             return back()->withErrors(['postal_code' => 'Please choose a ZIP or city for your state (United States).']);
         }
 
+        $profilePatch = [];
+        if (array_key_exists('number_of_children', $validated)) {
+            $profilePatch['number_of_children'] = $validated['number_of_children'];
+            $profilePatch['has_children'] = (int) $validated['number_of_children'] > 0;
+        }
+        if (array_key_exists('children_ages_text', $validated)) {
+            $profilePatch['children_ages_text'] = $validated['children_ages_text'];
+        }
+        if (array_key_exists('dogs_count', $validated)) {
+            $profilePatch['dogs_count'] = $validated['dogs_count'];
+        }
+
+        $profileExtras = array_merge($user->onboarding_data['profile'] ?? [], $profilePatch);
+
         $onboardingData = array_merge($user->onboarding_data ?? [], [
             'location' => array_merge($user->onboarding_data['location'] ?? [], [
                 'city' => $city,
@@ -386,6 +403,7 @@ class AddressDetailsController extends Controller
                 'county' => $county,
                 'label' => $locationLabel,
             ]),
+            'profile' => $profileExtras,
         ]);
 
         $user->update([
