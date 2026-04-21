@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin;
+use App\Http\Controllers\Advertiser;
 use App\Http\Controllers\Affiliate as AffiliatePortal;
 use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
 use App\Http\Controllers\AffiliateController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
+use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\User;
 use App\Http\Controllers\VideoProductController;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
@@ -54,6 +56,8 @@ Route::get('/videos/{video:slug}/stream', [VideoProductController::class, 'strea
 // Marketplace (public)
 Route::get('/providers', [MarketplaceController::class, 'index'])->name('marketplace.index');
 Route::get('/providers/{provider:slug}', [MarketplaceController::class, 'show'])->name('marketplace.show');
+Route::get('/sponsored/{ad:uuid}', [PublicAdController::class, 'show'])->name('ads.public.show');
+Route::get('/sponsored/{ad:uuid}/click', [PublicAdController::class, 'click'])->name('ads.public.click');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
@@ -134,6 +138,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
 
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+    Route::get('/onboarding/advertiser', [OnboardingController::class, 'advertiser'])->name('onboarding.advertiser');
 
     Route::get('/api/locations/states', [LocationLookupController::class, 'states'])->name('locations.states');
     Route::get('/api/locations/search', [LocationLookupController::class, 'search'])->name('locations.search');
@@ -180,8 +185,8 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
     Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
 });
 
-// Routes requiring completed onboarding
-Route::middleware(['auth', 'onboarding.complete'])->group(function () {
+// General user routes requiring completed onboarding
+Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function () {
 
     // User Dashboard
     Route::get('/dashboard', [User\DashboardController::class, 'index'])->name('dashboard');
@@ -236,7 +241,40 @@ Route::middleware(['auth', 'onboarding.complete'])->group(function () {
     Route::get('/reviews', [User\ReviewController::class, 'index'])->name('reviews.index');
     Route::post('/providers/{provider:slug}/reviews', [User\ReviewController::class, 'store'])->name('reviews.store');
     Route::post('/reviews/{review:uuid}/helpful', [User\ReviewController::class, 'markHelpful'])->name('reviews.helpful');
+
+    // Ads
+    Route::prefix('ads')->name('user.ads.')->group(function () {
+        Route::get('/', [Advertiser\AdController::class, 'index'])->name('index');
+        Route::get('/analytics', Advertiser\AnalyticsController::class)->name('analytics');
+        Route::get('/create', [Advertiser\AdController::class, 'create'])->name('create');
+        Route::post('/', [Advertiser\AdController::class, 'store'])->name('store');
+        Route::get('/{ad:uuid}/edit', [Advertiser\AdController::class, 'edit'])->name('edit');
+        Route::get('/{ad:uuid}/pay', [Advertiser\AdController::class, 'pay'])->name('pay');
+        Route::patch('/{ad:uuid}', [Advertiser\AdController::class, 'update'])->name('update');
+        Route::delete('/{ad:uuid}', [Advertiser\AdController::class, 'destroy'])->name('destroy');
+        Route::post('/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('checkout');
+        Route::get('/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('purchase.return');
+        Route::get('/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('purchase.cancel');
+    });
 });
+
+Route::middleware(['auth', 'role:advertiser', 'onboarding.complete'])
+    ->prefix('advertiser')
+    ->name('advertiser.')
+    ->group(function () {
+        Route::get('/dashboard', Advertiser\DashboardController::class)->name('dashboard');
+        Route::get('/ads', [Advertiser\AdController::class, 'index'])->name('ads.index');
+        Route::get('/analytics', Advertiser\AnalyticsController::class)->name('analytics');
+        Route::get('/ads/create', [Advertiser\AdController::class, 'create'])->name('ads.create');
+        Route::post('/ads', [Advertiser\AdController::class, 'store'])->name('ads.store');
+        Route::get('/ads/{ad:uuid}/edit', [Advertiser\AdController::class, 'edit'])->name('ads.edit');
+        Route::get('/ads/{ad:uuid}/pay', [Advertiser\AdController::class, 'pay'])->name('ads.pay');
+        Route::patch('/ads/{ad:uuid}', [Advertiser\AdController::class, 'update'])->name('ads.update');
+        Route::delete('/ads/{ad:uuid}', [Advertiser\AdController::class, 'destroy'])->name('ads.destroy');
+        Route::post('/ads/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('ads.checkout');
+        Route::get('/ads/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('ads.purchase.return');
+        Route::get('/ads/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('ads.purchase.cancel');
+    });
 
 /*
 |--------------------------------------------------------------------------
@@ -303,6 +341,21 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
 
         // Analytics
         Route::get('/analytics', [Provider\AnalyticsController::class, 'index'])->name('analytics.index');
+
+        // Ads
+        Route::prefix('ads')->name('ads.')->group(function () {
+            Route::get('/', [Advertiser\AdController::class, 'index'])->name('index');
+            Route::get('/analytics', Advertiser\AnalyticsController::class)->name('analytics');
+            Route::get('/create', [Advertiser\AdController::class, 'create'])->name('create');
+            Route::post('/', [Advertiser\AdController::class, 'store'])->name('store');
+            Route::get('/{ad:uuid}/edit', [Advertiser\AdController::class, 'edit'])->name('edit');
+            Route::get('/{ad:uuid}/pay', [Advertiser\AdController::class, 'pay'])->name('pay');
+            Route::patch('/{ad:uuid}', [Advertiser\AdController::class, 'update'])->name('update');
+            Route::delete('/{ad:uuid}', [Advertiser\AdController::class, 'destroy'])->name('destroy');
+            Route::post('/{ad:uuid}/checkout', [Advertiser\AdController::class, 'checkout'])->name('checkout');
+            Route::get('/purchase/return', [Advertiser\AdController::class, 'purchaseReturn'])->name('purchase.return');
+            Route::get('/purchase/cancel/{ad:uuid}', [Advertiser\AdController::class, 'purchaseCancel'])->name('purchase.cancel');
+        });
     });
 
 Route::middleware(['auth', 'role:affiliate', 'affiliate.access', 'verified'])

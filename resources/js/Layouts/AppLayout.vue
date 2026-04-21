@@ -15,6 +15,8 @@ import {
     VideoCameraIcon,
     ShoppingCartIcon,
     StarIcon,
+    MegaphoneIcon,
+    ChartBarIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -79,13 +81,15 @@ const navigation = computed(() => [
 const userNavigation = computed(() => [
     { name: 'Dashboard', href: route('dashboard'), icon: HomeIcon },
     { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
-    { name: 'Contracts', href: route('contracts.index'), icon: ClipboardDocumentListIcon },
-    { name: 'Messages', href: route('messages.index'), icon: ChatBubbleLeftRightIcon },
-    { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
-    { name: 'Cart', href: route('library.cart'), icon: ShoppingCartIcon },
-    { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
-    { name: 'Reviews', href: route('reviews.index'), icon: StarIcon },
-]);
+    { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
+    { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
+    { name: 'My Ads', href: '/ads', icon: MegaphoneIcon },
+    { name: 'Ad Analytics', href: '/ads/analytics', icon: ChartBarIcon },
+    { name: 'Library', href: '/library', icon: BookOpenIcon },
+    { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
+    { name: 'Reviews', href: '/reviews', icon: StarIcon },
+];
+
 
 const readXsrfCookie = () => {
     const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);

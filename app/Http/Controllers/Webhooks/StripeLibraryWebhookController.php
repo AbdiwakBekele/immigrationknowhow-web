@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Affiliates\CreateAffiliateEarningAction;
+use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Actions\Provider\FulfillProviderStripeCheckout;
 use App\Actions\Provider\SyncProviderStripeSubscription;
 use App\Enums\AffiliateCommissionTrigger;
@@ -24,6 +25,7 @@ class StripeLibraryWebhookController extends Controller
         Request $request,
         FulfillLibraryStripeCheckout $fulfillLibrary,
         FulfillVideoStripeCheckout $fulfillVideo,
+        FulfillAdvertiserStripeCheckout $fulfillAdvertiser,
         FulfillProviderStripeCheckout $fulfillProvider,
         SyncProviderStripeSubscription $syncProviderSubscription,
         CreateAffiliateEarningAction $createAffiliateEarning,
@@ -53,6 +55,8 @@ class StripeLibraryWebhookController extends Controller
                 $app = (string) ($session->metadata['app'] ?? '');
                 if ($app === 'video') {
                     $fulfillVideo($session);
+                } elseif ($app === 'advertiser_ad') {
+                    $fulfillAdvertiser($session);
                 } elseif ($app === 'provider_subscription') {
                     $fulfillProvider($session);
                 } else {

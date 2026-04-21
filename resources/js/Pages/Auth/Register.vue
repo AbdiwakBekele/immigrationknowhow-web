@@ -6,7 +6,7 @@ import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
 import Input from '@/Components/ui/Input.vue';
 import Button from '@/Components/ui/Button.vue';
 import Select from '@/Components/ui/Select.vue';
-import { UserIcon, BriefcaseIcon } from '@heroicons/vue/24/outline';
+import { UserIcon, BriefcaseIcon, MegaphoneIcon } from '@heroicons/vue/24/outline';
 import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER } from '@/constants/authFlowProgress';
 
@@ -48,9 +48,15 @@ const roleOptions = [
         description: 'Create an account to offer services and continue setup.',
         icon: BriefcaseIcon,
     },
+    {
+        value: 'advertiser',
+        label: 'I want to post ads',
+        description: 'Create an advertiser account to publish paid ads.',
+        icon: MegaphoneIcon,
+    },
 ];
 
-const totalSteps = computed(() => (form.role === 'user' ? SIGNUP_FLOW_STEPS_USER : SIGNUP_FLOW_STEPS_PROVIDER));
+const totalSteps = computed(() => (form.role === 'provider' ? SIGNUP_FLOW_STEPS_PROVIDER : SIGNUP_FLOW_STEPS_USER));
 
 const serviceTypeLabel = computed(() =>
     form.role === 'provider' ? 'Service you provide' : 'Service you need'

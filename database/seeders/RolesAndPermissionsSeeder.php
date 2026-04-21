@@ -66,6 +66,15 @@ class RolesAndPermissionsSeeder extends Seeder
             // Video permissions
             'view videos',
             'manage videos',
+
+            // Advertiser permissions
+            'view advertiser dashboard',
+            'view ads',
+            'create ads',
+            'edit ads',
+            'delete ads',
+            'view ad analytics',
+            'manage ads',
             
             // Verification permissions
             'view verifications',
@@ -126,6 +135,20 @@ class RolesAndPermissionsSeeder extends Seeder
             'view affiliates',
         ]);
 
+        // Advertiser
+        $advertiserRole = Role::firstOrCreate([
+            'name' => UserRole::ADVERTISER->value,
+            'guard_name' => 'web',
+        ]);
+        $advertiserRole->syncPermissions([
+            'view advertiser dashboard',
+            'view ads',
+            'create ads',
+            'edit ads',
+            'delete ads',
+            'view ad analytics',
+        ]);
+
         // Affiliate
         $affiliateRole = Role::firstOrCreate([
             'name' => UserRole::AFFILIATE->value,
@@ -161,6 +184,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage affiliates',
             'view videos',
             'manage videos',
+            'view ad analytics',
+            'manage ads',
             'view verifications',
             'manage verifications',
             'access admin panel',

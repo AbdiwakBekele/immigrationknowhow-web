@@ -60,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                     'roles' => $request->user()->roles->pluck('name'),
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
                     'is_affiliate' => $request->user()->isAffiliate(),
+                    'is_advertiser' => $request->user()->isAdvertiser(),
                 ] : null,
             ],
             'branding' => fn () => PlatformSetting::branding(),

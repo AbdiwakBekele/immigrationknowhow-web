@@ -285,7 +285,7 @@
 
     /* Admin design system */
     .admin-page-container {
-        @apply mx-auto max-w-6xl space-y-5;
+        @apply w-full space-y-5;
     }
 
     .admin-hero-card {

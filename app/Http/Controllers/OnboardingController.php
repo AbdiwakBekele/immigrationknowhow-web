@@ -27,6 +27,32 @@ class OnboardingController extends Controller
 {
     public function index(Request $request): Response|RedirectResponse
     {
+        if ($request->user()?->isAdvertiser()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.advertiser', $params);
+        }
+
+        return $this->renderOnboardingPage($request, false);
+    }
+
+    public function advertiser(Request $request): Response|RedirectResponse
+    {
+        if (! $request->user()?->isAdvertiser()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.index', $params);
+        }
+
+        return $this->renderOnboardingPage($request, true);
+    }
+
+    private function renderOnboardingPage(Request $request, bool $forceAdvertiser): Response|RedirectResponse
+    {
         $user = auth()->user();
 
         if ($user->hasCompletedOnboarding()) {
@@ -35,6 +61,7 @@ class OnboardingController extends Controller
 
         $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
         $isProvider = $user->followsProviderOnboarding();
+        $isAdvertiser = $forceAdvertiser || $user->isAdvertiser();
         $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index entry', [
@@ -81,7 +108,9 @@ class OnboardingController extends Controller
                 ->get(['id', 'uuid', 'name', 'description', 'price_cents', 'currency', 'billing_cycle', 'features', 'is_featured', 'stripe_price_id'])
             : collect();
 
-        return Inertia::render('Onboarding/Index', [
+        $component = $isAdvertiser ? 'Onboarding/Advertiser' : 'Onboarding/Index';
+
+        return Inertia::render($component, [
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'address', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
             'initialStep' => $initialStep,
             'requiresPhoneVerification' => $needsPhone,
@@ -94,12 +123,14 @@ class OnboardingController extends Controller
             'isProvider' => $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
-                : ServiceTypeOptions::userIntakeOptions(),
+                : ($isAdvertiser ? [] : ServiceTypeOptions::userIntakeOptions()),
             'countryOptions' => CountryOptions::selectOptions(),
             'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
             'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
-            'steps' => $isProvider ? $this->getProviderSteps() : $this->getUserSteps(),
+            'steps' => $isProvider
+                ? $this->getProviderSteps()
+                : ($isAdvertiser ? $this->getAdvertiserSteps() : $this->getUserSteps()),
             'subscriptionPlans' => $subscriptionPlans,
             'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
         ]);
@@ -120,6 +151,14 @@ class OnboardingController extends Controller
             ['key' => 'business', 'title' => 'Business', 'description' => 'Tell clients about your practice'],
             ['key' => 'pricing', 'title' => 'Pricing', 'description' => 'How you charge'],
             ['key' => 'subscription', 'title' => 'Subscription', 'description' => 'Pick your provider plan'],
+            ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
+        ];
+    }
+
+    protected function getAdvertiserSteps(): array
+    {
+        return [
+            ['key' => 'address', 'title' => 'Address', 'description' => 'Where should we localize your ad audience?'],
             ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
     }
@@ -149,7 +188,7 @@ class OnboardingController extends Controller
                 return redirect()->route('address-detail');
             }
 
-            return redirect()->route('onboarding.index', ['step' => 3]);
+            return redirect()->route($user->isAdvertiser() ? 'onboarding.advertiser' : 'onboarding.index', ['step' => 3]);
         }
 
         $isProvider = $user->followsProviderOnboarding();
@@ -358,6 +397,10 @@ class OnboardingController extends Controller
 
         if ($user->isProvider()) {
             return redirect()->route('provider.dashboard');
+        }
+
+        if ($user->isAdvertiser()) {
+            return redirect()->route('advertiser.dashboard');
         }
 
         return redirect()->route('dashboard');

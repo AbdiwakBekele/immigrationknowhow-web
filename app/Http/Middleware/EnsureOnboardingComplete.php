@@ -24,7 +24,7 @@ class EnsureOnboardingComplete
             }
 
             // Redirect to onboarding
-            return redirect()->route('onboarding.index');
+            return redirect()->route($user->isAdvertiser() ? 'onboarding.advertiser' : 'onboarding.index');
         }
 
         return $next($request);

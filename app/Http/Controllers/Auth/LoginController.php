@@ -71,11 +71,19 @@ class LoginController extends Controller
             return redirect()->intended(route('affiliate.dashboard'));
         }
 
+        if ($user->isAdvertiser() && $user->hasCompletedOnboarding()) {
+            return redirect()->intended(route('advertiser.dashboard'));
+        }
+
+        if ($user->isAdvertiser() && ! $user->hasCompletedOnboarding()) {
+            return redirect()->route('onboarding.advertiser');
+        }
+
         if (! $user->isAffiliate() && ! $user->hasCompletedOnboarding()) {
             return redirect()->route('onboarding.index');
         }
 
-        if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate()) {
+        if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate() && ! $user->isAdvertiser()) {
             return redirect()->intended(route('dashboard'));
         }
 
@@ -89,6 +97,10 @@ class LoginController extends Controller
 
         if ($user->isProvider()) {
             return redirect()->intended(route('provider.dashboard'));
+        }
+
+        if ($user->isAdvertiser()) {
+            return redirect()->intended(route('advertiser.dashboard'));
         }
 
         return redirect()->intended(route('dashboard'));

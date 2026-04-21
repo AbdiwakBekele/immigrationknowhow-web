@@ -6,6 +6,7 @@ enum UserRole: string
 {
     case USER = 'user';
     case PROVIDER = 'provider';
+    case ADVERTISER = 'advertiser';
     case AFFILIATE = 'affiliate';
     case ADMIN = 'admin';
     case SUPER_ADMIN = 'super_admin';
@@ -15,6 +16,7 @@ enum UserRole: string
         return match ($this) {
             self::USER => 'General User',
             self::PROVIDER => 'Service Provider',
+            self::ADVERTISER => 'Advertiser',
             self::AFFILIATE => 'Affiliate Partner',
             self::ADMIN => 'Administrator',
             self::SUPER_ADMIN => 'Super Administrator',
@@ -26,6 +28,7 @@ enum UserRole: string
         return match ($this) {
             self::USER => 'Immigrants seeking services',
             self::PROVIDER => 'Professional service providers',
+            self::ADVERTISER => 'Businesses posting paid ads',
             self::AFFILIATE => 'Referral partners earning commissions',
             self::ADMIN => 'Platform administrators',
             self::SUPER_ADMIN => 'Full system access',
