@@ -322,13 +322,19 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/leads/{lead}/conversation', [Provider\LeadsController::class, 'createConversation'])->name('leads.conversation');
         Route::post('/leads/{lead}/decline', [Provider\LeadsController::class, 'decline'])->name('leads.decline');
 
-        // Reviews
-        Route::get('/reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');
-        Route::post('/reviews/{review:uuid}/respond', [Provider\ReviewController::class, 'respond'])->name('reviews.respond');
+        // Provider-only Reviews (dedicated portal routes)
+        Route::get('/portal-reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');
+        Route::post('/portal-reviews/{review:uuid}/respond', [Provider\ReviewController::class, 'respond'])->name('reviews.respond');
+        Route::post('/portal-reviews/{review:uuid}/response', [Provider\ReviewController::class, 'updateResponse'])->name('reviews.response.update');
+        Route::delete('/portal-reviews/{review:uuid}/response', [Provider\ReviewController::class, 'deleteResponse'])->name('reviews.response.delete');
+        Route::post('/portal-reviews/{review:uuid}/report', [Provider\ReviewController::class, 'report'])->name('reviews.report');
+        // Legacy entry point
+        Route::redirect('/reviews', '/provider/portal-reviews', 301);
 
         // Messages (provider portal — separate from service-seeker /messages)
         Route::get('/messages', [Provider\MessageController::class, 'index'])->name('messages.index');
         Route::get('/messages/archived', [Provider\MessageController::class, 'archived'])->name('messages.archived');
+        Route::get('/messages/unread-count', [Provider\MessageController::class, 'unreadCount'])->name('messages.unread-count');
         Route::get('/messages/{conversation:uuid}', [Provider\MessageController::class, 'show'])->name('messages.show');
         Route::post('/messages/{conversation:uuid}', [MessagingController::class, 'sendMessage'])->name('messages.send');
         Route::post('/messages/{conversation:uuid}/read', [MessagingController::class, 'markAsRead'])->name('messages.read');

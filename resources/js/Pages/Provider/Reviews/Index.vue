@@ -39,8 +39,8 @@ const openResponseModal = (review) => {
 
 const submitResponse = () => {
     const url = selectedReview.value.provider_response 
-        ? `/provider/reviews/${selectedReview.value.uuid}/response`
-        : `/provider/reviews/${selectedReview.value.uuid}/respond`;
+        ? `/provider/portal-reviews/${selectedReview.value.uuid}/response`
+        : `/provider/portal-reviews/${selectedReview.value.uuid}/respond`;
     
     responseForm.post(url, {
         preserveScroll: true,
@@ -55,7 +55,7 @@ const submitResponse = () => {
 const deleteResponse = () => {
     if (!confirm('Are you sure you want to remove your response?')) return;
     
-    router.delete(`/provider/reviews/${selectedReview.value.uuid}/response`, {
+    router.delete(`/provider/portal-reviews/${selectedReview.value.uuid}/response`, {
         preserveScroll: true,
         onSuccess: () => {
             showResponseModal.value = false;
@@ -70,7 +70,7 @@ const openReportModal = (review) => {
 };
 
 const submitReport = () => {
-    reportForm.post(`/provider/reviews/${selectedReview.value.uuid}/report`, {
+    reportForm.post(`/provider/portal-reviews/${selectedReview.value.uuid}/report`, {
         preserveScroll: true,
         onSuccess: () => {
             showReportModal.value = false;
@@ -81,7 +81,7 @@ const submitReport = () => {
 };
 
 const applyFilter = (key, value) => {
-    router.get('/provider/reviews', {
+    router.get('/provider/portal-reviews', {
         ...props.filters,
         [key]: value || undefined,
     }, {

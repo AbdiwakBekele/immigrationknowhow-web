@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\Message;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -12,6 +14,16 @@ use Inertia\Response;
 
 class MessageController extends Controller
 {
+    public function unreadCount(): JsonResponse
+    {
+        $user = auth()->user();
+        abort_unless($user?->serviceProvider, 403);
+
+        return response()->json([
+            'count' => Message::unreadIncomingCountFor($user),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $user = auth()->user();

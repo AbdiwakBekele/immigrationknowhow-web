@@ -11,9 +11,17 @@ use Inertia\Response;
 
 class ReviewController extends Controller
 {
+    protected function resolveProviderOrFail()
+    {
+        $provider = auth()->user()?->serviceProvider;
+        abort_if(! $provider, 403);
+
+        return $provider;
+    }
+
     public function index(Request $request): Response
     {
-        $provider = auth()->user()->serviceProvider;
+        $provider = $this->resolveProviderOrFail();
 
         $query = Review::where('service_provider_id', $provider->id)
             ->with('user:id,first_name,last_name,avatar');
@@ -59,7 +67,7 @@ class ReviewController extends Controller
             ],
         ];
 
-        return Inertia::render('Provider/Reviews/Index', [
+        return Inertia::render('Provider/Reviews/ProviderOnlyIndex', [
             'reviews' => $reviews,
             'stats' => $stats,
             'filters' => $request->only(['rating', 'responded', 'sort']),
@@ -69,7 +77,7 @@ class ReviewController extends Controller
     public function respond(Request $request, Review $review): RedirectResponse
     {
         // Ensure this review belongs to the provider
-        $provider = auth()->user()->serviceProvider;
+        $provider = $this->resolveProviderOrFail();
         
         if ($review->service_provider_id !== $provider->id) {
             abort(403);
@@ -89,7 +97,7 @@ class ReviewController extends Controller
 
     public function updateResponse(Request $request, Review $review): RedirectResponse
     {
-        $provider = auth()->user()->serviceProvider;
+        $provider = $this->resolveProviderOrFail();
         
         if ($review->service_provider_id !== $provider->id) {
             abort(403);
@@ -108,7 +116,7 @@ class ReviewController extends Controller
 
     public function deleteResponse(Review $review): RedirectResponse
     {
-        $provider = auth()->user()->serviceProvider;
+        $provider = $this->resolveProviderOrFail();
         
         if ($review->service_provider_id !== $provider->id) {
             abort(403);
@@ -124,7 +132,7 @@ class ReviewController extends Controller
 
     public function report(Request $request, Review $review): RedirectResponse
     {
-        $provider = auth()->user()->serviceProvider;
+        $provider = $this->resolveProviderOrFail();
         
         if ($review->service_provider_id !== $provider->id) {
             abort(403);
