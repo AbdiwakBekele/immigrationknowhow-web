@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Input from '@/Components/ui/Input.vue';
 import { Cog6ToothIcon, PhotoIcon } from '@heroicons/vue/24/outline';
@@ -8,6 +8,8 @@ import { Cog6ToothIcon, PhotoIcon } from '@heroicons/vue/24/outline';
 const props = defineProps({
     settings: { type: Object, default: () => ({}) },
 });
+const page = usePage();
+const flashSuccess = computed(() => page.props.flash?.success);
 
 const form = useForm({
     company_name: props.settings.company_name ?? 'ImmigrationKnowHow',
@@ -57,10 +59,22 @@ const save = () => {
     <Head title="Settings" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Settings</h1>
-                <p class="mt-1 text-gray-500">Manage global branding and platform behavior from the super-admin console.</p>
+        <div class="admin-page-container space-y-4">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Platform configuration
+                </p>
+                <h1 class="mt-2 admin-title">General settings</h1>
+                <p class="admin-subtitle">
+                    Manage global branding and platform behavior from the super-admin console.
+                </p>
+            </section>
+
+            <div
+                v-if="flashSuccess"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+            >
+                {{ flashSuccess }}
             </div>
 
             <div class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">

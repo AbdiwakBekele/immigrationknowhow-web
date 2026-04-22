@@ -15,11 +15,16 @@ const flash = computed(() => usePage().props.flash ?? {});
     <Head title="Email Templates" />
 
     <AdminLayout>
-        <div class="space-y-6">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Email templates</h1>
-                <p class="mt-1 text-gray-500">Update transactional emails for invites, welcomes, and account activations by role.</p>
-            </div>
+        <div class="admin-page-container space-y-4">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Messaging settings
+                </p>
+                <h1 class="mt-2 admin-title">Email templates</h1>
+                <p class="admin-subtitle">
+                    Update transactional emails for invites, welcomes, and account activations by role.
+                </p>
+            </section>
 
             <div v-if="flash.success" class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                 {{ flash.success }}
@@ -34,7 +39,7 @@ const flash = computed(() => usePage().props.flash ?? {});
                 to enable this module.
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+            <section class="admin-table-wrap overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -72,7 +77,7 @@ const flash = computed(() => usePage().props.flash ?? {});
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
         </div>
     </AdminLayout>
 </template>

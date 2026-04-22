@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\TransactionalEmailTemplateRenderer;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -80,6 +81,40 @@ class AppServiceProvider extends ServiceProvider
             $bcc = $message->getBcc();
 
             try {
+                $payload = [
+                    'html' => $message->getHtmlBody(),
+                    'text' => $message->getTextBody(),
+                    'event_key' => $this->headerValue($message, 'X-IKH-Event-Key'),
+                    'to' => $this->emailsToArray($to),
+                    'from' => $this->emailsToArray($from),
+                    'cc' => $this->emailsToArray($cc),
+                    'bcc' => $this->emailsToArray($bcc),
+                ];
+
+                $queuedLog = EmailLog::query()
+                    ->where('direction', 'outgoing')
+                    ->where('status', 'queued')
+                    ->where('subject', $message->getSubject())
+                    ->where('to_email', $this->firstEmail($to))
+                    ->latest('id')
+                    ->first();
+
+                if ($queuedLog) {
+                    $queuedPayload = is_array($queuedLog->payload) ? $queuedLog->payload : [];
+
+                    $queuedLog->update([
+                        'status' => 'sent',
+                        'message_id' => $message->getHeaders()->get('Message-ID')?->getBodyAsString(),
+                        'provider' => config('mail.default'),
+                        'user_id' => $this->headerInt($message, 'X-IKH-User-ID'),
+                        'template_id' => $this->headerInt($message, 'X-IKH-Template-ID'),
+                        'payload' => array_merge($queuedPayload, $payload),
+                        'sent_at' => now(),
+                    ]);
+
+                    return;
+                }
+
                 EmailLog::query()->create([
                     'direction' => 'outgoing',
                     'status' => 'sent',
@@ -92,16 +127,60 @@ class AppServiceProvider extends ServiceProvider
                     'provider' => config('mail.default'),
                     'user_id' => $this->headerInt($message, 'X-IKH-User-ID'),
                     'template_id' => $this->headerInt($message, 'X-IKH-Template-ID'),
+                    'payload' => $payload,
+                    'sent_at' => now(),
+                ]);
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        });
+
+        Event::listen(MessageSending::class, function (MessageSending $event): void {
+            if (! Schema::hasTable('email_logs')) {
+                return;
+            }
+
+            $message = $event->message;
+            if (! $message instanceof Email) {
+                return;
+            }
+
+            $from = $message->getFrom();
+            $to = $message->getTo();
+            $cc = $message->getCc();
+            $bcc = $message->getBcc();
+
+            try {
+                $alreadyLogged = EmailLog::query()
+                    ->where('direction', 'outgoing')
+                    ->where('status', 'queued')
+                    ->where('subject', $message->getSubject())
+                    ->where('to_email', $this->firstEmail($to))
+                    ->latest('id')
+                    ->first();
+
+                if ($alreadyLogged) {
+                    return;
+                }
+
+                EmailLog::query()->create([
+                    'direction' => 'outgoing',
+                    'status' => 'queued',
+                    'subject' => $message->getSubject(),
+                    'from_email' => $this->firstEmail($from),
+                    'to_email' => $this->firstEmail($to),
+                    'cc' => $this->emailsToString($cc),
+                    'bcc' => $this->emailsToString($bcc),
+                    'provider' => config('mail.default'),
+                    'user_id' => $this->headerInt($message, 'X-IKH-User-ID'),
+                    'template_id' => $this->headerInt($message, 'X-IKH-Template-ID'),
                     'payload' => [
-                        'html' => $message->getHtmlBody(),
-                        'text' => $message->getTextBody(),
                         'event_key' => $this->headerValue($message, 'X-IKH-Event-Key'),
                         'to' => $this->emailsToArray($to),
                         'from' => $this->emailsToArray($from),
                         'cc' => $this->emailsToArray($cc),
                         'bcc' => $this->emailsToArray($bcc),
                     ],
-                    'sent_at' => now(),
                 ]);
             } catch (Throwable $exception) {
                 report($exception);

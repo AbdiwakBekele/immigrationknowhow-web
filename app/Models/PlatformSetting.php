@@ -44,7 +44,7 @@ class PlatformSetting extends Model
     {
         return [
             'company_name' => config('app.name', 'ImmigrationKnowHow'),
-            'support_email' => 'hello@immigrationknowhow.com',
+            'support_email' => env('MAIL_FROM_ADDRESS'),
             'support_phone' => null,
             'support_address' => null,
             'site_logo_path' => null,
