@@ -66,7 +66,7 @@ const navigation = [
     { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
     { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
     { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
-    { name: 'My Library', href: '/library/my', icon: BookOpenIcon },
+    { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
     { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
@@ -170,14 +170,14 @@ onUnmounted(() => {
         >
             <div
                 v-if="sidebarOpen"
-                class="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-[2px] lg:hidden"
+                class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
                 @click="sidebarOpen = false"
             />
         </Transition>
 
         <aside
             :class="[
-                'fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white/95 shadow-[8px_0_32px_-20px_rgba(15,23,42,0.18)] backdrop-blur transition-transform duration-300 lg:translate-x-0',
+                'fixed inset-y-0 left-0 z-50 flex min-h-screen w-64 flex-col border-r border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 shadow-[4px_0_32px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm transition-transform duration-300 lg:translate-x-0',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full',
             ]"
         >
@@ -269,10 +269,10 @@ onUnmounted(() => {
             <div class="shrink-0 border-t border-slate-200 p-4">
                 <Link
                     href="/provider/profile"
-                    class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                    class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
                     @click="sidebarOpen = false"
                 >
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary-600 text-white ring-1 ring-primary-500/50">
                         <UserCircleIcon class="h-6 w-6" />
                     </span>
                     <div class="min-w-0 flex-1">
@@ -285,7 +285,7 @@ onUnmounted(() => {
             </div>
         </aside>
 
-        <div class="lg:pl-72">
+        <div class="lg:pl-64">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
                 <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
