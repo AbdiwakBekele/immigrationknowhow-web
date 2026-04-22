@@ -25,7 +25,39 @@ const navigation = computed(() => [
 
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
-    return path === href || path.startsWith(`${href}/`);
+    let target = typeof href === 'string' ? href : '';
+    if (target.startsWith('http://') || target.startsWith('https://')) {
+        try {
+            target = new URL(target).pathname;
+        } catch {
+            /* keep target as-is */
+        }
+    }
+    if (path === target) {
+        return true;
+    }
+    if (!path.startsWith(`${target}/`)) {
+        return false;
+    }
+    const hasMoreSpecificMatch = navigation.value.some((item) => {
+        const candidateHref = typeof item.href === 'string' ? item.href : '';
+        if (!candidateHref || candidateHref === href) {
+            return false;
+        }
+        let candidate = candidateHref;
+        if (candidate.startsWith('http://') || candidate.startsWith('https://')) {
+            try {
+                candidate = new URL(candidate).pathname;
+            } catch {
+                /* keep candidate as-is */
+            }
+        }
+        if (!candidate.startsWith(`${target}/`)) {
+            return false;
+        }
+        return path === candidate || path.startsWith(`${candidate}/`);
+    });
+    return !hasMoreSpecificMatch;
 };
 
 const logout = () => {
@@ -153,9 +185,11 @@ const userAvatarInitial = computed(() => {
                 </div>
             </header>
 
-            <main class="p-1 sm:p-2 lg:p-5">
+            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
                 <ImpersonationBanner />
-                <slot />
+                <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
+                    <slot />
+                </div>
             </main>
         </div>
     </div>

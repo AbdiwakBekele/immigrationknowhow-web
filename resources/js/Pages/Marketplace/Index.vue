@@ -245,6 +245,7 @@ watch(() => form.sort, () => {
                             v-model="form.language"
                             :options="languageOptions"
                             label="Language"
+                            size="auth"
                             @update:model-value="applyFilters"
                         />
                         <Input
@@ -253,7 +254,9 @@ watch(() => form.sort, () => {
                             placeholder="City or state"
                             @blur="applyFilters"
                         />
-                        <div class="space-y-3 pt-6">
+                        <div>
+                            <p class="mb-3 block text-base font-medium text-slate-700">Options</p>
+                            <div class="space-y-3">
                             <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                                 <input
                                     v-model="form.remote_only"
@@ -272,8 +275,10 @@ watch(() => form.sort, () => {
                                 />
                                 <span class="text-sm text-slate-700">Free consultation</span>
                             </label>
+                            </div>
                         </div>
-                        <div class="flex items-end">
+                        <div class="flex flex-col">
+                            <span class="mb-3 block text-base font-medium text-transparent select-none">Actions</span>
                             <Button v-if="hasActiveFilters || form.search" variant="ghost" size="sm" @click="clearFilters">
                                 <XMarkIcon class="h-4 w-4" />
                                 Clear all

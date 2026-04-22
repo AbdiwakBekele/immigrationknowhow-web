@@ -174,6 +174,21 @@ const isActive = (href) => {
     if (!path.startsWith(`${target}/`)) {
         return false;
     }
+    // If a more specific sidebar route matches, don't keep the parent highlighted.
+    // Example: /ads should not stay active on /ads/analytics.
+    const hasMoreSpecificMatch = userNavigation.value.some((item) => {
+        const candidate = typeof item.href === 'string' ? item.href : '';
+        if (!candidate || candidate === target) {
+            return false;
+        }
+        if (!candidate.startsWith(`${target}/`)) {
+            return false;
+        }
+        return path === candidate || path.startsWith(`${candidate}/`);
+    });
+    if (hasMoreSpecificMatch) {
+        return false;
+    }
     // "Library" links to /library but cart/checkout live under /library/cart, /library/purchase/… — don't highlight Library there.
     if (target === '/library') {
         const rest = path.slice('/library/'.length);
@@ -410,9 +425,11 @@ const userAvatarInitial = computed(() => {
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 lg:p-8">
+            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
                 <ImpersonationBanner />
-                <slot />
+                <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
+                    <slot />
+                </div>
             </main>
         </div>
     </div>
