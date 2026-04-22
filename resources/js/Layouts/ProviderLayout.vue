@@ -354,9 +354,11 @@ onUnmounted(() => {
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 lg:p-8">
+            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
                 <ImpersonationBanner />
-                <slot />
+                <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
+                    <slot />
+                </div>
             </main>
         </div>
     </div>
