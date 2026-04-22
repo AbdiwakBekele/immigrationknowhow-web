@@ -32,7 +32,7 @@ class NewReviewNotification extends Notification implements ShouldQueue
             ->line('You just received a new ' . $rating . '-star review.')
             ->line($stars)
             ->line('"' . \Str::limit($this->review->comment, 200) . '"')
-            ->action('View & Respond', url('/provider/reviews'))
+            ->action('View & Respond', url('/provider/portal-reviews'))
             ->line('Thank you for being a valued provider on ImmigrationKnowHow!');
     }
 

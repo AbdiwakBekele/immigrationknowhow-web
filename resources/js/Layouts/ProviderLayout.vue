@@ -67,7 +67,7 @@ const navigation = [
     { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
     { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
     { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
-    { name: 'Reviews', href: '/provider/reviews', icon: StarIcon },
+    { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
     { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
@@ -112,7 +112,7 @@ const readXsrfCookie = () => {
 
 const pollUnreadMessages = async () => {
     try {
-        const res = await fetch('/messages/unread-count', {
+        const res = await fetch('/provider/messages/unread-count', {
             headers: {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',

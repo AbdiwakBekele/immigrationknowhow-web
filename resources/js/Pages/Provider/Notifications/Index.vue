@@ -66,7 +66,7 @@ const notificationHref = (row) => {
         return route('provider.messages.show', d.conversation_uuid);
     }
     if (d.type === 'new_review') {
-        return '/provider/reviews';
+        return '/provider/portal-reviews';
     }
     if (d.type === 'verification_approved' || d.type === 'verification_rejected') {
         return '/provider/profile';
