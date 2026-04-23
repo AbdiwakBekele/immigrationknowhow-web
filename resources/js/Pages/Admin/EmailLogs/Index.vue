@@ -46,11 +46,16 @@ const applyFilters = (event) => {
     <Head title="Email Logs" />
 
     <AdminLayout>
-        <div class="space-y-5">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Email Logs</h1>
-                <p class="mt-1 text-gray-500">Track outgoing and incoming emails across the platform.</p>
-            </div>
+        <div class="admin-page-container space-y-4">
+            <section class="admin-hero-card">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Messaging audit
+                </p>
+                <h1 class="mt-2 admin-title">Email logs</h1>
+                <p class="admin-subtitle">
+                    Track outgoing and incoming emails across the platform.
+                </p>
+            </section>
 
             <div
                 v-if="email_logs_table_missing"
@@ -61,7 +66,11 @@ const applyFilters = (event) => {
                 to enable this module.
             </div>
 
-            <form v-if="!email_logs_table_missing" class="grid gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm md:grid-cols-4" @submit.prevent="applyFilters">
+            <form
+                v-if="!email_logs_table_missing"
+                class="grid gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm md:grid-cols-4"
+                @submit.prevent="applyFilters"
+            >
                 <select
                     name="direction"
                     class="rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -99,7 +108,7 @@ const applyFilters = (event) => {
                 </button>
             </form>
 
-            <div v-if="!email_logs_table_missing" class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+            <section v-if="!email_logs_table_missing" class="admin-table-wrap overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -132,7 +141,7 @@ const applyFilters = (event) => {
                         </tr>
                     </tbody>
                 </table>
-            </div>
+            </section>
 
             <div v-if="!email_logs_table_missing && (logs.prev_page_url || logs.next_page_url)" class="flex justify-center gap-3">
                 <Link

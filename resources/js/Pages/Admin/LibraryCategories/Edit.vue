@@ -4,24 +4,24 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    suggested_sort_order: { type: Number, default: 1 },
+    category: { type: Object, required: true },
 });
 
 const form = useForm({
-    name: '',
-    description: '',
-    icon: '',
-    sort_order: props.suggested_sort_order,
-    is_active: true,
+    name: props.category.name ?? '',
+    description: props.category.description ?? '',
+    icon: props.category.icon ?? '',
+    sort_order: props.category.sort_order ?? 0,
+    is_active: Boolean(props.category.is_active),
 });
 
 const submit = () => {
-    form.post(route('admin.library-categories.store'));
+    form.patch(route('admin.library-categories.update', props.category.slug));
 };
 </script>
 
 <template>
-    <Head title="Create Library Category" />
+    <Head title="Edit Library Category" />
 
     <AdminLayout>
         <div class="mx-auto max-w-2xl space-y-4">
@@ -33,9 +33,9 @@ const submit = () => {
                     <ArrowLeftIcon class="h-5 w-5" />
                 </Link>
                 <div>
-                    <h1 class="text-lg font-semibold text-slate-900">Add library category</h1>
+                    <h1 class="text-lg font-semibold text-slate-900">Edit library category</h1>
                     <p class="text-xs text-slate-500">
-                        Create a category to organize library items.
+                        Update category details and ordering.
                     </p>
                 </div>
             </div>
@@ -47,7 +47,6 @@ const submit = () => {
                         v-model="form.name"
                         type="text"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2"
-                        placeholder="e.g. Immigration Law Basics"
                         required
                     >
                     <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
@@ -59,7 +58,6 @@ const submit = () => {
                         v-model="form.description"
                         rows="4"
                         class="w-full rounded-lg border border-gray-300 px-3 py-2"
-                        placeholder="Short description of this category."
                     />
                     <p v-if="form.errors.description" class="mt-1 text-xs text-red-600">{{ form.errors.description }}</p>
                 </div>
@@ -84,7 +82,6 @@ const submit = () => {
                             min="0"
                             class="w-full rounded-lg border border-gray-300 px-3 py-2"
                         >
-                        <p class="mt-1 text-xs text-gray-500">Lower values appear first in the category list.</p>
                         <p v-if="form.errors.sort_order" class="mt-1 text-xs text-red-600">{{ form.errors.sort_order }}</p>
                     </div>
                 </div>
@@ -94,6 +91,10 @@ const submit = () => {
                     Active category
                 </label>
                 <p v-if="form.errors.is_active" class="mt-1 text-xs text-red-600">{{ form.errors.is_active }}</p>
+
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    Linked library items: {{ category.items_count }}
+                </div>
 
                 <div class="flex items-center justify-end gap-3">
                     <Link
@@ -107,7 +108,7 @@ const submit = () => {
                         class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
                         :disabled="form.processing"
                     >
-                        {{ form.processing ? 'Creating...' : 'Create Category' }}
+                        {{ form.processing ? 'Saving...' : 'Update category' }}
                     </button>
                 </div>
             </form>

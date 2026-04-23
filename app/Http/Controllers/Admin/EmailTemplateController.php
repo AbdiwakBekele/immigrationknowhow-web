@@ -48,6 +48,8 @@ class EmailTemplateController extends Controller
     public function show(Request $request, EmailTemplate $emailTemplate): Response
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
+        $previewEmail = $request->user()?->email ?: config('mail.from.address') ?: '';
+        $branding = \App\Models\PlatformSetting::branding();
 
         return Inertia::render('Admin/Settings/EmailTemplateShow', [
             'template' => [
@@ -81,14 +83,14 @@ class EmailTemplateController extends Controller
                 '{{first_name}}' => 'Amina',
                 '{{last_name}}' => 'Bekele',
                 '{{full_name}}' => 'Amina Bekele',
-                '{{email}}' => 'amina@example.com',
+                '{{email}}' => $previewEmail,
                 '{{company_name}}' => 'ImmigrationKnowHow',
                 '{{role}}' => $emailTemplate->role ?? UserRole::USER->value,
                 '{{role_label}}' => $this->roleLabel($emailTemplate->role),
                 '{{invite_link}}' => 'https://example.com/invite/abc123',
                 '{{activation_link}}' => 'https://example.com/activate/abc123',
                 '{{dashboard_link}}' => 'https://example.com/dashboard',
-                '{{support_email}}' => 'support@example.com',
+                '{{support_email}}' => $branding['support_email'] ?? config('mail.from.address') ?? '',
             ],
         ]);
     }

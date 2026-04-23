@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class RegisterController extends Controller
 {
@@ -87,10 +88,14 @@ class RegisterController extends Controller
 
         RoleHelper::ensureExists($effectiveRole);
         $user->assignRole($effectiveRole);
-        $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
-            'role' => $effectiveRole,
-            'dashboard_link' => UserHomeUrl::afterAuthentication($user),
-        ]));
+        try {
+            $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
+                'role' => $effectiveRole,
+                'dashboard_link' => UserHomeUrl::afterAuthentication($user),
+            ]));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
         $referral = $this->attachAffiliateReferral->handle($user, $request);
         if ($referral) {
