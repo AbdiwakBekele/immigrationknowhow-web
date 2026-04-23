@@ -16,6 +16,7 @@ const form = useForm({
     include_certificate: Boolean(props.serviceType.include_certificate),
     is_active: Boolean(props.serviceType.is_active),
     sort_order: props.serviceType.sort_order ?? 0,
+    monthly_subscription_rate: Number(props.serviceType.monthly_subscription_rate ?? 0),
 });
 
 const submit = () => {
@@ -63,6 +64,17 @@ const errorClass = 'mt-1 text-xs text-red-600';
                             <label :class="labelClass">Icon (optional)</label>
                             <input v-model="form.icon" type="text" class="input w-full" maxlength="120" />
                             <p v-if="form.errors.icon" :class="errorClass">{{ form.errors.icon }}</p>
+                        </div>
+                        <div>
+                            <label :class="labelClass">Subscription rate (USD)</label>
+                            <input
+                                v-model.number="form.monthly_subscription_rate"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="input w-full max-w-[16rem]"
+                            />
+                            <p v-if="form.errors.monthly_subscription_rate" :class="errorClass">{{ form.errors.monthly_subscription_rate }}</p>
                         </div>
                     </div>
                 </div>

@@ -18,6 +18,7 @@ class ServiceTypeOption extends Model
         'include_certificate',
         'is_active',
         'sort_order',
+        'monthly_subscription_rate',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class ServiceTypeOption extends Model
         'include_certificate' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
+        'monthly_subscription_rate' => 'decimal:2',
     ];
 
     public function scopeActive(Builder $query): Builder

@@ -124,12 +124,12 @@ class SubscriptionPlanController extends Controller
 
     private function validatePayload(Request $request, ?int $ignoreId = null): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('subscription_plans', 'slug')->ignore($ignoreId)],
             'description' => ['nullable', 'string'],
-            'price_cents' => ['required', 'integer', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
+            'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'currency' => ['required', 'in:USD,EUR,GBP,CAD,AUD'],
             'billing_cycle' => ['required', 'in:monthly,quarterly,yearly'],
             'features' => ['nullable'],
             'status' => ['required', 'in:draft,active,archived'],
@@ -140,6 +140,11 @@ class SubscriptionPlanController extends Controller
             'recurring_commission_enabled' => ['nullable', 'boolean'],
             'max_recurring_commission_cycles' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        $validated['price_cents'] = (int) round(((float) $validated['price']) * 100);
+        unset($validated['price']);
+
+        return $validated;
     }
 
     private function normalizeFeatures(mixed $features): array
