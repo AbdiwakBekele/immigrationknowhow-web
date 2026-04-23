@@ -819,67 +819,6 @@ const initialFor = (...values) => {
                             </div>
                         </section>
 
-                        <section class="grid gap-6 lg:grid-cols-2">
-                            <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="updatePassword">
-                                <div class="mb-5 flex items-start gap-3">
-                                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-700">
-                                        <KeyIcon class="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-slate-950">Password</h2>
-                                        <p class="mt-1 text-sm text-slate-500">Update your account password.</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-4">
-                                    <Input v-model="passwordForm.current_password" type="password" label="Current password" :error="passwordForm.errors.current_password" />
-                                    <Input v-model="passwordForm.password" type="password" label="New password" :error="passwordForm.errors.password" />
-                                    <Input v-model="passwordForm.password_confirmation" type="password" label="Confirm password" :error="passwordForm.errors.password_confirmation" />
-                                    <Button type="submit" :loading="passwordForm.processing">
-                                        <ShieldCheckIcon class="h-4 w-4" />
-                                        Save password
-                                    </Button>
-                                </div>
-                            </form>
-
-                            <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="updateNotifications">
-                                <div class="mb-5 flex items-start gap-3">
-                                    <div class="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-700">
-                                        <BellIcon class="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-slate-950">Notifications</h2>
-                                        <p class="mt-1 text-sm text-slate-500">Choose the updates you want to receive.</p>
-                                    </div>
-                                </div>
-                                <div class="space-y-3">
-                                    <label
-                                        v-for="(enabled, key) in notificationForm.notification_preferences"
-                                        :key="key"
-                                        class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 px-4 py-3"
-                                    >
-                                        <span class="text-sm font-medium text-slate-700">
-                                            {{
-                                                {
-                                                    email_new_message: 'New messages',
-                                                    email_lead_update: 'Inquiry updates',
-                                                    email_review_received: 'Review updates',
-                                                    email_marketing: 'Immigrant Knowhow news',
-                                                    push_enabled: 'Browser notifications',
-                                                }[key]
-                                            }}
-                                        </span>
-                                        <input
-                                            v-model="notificationForm.notification_preferences[key]"
-                                            type="checkbox"
-                                            class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                        >
-                                    </label>
-                                    <Button type="submit" :loading="notificationForm.processing">
-                                        Save notifications
-                                    </Button>
-                                </div>
-                            </form>
-                        </section>
                     </main>
 
                     <aside class="space-y-6">
@@ -1043,6 +982,27 @@ const initialFor = (...values) => {
                             </div>
                         </section>
 
+                        <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="updatePassword">
+                            <div class="mb-5 flex items-start gap-3">
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-700">
+                                    <KeyIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-semibold text-slate-950">Password</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Update your account password.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <Input v-model="passwordForm.current_password" type="password" label="Current password" :error="passwordForm.errors.current_password" />
+                                <Input v-model="passwordForm.password" type="password" label="New password" :error="passwordForm.errors.password" />
+                                <Input v-model="passwordForm.password_confirmation" type="password" label="Confirm password" :error="passwordForm.errors.password_confirmation" />
+                                <Button type="submit" :loading="passwordForm.processing">
+                                    <ShieldCheckIcon class="h-4 w-4" />
+                                    Save password
+                                </Button>
+                            </div>
+                        </form>
+
                         <section class="rounded-lg border border-red-200 bg-white p-5 shadow-sm">
                             <div class="flex items-start gap-3">
                                 <div class="rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
@@ -1075,6 +1035,45 @@ const initialFor = (...values) => {
                                 </div>
                             </form>
                         </section>
+
+                        <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="updateNotifications">
+                            <div class="mb-5 flex items-start gap-3">
+                                <div class="rounded-lg border border-blue-100 bg-blue-50 p-2 text-blue-700">
+                                    <BellIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-semibold text-slate-950">Notifications</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Choose the updates you want to receive.</p>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <label
+                                    v-for="(enabled, key) in notificationForm.notification_preferences"
+                                    :key="key"
+                                    class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 px-4 py-3"
+                                >
+                                    <span class="text-sm font-medium text-slate-700">
+                                        {{
+                                            {
+                                                email_new_message: 'New messages',
+                                                email_lead_update: 'Inquiry updates',
+                                                email_review_received: 'Review updates',
+                                                email_marketing: 'Immigrant Knowhow news',
+                                                push_enabled: 'Browser notifications',
+                                            }[key]
+                                        }}
+                                    </span>
+                                    <input
+                                        v-model="notificationForm.notification_preferences[key]"
+                                        type="checkbox"
+                                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    >
+                                </label>
+                                <Button type="submit" :loading="notificationForm.processing">
+                                    Save notifications
+                                </Button>
+                            </div>
+                        </form>
                     </aside>
                 </div>
             </div>
