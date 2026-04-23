@@ -120,8 +120,7 @@ class LibraryController extends Controller
 
         // Upload cover image
         if ($request->hasFile('cover_image')) {
-            $validated['cover_image'] = $request->file('cover_image')
-                ->store('library/covers', 'public');
+            $validated['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
         }
 
         if ($validated['type'] === 'ebook') {
@@ -378,10 +377,9 @@ class LibraryController extends Controller
         if ($request->hasFile('cover_image')) {
             // Delete old cover
             if ($library->cover_image) {
-                Storage::disk('public')->delete($library->cover_image);
+                $this->deleteCoverImage($library->cover_image);
             }
-            $validated['cover_image'] = $request->file('cover_image')
-                ->store('library/covers', 'public');
+            $validated['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
         } else {
             unset($validated['cover_image']);
         }
@@ -466,7 +464,7 @@ class LibraryController extends Controller
     {
         // Delete files
         if ($library->cover_image) {
-            Storage::disk('public')->delete($library->cover_image);
+            $this->deleteCoverImage($library->cover_image);
         }
         if ($library->file_path) {
             $library->deleteStoredLibraryFile();
@@ -529,6 +527,31 @@ class LibraryController extends Controller
         }
 
         return $authorId;
+    }
+
+    private function storeCoverImage(UploadedFile $file): string
+    {
+        $disk = (string) config('uploads.library_covers.disk', 's3');
+        $directory = trim((string) config('uploads.library_covers.directory', 'library/covers'), '/');
+        $visibility = strtolower((string) config('uploads.library_covers.visibility', 'public')) === 'private'
+            ? 'private'
+            : 'public';
+
+        $path = $file->store($directory, $disk);
+        Storage::disk($disk)->setVisibility($path, $visibility);
+
+        return $path;
+    }
+
+    private function deleteCoverImage(string $path): void
+    {
+        $configuredDisk = (string) config('uploads.library_covers.disk', 's3');
+
+        foreach (array_unique([$configuredDisk, 'public']) as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
+            }
+        }
     }
 
     private function validateUploadRules(Request $request, string $type, ?LibraryItem $existingItem = null): void

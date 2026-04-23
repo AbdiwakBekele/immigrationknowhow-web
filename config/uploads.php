@@ -12,4 +12,9 @@ return [
             explode(',', (string) env('AWS_UPLOAD_ALLOWED_MIMES', 'jpg,jpeg,png,pdf,mp3,m4a,aac,wav,ogg'))
         ))),
     ],
+    'library_covers' => [
+        'disk' => env('LIBRARY_COVER_DISK', env('AWS_UPLOAD_DISK', 's3')),
+        'directory' => trim((string) env('LIBRARY_COVER_DIRECTORY', 'library/covers'), '/'),
+        'visibility' => env('LIBRARY_COVER_VISIBILITY', 'public'),
+    ],
 ];
