@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
 use Spatie\Sluggable\SlugOptions;
+use Throwable;
 
 class LibraryItem extends Model
 {
@@ -269,12 +271,114 @@ class LibraryItem extends Model
         $configuredDisk = (string) config('uploads.library_covers.disk', 's3');
 
         foreach (array_unique([$configuredDisk, 'public']) as $disk) {
-            if (Storage::disk($disk)->exists($this->cover_image)) {
-                return Storage::disk($disk)->url($this->cover_image);
+            $exists = $this->safeExistsOnDisk($disk, $this->cover_image);
+
+            if ($exists === true) {
+                try {
+                    return $this->normalizeDiskUrl($disk, $this->cover_image, Storage::disk($disk)->url($this->cover_image));
+                } catch (Throwable $exception) {
+                    Log::warning('Library cover URL resolution failed after exists check.', [
+                        'library_item_id' => $this->id,
+                        'disk' => $disk,
+                        'path' => $this->cover_image,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+
+            if ($exists === null && $disk === $configuredDisk) {
+                // If existence checks are not available on this driver, still attempt URL generation.
+                try {
+                    return $this->normalizeDiskUrl($disk, $this->cover_image, Storage::disk($disk)->url($this->cover_image));
+                } catch (Throwable $exception) {
+                    Log::warning('Library cover URL resolution failed when exists check unavailable.', [
+                        'library_item_id' => $this->id,
+                        'disk' => $disk,
+                        'path' => $this->cover_image,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
             }
         }
 
         return asset('storage/'.$this->cover_image);
+    }
+
+    private function normalizeDiskUrl(string $disk, string $path, ?string $url): string
+    {
+        $driver = (string) config("filesystems.disks.{$disk}.driver", '');
+        if ($driver === 's3') {
+            $temporaryUrl = $this->temporaryCoverUrl($disk, $path);
+            if ($temporaryUrl !== null) {
+                return $temporaryUrl;
+            }
+        }
+
+        if (is_string($url) && $url !== '' && preg_match('/^https?:\/\//i', $url)) {
+            return $url;
+        }
+
+        if ($driver !== 's3') {
+            return is_string($url) && $url !== '' ? $url : asset('storage/'.$path);
+        }
+
+        $configuredUrl = trim((string) config("filesystems.disks.{$disk}.url", ''));
+        if ($configuredUrl !== '') {
+            return rtrim($configuredUrl, '/').'/'.ltrim($path, '/');
+        }
+
+        $endpoint = trim((string) config("filesystems.disks.{$disk}.endpoint", ''));
+        if ($endpoint !== '') {
+            return rtrim($endpoint, '/').'/'.ltrim($path, '/');
+        }
+
+        $bucket = trim((string) config("filesystems.disks.{$disk}.bucket", ''));
+        $region = trim((string) config("filesystems.disks.{$disk}.region", 'us-east-1'));
+        if ($bucket === '') {
+            return is_string($url) && $url !== '' ? $url : '/'.ltrim($path, '/');
+        }
+
+        return sprintf(
+            'https://%s.s3.%s.amazonaws.com/%s',
+            $bucket,
+            $region,
+            ltrim($path, '/')
+        );
+    }
+
+    private function temporaryCoverUrl(string $disk, string $path): ?string
+    {
+        try {
+            return Storage::disk($disk)->temporaryUrl(
+                $path,
+                now()->addMinutes((int) config('uploads.s3.signed_url_ttl_minutes', 10))
+            );
+        } catch (Throwable $exception) {
+            Log::warning('Library cover temporary URL generation failed.', [
+                'library_item_id' => $this->id,
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function safeExistsOnDisk(string $disk, string $path): ?bool
+    {
+        try {
+            return Storage::disk($disk)->exists($path);
+        } catch (Throwable $exception) {
+            Log::warning('Library disk existence check failed.', [
+                'library_item_id' => $this->id,
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     public function getHasAudioCompanionAttribute(): bool

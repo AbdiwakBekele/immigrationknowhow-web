@@ -651,8 +651,14 @@ class LibraryController extends Controller
         $configuredDisk = (string) config('uploads.library_covers.disk', 's3');
 
         foreach (array_unique([$configuredDisk, 'public']) as $disk) {
-            if (Storage::disk($disk)->exists($path)) {
+            try {
                 Storage::disk($disk)->delete($path);
+            } catch (Throwable $exception) {
+                Log::warning('Library cover delete failed on disk.', [
+                    'disk' => $disk,
+                    'path' => $path,
+                    'error' => $exception->getMessage(),
+                ]);
             }
         }
     }
