@@ -16,6 +16,7 @@ use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\PublicAdController;
+use App\Http\Controllers\UploadController;
 use App\Http\Controllers\User;
 use App\Http\Controllers\VideoProductController;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
@@ -145,6 +146,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/api/locations/states', [LocationLookupController::class, 'states'])->name('locations.states');
     Route::get('/api/locations/search', [LocationLookupController::class, 'search'])->name('locations.search');
+    Route::post('/uploads/s3', [UploadController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('uploads.s3.store');
 });
 
 // Onboarding actions — require verified phone
