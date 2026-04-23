@@ -173,11 +173,19 @@ const submit = () => {
                         <label class="mb-1 block text-sm font-medium text-slate-700">Cover image (optional)</label>
                         <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 px-3 py-2" @change="form.cover_image = $event.target.files?.[0] ?? null">
                     </div>
-                    <div v-if="form.type === 'ebook'">
-                        <label class="mb-1 block text-sm font-medium text-slate-700">PDF file</label>
-                        <input type="file" :accept="acceptedPdfTypes" class="w-full rounded-lg border border-slate-300 px-3 py-2" required @change="form.pdf_file = $event.target.files?.[0] ?? null">
-                        <p v-if="form.errors.pdf_file" class="mt-1 text-xs text-red-600">{{ form.errors.pdf_file }}</p>
-                    </div>
+                    <template v-if="form.type === 'ebook'">
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">PDF file</label>
+                            <input type="file" :accept="acceptedPdfTypes" class="w-full rounded-lg border border-slate-300 px-3 py-2" required @change="form.pdf_file = $event.target.files?.[0] ?? null">
+                            <p v-if="form.errors.pdf_file" class="mt-1 text-xs text-red-600">{{ form.errors.pdf_file }}</p>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">Audio version (optional)</label>
+                            <input type="file" :accept="acceptedAudiobookTypes" class="w-full rounded-lg border border-slate-300 px-3 py-2" @change="form.audio_file = $event.target.files?.[0] ?? null">
+                            <p class="mt-1 text-xs text-slate-500">Upload optional companion audio for this e-book.</p>
+                            <p v-if="form.errors.audio_file" class="mt-1 text-xs text-red-600">{{ form.errors.audio_file }}</p>
+                        </div>
+                    </template>
                     <div v-else>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Audio file</label>
                         <input type="file" :accept="acceptedAudiobookTypes" class="w-full rounded-lg border border-slate-300 px-3 py-2" required @change="form.file = $event.target.files?.[0] ?? null">

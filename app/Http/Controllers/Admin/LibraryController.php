@@ -233,7 +233,8 @@ class LibraryController extends Controller
 
         $disk = Storage::disk($fileDisk);
         $headers = [
-            'Content-Type' => $fileType ?: $disk->mimeType($path) ?: 'application/octet-stream',
+            'Accept-Ranges' => 'bytes',
+            'Content-Type' => $this->mediaContentType($fileType, $path),
             'Content-Disposition' => sprintf(
                 'inline; filename="%s"',
                 addslashes($fileName ?: basename($path))
@@ -251,6 +252,21 @@ class LibraryController extends Controller
         }
 
         return response()->file($localPath, $headers);
+    }
+
+    private function mediaContentType(?string $fileType, ?string $path = null): string
+    {
+        $extension = strtolower((string) ($fileType ?: pathinfo((string) $path, PATHINFO_EXTENSION)));
+
+        return match ($extension) {
+            'pdf' => 'application/pdf',
+            'mp3' => 'audio/mpeg',
+            'm4a' => 'audio/mp4',
+            'aac' => 'audio/aac',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            default => 'application/octet-stream',
+        };
     }
 
     public function generateSummary(
