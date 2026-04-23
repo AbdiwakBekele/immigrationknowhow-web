@@ -8,6 +8,8 @@ import { renderSafeMarkdown } from '@/utils/markdown';
 const props = defineProps({
     item: { type: Object, required: true },
     stats: { type: Object, default: () => ({}) },
+    mediaUrl: { type: String, default: null },
+    audioMediaUrl: { type: String, default: null },
 });
 
 const page = usePage();
@@ -22,6 +24,15 @@ const canGenerateSummary = computed(() => (
     && props.item?.ai_summary_status !== 'processing'
     && props.item?.ai_summary_status !== 'queued'
 ));
+const canReadBook = computed(() => props.item?.type === 'ebook' && Boolean(props.mediaUrl));
+const listeningAudioUrl = computed(() => {
+    if (props.item?.type === 'audiobook') {
+        return props.mediaUrl;
+    }
+
+    return props.audioMediaUrl;
+});
+const canListenAudio = computed(() => Boolean(listeningAudioUrl.value));
 
 const generateSummary = () => {
     console.group('[Admin Library] Manual summary generation');
@@ -296,6 +307,33 @@ onBeforeUnmount(() => {
                                 {{ item.audio_file_name ? 'Attached' : 'Not attached' }}
                             </p>
                         </div>
+                    </div>
+                    <div class="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Read & Listen</p>
+                        <div class="flex flex-wrap gap-2">
+                            <a
+                                v-if="canReadBook"
+                                :href="mediaUrl"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                            >
+                                Read PDF
+                            </a>
+                            <span
+                                v-else
+                                class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                            >
+                                PDF reader unavailable
+                            </span>
+                        </div>
+                        <div v-if="canListenAudio" class="space-y-1">
+                            <p class="text-sm font-medium text-slate-900">Audio preview</p>
+                            <audio :src="listeningAudioUrl" controls class="w-full" preload="none" />
+                        </div>
+                        <p v-else class="text-sm text-slate-600">
+                            No uploaded audio is available for listening.
+                        </p>
                     </div>
                 </div>
             </section>
