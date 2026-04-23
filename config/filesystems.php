@@ -29,8 +29,8 @@ return [
         |
         */
         'library_media' => [
-            'driver' => env('LIBRARY_MEDIA_DRIVER', 'local'),
-            'root' => env('LIBRARY_MEDIA_DRIVER', 'local') === 's3'
+            'driver' => env('LIBRARY_MEDIA_DRIVER', 's3'),
+            'root' => env('LIBRARY_MEDIA_DRIVER', 's3') === 's3'
                 ? env('LIBRARY_MEDIA_PREFIX', 'library-media')
                 : storage_path('app/library-media'),
             'key' => env('AWS_ACCESS_KEY_ID'),

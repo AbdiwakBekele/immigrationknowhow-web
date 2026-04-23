@@ -258,7 +258,23 @@ class LibraryItem extends Model
 
     public function getCoverImageUrlAttribute(): ?string
     {
-        return $this->cover_image ? asset('storage/'.$this->cover_image) : null;
+        if (! $this->cover_image) {
+            return null;
+        }
+
+        if (str_starts_with($this->cover_image, 'http')) {
+            return $this->cover_image;
+        }
+
+        $configuredDisk = (string) config('uploads.library_covers.disk', 's3');
+
+        foreach (array_unique([$configuredDisk, 'public']) as $disk) {
+            if (Storage::disk($disk)->exists($this->cover_image)) {
+                return Storage::disk($disk)->url($this->cover_image);
+            }
+        }
+
+        return asset('storage/'.$this->cover_image);
     }
 
     public function getHasAudioCompanionAttribute(): bool
