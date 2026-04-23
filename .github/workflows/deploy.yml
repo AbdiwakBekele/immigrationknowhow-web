@@ -1,0 +1,83 @@
+name: Deploy Hub to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hub-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Start SSH agent and add deploy key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          eval "$(ssh-agent -s)"
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" | tr -d '\r' | ssh-add -
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy on server
+        shell: bash
+        run: |
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'EOF'
+            set -e
+
+            cd /var/www/hub
+
+            echo "===> Enable maintenance mode"
+            sudo -u www-data php artisan down || true
+
+            echo "===> Pull latest code"
+            git fetch origin
+            git reset --hard origin/main
+
+            echo "===> Install PHP dependencies"
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            echo "===> Install Node dependencies and build assets"
+            npm ci
+            npm run build
+
+            echo "===> Fix writable permissions"
+            sudo chown -R www-data:www-data /var/www/hub
+            sudo find /var/www/hub -type f -exec chmod 644 {} \;
+            sudo find /var/www/hub -type d -exec chmod 755 {} \;
+            sudo chmod -R 775 /var/www/hub/storage /var/www/hub/bootstrap/cache
+            sudo find /var/www/hub/storage -type f -exec chmod 664 {} \;
+            sudo find /var/www/hub/bootstrap/cache -type f -exec chmod 664 {} \;
+
+            echo "===> Laravel optimize + migrate"
+            sudo -u www-data php artisan config:clear
+            sudo -u www-data php artisan cache:clear || true
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan view:cache
+            sudo -u www-data php artisan migrate --force
+            sudo -u www-data php artisan optimize
+
+            echo "===> Restart services"
+            sudo systemctl restart php8.4-fpm
+            sudo systemctl restart hub-queue
+            sudo systemctl reload nginx
+
+            echo "===> Disable maintenance mode"
+            sudo -u www-data php artisan up
+          EOF
