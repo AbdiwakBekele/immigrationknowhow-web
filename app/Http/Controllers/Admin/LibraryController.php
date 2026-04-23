@@ -28,6 +28,7 @@ class LibraryController extends Controller
     use ValidatesLibraryItemPricing;
 
     private const MAX_EBOOK_PDF_UPLOADS = 480;
+    private const COVER_IMAGE_MAX_KB = 8192;
 
     public function index(Request $request): Response
     {
@@ -97,7 +98,7 @@ class LibraryController extends Controller
             'estimated_reading_minutes' => ['nullable', 'integer', 'min:1'],
             'difficulty_level' => ['nullable', 'string', 'max:100'],
             'recommended_age_group' => ['nullable', 'string', 'max:100'],
-            'cover_image' => ['nullable', 'image', 'max:2048'],
+            'cover_image' => ['nullable', 'image', 'max:'.self::COVER_IMAGE_MAX_KB],
             'file' => ['nullable', 'required_if:type,audiobook', 'prohibited_if:type,ebook', 'file', 'max:1024000'],
             'pdf_file' => ['nullable', 'required_if:type,ebook', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
             'audio_file' => ['nullable', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
@@ -351,7 +352,7 @@ class LibraryController extends Controller
             'estimated_reading_minutes' => ['nullable', 'integer', 'min:1'],
             'difficulty_level' => ['nullable', 'string', 'max:100'],
             'recommended_age_group' => ['nullable', 'string', 'max:100'],
-            'cover_image' => ['nullable', 'image', 'max:2048'],
+            'cover_image' => ['nullable', 'image', 'max:'.self::COVER_IMAGE_MAX_KB],
             'file' => ['nullable', 'prohibited_if:type,ebook', 'file', 'max:1024000'],
             'pdf_file' => ['nullable', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
             'audio_file' => ['nullable', 'prohibited_if:type,audiobook', 'file', 'max:1024000'],
