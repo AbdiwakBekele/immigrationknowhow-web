@@ -559,7 +559,7 @@ const initialFor = (...values) => {
                         </section>
 
                         <section class="grid gap-6 lg:grid-cols-2">
-                            <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                            <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
                                 <div class="flex items-start gap-3">
                                     <div class="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-emerald-700">
                                         <UsersIcon class="h-5 w-5" />
@@ -649,7 +649,7 @@ const initialFor = (...values) => {
                                 </div>
                             </div>
 
-                            <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                            <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
                                 <div class="flex items-start gap-3">
                                     <div class="rounded-lg border border-rose-100 bg-rose-50 p-2 text-rose-700">
                                         <HeartIcon class="h-5 w-5" />
@@ -720,52 +720,56 @@ const initialFor = (...values) => {
                         </section>
 
                         <section class="grid gap-6 lg:grid-cols-2">
-                            <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
-                                <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-slate-950">Recent Messages</h2>
-                                        <p class="mt-1 text-sm text-slate-500">Messages received from service providers.</p>
-                                    </div>
-                                    <Link :href="route('messages.index')" class="text-sm font-semibold text-blue-700 hover:text-blue-800">
-                                        View all
-                                    </Link>
+                            <section class="rounded-lg border border-slate-200 bg-white shadow-sm lg:col-span-2">
+                                <div class="border-b border-slate-200 px-5 py-4">
+                                    <h2 class="text-lg font-semibold text-slate-950">Matching Providers</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Based on language, location, family, pets, and service needs.</p>
                                 </div>
-                                <div v-if="recentMessages.length" class="divide-y divide-slate-100">
+                                <div v-if="matchedProviders.length" class="divide-y divide-slate-100">
                                     <Link
-                                        v-for="message in recentMessages"
-                                        :key="message.uuid"
-                                        :href="message.conversation_uuid ? route('messages.show', message.conversation_uuid) : route('messages.index')"
-                                        class="flex gap-3 p-4 transition hover:bg-slate-50"
+                                        v-for="provider in matchedProviders"
+                                        :key="provider.id"
+                                        :href="route('marketplace.show', provider.slug)"
+                                        class="block p-4 transition hover:bg-slate-50"
                                     >
-                                        <img
-                                            v-if="message.sender_avatar_url"
-                                            :src="message.sender_avatar_url"
-                                            :alt="message.sender_name"
-                                            class="h-11 w-11 rounded-lg object-cover"
-                                        >
-                                        <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
-                                            {{ initialFor(message.sender_name) }}
-                                        </div>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <p class="truncate text-sm font-semibold text-slate-950">{{ message.sender_name }}</p>
-                                                <span class="shrink-0 text-xs text-slate-500">{{ formatTimeAgo(message.created_at) }}</span>
+                                        <div class="flex gap-3">
+                                            <img
+                                                v-if="provider.avatar_url"
+                                                :src="provider.avatar_url"
+                                                :alt="provider.business_name"
+                                                class="h-12 w-12 rounded-lg object-cover"
+                                            >
+                                            <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
+                                                {{ initialFor(provider.business_name) }}
                                             </div>
-                                            <p class="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">{{ message.body }}</p>
-                                            <span v-if="message.is_unread" class="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                                                New
-                                            </span>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <p class="line-clamp-1 text-sm font-semibold text-slate-950">{{ provider.business_name }}</p>
+                                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
+                                                        <StarIcon class="h-3.5 w-3.5" />
+                                                        {{ provider.average_rating ? Number(provider.average_rating).toFixed(1) : 'New' }}
+                                                    </span>
+                                                </div>
+                                                <p class="mt-1 text-xs text-slate-500">{{ provider.location }}</p>
+                                                <div class="mt-3 flex flex-wrap gap-1.5">
+                                                    <span
+                                                        v-for="reason in provider.match_reasons"
+                                                        :key="`${provider.id}-${reason}`"
+                                                        class="rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700"
+                                                    >
+                                                        {{ reason }}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </Link>
                                 </div>
-                                <div v-else class="p-8 text-center">
-                                    <ChatBubbleLeftRightIcon class="mx-auto h-8 w-8 text-slate-300" />
-                                    <p class="mt-3 text-sm font-medium text-slate-700">No messages yet</p>
-                                    <p class="mt-1 text-sm text-slate-500">Provider conversations will appear here.</p>
+                                <div v-else class="p-6 text-sm text-slate-500">
+                                    Complete your location, languages, children, pets, and service preferences to improve matches.
                                 </div>
-                            </div>
+                            </section>
 
-                            <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="rounded-lg border border-slate-200 bg-white shadow-sm lg:col-span-2">
                                 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                                     <div>
                                         <h2 class="text-lg font-semibold text-slate-950">Digital Products</h2>
@@ -822,52 +826,104 @@ const initialFor = (...values) => {
                     </main>
 
                     <aside class="space-y-6">
-                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
-                            <div class="border-b border-slate-200 px-5 py-4">
-                                <h2 class="text-lg font-semibold text-slate-950">Matching Providers</h2>
-                                <p class="mt-1 text-sm text-slate-500">Based on language, location, family, pets, and service needs.</p>
+                        <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                            <div class="mb-4 flex items-center gap-3">
+                                <LinkIcon class="h-5 w-5 text-slate-500" />
+                                <h2 class="text-lg font-semibold text-slate-950">Profile Snapshot</h2>
                             </div>
-                            <div v-if="matchedProviders.length" class="divide-y divide-slate-100">
+                            <dl class="space-y-3 text-sm">
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-slate-500">Email</dt>
+                                    <dd class="truncate font-medium text-slate-900">{{ profileForm.email }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-slate-500">Phone</dt>
+                                    <dd class="font-medium text-slate-900">{{ profileForm.phone || 'Not set' }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-slate-500">Children</dt>
+                                    <dd class="font-medium text-slate-900">
+                                        {{ profileForm.has_children ? (profileForm.children_ages.length ? profileForm.children_ages.join(', ') : 'Yes') : 'No' }}
+                                    </dd>
+                                </div>
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-slate-500">Pets</dt>
+                                    <dd class="font-medium text-slate-900">
+                                        {{ profileForm.has_pets ? (profileForm.pet_types.join(', ') || 'Yes') : 'No' }}
+                                    </dd>
+                                </div>
+                            </dl>
+                            <div v-if="profileForm.social_links.length" class="mt-5 border-t border-slate-200 pt-4">
+                                <h3 class="text-sm font-semibold text-slate-950">Social links</h3>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <a
+                                        v-for="(link, index) in profileForm.social_links"
+                                        :key="`snapshot-social-${index}`"
+                                        :href="link.url"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                    >
+                                        {{ link.label }}
+                                    </a>
+                                </div>
+                            </div>
+                            <div v-if="profileForm.hobbies.length" class="mt-5 border-t border-slate-200 pt-4">
+                                <h3 class="text-sm font-semibold text-slate-950">Hobbies</h3>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <span
+                                        v-for="hobby in profileForm.hobbies"
+                                        :key="`snapshot-hobby-${hobby}`"
+                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                                    >
+                                        {{ hobby }}
+                                    </span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                                <div>
+                                    <h2 class="text-lg font-semibold text-slate-950">Recent Messages</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Messages received from service providers.</p>
+                                </div>
+                                <Link :href="route('messages.index')" class="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                    View all
+                                </Link>
+                            </div>
+                            <div v-if="recentMessages.length" class="divide-y divide-slate-100">
                                 <Link
-                                    v-for="provider in matchedProviders"
-                                    :key="provider.id"
-                                    :href="route('marketplace.show', provider.slug)"
-                                    class="block p-4 transition hover:bg-slate-50"
+                                    v-for="message in recentMessages"
+                                    :key="message.uuid"
+                                    :href="message.conversation_uuid ? route('messages.show', message.conversation_uuid) : route('messages.index')"
+                                    class="flex gap-3 p-4 transition hover:bg-slate-50"
                                 >
-                                    <div class="flex gap-3">
-                                        <img
-                                            v-if="provider.avatar_url"
-                                            :src="provider.avatar_url"
-                                            :alt="provider.business_name"
-                                            class="h-12 w-12 rounded-lg object-cover"
-                                        >
-                                        <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
-                                            {{ initialFor(provider.business_name) }}
+                                    <img
+                                        v-if="message.sender_avatar_url"
+                                        :src="message.sender_avatar_url"
+                                        :alt="message.sender_name"
+                                        class="h-11 w-11 rounded-lg object-cover"
+                                    >
+                                    <div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
+                                        {{ initialFor(message.sender_name) }}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <p class="truncate text-sm font-semibold text-slate-950">{{ message.sender_name }}</p>
+                                            <span class="shrink-0 text-xs text-slate-500">{{ formatTimeAgo(message.created_at) }}</span>
                                         </div>
-                                        <div class="min-w-0 flex-1">
-                                            <div class="flex items-start justify-between gap-3">
-                                                <p class="line-clamp-1 text-sm font-semibold text-slate-950">{{ provider.business_name }}</p>
-                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
-                                                    <StarIcon class="h-3.5 w-3.5" />
-                                                    {{ provider.average_rating ? Number(provider.average_rating).toFixed(1) : 'New' }}
-                                                </span>
-                                            </div>
-                                            <p class="mt-1 text-xs text-slate-500">{{ provider.location }}</p>
-                                            <div class="mt-3 flex flex-wrap gap-1.5">
-                                                <span
-                                                    v-for="reason in provider.match_reasons"
-                                                    :key="`${provider.id}-${reason}`"
-                                                    class="rounded-full border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700"
-                                                >
-                                                    {{ reason }}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        <p class="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">{{ message.body }}</p>
+                                        <span v-if="message.is_unread" class="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                            New
+                                        </span>
                                     </div>
                                 </Link>
                             </div>
-                            <div v-else class="p-6 text-sm text-slate-500">
-                                Complete your location, languages, children, pets, and service preferences to improve matches.
+                            <div v-else class="p-8 text-center">
+                                <ChatBubbleLeftRightIcon class="mx-auto h-8 w-8 text-slate-300" />
+                                <p class="mt-3 text-sm font-medium text-slate-700">No messages yet</p>
+                                <p class="mt-1 text-sm text-slate-500">Provider conversations will appear here.</p>
                             </div>
                         </section>
 
@@ -922,62 +978,6 @@ const initialFor = (...values) => {
                                         <p class="text-sm font-semibold text-slate-900">{{ invite.name }}</p>
                                         <p class="text-xs text-slate-500">{{ invite.email }} - {{ formatDate(invite.created_at) }}</p>
                                     </div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                            <div class="mb-4 flex items-center gap-3">
-                                <LinkIcon class="h-5 w-5 text-slate-500" />
-                                <h2 class="text-lg font-semibold text-slate-950">Profile Snapshot</h2>
-                            </div>
-                            <dl class="space-y-3 text-sm">
-                                <div class="flex justify-between gap-4">
-                                    <dt class="text-slate-500">Email</dt>
-                                    <dd class="truncate font-medium text-slate-900">{{ profileForm.email }}</dd>
-                                </div>
-                                <div class="flex justify-between gap-4">
-                                    <dt class="text-slate-500">Phone</dt>
-                                    <dd class="font-medium text-slate-900">{{ profileForm.phone || 'Not set' }}</dd>
-                                </div>
-                                <div class="flex justify-between gap-4">
-                                    <dt class="text-slate-500">Children</dt>
-                                    <dd class="font-medium text-slate-900">
-                                        {{ profileForm.has_children ? (profileForm.children_ages.length ? profileForm.children_ages.join(', ') : 'Yes') : 'No' }}
-                                    </dd>
-                                </div>
-                                <div class="flex justify-between gap-4">
-                                    <dt class="text-slate-500">Pets</dt>
-                                    <dd class="font-medium text-slate-900">
-                                        {{ profileForm.has_pets ? (profileForm.pet_types.join(', ') || 'Yes') : 'No' }}
-                                    </dd>
-                                </div>
-                            </dl>
-                            <div v-if="profileForm.social_links.length" class="mt-5 border-t border-slate-200 pt-4">
-                                <h3 class="text-sm font-semibold text-slate-950">Social links</h3>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    <a
-                                        v-for="(link, index) in profileForm.social_links"
-                                        :key="`snapshot-social-${index}`"
-                                        :href="link.url"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        class="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                    >
-                                        {{ link.label }}
-                                    </a>
-                                </div>
-                            </div>
-                            <div v-if="profileForm.hobbies.length" class="mt-5 border-t border-slate-200 pt-4">
-                                <h3 class="text-sm font-semibold text-slate-950">Hobbies</h3>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    <span
-                                        v-for="hobby in profileForm.hobbies"
-                                        :key="`snapshot-hobby-${hobby}`"
-                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
-                                    >
-                                        {{ hobby }}
-                                    </span>
                                 </div>
                             </div>
                         </section>
