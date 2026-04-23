@@ -44,8 +44,6 @@ jobs:
             set -e
             cd /var/www/hub
 
-            sudo -u www-data php artisan down || true
-
             git fetch origin
             git reset --hard origin/main
 
@@ -53,9 +51,7 @@ jobs:
             npm ci
             npm run build
 
-            sudo chown -R www-data:www-data /var/www/hub
-            sudo find /var/www/hub -type f -exec chmod 644 {} \;
-            sudo find /var/www/hub -type d -exec chmod 755 {} \;
+            sudo chown -R www-data:www-data /var/www/hub/storage /var/www/hub/bootstrap/cache
             sudo chmod -R 775 /var/www/hub/storage /var/www/hub/bootstrap/cache
             sudo find /var/www/hub/storage -type f -exec chmod 664 {} \;
             sudo find /var/www/hub/bootstrap/cache -type f -exec chmod 664 {} \;
