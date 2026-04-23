@@ -1,5 +1,5 @@
 <script setup>
-import { watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
@@ -66,6 +66,26 @@ watch(
 
 const acceptedPdfTypes = '.pdf,application/pdf';
 const acceptedAudiobookTypes = '.mp3,.m4a,.aac,.wav,.ogg,audio/*';
+const coverPreviewUrl = ref(null);
+
+const previewCoverImage = computed(() => coverPreviewUrl.value);
+
+const updateCoverImage = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    form.cover_image = file;
+
+    if (coverPreviewUrl.value) {
+        URL.revokeObjectURL(coverPreviewUrl.value);
+    }
+
+    coverPreviewUrl.value = file ? URL.createObjectURL(file) : null;
+};
+
+onBeforeUnmount(() => {
+    if (coverPreviewUrl.value) {
+        URL.revokeObjectURL(coverPreviewUrl.value);
+    }
+});
 
 const submit = () => {
     console.group('[Admin Library] Upload started');
@@ -171,7 +191,17 @@ const submit = () => {
                 <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Cover image (optional)</label>
-                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 px-3 py-2" @change="form.cover_image = $event.target.files?.[0] ?? null">
+                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 px-3 py-2" @change="updateCoverImage">
+                        <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p class="text-sm font-semibold text-slate-900">Cover thumbnail preview</p>
+                            <img
+                                v-if="previewCoverImage"
+                                :src="previewCoverImage"
+                                alt="Cover preview"
+                                class="mt-2 h-40 w-28 rounded object-cover object-top"
+                            >
+                            <p v-else class="mt-2 text-xs text-slate-500">Choose a cover image to preview the thumbnail.</p>
+                        </div>
                     </div>
                     <template v-if="form.type === 'ebook'">
                         <div>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/vue/24/outline';
@@ -73,6 +73,10 @@ const selectedTypeLabel = computed(() => props.types.find((type) => type.value =
 
 const acceptedPdfTypes = '.pdf,application/pdf';
 const acceptedAudiobookTypes = '.mp3,.m4a,.aac,.wav,.ogg,audio/*';
+const newCoverPreviewUrl = ref(null);
+
+const displayedCoverPreview = computed(() => newCoverPreviewUrl.value || props.item.cover_image_url || null);
+const displayedCoverLabel = computed(() => (newCoverPreviewUrl.value ? 'New cover preview' : 'Current cover'));
 
 const formatBytes = (bytes) => {
     const value = Number(bytes);
@@ -139,6 +143,23 @@ const destroyItem = () => {
 
     router.delete(route('admin.library.destroy', props.item.slug));
 };
+
+const updateCoverImage = (event) => {
+    const file = event.target.files?.[0] ?? null;
+    form.cover_image = file;
+
+    if (newCoverPreviewUrl.value) {
+        URL.revokeObjectURL(newCoverPreviewUrl.value);
+    }
+
+    newCoverPreviewUrl.value = file ? URL.createObjectURL(file) : null;
+};
+
+onBeforeUnmount(() => {
+    if (newCoverPreviewUrl.value) {
+        URL.revokeObjectURL(newCoverPreviewUrl.value);
+    }
+});
 </script>
 
 <template>
@@ -335,12 +356,16 @@ const destroyItem = () => {
 
                 <section class="space-y-4">
                     <h2 class="text-lg font-semibold text-slate-900">Files</h2>
-                    <div v-if="item.cover_image_url" class="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <img :src="item.cover_image_url" :alt="item.title" class="h-20 w-14 rounded object-cover object-top">
-                        <div>
-                            <p class="text-sm font-semibold text-slate-900">Current cover</p>
-                            <p class="text-xs text-slate-500">Upload a new image below to replace it.</p>
-                        </div>
+                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-sm font-semibold text-slate-900">{{ displayedCoverLabel }}</p>
+                        <img
+                            v-if="displayedCoverPreview"
+                            :src="displayedCoverPreview"
+                            :alt="item.title"
+                            class="mt-2 h-40 w-28 rounded object-cover object-top"
+                        >
+                        <p v-else class="mt-2 text-xs text-slate-500">No cover uploaded yet. Choose an image below.</p>
+                        <p class="mt-2 text-xs text-slate-500">Upload a new image below to replace it.</p>
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Replace cover image</label>
@@ -348,7 +373,7 @@ const destroyItem = () => {
                             type="file"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2"
                             accept="image/jpeg,image/png,image/webp,image/gif"
-                            @change="form.cover_image = $event.target.files?.[0] ?? null"
+                            @change="updateCoverImage"
                         >
                         <p v-if="form.errors.cover_image" class="mt-1 text-xs text-red-600">{{ form.errors.cover_image }}</p>
                     </div>
