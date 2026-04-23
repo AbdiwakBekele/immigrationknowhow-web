@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProviderProfilePost;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ProfilePostController extends Controller
 {
@@ -15,6 +16,7 @@ class ProfilePostController extends Controller
     {
         $provider = $request->user()->serviceProvider;
         abort_unless($provider, 404);
+        abort_unless(Schema::hasTable('provider_profile_posts'), 503, 'Profile feed is temporarily unavailable.');
 
         if ($provider->profilePosts()->count() >= self::MAX_POSTS) {
             return back()->withErrors(['feed' => 'You have reached the maximum number of profile posts. Remove some to add more.']);
@@ -37,9 +39,13 @@ class ProfilePostController extends Controller
         return back()->with('success', 'Added to your public profile feed.');
     }
 
-    public function update(Request $request, ProviderProfilePost $profilePost): RedirectResponse
+    public function update(Request $request, string $profilePost): RedirectResponse
     {
         $provider = $request->user()->serviceProvider;
+        abort_unless($provider, 404);
+        abort_unless(Schema::hasTable('provider_profile_posts'), 503, 'Profile feed is temporarily unavailable.');
+
+        $profilePost = ProviderProfilePost::query()->where('uuid', $profilePost)->firstOrFail();
         abort_unless($provider && (int) $profilePost->service_provider_id === (int) $provider->id, 403);
 
         $validated = $request->validate([
@@ -59,9 +65,13 @@ class ProfilePostController extends Controller
         return back()->with('success', 'Profile feed item updated.');
     }
 
-    public function destroy(Request $request, ProviderProfilePost $profilePost): RedirectResponse
+    public function destroy(Request $request, string $profilePost): RedirectResponse
     {
         $provider = $request->user()->serviceProvider;
+        abort_unless($provider, 404);
+        abort_unless(Schema::hasTable('provider_profile_posts'), 503, 'Profile feed is temporarily unavailable.');
+
+        $profilePost = ProviderProfilePost::query()->where('uuid', $profilePost)->firstOrFail();
         abort_unless($provider && (int) $profilePost->service_provider_id === (int) $provider->id, 403);
 
         $profilePost->delete();
