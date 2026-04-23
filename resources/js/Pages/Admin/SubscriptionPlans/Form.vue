@@ -8,11 +8,13 @@ const props = defineProps({
     plan: { type: Object, default: null },
 });
 
+const currencyOptions = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
+
 const form = useForm({
     name: props.plan?.name ?? '',
     slug: props.plan?.slug ?? '',
     description: props.plan?.description ?? '',
-    price_cents: props.plan?.price_cents ?? 9900,
+    price: props.plan ? Number((props.plan.price_cents / 100).toFixed(2)) : 99,
     currency: props.plan?.currency ?? 'USD',
     billing_cycle: props.plan?.billing_cycle ?? 'monthly',
     features: props.plan?.features?.join('\n') ?? '',
@@ -71,8 +73,14 @@ const submit = () => {
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-3">
-                    <Input v-model="form.price_cents" type="number" min="0" label="Price (cents)" :error="form.errors.price_cents" required />
-                    <Input v-model="form.currency" label="Currency" :error="form.errors.currency" required />
+                    <Input v-model="form.price" type="number" min="0" step="0.01" label="Price" :error="form.errors.price" required />
+                    <div class="space-y-1">
+                        <label class="admin-label">Currency</label>
+                        <select v-model="form.currency" class="admin-select">
+                            <option v-for="code in currencyOptions" :key="code" :value="code">{{ code }}</option>
+                        </select>
+                        <p v-if="form.errors.currency" class="text-xs text-rose-600">{{ form.errors.currency }}</p>
+                    </div>
                     <div class="space-y-1">
                         <label class="admin-label">Billing cycle</label>
                         <select v-model="form.billing_cycle" class="admin-select">

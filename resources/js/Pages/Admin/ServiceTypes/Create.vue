@@ -16,6 +16,7 @@ const form = useForm({
     include_certificate: false,
     is_active: true,
     sort_order: props.suggested_sort_order,
+    monthly_subscription_rate: 0,
 });
 
 const submit = () => {
@@ -102,6 +103,19 @@ const fillValueFromLabel = () => {
                                 maxlength="120"
                             />
                             <p v-if="form.errors.icon" :class="errorClass">{{ form.errors.icon }}</p>
+                        </div>
+                        <div>
+                            <label :class="labelClass">Subscription rate (USD)</label>
+                            <input
+                                v-model.number="form.monthly_subscription_rate"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="input w-full max-w-[16rem]"
+                                placeholder="e.g. 20.00"
+                            />
+                            <p class="mt-1 text-xs text-slate-500">Set the monthly amount to charge providers for this service type.</p>
+                            <p v-if="form.errors.monthly_subscription_rate" :class="errorClass">{{ form.errors.monthly_subscription_rate }}</p>
                         </div>
                     </div>
                 </div>

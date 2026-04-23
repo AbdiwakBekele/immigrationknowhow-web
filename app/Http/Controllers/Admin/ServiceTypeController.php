@@ -46,6 +46,7 @@ class ServiceTypeController extends Controller
             'include_certificate' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'monthly_subscription_rate' => ['required', 'numeric', 'min:0', 'max:999999.99'],
         ]);
 
         if (! ($validated['for_user'] ?? false) && ! ($validated['for_provider'] ?? false)) {
@@ -65,6 +66,7 @@ class ServiceTypeController extends Controller
             'include_certificate' => (bool) ($validated['include_certificate'] ?? false),
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => $sortOrder,
+            'monthly_subscription_rate' => number_format((float) $validated['monthly_subscription_rate'], 2, '.', ''),
         ]);
 
         return redirect()
@@ -100,6 +102,7 @@ class ServiceTypeController extends Controller
             'include_certificate' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'monthly_subscription_rate' => ['required', 'numeric', 'min:0', 'max:999999.99'],
         ]);
 
         if (! ($validated['for_user'] ?? false) && ! ($validated['for_provider'] ?? false)) {
@@ -115,6 +118,7 @@ class ServiceTypeController extends Controller
             'include_certificate' => (bool) ($validated['include_certificate'] ?? false),
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => array_key_exists('sort_order', $validated) ? $validated['sort_order'] : $serviceType->sort_order,
+            'monthly_subscription_rate' => number_format((float) $validated['monthly_subscription_rate'], 2, '.', ''),
         ]);
 
         return redirect()

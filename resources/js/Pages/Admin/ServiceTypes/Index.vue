@@ -74,6 +74,7 @@ const toggleActive = (type) => {
                                 <th class="px-4 py-2.5">Sort</th>
                                 <th class="px-4 py-2.5">Label</th>
                                 <th class="px-4 py-2.5">Value</th>
+                                <th class="px-4 py-2.5">Subscription Rate</th>
                                 <th class="px-4 py-2.5">Icon</th>
                                 <th class="px-4 py-2.5">Users</th>
                                 <th class="px-4 py-2.5">Providers</th>
@@ -92,6 +93,9 @@ const toggleActive = (type) => {
                                 </td>
                                 <td class="px-4 py-3 font-mono text-xs text-slate-600">
                                     {{ type.value }}
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-3 text-slate-700">
+                                    ${{ Number(type.monthly_subscription_rate ?? 0).toFixed(2) }}/mo
                                 </td>
                                 <td class="px-4 py-3 text-lg leading-none text-slate-700">
                                     <span v-if="type.icon">{{ type.icon }}</span>

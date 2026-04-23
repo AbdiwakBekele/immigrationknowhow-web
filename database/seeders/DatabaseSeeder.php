@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             SubscriptionPlanSeeder::class,
             EmailTemplateSeeder::class,
+            UsZipSeeder::class,
         ]);
     }
 }
