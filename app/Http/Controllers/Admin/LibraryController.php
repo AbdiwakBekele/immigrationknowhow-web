@@ -22,6 +22,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class LibraryController extends Controller
 {
@@ -78,6 +79,8 @@ class LibraryController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $uploadTraceId = (string) Str::ulid();
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
@@ -120,26 +123,67 @@ class LibraryController extends Controller
 
         // Upload cover image
         if ($request->hasFile('cover_image')) {
-            $validated['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
+            $validated['cover_image'] = $this->storeCoverImage(
+                $request->file('cover_image'),
+                [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'store',
+                    'admin_user_id' => $request->user()?->id,
+                    'asset' => 'cover_image',
+                ]
+            );
         }
 
         if ($validated['type'] === 'ebook') {
             $pdf = $request->file('pdf_file');
-            $validated['file_path'] = $pdf->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['file_path'] = $this->storeFileWithDetailedLog(
+                $pdf,
+                'library/files',
+                LibraryItem::LIBRARY_MEDIA_DISK,
+                array_merge($this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'store',
+                    'asset' => 'ebook_pdf',
+                ]), [
+                    'library_type' => 'ebook',
+                ])
+            );
             $validated['file_name'] = $pdf->getClientOriginalName();
             $validated['file_size'] = $pdf->getSize();
             $validated['file_type'] = strtolower($pdf->getClientOriginalExtension());
 
             if ($request->hasFile('audio_file')) {
                 $audio = $request->file('audio_file');
-                $validated['audio_file_path'] = $audio->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+                $validated['audio_file_path'] = $this->storeFileWithDetailedLog(
+                    $audio,
+                    'library/files',
+                    LibraryItem::LIBRARY_MEDIA_DISK,
+                    array_merge($this->buildUploadContext($request, [
+                        'trace_id' => $uploadTraceId,
+                        'flow' => 'store',
+                        'asset' => 'ebook_companion_audio',
+                    ]), [
+                        'library_type' => 'ebook',
+                    ])
+                );
                 $validated['audio_file_name'] = $audio->getClientOriginalName();
                 $validated['audio_file_size'] = $audio->getSize();
                 $validated['audio_file_type'] = strtolower($audio->getClientOriginalExtension());
             }
         } else {
             $file = $request->file('file');
-            $validated['file_path'] = $file->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['file_path'] = $this->storeFileWithDetailedLog(
+                $file,
+                'library/files',
+                LibraryItem::LIBRARY_MEDIA_DISK,
+                array_merge($this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'store',
+                    'asset' => 'audiobook_file',
+                ]), [
+                    'library_type' => 'audiobook',
+                ])
+            );
             $validated['file_name'] = $file->getClientOriginalName();
             $validated['file_size'] = $file->getSize();
             $validated['file_type'] = strtolower($file->getClientOriginalExtension());
@@ -331,6 +375,8 @@ class LibraryController extends Controller
 
     public function update(Request $request, LibraryItem $library): RedirectResponse
     {
+        $uploadTraceId = (string) Str::ulid();
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(LibraryItem::supportedTypes())],
@@ -379,7 +425,17 @@ class LibraryController extends Controller
             if ($library->cover_image) {
                 $this->deleteCoverImage($library->cover_image);
             }
-            $validated['cover_image'] = $this->storeCoverImage($request->file('cover_image'));
+            $validated['cover_image'] = $this->storeCoverImage(
+                $request->file('cover_image'),
+                $this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'update',
+                    'asset' => 'cover_image',
+                    'library_item_id' => $library->id,
+                    'library_item_slug' => $library->slug,
+                    'library_type' => $validated['type'],
+                ])
+            );
         } else {
             unset($validated['cover_image']);
         }
@@ -399,7 +455,19 @@ class LibraryController extends Controller
                 $library->deleteStoredLibraryFile();
             }
             $pdf = $request->file('pdf_file');
-            $validated['file_path'] = $pdf->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['file_path'] = $this->storeFileWithDetailedLog(
+                $pdf,
+                'library/files',
+                LibraryItem::LIBRARY_MEDIA_DISK,
+                $this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'update',
+                    'asset' => 'ebook_pdf',
+                    'library_item_id' => $library->id,
+                    'library_item_slug' => $library->slug,
+                    'library_type' => 'ebook',
+                ])
+            );
             $validated['file_name'] = $pdf->getClientOriginalName();
             $validated['file_size'] = $pdf->getSize();
             $validated['file_type'] = strtolower($pdf->getClientOriginalExtension());
@@ -413,7 +481,19 @@ class LibraryController extends Controller
                 $library->deleteStoredLibraryFile();
             }
             $file = $request->file('file');
-            $validated['file_path'] = $file->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['file_path'] = $this->storeFileWithDetailedLog(
+                $file,
+                'library/files',
+                LibraryItem::LIBRARY_MEDIA_DISK,
+                $this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'update',
+                    'asset' => 'audiobook_file',
+                    'library_item_id' => $library->id,
+                    'library_item_slug' => $library->slug,
+                    'library_type' => 'audiobook',
+                ])
+            );
             $validated['file_name'] = $file->getClientOriginalName();
             $validated['file_size'] = $file->getSize();
             $validated['file_type'] = strtolower($file->getClientOriginalExtension());
@@ -424,7 +504,19 @@ class LibraryController extends Controller
                 $library->deleteStoredAudioFile();
             }
             $audio = $request->file('audio_file');
-            $validated['audio_file_path'] = $audio->store('library/files', LibraryItem::LIBRARY_MEDIA_DISK);
+            $validated['audio_file_path'] = $this->storeFileWithDetailedLog(
+                $audio,
+                'library/files',
+                LibraryItem::LIBRARY_MEDIA_DISK,
+                $this->buildUploadContext($request, [
+                    'trace_id' => $uploadTraceId,
+                    'flow' => 'update',
+                    'asset' => 'ebook_companion_audio',
+                    'library_item_id' => $library->id,
+                    'library_item_slug' => $library->slug,
+                    'library_type' => 'ebook',
+                ])
+            );
             $validated['audio_file_name'] = $audio->getClientOriginalName();
             $validated['audio_file_size'] = $audio->getSize();
             $validated['audio_file_type'] = strtolower($audio->getClientOriginalExtension());
@@ -529,7 +621,7 @@ class LibraryController extends Controller
         return $authorId;
     }
 
-    private function storeCoverImage(UploadedFile $file): string
+    private function storeCoverImage(UploadedFile $file, array $context = []): string
     {
         $disk = (string) config('uploads.library_covers.disk', 's3');
         $directory = trim((string) config('uploads.library_covers.directory', 'library/covers'), '/');
@@ -537,8 +629,19 @@ class LibraryController extends Controller
             ? 'private'
             : 'public';
 
-        $path = $file->store($directory, $disk);
+        $path = $this->storeFileWithDetailedLog(
+            $file,
+            $directory,
+            $disk,
+            array_merge($context, ['cover_visibility_target' => $visibility])
+        );
+
         Storage::disk($disk)->setVisibility($path, $visibility);
+        Log::info('Library upload visibility updated.', array_merge($context, [
+            'path' => $path,
+            'disk' => $disk,
+            'visibility' => $visibility,
+        ]));
 
         return $path;
     }
@@ -552,6 +655,111 @@ class LibraryController extends Controller
                 Storage::disk($disk)->delete($path);
             }
         }
+    }
+
+    private function storeFileWithDetailedLog(UploadedFile $file, string $directory, string $disk, array $context = []): string
+    {
+        $startedAt = microtime(true);
+        $uploadContext = array_merge($context, [
+            'disk' => $disk,
+            'directory' => trim($directory, '/'),
+            'file_original_name' => $file->getClientOriginalName(),
+            'file_extension' => strtolower((string) $file->getClientOriginalExtension()),
+            'file_client_mime' => $file->getClientMimeType(),
+            'file_server_mime' => $file->getMimeType(),
+            'file_size_bytes' => $file->getSize(),
+            'storage_target' => $this->diskTargetSummary($disk),
+            'storage_diagnostics' => $this->diskDiagnostics($disk),
+        ]);
+
+        Log::info('Library upload started.', $uploadContext);
+
+        try {
+            $path = $file->store(trim($directory, '/'), $disk);
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+            $diskInstance = Storage::disk($disk);
+
+            $existsAfterStore = false;
+            $visibility = null;
+            $url = null;
+
+            try {
+                $existsAfterStore = $diskInstance->exists($path);
+            } catch (Throwable $existsException) {
+                Log::warning('Library upload exists check failed.', array_merge($uploadContext, [
+                    'path' => $path,
+                    'exception' => $existsException->getMessage(),
+                ]));
+            }
+
+            try {
+                $visibility = $diskInstance->getVisibility($path);
+            } catch (Throwable) {
+                // Some drivers may not expose file visibility.
+            }
+
+            try {
+                $url = $diskInstance->url($path);
+            } catch (Throwable) {
+                // Private buckets / driver constraints can prevent URL generation.
+            }
+
+            Log::info('Library upload completed.', array_merge($uploadContext, [
+                'path' => $path,
+                'exists_after_store' => $existsAfterStore,
+                'visibility' => $visibility,
+                'resolved_url' => $url,
+                'elapsed_ms' => $elapsedMs,
+            ]));
+
+            return $path;
+        } catch (Throwable $exception) {
+            Log::error('Library upload failed.', array_merge($uploadContext, [
+                'error_message' => $exception->getMessage(),
+                'error_class' => $exception::class,
+                'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]));
+
+            throw $exception;
+        }
+    }
+
+    private function diskTargetSummary(string $disk): string
+    {
+        $driver = strtolower((string) config("filesystems.disks.{$disk}.driver", ''));
+
+        return match ($driver) {
+            's3' => 'aws_or_s3_compatible_bucket',
+            'local' => 'local_filesystem',
+            default => $driver !== '' ? $driver : 'unknown',
+        };
+    }
+
+    private function diskDiagnostics(string $disk): array
+    {
+        $driver = (string) config("filesystems.disks.{$disk}.driver", 'unknown');
+
+        return [
+            'driver' => $driver,
+            'root' => config("filesystems.disks.{$disk}.root"),
+            'bucket' => config("filesystems.disks.{$disk}.bucket"),
+            'region' => config("filesystems.disks.{$disk}.region"),
+            'endpoint' => config("filesystems.disks.{$disk}.endpoint"),
+            'url' => config("filesystems.disks.{$disk}.url"),
+            'use_path_style_endpoint' => config("filesystems.disks.{$disk}.use_path_style_endpoint"),
+            'configured_visibility' => config("filesystems.disks.{$disk}.visibility"),
+        ];
+    }
+
+    private function buildUploadContext(Request $request, array $context = []): array
+    {
+        return array_merge([
+            'request_id' => (string) Str::ulid(),
+            'admin_user_id' => $request->user()?->id,
+            'actor_email' => $request->user()?->email,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ], $context);
     }
 
     private function validateUploadRules(Request $request, string $type, ?LibraryItem $existingItem = null): void
