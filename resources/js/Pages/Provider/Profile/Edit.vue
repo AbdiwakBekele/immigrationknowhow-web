@@ -11,7 +11,6 @@ import {
     CurrencyDollarIcon,
     MapPinIcon,
     GlobeAltIcon,
-    AcademicCapIcon,
     PlusIcon,
     TrashIcon,
     EyeIcon,
@@ -175,11 +174,13 @@ const form = useForm({
     certifications: props.provider?.certifications || [],
     health_certificates: (props.provider?.health_certificates || []).map((certificate) => ({
         name: certificate.name || '',
+        service_type: certificate.service_type || '',
         issuing_authority: certificate.issuing_authority || '',
         expiration_date: certificate.expiration_date || '',
         file_path: certificate.file_path || '',
         original_name: certificate.original_name || '',
         document: null,
+        preview_url: '',
     })),
     years_experience: props.provider?.years_experience || '',
     
@@ -250,15 +251,51 @@ const pricingModels = [
     { value: 'custom', label: 'Custom Quote' },
 ];
 
+const normalizeServiceTypeValue = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
 const certificateRequiredServiceTypeValues = computed(() =>
-    (props.serviceTypes || [])
-        .filter((type) => type.include_certificate)
-        .map((type) => type.value)
+    [
+        'babysitter',
+        'baby_sitter',
+        'pet_sitter',
+        'petsitter',
+        'health_navigator',
+        'healthcare_navigator',
+        'healthnavigator',
+    ]
 );
 
-const showsHealthCertificates = computed(() =>
-    form.service_types.some((type) => certificateRequiredServiceTypeValues.value.includes(type))
+const selectedCertificateRequiredTypes = computed(() => {
+    const selected = form.service_types.map((type) => normalizeServiceTypeValue(type));
+    return selected.filter((type) => certificateRequiredServiceTypeValues.value.includes(type));
+});
+
+const certificateRequiredTypeOptions = computed(() =>
+    selectedCertificateRequiredTypes.value.map((value) => {
+        const fromProps = (props.serviceTypes || []).find((type) => normalizeServiceTypeValue(type.value) === value);
+        const fallbackLabels = {
+            health_navigator: 'Healthcare Navigator',
+            healthcare_navigator: 'Healthcare Navigator',
+            healthnavigator: 'Healthcare Navigator',
+            pet_sitter: 'Pet Sitter',
+            petsitter: 'Pet Sitter',
+            babysitter: 'Babysitter',
+            baby_sitter: 'Babysitter',
+        };
+        return {
+            value,
+            label: fromProps?.label || fallbackLabels[value] || value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+        };
+    })
 );
+
+const showsHealthCertificates = computed(() => selectedCertificateRequiredTypes.value.length > 0);
+
+const isHealthcareServiceType = (value) => ['health_navigator', 'healthcare_navigator', 'healthnavigator']
+    .includes(normalizeServiceTypeValue(value));
 
 const updateProfile = () => {
     form.patch(route('provider.profile.update'), {
@@ -302,30 +339,24 @@ const uploadAvatar = (event) => {
     });
 };
 
-const addCertification = () => {
-    form.certifications.push({
-        name: '',
-        issuer: '',
-        year: new Date().getFullYear(),
-    });
-};
-
-const removeCertification = (index) => {
-    form.certifications.splice(index, 1);
-};
-
 const addHealthCertificate = () => {
     form.health_certificates.push({
         name: '',
+        service_type: selectedCertificateRequiredTypes.value[0] || '',
         issuing_authority: '',
         expiration_date: '',
         file_path: '',
         original_name: '',
         document: null,
+        preview_url: '',
     });
 };
 
 const removeHealthCertificate = (index) => {
+    const certificate = form.health_certificates[index];
+    if (certificate?.preview_url) {
+        URL.revokeObjectURL(certificate.preview_url);
+    }
     form.health_certificates.splice(index, 1);
 };
 
@@ -335,8 +366,15 @@ const onHealthCertificateFileChange = (event, certificate) => {
         return;
     }
 
+    if (certificate.preview_url) {
+        URL.revokeObjectURL(certificate.preview_url);
+    }
     certificate.document = file;
     certificate.original_name = file.name;
+    if (!certificate.service_type && selectedCertificateRequiredTypes.value.length === 1) {
+        [certificate.service_type] = selectedCertificateRequiredTypes.value;
+    }
+    certificate.preview_url = URL.createObjectURL(file);
     if (!certificate.name) {
         certificate.name = file.name.replace(/\.[^/.]+$/, '');
     }
@@ -352,6 +390,21 @@ const healthCertificateFileUrl = (path) => {
     }
 
     return `/storage/${path}`;
+};
+
+const isImageCertificate = (value) => /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(String(value || ''));
+
+const healthCertificatePreviewUrl = (certificate) => {
+    if (certificate.preview_url) {
+        return certificate.preview_url;
+    }
+    if (certificate.file_path && isImageCertificate(certificate.file_path)) {
+        return healthCertificateFileUrl(certificate.file_path);
+    }
+    if (certificate.original_name && isImageCertificate(certificate.original_name) && certificate.file_path) {
+        return healthCertificateFileUrl(certificate.file_path);
+    }
+    return '';
 };
 
 const buildServiceAreaLabelFromPick = () => {
@@ -897,174 +950,6 @@ const formatFeedDate = (iso) => {
                         </div>
                     </div>
 
-                    <!-- Credentials & Licenses -->
-                    <div class="bg-white rounded-2xl shadow-soft p-6">
-                        <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Credentials & Licenses</h2>
-                        <div class="space-y-4">
-                            <div class="grid sm:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">License Number</label>
-                                    <input 
-                                        v-model="form.license_number" 
-                                        type="text" 
-                                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">License State</label>
-                                    <input 
-                                        v-model="form.license_state" 
-                                        type="text" 
-                                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">License Expiry</label>
-                                    <input 
-                                        v-model="form.license_expiry" 
-                                        type="date" 
-                                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <label class="block text-sm font-medium text-slate-700">Certifications</label>
-                                    <button type="button" @click="addCertification" class="flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
-                                        <PlusIcon class="h-4 w-4" />
-                                        Add Certification
-                                    </button>
-                                </div>
-                                <div class="space-y-3">
-                                    <div 
-                                        v-for="(cert, index) in form.certifications" 
-                                        :key="index"
-                                        class="flex items-start gap-3 p-4 bg-slate-50 rounded-xl"
-                                    >
-                                        <AcademicCapIcon class="h-6 w-6 text-primary-600 flex-shrink-0 mt-1" />
-                                        <div class="flex-1 grid sm:grid-cols-3 gap-3">
-                                            <input 
-                                                v-model="cert.name"
-                                                type="text"
-                                                class="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                placeholder="Certification Name"
-                                                required
-                                            />
-                                            <input 
-                                                v-model="cert.issuer"
-                                                type="text"
-                                                class="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                placeholder="Issuing Organization"
-                                            />
-                                            <input 
-                                                v-model="cert.year"
-                                                type="number"
-                                                class="px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                placeholder="Year"
-                                                min="1900"
-                                                :max="new Date().getFullYear()"
-                                            />
-                                        </div>
-                                        <button type="button" @click="removeCertification(index)" class="text-red-500 hover:text-red-700 transition-colors">
-                                            <TrashIcon class="h-5 w-5" />
-                                        </button>
-                                    </div>
-                                </div>
-                                <p v-if="!form.certifications.length" class="text-slate-500 text-center py-4 bg-slate-50 rounded-xl">
-                                    No certifications added yet
-                                </p>
-                            </div>
-
-                            <div v-if="showsHealthCertificates" class="pt-4 border-t border-slate-200">
-                                <div class="flex items-center justify-between mb-3">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-700">Health-Related Certificates</label>
-                                        <p class="text-xs text-slate-500 mt-1">
-                                            Add pet first aid or first aid certificates, including issuing authority and expiration (if any).
-                                        </p>
-                                    </div>
-                                    <button type="button" @click="addHealthCertificate" class="flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm font-medium">
-                                        <PlusIcon class="h-4 w-4" />
-                                        Add Certificate
-                                    </button>
-                                </div>
-
-                                <div class="space-y-3">
-                                    <div
-                                        v-for="(certificate, index) in form.health_certificates"
-                                        :key="index"
-                                        class="p-4 bg-slate-50 rounded-xl space-y-3"
-                                    >
-                                        <div class="grid sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label class="block text-xs font-medium text-slate-600 mb-1">Document Name *</label>
-                                                <input
-                                                    v-model="certificate.name"
-                                                    type="text"
-                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                    placeholder="Pet First Aid Training Certificate"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-slate-600 mb-1">Issuing Authority</label>
-                                                <input
-                                                    v-model="certificate.issuing_authority"
-                                                    type="text"
-                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                    placeholder="American Red Cross"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-slate-600 mb-1">Expiration Date (optional)</label>
-                                                <input
-                                                    v-model="certificate.expiration_date"
-                                                    type="date"
-                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-slate-600 mb-1">Document File</label>
-                                                <input
-                                                    type="file"
-                                                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
-                                                    class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
-                                                    @change="onHealthCertificateFileChange($event, certificate)"
-                                                />
-                                                <p class="mt-1 text-xs text-slate-500">PDF, JPG, PNG, or WebP up to 10MB.</p>
-                                            </div>
-                                        </div>
-
-                                        <div v-if="certificate.file_path || certificate.original_name" class="flex items-center justify-between gap-3 text-xs text-slate-600">
-                                            <a
-                                                v-if="certificate.file_path"
-                                                :href="healthCertificateFileUrl(certificate.file_path)"
-                                                target="_blank"
-                                                class="text-primary-600 hover:text-primary-700 underline"
-                                            >
-                                                {{ certificate.original_name || 'View uploaded document' }}
-                                            </a>
-                                            <span v-else>{{ certificate.original_name }}</span>
-                                            <button type="button" @click="removeHealthCertificate(index)" class="text-red-500 hover:text-red-700 transition-colors">
-                                                Remove
-                                            </button>
-                                        </div>
-                                        <div v-else class="flex justify-end">
-                                            <button type="button" @click="removeHealthCertificate(index)" class="text-red-500 hover:text-red-700 text-sm transition-colors">
-                                                Remove
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <p v-if="!form.health_certificates.length" class="text-slate-500 text-center py-4 bg-slate-50 rounded-xl">
-                                    No health-related certificates added yet
-                                </p>
-                                <p v-if="form.errors.health_certificates" class="mt-2 text-sm text-red-600">{{ form.errors.health_certificates }}</p>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Contact Information -->
                     <div class="bg-white rounded-2xl shadow-soft p-6">
                         <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Contact Information</h2>
@@ -1371,6 +1256,154 @@ const formatFeedDate = (iso) => {
                                     A complete listing helps the right clients discover you. New inquiries appear in
                                     <Link :href="route('provider.leads.index')" class="font-semibold text-blue-700 hover:text-blue-800">Leads</Link>.
                                 </p>
+                            </div>
+                        </section>
+
+                        <section id="service-certificates" v-if="showsHealthCertificates" class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="border-b border-slate-200 px-5 py-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 class="text-lg font-semibold text-slate-950">Certificate Upload</h2>
+                                        <p class="mt-1 text-sm text-slate-500">
+                                            Add certificate documents for each selected service that requires one.
+                                        </p>
+                                        <p v-if="certificateRequiredTypeOptions.length" class="mt-1 text-xs text-slate-500">
+                                            Required for: {{ certificateRequiredTypeOptions.map((option) => option.label).join(', ') }}
+                                        </p>
+                                    </div>
+                                    <button type="button" @click="addHealthCertificate" class="inline-flex items-center gap-1 rounded-lg border border-primary-200 px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50">
+                                        <PlusIcon class="h-4 w-4" />
+                                        Add Certificate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-3 p-5">
+                                <div
+                                    v-for="(certificate, index) in form.health_certificates"
+                                    :key="index"
+                                    class="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3"
+                                >
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="mb-1 block text-xs font-medium text-slate-600">Service Type *</label>
+                                            <select
+                                                v-model="certificate.service_type"
+                                                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                            >
+                                                <option value="" disabled>Select service type</option>
+                                                <option v-for="option in certificateRequiredTypeOptions" :key="option.value" :value="option.value">
+                                                    {{ option.label }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div v-if="isHealthcareServiceType(certificate.service_type)" class="sm:col-span-2 rounded-lg border border-slate-200 bg-white p-3">
+                                            <p class="mb-2 text-xs font-semibold text-slate-700">Healthcare License Details</p>
+                                            <div class="grid gap-3 sm:grid-cols-3">
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-slate-600">License Number</label>
+                                                    <input
+                                                        v-model="form.license_number"
+                                                        type="text"
+                                                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-slate-600">License State</label>
+                                                    <input
+                                                        v-model="form.license_state"
+                                                        type="text"
+                                                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="mb-1 block text-xs font-medium text-slate-600">License Expiry</label>
+                                                    <input
+                                                        v-model="form.license_expiry"
+                                                        type="date"
+                                                        class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-medium text-slate-600">Document Name *</label>
+                                            <input
+                                                v-model="certificate.name"
+                                                type="text"
+                                                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                placeholder="Pet First Aid Training Certificate"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-medium text-slate-600">Issuing Authority</label>
+                                            <input
+                                                v-model="certificate.issuing_authority"
+                                                type="text"
+                                                class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                placeholder="American Red Cross"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-medium text-slate-600">Document File</label>
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                                                class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                                                @change="onHealthCertificateFileChange($event, certificate)"
+                                            />
+                                            <p class="mt-1 text-xs text-slate-500">PDF, JPG, PNG, or WebP up to 10MB.</p>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="healthCertificatePreviewUrl(certificate)" class="rounded-lg border border-slate-200 bg-white p-2">
+                                        <p class="mb-2 text-xs font-medium text-slate-600">Preview</p>
+                                        <img
+                                            :src="healthCertificatePreviewUrl(certificate)"
+                                            alt="Certificate preview"
+                                            class="h-28 w-full rounded object-cover"
+                                        >
+                                    </div>
+
+                                    <div v-if="certificate.file_path || certificate.original_name" class="flex items-center justify-between gap-3 text-xs text-slate-600">
+                                        <a
+                                            v-if="certificate.file_path"
+                                            :href="healthCertificateFileUrl(certificate.file_path)"
+                                            target="_blank"
+                                            class="text-primary-600 underline hover:text-primary-700"
+                                        >
+                                            {{ certificate.original_name || 'View uploaded document' }}
+                                        </a>
+                                        <span v-else>{{ certificate.original_name }}</span>
+                                        <div class="flex items-center gap-3">
+                                            <button type="button" @click="removeHealthCertificate(index)" class="text-red-500 transition-colors hover:text-red-700">
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div v-else class="flex justify-end gap-3">
+                                        <button type="button" @click="removeHealthCertificate(index)" class="text-sm text-red-500 transition-colors hover:text-red-700">
+                                            Remove
+                                        </button>
+                                    </div>
+                                    <div class="flex items-center justify-between border-t border-slate-200 pt-2">
+                                        <p v-if="!certificate.document" class="text-xs text-slate-500">
+                                            Choose a file to enable Save Certificate.
+                                        </p>
+                                        <button
+                                            type="submit"
+                                            form="provider-profile-edit-form"
+                                            class="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
+                                            :disabled="form.processing || !certificate.document"
+                                        >
+                                            {{ form.processing ? 'Saving...' : 'Save Certificate' }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p v-if="!form.health_certificates.length" class="rounded-xl bg-slate-50 py-4 text-center text-sm text-slate-500">
+                                    No service certificates added yet
+                                </p>
+                                <p v-if="form.errors.health_certificates" class="text-sm text-red-600">{{ form.errors.health_certificates }}</p>
                             </div>
                         </section>
 

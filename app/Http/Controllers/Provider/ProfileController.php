@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -282,6 +283,7 @@ class ProfileController extends Controller
             'certifications.*.year' => ['nullable', 'integer', 'min:1900', 'max:'.date('Y')],
             'health_certificates' => ['nullable', 'array'],
             'health_certificates.*.name' => ['required', 'string', 'max:255'],
+            'health_certificates.*.service_type' => ['nullable', 'string', 'max:120'],
             'health_certificates.*.issuing_authority' => ['nullable', 'string', 'max:255'],
             'health_certificates.*.expiration_date' => ['nullable', 'date'],
             'health_certificates.*.file_path' => ['nullable', 'string', 'max:2048'],
@@ -309,13 +311,35 @@ class ProfileController extends Controller
             }
         }
 
-        $typesRequiringCertificates = collect(ServiceTypeOptions::selectOptions('provider'))
-            ->filter(fn (array $type) => (bool) ($type['include_certificate'] ?? false))
-            ->pluck('value')
+        $normalizeServiceType = static fn ($value): string => Str::of((string) $value)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '_')
+            ->trim('_')
+            ->value();
+        $requiredCertificateTypeValues = collect([
+            'babysitter',
+            'baby_sitter',
+            'pet_sitter',
+            'petsitter',
+            'health_navigator',
+            'healthcare_navigator',
+            'healthnavigator',
+        ]);
+        $certificateServiceTypeLabels = collect([
+            'babysitter' => 'Babysitter',
+            'baby_sitter' => 'Babysitter',
+            'pet_sitter' => 'Pet Sitter',
+            'petsitter' => 'Pet Sitter',
+            'health_navigator' => 'Healthcare Navigator',
+            'healthcare_navigator' => 'Healthcare Navigator',
+            'healthnavigator' => 'Healthcare Navigator',
+        ]);
+        $selectedServiceTypes = collect($validated['service_types'] ?? [])->map($normalizeServiceType);
+        $selectedRequiredTypes = $selectedServiceTypes
+            ->intersect($requiredCertificateTypeValues)
+            ->unique()
             ->values();
-        $hasCertificateEnabledType = collect($validated['service_types'] ?? [])
-            ->intersect($typesRequiringCertificates)
-            ->isNotEmpty();
+        $hasCertificateEnabledType = $selectedRequiredTypes->isNotEmpty();
 
         $existingCertificatePaths = collect($provider->health_certificates ?? [])
             ->pluck('file_path')
@@ -324,13 +348,18 @@ class ProfileController extends Controller
         $keptCertificatePaths = collect();
 
         $validated['health_certificates'] = collect($validated['health_certificates'] ?? [])
-            ->map(function (array $certificate) use (&$keptCertificatePaths) {
+            ->map(function (array $certificate) use (&$keptCertificatePaths, $normalizeServiceType, $selectedRequiredTypes) {
                 $filePath = $certificate['file_path'] ?? null;
                 $originalName = $certificate['original_name'] ?? null;
+                $serviceType = isset($certificate['service_type']) ? $normalizeServiceType($certificate['service_type']) : null;
 
                 if (isset($certificate['document']) && $certificate['document']) {
                     $filePath = $certificate['document']->store('provider-certificates', 'public');
                     $originalName = $certificate['document']->getClientOriginalName();
+                }
+
+                if ((! is_string($serviceType) || $serviceType === '') && $selectedRequiredTypes->count() === 1) {
+                    $serviceType = $selectedRequiredTypes->first();
                 }
 
                 if ($filePath) {
@@ -339,6 +368,7 @@ class ProfileController extends Controller
 
                 return [
                     'name' => $certificate['name'],
+                    'service_type' => $serviceType,
                     'issuing_authority' => $certificate['issuing_authority'] ?? null,
                     'expiration_date' => $certificate['expiration_date'] ?? null,
                     'file_path' => $filePath,
@@ -347,6 +377,30 @@ class ProfileController extends Controller
             })
             ->values()
             ->all();
+
+        if ($hasCertificateEnabledType) {
+            $missingTypes = $selectedRequiredTypes->filter(function (string $requiredType) use ($validated, $normalizeServiceType) {
+                return ! collect($validated['health_certificates'])
+                    ->contains(function (array $certificate) use ($requiredType, $normalizeServiceType) {
+                        $type = isset($certificate['service_type']) ? $normalizeServiceType($certificate['service_type']) : '';
+                        $path = $certificate['file_path'] ?? null;
+
+                        return $type === $requiredType && is_string($path) && $path !== '';
+                    });
+            });
+
+            if ($missingTypes->isNotEmpty()) {
+                $missingLabels = $missingTypes
+                    ->map(fn (string $type) => $certificateServiceTypeLabels->get($type, Str::of($type)->replace('_', ' ')->title()->value()))
+                    ->unique()
+                    ->values()
+                    ->implode(', ');
+
+                throw ValidationException::withMessages([
+                    'health_certificates' => 'Upload at least one certificate for: '.$missingLabels.'.',
+                ]);
+            }
+        }
 
         if (! $hasCertificateEnabledType) {
             $validated['health_certificates'] = [];
