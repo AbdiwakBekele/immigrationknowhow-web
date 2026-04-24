@@ -8,6 +8,7 @@ import { ZiggyVue } from 'ziggy-js';
 import Toast from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import AppFeedback from './Components/App/AppFeedback.vue';
+import GlobalTranslateFab from './Components/App/GlobalTranslateFab.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ImmigrationKnowHow';
 
@@ -39,6 +40,7 @@ createInertiaApp({
             render: () => h(Fragment, [
                 h(AppFeedback),
                 h(App, props),
+                h(GlobalTranslateFab),
             ]),
         })
             .use(plugin)

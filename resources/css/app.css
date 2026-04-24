@@ -1,3 +1,17 @@
+/* Hide Google Translate default top banner/frame and icon. */
+.goog-te-banner-frame.skiptranslate,
+body > .skiptranslate {
+    display: none !important;
+}
+
+body {
+    top: 0 !important;
+}
+
+#goog-gt-tt,
+.goog-te-balloon-frame {
+    display: none !important;
+}
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Outfit:wght@100..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
