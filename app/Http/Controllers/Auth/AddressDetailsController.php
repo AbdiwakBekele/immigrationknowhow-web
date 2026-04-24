@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Services\PhoneVerificationService;
+use App\Support\RoleHelper;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
@@ -312,6 +313,12 @@ class AddressDetailsController extends Controller
                 'languages' => [$preferred],
                 'onboarding_data' => $onboardingData,
             ]);
+
+            // Keep provider flow sticky after step 2 for legacy accounts with missing role assignment.
+            if (! $user->isProvider()) {
+                RoleHelper::ensureExists(UserRole::PROVIDER->value);
+                $user->assignRole(UserRole::PROVIDER->value);
+            }
 
             Log::channel('single')->info('AddressDetails sendOtp persisted provider coverage & service area.', [
                 'user_id' => $user->id,

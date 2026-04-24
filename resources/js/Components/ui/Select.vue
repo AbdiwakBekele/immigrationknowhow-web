@@ -63,6 +63,16 @@ const selectedLabel = computed(() => {
     return selected ? (typeof selected === 'object' ? selected[props.labelKey] : selected) : null;
 });
 
+const selectedLabels = computed(() => {
+    if (!(props.multiple && Array.isArray(props.modelValue))) {
+        return [];
+    }
+
+    return props.options
+        .filter((opt) => props.modelValue.includes(typeof opt === 'object' ? opt[props.valueKey] : opt))
+        .map((opt) => (typeof opt === 'object' ? opt[props.labelKey] : opt));
+});
+
 const handleChange = (value) => {
     emit('update:modelValue', value);
 };
@@ -113,7 +123,18 @@ const optionClasses = computed(() =>
             <ListboxButton
                 :class="buttonClasses"
             >
-                <span :class="['block truncate', selectedLabel ? 'text-neutral-900' : 'text-neutral-400']">
+                <template v-if="multiple && selectedLabels.length">
+                    <span class="flex flex-wrap gap-1.5 pr-5">
+                        <span
+                            v-for="label in selectedLabels"
+                            :key="label"
+                            class="inline-flex max-w-full items-center rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700"
+                        >
+                            <span class="truncate">{{ label }}</span>
+                        </span>
+                    </span>
+                </template>
+                <span v-else :class="['block truncate', selectedLabel ? 'text-neutral-900' : 'text-neutral-400']">
                     {{ selectedLabel || placeholder }}
                 </span>
                 <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">

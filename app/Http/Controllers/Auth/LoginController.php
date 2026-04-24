@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\RoleHelper;
 use App\Support\UserHomeUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,47 +65,31 @@ class LoginController extends Controller
 
     protected function redirectAfterAuthentication(Request $request, User $user): RedirectResponse
     {
-        if ($user->isAffiliate() && ! $user->hasVerifiedEmail()) {
-            return redirect()->route('verification.notice');
-        }
+        // Self-heal role assignment for legacy accounts that started provider/advertiser signup
+        // before role metadata was consistently persisted.
+        if (! $user->hasCompletedOnboarding()) {
+            $registrationRole = strtolower((string) data_get($user->onboarding_data, 'registration.role', ''));
+            $hasProviderIntent = $registrationRole === UserRole::PROVIDER->value
+                || filled(data_get($user->onboarding_data, 'registration.service_type'))
+                || filled(data_get($user->onboarding_data, 'service_type'));
+            $hasAdvertiserIntent = $registrationRole === UserRole::ADVERTISER->value;
 
-        if ($user->isAffiliate()) {
-            return redirect()->intended(route('affiliate.dashboard'));
-        }
+            if ($hasProviderIntent && ! $user->isProvider()) {
+                RoleHelper::ensureExists(UserRole::PROVIDER->value);
+                $user->assignRole(UserRole::PROVIDER->value);
+            }
 
-        if ($user->isAdvertiser() && $user->hasCompletedOnboarding()) {
-            return redirect()->intended(route('advertiser.dashboard'));
-        }
-
-        if ($user->isAdvertiser() && ! $user->hasCompletedOnboarding()) {
-            return redirect()->route('onboarding.advertiser');
-        }
-
-        if (! $user->isAffiliate() && ! $user->hasCompletedOnboarding()) {
-            return redirect()->route('onboarding.index');
+            if ($hasAdvertiserIntent && ! $user->isAdvertiser()) {
+                RoleHelper::ensureExists(UserRole::ADVERTISER->value);
+                $user->assignRole(UserRole::ADVERTISER->value);
+            }
         }
 
         if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate() && ! $user->isAdvertiser()) {
             return redirect()->intended(route('dashboard'));
         }
 
-        if (! $user->hasCompletedOnboarding()) {
-            return redirect()->route('onboarding.index');
-        }
-
-        if ($user->isAdmin()) {
-            return redirect()->intended(route('admin.dashboard'));
-        }
-
-        if ($user->isProvider()) {
-            return redirect()->intended(route('provider.dashboard'));
-        }
-
-        if ($user->isAdvertiser()) {
-            return redirect()->intended(route('advertiser.dashboard'));
-        }
-
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended($this->homeUrlForUser($user));
     }
 
     private function hasIntendedLibraryCheckout(Request $request): bool

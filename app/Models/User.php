@@ -198,7 +198,30 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasProviderRegistration(): bool
     {
-        return ! empty(data_get($this->onboarding_data, 'registration.service_type'));
+        $registrationRole = data_get($this->onboarding_data, 'registration.role');
+        if (is_string($registrationRole) && strtolower($registrationRole) === UserRole::PROVIDER->value) {
+            return true;
+        }
+
+        $legacyRole = data_get($this->onboarding_data, 'role');
+        if (is_string($legacyRole) && strtolower($legacyRole) === UserRole::PROVIDER->value) {
+            return true;
+        }
+
+        $serviceType = data_get($this->onboarding_data, 'registration.service_type')
+            ?? data_get($this->onboarding_data, 'service_type');
+
+        if (is_string($serviceType) && trim($serviceType) !== '') {
+            return true;
+        }
+
+        $coverageArea = data_get($this->onboarding_data, 'coverage_area');
+
+        return is_array($coverageArea) && (
+            filled($coverageArea['country'] ?? null)
+            || filled($coverageArea['state'] ?? null)
+            || filled($coverageArea['postal_code'] ?? null)
+        );
     }
 
     public function followsProviderOnboarding(): bool

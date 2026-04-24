@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -123,7 +124,7 @@ class OnboardingController extends Controller
             'isProvider' => $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
-                : ($isAdvertiser ? [] : ServiceTypeOptions::userIntakeOptions()),
+                : ($isAdvertiser ? [] : ServiceTypeOptions::selectOptions('user')),
             'countryOptions' => CountryOptions::selectOptions(),
             'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
             'languageOptions' => LanguageOptions::selectOptions(),
@@ -182,6 +183,12 @@ class OnboardingController extends Controller
     public function complete(Request $request): RedirectResponse|SymfonyResponse
     {
         $user = auth()->user();
+        $userServiceTypeValues = ServiceTypeOptions::values('user');
+
+        $request->validate([
+            'services_needed' => ['nullable', 'array', 'max:8'],
+            'services_needed.*' => ['string', Rule::in($userServiceTypeValues)],
+        ]);
 
         if (! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate()) {
             if (! $user->hasCompletedSignupAddressStep()) {
@@ -243,6 +250,21 @@ class OnboardingController extends Controller
                 $pricingData = $onboardingData['pricing'] ?? [];
                 $serviceAreaData = $onboardingData['service-area'] ?? [];
                 $subscriptionData = $onboardingData['subscription'] ?? [];
+                $serviceTypes = $servicesData['types'] ?? [];
+                if ($serviceTypes === [] && ! empty($onboardingData['registration']['service_type'])) {
+                    $serviceTypes = [$onboardingData['registration']['service_type']];
+                }
+                $deliveryMethods = collect($servicesData['delivery_methods'] ?? [])
+                    ->filter(fn ($method) => is_string($method) && $method !== '')
+                    ->values();
+                $isTutorService = collect($serviceTypes)
+                    ->contains(fn ($type) => in_array(strtolower((string) $type), ['tutor', 'tutoring'], true));
+                $servesRemote = $isTutorService
+                    ? $deliveryMethods->contains('online')
+                    : ((bool) ($serviceAreaData['remote'] ?? false));
+                $servesInPerson = $isTutorService
+                    ? $deliveryMethods->contains('in_person_user_location') || $deliveryMethods->contains('in_person_provider_location')
+                    : ((bool) ($serviceAreaData['in_person'] ?? true));
 
                 $planUuid = (string) ($subscriptionData['plan_uuid'] ?? '');
                 $stripeReady = StripeProviderSubscriptionCheckout::secretConfigured();
@@ -273,11 +295,6 @@ class OnboardingController extends Controller
                     ]);
                 }
 
-                $serviceTypes = $servicesData['types'] ?? [];
-                if ($serviceTypes === [] && ! empty($onboardingData['registration']['service_type'])) {
-                    $serviceTypes = [$onboardingData['registration']['service_type']];
-                }
-
                 $serviceProvider = ServiceProvider::create([
                     'user_id' => $user->id,
                     'business_name' => $businessData['business_name'] ?? $user->full_name,
@@ -293,8 +310,8 @@ class OnboardingController extends Controller
                     'consultation_fee' => $pricingData['consultation_fee'] ?? null,
                     'free_consultation' => $pricingData['free_consultation'] ?? false,
                     'pricing_notes' => $pricingData['notes'] ?? null,
-                    'serves_remote' => $serviceAreaData['remote'] ?? false,
-                    'serves_in_person' => $serviceAreaData['in_person'] ?? true,
+                    'serves_remote' => $servesRemote,
+                    'serves_in_person' => $servesInPerson,
                     'service_radius_miles' => $serviceAreaData['radius'] ?? null,
                     'service_areas' => $serviceAreaData['areas'] ?? [],
                     'languages_offered' => $user->languages ?? ['en'],
