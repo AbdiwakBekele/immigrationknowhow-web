@@ -151,6 +151,45 @@ const healthCertificateFileUrl = (path) => {
     return `/storage/${path}`;
 };
 
+const isImageCertificate = (value) => /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(String(value || ''));
+
+const healthCertificateThumbnailUrl = (certificate) => {
+    const filePath = certificate?.file_path || '';
+    const originalName = certificate?.original_name || '';
+    if (filePath && isImageCertificate(filePath)) return healthCertificateFileUrl(filePath);
+    if (filePath && isImageCertificate(originalName)) return healthCertificateFileUrl(filePath);
+    return '';
+};
+
+const formatCertificateServiceType = (value) => {
+    const normalized = String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const labels = {
+        health_navigator: 'Healthcare Navigator',
+        healthcare_navigator: 'Healthcare Navigator',
+        healthnavigator: 'Healthcare Navigator',
+        pet_sitter: 'Pet Sitter',
+        petsitter: 'Pet Sitter',
+        babysitter: 'Babysitter',
+        baby_sitter: 'Babysitter',
+    };
+    if (labels[normalized]) return labels[normalized];
+    return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const normalizeServiceType = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+const selectedServiceTypes = computed(() =>
+    (props.provider?.service_types || []).map((type) => normalizeServiceType(type))
+);
+
+const showsHealthcareNavigatorCredentials = computed(() =>
+    selectedServiceTypes.value.some((type) => ['health_navigator', 'healthcare_navigator', 'healthnavigator'].includes(type))
+);
+
+
 const feedAvatarUrl = computed(() => {
     const u = props.user?.avatar_url || props.user?.avatar || '';
     const s = typeof u === 'string' ? u.trim() : '';
@@ -499,7 +538,7 @@ const uploadAvatar = (event) => {
                                         </div>
                                     </div>
 
-                                    <div class="border-t border-slate-100 pt-8">
+                                    <div v-if="showsHealthcareNavigatorCredentials" class="border-t border-slate-100 pt-8">
                                         <h3 class="text-sm font-semibold text-slate-950">Credentials</h3>
                                         <div class="mt-3 space-y-6 text-sm text-slate-700">
                                             <div class="space-y-2">
@@ -524,32 +563,6 @@ const uploadAvatar = (event) => {
                                                 <p v-else class="mt-2 text-sm text-slate-500">No certifications added.</p>
                                             </div>
 
-                                            <div>
-                                                <p class="font-semibold text-slate-900">Health-related certificates</p>
-                                                <div v-if="provider?.health_certificates?.length" class="mt-2 space-y-2">
-                                                    <div
-                                                        v-for="(certificate, index) in provider.health_certificates"
-                                                        :key="`health-cert-${index}`"
-                                                        class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
-                                                    >
-                                                        <p class="font-medium text-slate-900">{{ certificate.name || 'Untitled certificate' }}</p>
-                                                        <p v-if="certificate.issuing_authority" class="mt-0.5 text-slate-600">
-                                                            Issued by {{ certificate.issuing_authority }}
-                                                        </p>
-                                                        <p class="mt-0.5 text-slate-600">Expiration: {{ formatDate(certificate.expiration_date) }}</p>
-                                                        <a
-                                                            v-if="certificate.file_path"
-                                                            :href="healthCertificateFileUrl(certificate.file_path)"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            class="mt-1 inline-block text-sm font-semibold text-blue-700 underline hover:text-blue-800"
-                                                        >
-                                                            {{ certificate.original_name || 'View document' }}
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                <p v-else class="mt-2 text-sm text-slate-500">No health-related certificates added.</p>
-                                            </div>
                                         </div>
                                     </div>
 
@@ -581,6 +594,57 @@ const uploadAvatar = (event) => {
                                         New inquiries appear in
                                         <Link :href="route('provider.leads.index')" class="font-semibold text-blue-700 hover:text-blue-800">Leads</Link>.
                                     </p>
+                                </div>
+                            </section>
+
+                            <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                                <div class="border-b border-slate-200 px-5 py-4">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h2 class="text-lg font-semibold text-slate-950">Service certificates</h2>
+                                            <p class="mt-1 text-sm text-slate-500">Uploaded certificates visible on your account.</p>
+                                        </div>
+                                        <Link
+                                            :href="`${route('provider.profile.edit')}#service-certificates`"
+                                            class="inline-flex items-center justify-center rounded-lg border border-primary-200 px-3 py-1.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-50"
+                                        >
+                                            Add
+                                        </Link>
+                                    </div>
+                                </div>
+                                <div class="space-y-2 p-5">
+                                    <div v-if="provider?.health_certificates?.length" class="space-y-2">
+                                        <div
+                                            v-for="(certificate, index) in provider.health_certificates"
+                                            :key="`health-cert-sidebar-${index}`"
+                                            class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
+                                        >
+                                            <img
+                                                v-if="healthCertificateThumbnailUrl(certificate)"
+                                                :src="healthCertificateThumbnailUrl(certificate)"
+                                                :alt="certificate.name || 'Certificate thumbnail'"
+                                                class="mb-2 h-24 w-24 rounded-lg border border-slate-200 object-cover bg-white"
+                                            >
+                                            <p class="font-medium text-slate-900">{{ certificate.name || 'Untitled certificate' }}</p>
+                                            <p v-if="certificate.service_type" class="mt-0.5 text-slate-600">
+                                                Service: {{ formatCertificateServiceType(certificate.service_type) }}
+                                            </p>
+                                            <p v-if="certificate.issuing_authority" class="mt-0.5 text-slate-600">
+                                                Issued by {{ certificate.issuing_authority }}
+                                            </p>
+                                            <p class="mt-0.5 text-slate-600">Expiration: {{ formatDate(certificate.expiration_date) }}</p>
+                                            <a
+                                                v-if="certificate.file_path"
+                                                :href="healthCertificateFileUrl(certificate.file_path)"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                class="mt-1 inline-block text-sm font-semibold text-blue-700 underline hover:text-blue-800"
+                                            >
+                                                {{ certificate.original_name || 'View document' }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <p v-else class="text-sm text-slate-500">No service certificates added.</p>
                                 </div>
                             </section>
 
