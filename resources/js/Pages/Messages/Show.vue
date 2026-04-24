@@ -21,6 +21,7 @@ const props = defineProps({
     conversation: Object,
     isProvider: Boolean,
     otherParticipant: Object,
+    contractClose: { type: Object, default: null },
 });
 const messagesContainer = ref(null);
 const fileInput = ref(null);
@@ -36,6 +37,7 @@ const closeContractForm = useForm({
     reason: '',
     review_rating: 5,
     review_comment: '',
+    provider_payment_amount: null,
 });
 
 const attachmentPreviews = ref([]);
@@ -236,10 +238,24 @@ const canCloseContract = computed(() => {
     return ['in_progress', 'converted'].includes(lead.status);
 });
 
+const parseMoneyToCents = (val) => {
+    if (val === null || val === undefined || val === '') return 0;
+    const n = Number(val);
+    if (Number.isNaN(n) || n < 0) return 0;
+    return Math.round(n * 100);
+};
+
+const closeSummaryCents = computed(() => {
+    const fee = Number(props.contractClose?.serviceFeeCents || 0);
+    const toProvider = parseMoneyToCents(closeContractForm.provider_payment_amount);
+    return { fee, toProvider, total: fee + toProvider };
+});
+
 const openCloseContractModal = () => {
     closeContractForm.reset();
     closeContractForm.clearErrors();
     closeContractForm.review_rating = 5;
+    closeContractForm.provider_payment_amount = null;
     showCloseModal.value = true;
 };
 
@@ -253,7 +269,12 @@ const submitCloseContract = () => {
     const lead = props.conversation?.lead;
     if (!lead?.uuid) return;
 
-    closeContractForm.patch(route('contracts.end', lead.uuid), {
+    closeContractForm.transform((data) => ({
+        ...data,
+        provider_payment_amount: data.provider_payment_amount === null || data.provider_payment_amount === ''
+            ? null
+            : data.provider_payment_amount,
+    })).patch(route('contracts.end', lead.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             closeCloseContractModal();
@@ -549,6 +570,57 @@ const getInitials = (person) => {
                             <p class="mt-1 text-sm text-slate-600">
                                 Your review will be shown on the provider profile for other users.
                             </p>
+                            <div
+                                v-if="contractClose"
+                                class="mt-4 rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-3 text-sm text-slate-800"
+                            >
+                                <p class="font-medium text-slate-900">Closing payment</p>
+                                <p class="mt-1 text-slate-600">
+                                    <span class="font-medium">Service category rate (platform):</span>
+                                    ${{ (Number(contractClose.serviceFeeCents) / 100).toFixed(2) }} {{ contractClose.currency || 'USD' }}
+                                </p>
+                                <p class="mt-2 text-xs text-slate-500">
+                                    This is the same monthly category rate you saw when subscribing; it is charged once at contract close
+                                    (together with any amount you add for the provider).
+                                </p>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-slate-700" for="provider-pay-msg">
+                                        Optional payment to provider (USD)
+                                    </label>
+                                    <input
+                                        id="provider-pay-msg"
+                                        v-model="closeContractForm.provider_payment_amount"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <p class="mt-2 text-slate-700">
+                                    <span class="font-medium">Total due:</span>
+                                    ${{ (closeSummaryCents.total / 100).toFixed(2) }}
+                                    <span v-if="closeSummaryCents.total === 0" class="text-slate-500">(no card charge)</span>
+                                </p>
+                                <p
+                                    v-if="closeSummaryCents.total > 0 && closeSummaryCents.total < (contractClose.minCardChargeCents || 50)"
+                                    class="mt-1 text-xs text-amber-800"
+                                >
+                                    Card payments require a minimum of ${{
+                                        ((contractClose.minCardChargeCents || 50) / 100).toFixed(2)
+                                    }}. Add to the provider amount or set both to $0.00 to close without payment.
+                                </p>
+                                <p v-if="closeSummaryCents.total > 0 && !contractClose.stripeReady" class="mt-1 text-xs text-rose-700">
+                                    Stripe is not configured. Use $0.00 for both, or set STRIPE_SECRET in the app environment to pay
+                                    online.
+                                </p>
+                                <p
+                                    v-if="closeContractForm.errors?.provider_payment_amount"
+                                    class="mt-1 text-xs text-rose-600"
+                                >
+                                    {{ closeContractForm.errors.provider_payment_amount }}
+                                </p>
+                            </div>
 
                             <div class="mt-5 space-y-4">
                                 <div>
@@ -614,7 +686,13 @@ const getInitials = (person) => {
                                     :disabled="closeContractForm.processing"
                                     @click="submitCloseContract"
                                 >
-                                    {{ closeContractForm.processing ? 'Submitting...' : 'Close and submit review' }}
+                                    {{
+                                        closeContractForm.processing
+                                            ? 'Submitting...'
+                                            : closeSummaryCents.total > 0
+                                              ? (contractClose?.stripeReady ? 'Pay & close (Stripe)' : 'Close and submit')
+                                              : 'Close and submit review'
+                                    }}
                                 </button>
                             </div>
                         </div>

@@ -59,6 +59,18 @@ class ProviderSubscription extends Model
         return 'uuid';
     }
 
+    /**
+     * Nested route keys like {plan} are pluralized to plans() by default; this subscription uses belongsTo plan().
+     */
+    protected function childRouteBindingRelationshipName($childType): string
+    {
+        if ($childType === 'plan') {
+            return 'plan';
+        }
+
+        return parent::childRouteBindingRelationshipName($childType);
+    }
+
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ServiceProvider::class, 'service_provider_id');

@@ -6,6 +6,7 @@ import Input from '@/Components/ui/Input.vue';
 
 const props = defineProps({
     plan: { type: Object, default: null },
+    serviceTypeOptions: { type: Array, default: () => [] },
 });
 
 const currencyOptions = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
@@ -14,7 +15,7 @@ const form = useForm({
     name: props.plan?.name ?? '',
     slug: props.plan?.slug ?? '',
     description: props.plan?.description ?? '',
-    price: props.plan ? Number((props.plan.price_cents / 100).toFixed(2)) : 99,
+    price: props.plan ? Number((props.plan.price_cents / 100).toFixed(2)) : 0,
     currency: props.plan?.currency ?? 'USD',
     billing_cycle: props.plan?.billing_cycle ?? 'monthly',
     features: props.plan?.features?.join('\n') ?? '',
@@ -25,11 +26,20 @@ const form = useForm({
     commission_value: props.plan?.commission_value ?? 10,
     recurring_commission_enabled: props.plan?.recurring_commission_enabled ?? true,
     max_recurring_commission_cycles: props.plan?.max_recurring_commission_cycles ?? null,
+    service_type_option_id: props.plan?.service_type_option_id != null ? String(props.plan.service_type_option_id) : '',
 });
 
 const isEdit = computed(() => !!props.plan);
 
 const submit = () => {
+    const raw = form.price;
+    if (raw !== '' && raw !== null && raw !== undefined) {
+        const n = Number(String(raw).replace(',', '.'));
+        if (Number.isFinite(n) && n >= 0) {
+            form.price = n;
+        }
+    }
+
     if (isEdit.value) {
         form.patch(route('admin.subscription-plans.update', props.plan.uuid));
         return;
@@ -73,7 +83,16 @@ const submit = () => {
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-3">
-                    <Input v-model="form.price" type="number" min="0" step="0.01" label="Price" :error="form.errors.price" required />
+                    <Input
+                        v-model="form.price"
+                        type="number"
+                        min="0"
+                        step="any"
+                        label="Price"
+                        helper="Enter 0 for a free plan. Use any positive amount for paid plans."
+                        :error="form.errors.price"
+                        required
+                    />
                     <div class="space-y-1">
                         <label class="admin-label">Currency</label>
                         <select v-model="form.currency" class="admin-select">
@@ -90,6 +109,20 @@ const submit = () => {
                         </select>
                         <p v-if="form.errors.billing_cycle" class="text-xs text-rose-600">{{ form.errors.billing_cycle }}</p>
                     </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="admin-label">Service type scope</label>
+                    <p class="text-xs text-slate-500">
+                        “All” shows this plan to every provider. Otherwise only providers who offer the selected type will see it during onboarding and billing.
+                    </p>
+                    <select v-model="form.service_type_option_id" class="admin-select">
+                        <option value="">All provider service types</option>
+                        <option v-for="o in serviceTypeOptions" :key="o.id" :value="String(o.id)">
+                            {{ o.label }}
+                        </option>
+                    </select>
+                    <p v-if="form.errors.service_type_option_id" class="text-xs text-rose-600">{{ form.errors.service_type_option_id }}</p>
                 </div>
 
                 <div class="space-y-1">

@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers\Webhooks;
 
-use App\Actions\Affiliates\CreateAffiliateEarningAction;
 use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
+use App\Actions\Affiliates\CreateAffiliateEarningAction;
+use App\Actions\Library\FulfillLibraryStripeCheckout;
 use App\Actions\Provider\FulfillProviderStripeCheckout;
 use App\Actions\Provider\SyncProviderStripeSubscription;
-use App\Enums\AffiliateCommissionTrigger;
-use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Actions\User\FulfillContractCloseCheckout;
 use App\Actions\Video\FulfillVideoStripeCheckout;
+use App\Enums\AffiliateCommissionTrigger;
 use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ProviderSubscriptionPayment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Stripe\Checkout\Session;
 use Stripe\Event;
 use Stripe\Invoice;
 use Stripe\Subscription;
@@ -29,8 +31,8 @@ class StripeLibraryWebhookController extends Controller
         FulfillProviderStripeCheckout $fulfillProvider,
         SyncProviderStripeSubscription $syncProviderSubscription,
         CreateAffiliateEarningAction $createAffiliateEarning,
-    ): Response
-    {
+        FulfillContractCloseCheckout $fulfillContractClose,
+    ): Response {
         $secret = config('services.stripe.webhook_secret');
         if (! is_string($secret) || $secret === '') {
             return response('Webhook secret not configured', 503);
@@ -51,7 +53,7 @@ class StripeLibraryWebhookController extends Controller
 
         if ($event->type === 'checkout.session.completed') {
             $session = $event->data->object;
-            if ($session instanceof \Stripe\Checkout\Session) {
+            if ($session instanceof Session) {
                 $app = (string) ($session->metadata['app'] ?? '');
                 if ($app === 'video') {
                     $fulfillVideo($session);
@@ -59,6 +61,8 @@ class StripeLibraryWebhookController extends Controller
                     $fulfillAdvertiser($session);
                 } elseif ($app === 'provider_subscription') {
                     $fulfillProvider($session);
+                } elseif ($app === 'contract_close') {
+                    $fulfillContractClose($session);
                 } else {
                     $fulfillLibrary($session);
                 }

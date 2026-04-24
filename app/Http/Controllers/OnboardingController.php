@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
+use App\Models\ServiceTypeOption;
 use App\Models\SubscriptionPlan;
 use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
@@ -104,9 +105,22 @@ class OnboardingController extends Controller
         $subscriptionPlans = $isProvider
             ? SubscriptionPlan::query()
                 ->active()
+                ->with('serviceTypeOption:id,value,label')
                 ->orderByDesc('is_featured')
                 ->orderBy('sort_order')
-                ->get(['id', 'uuid', 'name', 'description', 'price_cents', 'currency', 'billing_cycle', 'features', 'is_featured', 'stripe_price_id'])
+                ->get([
+                    'id',
+                    'uuid',
+                    'name',
+                    'description',
+                    'price_cents',
+                    'currency',
+                    'billing_cycle',
+                    'features',
+                    'is_featured',
+                    'stripe_price_id',
+                    'service_type_option_id',
+                ])
             : collect();
 
         $component = $isAdvertiser ? 'Onboarding/Advertiser' : 'Onboarding/Index';
@@ -254,6 +268,7 @@ class OnboardingController extends Controller
                 if ($serviceTypes === [] && ! empty($onboardingData['registration']['service_type'])) {
                     $serviceTypes = [$onboardingData['registration']['service_type']];
                 }
+                $primaryProviderServiceType = $this->resolvePrimaryProviderServiceTypeValueFromServiceTypes($serviceTypes, $onboardingData);
                 $deliveryMethods = collect($servicesData['delivery_methods'] ?? [])
                     ->filter(fn ($method) => is_string($method) && $method !== '')
                     ->values();
@@ -270,6 +285,7 @@ class OnboardingController extends Controller
                 $stripeReady = StripeProviderSubscriptionCheckout::secretConfigured();
                 $hasSelectablePlans = SubscriptionPlan::query()
                     ->active()
+                    ->forProviderServiceTypeValues($serviceTypes)
                     ->where(function ($query) use ($stripeReady) {
                         $query->where('price_cents', '<=', 0);
                         if ($stripeReady) {
@@ -286,6 +302,7 @@ class OnboardingController extends Controller
                 $selectedPlan = $planUuid !== ''
                     ? SubscriptionPlan::query()
                         ->active()
+                        ->forProviderServiceTypeValues($serviceTypes)
                         ->where('uuid', $planUuid)
                         ->first()
                     : null;
@@ -295,6 +312,7 @@ class OnboardingController extends Controller
                     ]);
                 }
 
+                $selectedTotalCents = $selectedPlan ? (int) $selectedPlan->price_cents : 0;
                 $serviceProvider = ServiceProvider::create([
                     'user_id' => $user->id,
                     'business_name' => $businessData['business_name'] ?? $user->full_name,
@@ -323,16 +341,21 @@ class OnboardingController extends Controller
                     ProviderSubscription::query()->create([
                         'service_provider_id' => $serviceProvider->id,
                         'subscription_plan_id' => $selectedPlan->id,
-                        'status' => (int) $selectedPlan->price_cents <= 0 ? 'active' : 'incomplete',
-                        'started_at' => (int) $selectedPlan->price_cents <= 0 ? now() : null,
-                        'current_period_start' => (int) $selectedPlan->price_cents <= 0 ? now() : null,
+                        'status' => $selectedTotalCents <= 0 ? 'active' : 'incomplete',
+                        'started_at' => $selectedTotalCents <= 0 ? now() : null,
+                        'current_period_start' => $selectedTotalCents <= 0 ? now() : null,
                         'affiliate_id' => $user->referred_by_affiliate_id,
                         'affiliate_referral_id' => $user->affiliate_referral_id,
                         'affiliate_attribution_type' => 'first_touch',
-                        'meta' => ['source' => 'onboarding'],
+                        'meta' => [
+                            'source' => 'onboarding',
+                            'primary_service_type' => $primaryProviderServiceType,
+                            'plan_price_cents' => (int) $selectedPlan->price_cents,
+                            'charged_amount_cents' => $selectedTotalCents,
+                        ],
                     ]);
 
-                    if ((int) $selectedPlan->price_cents <= 0) {
+                    if ($selectedTotalCents <= 0) {
                         $serviceProvider->update([
                             'subscription_plan' => $selectedPlan->name,
                             'subscription_expires_at' => null,
@@ -369,6 +392,8 @@ class OnboardingController extends Controller
             return null;
         }
 
+        $planPriceCents = (int) $plan->price_cents;
+
         try {
             Stripe::setApiKey((string) config('services.stripe.secret'));
             $session = StripeCheckoutSession::create([
@@ -385,6 +410,8 @@ class OnboardingController extends Controller
                     'plan_uuid' => (string) $plan->uuid,
                     'plan_name' => (string) $plan->name,
                     'source' => 'onboarding',
+                    'plan_price_cents' => (string) $planPriceCents,
+                    'charged_amount_cents' => (string) $planPriceCents,
                 ],
                 'subscription_data' => [
                     'metadata' => [
@@ -393,6 +420,8 @@ class OnboardingController extends Controller
                         'plan_uuid' => (string) $plan->uuid,
                         'app' => 'provider_subscription',
                         'source' => 'onboarding',
+                        'plan_price_cents' => (string) $planPriceCents,
+                        'charged_amount_cents' => (string) $planPriceCents,
                     ],
                 ],
             ]);
@@ -413,6 +442,39 @@ class OnboardingController extends Controller
         }
 
         return $checkoutUrl;
+    }
+
+    private function resolvePrimaryProviderServiceTypeValueFromOnboardingData(array $onboardingData): ?string
+    {
+        $serviceTypes = data_get($onboardingData, 'services.types', []);
+        if (! is_array($serviceTypes)) {
+            $serviceTypes = [];
+        }
+
+        return $this->resolvePrimaryProviderServiceTypeValueFromServiceTypes($serviceTypes, $onboardingData);
+    }
+
+    private function resolvePrimaryProviderServiceTypeValueFromServiceTypes(array $serviceTypes, array $onboardingData): ?string
+    {
+        $candidate = collect($serviceTypes)
+            ->first(fn ($value) => is_string($value) && trim($value) !== '');
+
+        if (! is_string($candidate) || trim($candidate) === '') {
+            $candidate = data_get($onboardingData, 'registration.service_type');
+        }
+
+        if (! is_string($candidate) || trim($candidate) === '') {
+            return null;
+        }
+
+        $candidate = trim($candidate);
+        $exists = ServiceTypeOption::query()
+            ->where('value', $candidate)
+            ->where('for_provider', true)
+            ->where('is_active', true)
+            ->exists();
+
+        return $exists ? $candidate : null;
     }
 
     protected function redirectToDashboard(): RedirectResponse
