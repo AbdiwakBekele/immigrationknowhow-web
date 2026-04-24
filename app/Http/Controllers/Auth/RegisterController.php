@@ -56,9 +56,13 @@ class RegisterController extends Controller
             $request->merge(['service_type' => null]);
         }
 
+        $requestedRole = (string) $request->input('role', UserRole::USER->value);
+        $normalizedRole = in_array($requestedRole, [UserRole::USER->value, UserRole::PROVIDER->value, UserRole::ADVERTISER->value], true)
+            ? $requestedRole
+            : UserRole::USER->value;
         $effectiveRole = $request->filled('service_type')
             ? UserRole::PROVIDER->value
-            : $request->input('role', UserRole::USER->value);
+            : $normalizedRole;
 
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
@@ -81,6 +85,7 @@ class RegisterController extends Controller
             'password' => Hash::make($validated['password']),
             'onboarding_data' => [
                 'registration' => [
+                    'role' => $effectiveRole,
                     'service_type' => $validated['service_type'] ?? null,
                 ],
             ],

@@ -31,6 +31,7 @@ const props = defineProps({
 });
 
 const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
+const MAX_USER_SERVICE_SELECTIONS = 8;
 
 const currentStep = ref(props.initialStep ?? (props.requiresPhoneVerification ? 3 : 4));
 
@@ -57,6 +58,12 @@ const hasCheckoutReadyPlans = computed(() =>
         (plan) => Number(plan.price_cents || 0) <= 0 || props.stripeBillingReady,
     ),
 );
+const tutorServiceValues = ['tutor', 'tutoring'];
+const tutorDeliveryMethodOptions = [
+    { value: 'online', label: 'Online (Zoom, Google Meet, etc.)' },
+    { value: 'in_person_user_location', label: 'In-person at the student location' },
+    { value: 'in_person_provider_location', label: 'In-person at my location' },
+];
 
 const onboardingHeading = computed(() => {
     if (props.requiresPhoneVerification && currentStep.value === 3) {
@@ -85,6 +92,11 @@ const onboardingHeading = computed(() => {
     }
     return props.isProvider ? 'Business information' : 'Service preferences';
 });
+const isTutorProvider = computed(() => {
+    if (!props.isProvider) return false;
+    const selectedTypes = Array.isArray(formData.value.services?.types) ? formData.value.services.types : [];
+    return selectedTypes.some((type) => tutorServiceValues.includes(String(type || '').toLowerCase()));
+});
 
 const formData = ref({
     services_needed: [],
@@ -110,6 +122,7 @@ const formData = ref({
     services: {
         types: [],
         specializations: [],
+        delivery_methods: [],
     },
     pricing: {
         model: 'hourly',
@@ -137,6 +150,7 @@ const formData = ref({
         dogs_count: null,
     },
 });
+const userServicesLimitError = ref('');
 
 const mergeExistingOnboarding = () => {
     const e = props.existingData || {};
@@ -148,6 +162,9 @@ const mergeExistingOnboarding = () => {
     }
     if (e.services?.specializations) {
         formData.value.services.specializations = e.services.specializations;
+    }
+    if (Array.isArray(e.services?.delivery_methods)) {
+        formData.value.services.delivery_methods = e.services.delivery_methods;
     }
     if (e.location?.city) {
         formData.value.city = e.location.city;
@@ -329,6 +346,11 @@ onMounted(() => {
         }
     }
 });
+watch(isTutorProvider, (isTutor) => {
+    if (!isTutor) {
+        formData.value.services.delivery_methods = [];
+    }
+});
 
 const saving = ref(false);
 const childAgeInput = ref('');
@@ -433,10 +455,31 @@ const submitUserAddressStep = () => {
     });
 };
 
-const userServiceType = computed({
-    get: () => formData.value.services_needed?.[0] || SELECT_SERVICE_LATER_VALUE,
-    set: (value) => {
-        formData.value.services_needed = value && value !== SELECT_SERVICE_LATER_VALUE ? [value] : [];
+const userServiceTypes = computed({
+    get: () => {
+        const selected = Array.isArray(formData.value.services_needed)
+            ? [...new Set(formData.value.services_needed.filter((value) => value !== SELECT_SERVICE_LATER_VALUE))]
+            : [];
+
+        if (selected.length === 0) {
+            return [SELECT_SERVICE_LATER_VALUE];
+        }
+
+        return selected;
+    },
+    set: (values) => {
+        const selected = Array.isArray(values)
+            ? [...new Set(values.filter((value) => value && value !== SELECT_SERVICE_LATER_VALUE))]
+            : [];
+
+        if (selected.length > MAX_USER_SERVICE_SELECTIONS) {
+            formData.value.services_needed = selected.slice(0, MAX_USER_SERVICE_SELECTIONS);
+            userServicesLimitError.value = `You can select up to ${MAX_USER_SERVICE_SELECTIONS} services.`;
+            return;
+        }
+
+        formData.value.services_needed = selected;
+        userServicesLimitError.value = '';
     },
 });
 
@@ -654,12 +697,16 @@ onMounted(() => {
             <div v-if="isUserAddressStep || isProviderLocationStep" class="space-y-5">
                 <Select
                     v-if="isUserAddressStep"
-                    v-model="userServiceType"
+                    v-model="userServiceTypes"
                     :options="userServiceTypeOptions"
-                    label="Select service type"
-                    placeholder="Choose a service now or later"
+                    label="Select services needed (up to 8)"
+                    placeholder="Choose one or more services"
+                    :multiple="true"
                     size="auth"
                 />
+                <p v-if="isUserAddressStep && userServicesLimitError" class="text-sm font-medium text-red-600">
+                    {{ userServicesLimitError }}
+                </p>
 
                 <div v-if="isProviderLocationStep" class="space-y-5">
                     <p class="text-sm text-neutral-600">
@@ -873,6 +920,35 @@ onMounted(() => {
                         placeholder="e.g. 5"
                         size="compact"
                     />
+                </div>
+                <div v-if="isTutorProvider" class="rounded-2xl border border-slate-200 p-4">
+                    <p class="text-sm font-medium text-slate-700">
+                        How do you deliver your tutoring service?
+                    </p>
+                    <div class="mt-3 space-y-2.5">
+                        <label
+                            v-for="option in tutorDeliveryMethodOptions"
+                            :key="option.value"
+                            class="flex cursor-pointer items-center gap-2 text-sm text-neutral-800"
+                        >
+                            <input
+                                :checked="formData.services.delivery_methods.includes(option.value)"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-neutral-300 text-primary-600"
+                                @change="(event) => {
+                                    const checked = event.target?.checked;
+                                    const next = new Set(formData.services.delivery_methods);
+                                    if (checked) {
+                                        next.add(option.value);
+                                    } else {
+                                        next.delete(option.value);
+                                    }
+                                    formData.services.delivery_methods = [...next];
+                                }"
+                            />
+                            {{ option.label }}
+                        </label>
+                    </div>
                 </div>
             </div>
 
