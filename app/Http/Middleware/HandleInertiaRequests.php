@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Message;
 use App\Models\PlatformSetting;
+use App\Models\AiAssistantSubscription;
 use App\Models\User;
 use App\Support\ImpersonationActorId;
 use Illuminate\Http\Request;
@@ -61,6 +62,12 @@ class HandleInertiaRequests extends Middleware
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
                     'is_affiliate' => $request->user()->isAffiliate(),
                     'is_advertiser' => $request->user()->isAdvertiser(),
+                    'ai_assistant_addon_active' => Schema::hasTable('ai_assistant_subscriptions')
+                        ? AiAssistantSubscription::query()
+                            ->where('user_id', $request->user()->id)
+                            ->whereIn('status', ['active', 'trialing', 'past_due'])
+                            ->exists()
+                        : false,
                 ] : null,
             ],
             'branding' => fn () => PlatformSetting::branding(),
@@ -87,6 +94,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
                 'otp_sent' => fn () => $request->session()->get('otp_sent'),
+                'ai_assistant_response' => fn () => $request->session()->get('ai_assistant_response'),
             ],
             'library_cart_count' => static function () use ($request): int {
                 if (! $request->user()) {

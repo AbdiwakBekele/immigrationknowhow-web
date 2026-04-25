@@ -11,8 +11,10 @@ use App\Actions\User\FulfillContractCloseCheckout;
 use App\Actions\Video\FulfillVideoStripeCheckout;
 use App\Enums\AffiliateCommissionTrigger;
 use App\Http\Controllers\Controller;
+use App\Models\AiAssistantSubscription;
 use App\Models\ProviderSubscription;
 use App\Models\ProviderSubscriptionPayment;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Stripe\Checkout\Session;
@@ -61,6 +63,8 @@ class StripeLibraryWebhookController extends Controller
                     $fulfillAdvertiser($session);
                 } elseif ($app === 'provider_subscription') {
                     $fulfillProvider($session);
+                } elseif ($app === 'ai_assistant') {
+                    $this->syncAiAssistantCheckout($session);
                 } elseif ($app === 'contract_close') {
                     $fulfillContractClose($session);
                 } else {
@@ -70,7 +74,12 @@ class StripeLibraryWebhookController extends Controller
         } elseif (in_array($event->type, ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'], true)) {
             $subscription = $event->data->object;
             if ($subscription instanceof Subscription) {
-                $syncProviderSubscription($subscription);
+                $app = (string) ($subscription->metadata['app'] ?? '');
+                if ($app === 'ai_assistant') {
+                    $this->syncAiAssistantSubscription($subscription);
+                } else {
+                    $syncProviderSubscription($subscription);
+                }
             }
         } elseif (in_array($event->type, ['invoice.paid', 'invoice.payment_failed'], true)) {
             $invoice = $event->data->object;
@@ -152,6 +161,60 @@ class StripeLibraryWebhookController extends Controller
             [
                 'provider_subscription_id' => $providerSubscription->id,
                 'stripe_invoice_id' => $payment->stripe_invoice_id,
+            ]
+        );
+    }
+
+    private function syncAiAssistantCheckout(Session $session): void
+    {
+        $userId = (int) ($session->metadata['user_id'] ?? $session->client_reference_id ?? 0);
+        if ($userId < 1) {
+            return;
+        }
+
+        $user = User::query()->find($userId);
+        if (! $user) {
+            return;
+        }
+
+        AiAssistantSubscription::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+                'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
+                'stripe_checkout_session_id' => (string) $session->id,
+                'status' => 'active',
+                'meta' => $session->toArray(),
+            ]
+        );
+    }
+
+    private function syncAiAssistantSubscription(Subscription $subscription): void
+    {
+        $userId = (int) ($subscription->metadata['user_id'] ?? 0);
+        if ($userId < 1) {
+            return;
+        }
+
+        $user = User::query()->find($userId);
+        if (! $user) {
+            return;
+        }
+
+        AiAssistantSubscription::query()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'stripe_customer_id' => is_string($subscription->customer) ? $subscription->customer : null,
+                'stripe_subscription_id' => (string) $subscription->id,
+                'status' => (string) $subscription->status,
+                'cancel_at_period_end' => (bool) $subscription->cancel_at_period_end,
+                'current_period_end' => is_numeric($subscription->current_period_end)
+                    ? now()->setTimestamp((int) $subscription->current_period_end)
+                    : null,
+                'canceled_at' => is_numeric($subscription->canceled_at)
+                    ? now()->setTimestamp((int) $subscription->canceled_at)
+                    : null,
+                'meta' => $subscription->toArray(),
             ]
         );
     }
