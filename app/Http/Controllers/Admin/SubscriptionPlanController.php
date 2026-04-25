@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ServiceTypeOption;
 use App\Models\SubscriptionPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -20,6 +22,7 @@ class SubscriptionPlanController extends Controller
     public function index(): Response
     {
         $plans = SubscriptionPlan::query()
+            ->with('serviceTypeOption:id,label,value')
             ->withCount(['subscriptions as subscribers_count' => function ($query) {
                 $query->whereIn('status', ['trialing', 'active', 'past_due']);
             }])
@@ -36,6 +39,7 @@ class SubscriptionPlanController extends Controller
     {
         return Inertia::render('Admin/SubscriptionPlans/Form', [
             'plan' => null,
+            'serviceTypeOptions' => $this->serviceTypeOptionsForPlans(),
         ]);
     }
 
@@ -43,7 +47,7 @@ class SubscriptionPlanController extends Controller
     {
         $validated = $this->validatePayload($request);
 
-        $plan = new SubscriptionPlan();
+        $plan = new SubscriptionPlan;
         $plan->fill($validated);
         $plan->created_by = $request->user()?->id;
         $plan->features = $this->normalizeFeatures($request->input('features'));
@@ -74,7 +78,8 @@ class SubscriptionPlanController extends Controller
     public function edit(SubscriptionPlan $subscriptionPlan): Response
     {
         return Inertia::render('Admin/SubscriptionPlans/Form', [
-            'plan' => $subscriptionPlan,
+            'plan' => $subscriptionPlan->load('serviceTypeOption:id,label,value'),
+            'serviceTypeOptions' => $this->serviceTypeOptionsForPlans(),
         ]);
     }
 
@@ -124,11 +129,16 @@ class SubscriptionPlanController extends Controller
 
     private function validatePayload(Request $request, ?int $ignoreId = null): array
     {
+        if ($request->input('service_type_option_id') === '' || $request->input('service_type_option_id') === 'all') {
+            $request->merge(['service_type_option_id' => null]);
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('subscription_plans', 'slug')->ignore($ignoreId)],
             'description' => ['nullable', 'string'],
-            'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            // min:0 allows free plans (price_cents === 0)
+            'price' => ['required', 'numeric', 'gte:0', 'max:999999.99'],
             'currency' => ['required', 'in:USD,EUR,GBP,CAD,AUD'],
             'billing_cycle' => ['required', 'in:monthly,quarterly,yearly'],
             'features' => ['nullable'],
@@ -139,12 +149,30 @@ class SubscriptionPlanController extends Controller
             'commission_value' => ['required', 'numeric', 'min:0'],
             'recurring_commission_enabled' => ['nullable', 'boolean'],
             'max_recurring_commission_cycles' => ['nullable', 'integer', 'min:1'],
+            'service_type_option_id' => ['nullable', 'integer', 'exists:service_type_options,id'],
         ]);
 
         $validated['price_cents'] = (int) round(((float) $validated['price']) * 100);
         unset($validated['price']);
 
+        $validated['service_type_option_id'] = $validated['service_type_option_id'] !== null
+            ? (int) $validated['service_type_option_id']
+            : null;
+
         return $validated;
+    }
+
+    /**
+     * @return Collection<int, ServiceTypeOption>
+     */
+    private function serviceTypeOptionsForPlans()
+    {
+        return ServiceTypeOption::query()
+            ->active()
+            ->where('for_provider', true)
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get(['id', 'value', 'label']);
     }
 
     private function normalizeFeatures(mixed $features): array
@@ -167,6 +195,7 @@ class SubscriptionPlanController extends Controller
         if ((int) $plan->price_cents <= 0) {
             $plan->stripe_price_id = null;
             $plan->saveQuietly();
+
             return;
         }
 

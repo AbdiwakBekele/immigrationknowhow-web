@@ -47,14 +47,65 @@ const isProviderPricingStep = computed(() => props.isProvider && currentStep.val
 const isProviderSubscriptionStep = computed(() => props.isProvider && currentStep.value === 7);
 const isUserAddressStep = computed(() => !props.isProvider && currentStep.value === 2);
 const isUserCongratulationsStep = computed(() => !props.isProvider && currentStep.value === 4);
-const hasSubscriptionPlans = computed(() => (props.subscriptionPlans || []).length > 0);
+
+const selectedProviderServiceTypeValues = computed(() => {
+    const types = formData.value?.services?.types;
+    if (!Array.isArray(types)) {
+        return [];
+    }
+    return types.map((t) => String(t || '').trim()).filter((t) => t !== '');
+});
+
+/**
+ * plans whose scope matches what the provider selected in Business (or “all” plans with no scope)
+ */
+const planMatchesProviderSelection = (plan) => {
+    if (plan == null) return false;
+    if (!plan.service_type_option_id) {
+        return true;
+    }
+    if (selectedProviderServiceTypeValues.value.length === 0) {
+        return false;
+    }
+    const scopedValue = plan.service_type_option?.value;
+    if (!scopedValue) {
+        return true;
+    }
+    return selectedProviderServiceTypeValues.value.includes(String(scopedValue));
+};
+
+const eligibleSubscriptionPlans = computed(() => (props.subscriptionPlans || []).filter((plan) => planMatchesProviderSelection(plan)));
+const hasEligibleSubscriptionPlans = computed(() => eligibleSubscriptionPlans.value.length > 0);
+
+const selectedServiceCategoryRateHints = computed(() => {
+    const opts = props.serviceTypes || [];
+    if (!Array.isArray(opts) || !opts.length) {
+        return [];
+    }
+    return selectedProviderServiceTypeValues.value
+        .map((value) => {
+            const opt = opts.find((o) => o && String(o.value) === value);
+            if (!opt) {
+                return { value, label: value, rate: null, rateLabel: null };
+            }
+            const rate = opt.monthly_subscription_rate;
+            const n = rate != null && rate !== '' ? Number(rate) : null;
+            return {
+                value,
+                label: opt.label || value,
+                rate: n,
+                rateLabel: n != null && !Number.isNaN(n) ? n.toFixed(2) : null,
+            };
+        });
+});
+
 const selectedBillingCycle = ref('monthly');
 const userServiceTypeOptions = computed(() => [
     { value: SELECT_SERVICE_LATER_VALUE, label: 'I will select one later on' },
     ...(props.serviceTypes || []),
 ]);
 const hasCheckoutReadyPlans = computed(() =>
-    (props.subscriptionPlans || []).some(
+    eligibleSubscriptionPlans.value.some(
         (plan) => Number(plan.price_cents || 0) <= 0 || props.stripeBillingReady,
     ),
 );
@@ -585,7 +636,9 @@ const goBack = () => {
     router.visit(route('onboarding.index', { step: 2 }));
 };
 
-const selectedPlan = computed(() => (props.subscriptionPlans || []).find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null);
+const selectedPlan = computed(
+    () => eligibleSubscriptionPlans.value.find((plan) => plan.uuid === formData.value.subscription.plan_uuid) || null,
+);
 const selectedPlanRequiresCheckout = computed(() => {
     if (!selectedPlan.value) return false;
     return Number(selectedPlan.value.price_cents || 0) > 0 && props.stripeBillingReady;
@@ -598,28 +651,24 @@ const finishButtonLabel = computed(() => {
 });
 const canFinishProviderOnboarding = computed(() => {
     if (!props.isProvider || !isProviderSubscriptionStep.value) return true;
+    if (!hasEligibleSubscriptionPlans.value) return true;
     if (!hasCheckoutReadyPlans.value) return true;
     return !!formData.value.subscription.plan_uuid;
 });
 
-const planCycleLabel = (cycle) => {
-    if (cycle === 'monthly') return 'Month';
-    if (cycle === 'yearly') return 'Year';
-    if (cycle === 'quarterly') return 'Quarter';
-    return cycle;
-};
-
 const availableCycles = computed(() => {
-    const cycles = [...new Set((props.subscriptionPlans || []).map((plan) => plan.billing_cycle))];
+    const cycles = [...new Set(eligibleSubscriptionPlans.value.map((plan) => plan.billing_cycle))];
     const preferredOrder = ['monthly', 'yearly', 'quarterly'];
     return preferredOrder.filter((cycle) => cycles.includes(cycle));
 });
 
 const filteredPlans = computed(() => {
-    if (!hasSubscriptionPlans.value) return [];
-    const plansInCycle = (props.subscriptionPlans || []).filter((plan) => plan.billing_cycle === selectedBillingCycle.value);
-    if (plansInCycle.length > 0) return plansInCycle;
-    return props.subscriptionPlans || [];
+    if (!hasEligibleSubscriptionPlans.value) return [];
+    const plansInCycle = eligibleSubscriptionPlans.value.filter((plan) => plan.billing_cycle === selectedBillingCycle.value);
+    if (plansInCycle.length > 0) {
+        return plansInCycle;
+    }
+    return eligibleSubscriptionPlans.value;
 });
 
 const planIsSelectable = (plan) => {
@@ -640,6 +689,19 @@ onMounted(() => {
         selectedBillingCycle.value = availableCycles.value[0];
     }
 });
+
+watch(
+    () => [selectedProviderServiceTypeValues.value, formData.value.subscription.plan_uuid, eligibleSubscriptionPlans.value],
+    () => {
+        const uuid = formData.value.subscription?.plan_uuid;
+        if (!uuid) return;
+        const still = eligibleSubscriptionPlans.value.some((p) => p.uuid === uuid);
+        if (!still) {
+            formData.value.subscription.plan_uuid = '';
+        }
+    },
+    { deep: true },
+);
 </script>
 
 <template>
@@ -1009,6 +1071,28 @@ onMounted(() => {
                         </p>
                     </div>
 
+                    <div
+                        v-if="selectedServiceCategoryRateHints.length"
+                        class="relative mt-6 rounded-2xl border border-slate-200/90 bg-slate-50/90 px-4 py-3 text-left text-sm text-slate-700 shadow-sm"
+                    >
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Service category rate (not your platform subscription)</p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Reference amount tied to the service types you offer — for clarity only. The cards below are the actual provider subscription
+                            for this app.
+                        </p>
+                        <ul class="mt-3 space-y-2">
+                            <li
+                                v-for="row in selectedServiceCategoryRateHints"
+                                :key="row.value"
+                                class="flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-200/80 pt-2 first:border-t-0 first:pt-0"
+                            >
+                                <span class="font-medium text-slate-800">{{ row.label }}</span>
+                                <span v-if="row.rateLabel != null" class="text-slate-600">${{ row.rateLabel }}</span>
+                                <span v-else class="text-xs text-slate-500">—</span>
+                            </li>
+                        </ul>
+                    </div>
+
                     <div v-if="availableCycles.length > 0" class="relative mt-8 flex justify-center">
                         <div
                             class="inline-flex rounded-full border border-slate-200/90 bg-white/90 p-1 shadow-sm backdrop-blur-sm"
@@ -1034,7 +1118,7 @@ onMounted(() => {
                         </div>
                     </div>
 
-                    <div v-if="hasSubscriptionPlans" class="relative mt-8 grid gap-5 sm:grid-cols-2">
+                    <div v-if="hasEligibleSubscriptionPlans" class="relative mt-8 grid gap-5 sm:grid-cols-2">
                         <div
                             v-for="plan in filteredPlans"
                             :key="plan.uuid"
@@ -1074,14 +1158,10 @@ onMounted(() => {
                             <div class="mt-5 flex items-baseline gap-1 border-b border-slate-100 pb-5">
                                 <template v-if="Number(plan.price_cents || 0) <= 0">
                                     <span class="font-display text-4xl font-bold text-emerald-600">Free</span>
-                                    <span class="text-sm font-medium text-slate-500">forever</span>
                                 </template>
                                 <template v-else>
                                     <span class="font-display text-4xl font-bold text-sky-600">
                                         ${{ (plan.price_cents / 100).toFixed(0) }}
-                                    </span>
-                                    <span class="text-sm text-slate-500">
-                                        / {{ planCycleLabel(plan.billing_cycle) }}
                                     </span>
                                 </template>
                             </div>
@@ -1158,7 +1238,13 @@ onMounted(() => {
                         v-else
                         class="relative mt-8 rounded-2xl border border-amber-200/90 bg-amber-50/90 px-4 py-4 text-center text-sm text-amber-900"
                     >
-                        Plans are not available yet. Finish setup and subscribe later from your provider dashboard.
+                        <template v-if="(subscriptionPlans || []).length > 0">
+                            No plans match the service types you selected. Go <span class="font-semibold">Back</span> to Business
+                            information and update your services, or finish and subscribe from your provider dashboard.
+                        </template>
+                        <template v-else>
+                            Plans are not available yet. Finish setup and subscribe later from your provider dashboard.
+                        </template>
                     </div>
                 </div>
 
