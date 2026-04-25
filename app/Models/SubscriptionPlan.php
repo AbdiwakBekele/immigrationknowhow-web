@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class SubscriptionPlan extends Model
         'status',
         'is_featured',
         'sort_order',
+        'service_type_option_id',
         'stripe_product_id',
         'stripe_price_id',
         'commission_type',
@@ -71,6 +73,11 @@ class SubscriptionPlan extends Model
         return $this->hasMany(ProviderSubscription::class);
     }
 
+    public function serviceTypeOption(): BelongsTo
+    {
+        return $this->belongsTo(ServiceTypeOption::class, 'service_type_option_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -79,5 +86,33 @@ class SubscriptionPlan extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    /**
+     * @param  list<int|string>  $values  Service type option `value` strings (from the provider profile / onboarding)
+     */
+    public function scopeForProviderServiceTypeValues(Builder $query, array $values): void
+    {
+        $normalized = array_values(array_filter(
+            array_map(fn ($v) => is_string($v) || is_numeric($v) ? trim((string) $v) : '', $values),
+            fn (string $v) => $v !== ''
+        ));
+
+        if ($normalized === []) {
+            $query->whereNull('service_type_option_id');
+
+            return;
+        }
+
+        $ids = ServiceTypeOption::query()
+            ->whereIn('value', $normalized)
+            ->pluck('id');
+
+        $query->where(function (Builder $q) use ($ids) {
+            $q->whereNull('service_type_option_id');
+            if ($ids->isNotEmpty()) {
+                $q->orWhereIn('service_type_option_id', $ids);
+            }
+        });
     }
 }

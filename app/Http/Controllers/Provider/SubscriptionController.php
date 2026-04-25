@@ -22,8 +22,12 @@ class SubscriptionController extends Controller
     {
         $provider = $this->resolveProvider($request);
 
+        $types = is_array($provider->service_types) ? $provider->service_types : [];
+
         $plans = SubscriptionPlan::query()
             ->active()
+            ->forProviderServiceTypeValues($types)
+            ->with('serviceTypeOption:id,value,label')
             ->orderByDesc('is_featured')
             ->orderBy('sort_order')
             ->get();
@@ -61,6 +65,11 @@ class SubscriptionController extends Controller
 
         if (! in_array((string) $plan->status, ['active'], true)) {
             return back()->with('error', 'This plan is not available.');
+        }
+
+        $types = is_array($provider->service_types) ? $provider->service_types : [];
+        if (! SubscriptionPlan::query()->whereKey($plan->id)->forProviderServiceTypeValues($types)->exists()) {
+            return back()->with('error', 'This plan is not available for your service types.');
         }
 
         if ((int) $plan->price_cents <= 0) {
@@ -153,6 +162,11 @@ class SubscriptionController extends Controller
         }
         if (! is_string($plan->stripe_price_id) || $plan->stripe_price_id === '') {
             return back()->with('error', 'Selected plan is not configured.');
+        }
+
+        $types = is_array($provider->service_types) ? $provider->service_types : [];
+        if (! SubscriptionPlan::query()->whereKey($plan->id)->forProviderServiceTypeValues($types)->exists()) {
+            return back()->with('error', 'This plan is not available for your service types.');
         }
 
         if (! StripeConfig::hasSecretKey()) {

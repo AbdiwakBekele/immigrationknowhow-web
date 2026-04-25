@@ -50,6 +50,7 @@ const destroyPlan = (uuid) => {
                             <th class="admin-table-th">Price</th>
                             <th class="admin-table-th">Cycle</th>
                             <th class="admin-table-th">Status</th>
+                            <th class="admin-table-th">Service scope</th>
                             <th class="admin-table-th">Subscribers</th>
                             <th class="admin-table-th text-right">Actions</th>
                         </tr>
@@ -63,6 +64,9 @@ const destroyPlan = (uuid) => {
                             <td class="px-6 py-4">{{ (plan.price_cents / 100).toFixed(2) }} {{ plan.currency }}</td>
                             <td class="px-6 py-4 capitalize">{{ plan.billing_cycle }}</td>
                             <td class="px-6 py-4 capitalize">{{ plan.status }}</td>
+                            <td class="px-6 py-4 text-slate-600">
+                                {{ plan.service_type_option?.label ?? 'All service types' }}
+                            </td>
                             <td class="px-6 py-4">{{ plan.subscribers_count ?? 0 }}</td>
                             <td class="px-6 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">
@@ -72,7 +76,7 @@ const destroyPlan = (uuid) => {
                             </td>
                         </tr>
                         <tr v-if="plans.length === 0">
-                            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500">No plans yet.</td>
+                            <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">No plans yet.</td>
                         </tr>
                     </tbody>
                 </table>

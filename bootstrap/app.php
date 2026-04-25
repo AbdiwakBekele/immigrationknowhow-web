@@ -41,6 +41,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Disable CSRF for webhooks
         $middleware->validateCsrfTokens(except: [
             'webhooks/*',
+            'admin/community/api/posts',
+            'admin/community/api/posts/*',
+            'api/community/posts/*/react',
+            'api/community/posts/*/comments',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
