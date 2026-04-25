@@ -17,6 +17,7 @@ import {
     StarIcon,
     MegaphoneIcon,
     ChartBarIcon,
+    UserGroupIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
@@ -95,6 +96,7 @@ const userNavigation = computed(() => [
     { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
     { name: 'Reviews', href: '/reviews', icon: StarIcon },
     { name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon },
+    { name: 'Community', href: '/community', icon: UserGroupIcon },
 ]);
 
 
@@ -425,7 +427,7 @@ const userAvatarInitial = computed(() => {
                 </div>
             </header>
 
-            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
+            <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />

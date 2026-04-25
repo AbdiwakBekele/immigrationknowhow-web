@@ -14,6 +14,7 @@ import {
     ClockIcon,
     ArchiveBoxIcon,
     TrashIcon,
+    UserGroupIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 
@@ -233,6 +234,18 @@ const purchaseRowPrice = (purchase) => {
                         Profile
                     </h3>
                     <p class="mt-0.5 text-xs text-slate-500">Update your info</p>
+                </Link>
+                <Link
+                    :href="route('community.index')"
+                    class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                >
+                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 transition-colors group-hover:bg-amber-200">
+                        <UserGroupIcon class="h-5 w-5 text-amber-600" />
+                    </div>
+                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
+                        Community
+                    </h3>
+                    <p class="mt-0.5 text-xs text-slate-500">Join community discussions</p>
                 </Link>
             </div>
 

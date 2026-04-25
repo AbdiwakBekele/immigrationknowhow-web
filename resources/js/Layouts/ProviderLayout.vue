@@ -73,6 +73,7 @@ const navigation = [
     { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
     { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
+    { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
 ];
 
 const logout = () => {
@@ -354,7 +355,7 @@ onUnmounted(() => {
                 </div>
             </header>
 
-            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
+            <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />
