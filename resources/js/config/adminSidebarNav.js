@@ -16,6 +16,7 @@ export function adminMainNavItems({
     BanknotesIcon,
     CreditCardIcon,
     MegaphoneIcon,
+    ChatBubbleLeftRightIcon,
 }) {
     return [
         { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
@@ -25,6 +26,7 @@ export function adminMainNavItems({
         { name: 'Background Checks', href: '/admin/background-checks', icon: ShieldCheckIcon },
         { name: 'Reviews', href: '/admin/reviews', icon: StarIcon },
         { name: 'Ads', href: '/admin/ads', icon: MegaphoneIcon },
+        { name: 'Community', href: '/admin/community', icon: ChatBubbleLeftRightIcon },
         { name: 'Ad Analytics', href: '/admin/ads/analytics', icon: ChartBarIcon },
         { name: 'DV Lottery', href: '/admin/dv-lottery', icon: LinkIcon },
         { name: 'Library', href: '/admin/library', icon: BookOpenIcon },
