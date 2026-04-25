@@ -14,6 +14,7 @@ use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\DvLotteryController;
+use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\PublicAdController;
@@ -64,6 +65,14 @@ Route::get('/providers', [MarketplaceController::class, 'index'])->name('marketp
 Route::get('/providers/{provider:slug}', [MarketplaceController::class, 'show'])->name('marketplace.show');
 Route::get('/sponsored/{ad:uuid}', [PublicAdController::class, 'show'])->name('ads.public.show');
 Route::get('/sponsored/{ad:uuid}/click', [PublicAdController::class, 'click'])->name('ads.public.click');
+Route::get('/community', [CommunityController::class, 'index'])->name('community.index');
+Route::get('/api/community/posts', [CommunityController::class, 'posts'])->name('community.posts');
+Route::get('/api/community/posts/{communityPost}', [CommunityController::class, 'show'])->name('community.posts.show');
+Route::post('/api/community/posts/{communityPost}/react', [CommunityController::class, 'react'])
+    ->name('community.posts.react');
+Route::get('/api/community/posts/{communityPost}/comments', [CommunityController::class, 'comments'])->name('community.posts.comments');
+Route::post('/api/community/posts/{communityPost}/comments', [CommunityController::class, 'addComment'])
+    ->name('community.posts.comments.store');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
@@ -412,6 +421,11 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/email-logs', [Admin\EmailLogController::class, 'index'])->name('email-logs.index');
         Route::post('/notifications/read-all', [Admin\NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
         Route::post('/notifications/{notification}/read', [Admin\NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::get('/community', [Admin\CommunityController::class, 'index'])->name('community.index');
+        Route::get('/community/api/posts', [Admin\CommunityController::class, 'list'])->name('community.api.posts');
+        Route::post('/community/api/posts', [Admin\CommunityController::class, 'store'])->name('community.api.posts.store');
+        Route::patch('/community/api/posts/{communityPost}', [Admin\CommunityController::class, 'update'])->name('community.api.posts.update');
+        Route::delete('/community/api/posts/{communityPost}', [Admin\CommunityController::class, 'destroy'])->name('community.api.posts.destroy');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
         Route::patch('/profile', [Admin\ProfileController::class, 'update'])->name('profile.update');
         Route::patch('/profile/password', [Admin\ProfileController::class, 'updatePassword'])->name('profile.password');

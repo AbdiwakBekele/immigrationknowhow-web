@@ -20,6 +20,7 @@ import {
     BanknotesIcon,
     CreditCardIcon,
     MegaphoneIcon,
+    ChatBubbleLeftRightIcon,
     ArrowRightOnRectangleIcon,
     BellIcon,
     UserCircleIcon,
@@ -47,6 +48,7 @@ const mainNavigation = computed(() =>
         BanknotesIcon,
         CreditCardIcon,
         MegaphoneIcon,
+        ChatBubbleLeftRightIcon,
     }),
 );
 
