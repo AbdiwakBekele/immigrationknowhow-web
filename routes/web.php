@@ -15,6 +15,7 @@ use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\DvLotteryController;
 use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\Contracts\ContractController as ContractsContractController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\PublicAdController;
@@ -247,7 +248,12 @@ Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function 
     // User Contracts (service provider acceptance and contract lifecycle)
     Route::prefix('contracts')->name('contracts.')->group(function () {
         Route::get('/', [User\ContractController::class, 'index'])->name('index');
+        Route::post('/', [ContractsContractController::class, 'store'])->name('store');
+        Route::get('/by-contract/{contract:uuid}', [ContractsContractController::class, 'show'])->name('show');
+        Route::patch('/by-contract/{contract:uuid}/withdraw', [ContractsContractController::class, 'withdraw'])->name('withdraw.by-contract');
+        Route::patch('/by-contract/{contract:uuid}/end', [ContractsContractController::class, 'end'])->name('end.by-contract');
         Route::patch('/{lead}/send', [User\ContractController::class, 'send'])->name('send');
+        Route::patch('/{lead}/withdraw', [User\ContractController::class, 'withdraw'])->name('withdraw');
         Route::patch('/{lead}/end', [User\ContractController::class, 'end'])->name('end');
     });
 
@@ -343,6 +349,8 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/leads/{lead}/notes', [Provider\LeadsController::class, 'addNote'])->name('leads.notes');
         Route::post('/leads/{lead}/conversation', [Provider\LeadsController::class, 'createConversation'])->name('leads.conversation');
         Route::post('/leads/{lead}/decline', [Provider\LeadsController::class, 'decline'])->name('leads.decline');
+        Route::patch('/contracts/{contract:uuid}/accept', [ContractsContractController::class, 'accept'])->name('contracts.accept');
+        Route::get('/contracts/{contract:uuid}', [ContractsContractController::class, 'show'])->name('contracts.show');
 
         // Provider-only Reviews (dedicated portal routes)
         Route::get('/portal-reviews', [Provider\ReviewController::class, 'index'])->name('reviews.index');

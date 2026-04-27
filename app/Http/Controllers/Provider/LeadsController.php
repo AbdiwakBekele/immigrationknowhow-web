@@ -8,6 +8,7 @@ use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Lead;
+use App\Services\Contracts\ContractLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -23,6 +24,7 @@ class LeadsController extends Controller
 {
     public function __construct(
         protected CreateAffiliateEarningAction $createAffiliateEarning,
+        protected ContractLifecycleService $contractLifecycle,
     ) {}
 
     public function index(Request $request): Response
@@ -134,7 +136,10 @@ class LeadsController extends Controller
                 return back()->with('error', 'Only pending contracts can be accepted.');
             }
 
-            $updates['contract_accepted_at'] = now();
+            $contract = $lead->contract ?: $this->contractLifecycle->ensureForLead($lead);
+            $accepted = $this->contractLifecycle->accept($contract, $request->user());
+            $updates['contract_accepted_at'] = $accepted->accepted_at;
+            $updates['contract_agreed_rate'] = $accepted->agreed_rate;
         }
 
         // Update timestamps based on status

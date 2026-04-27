@@ -51,15 +51,20 @@ const inquiryForm = useForm({
     preferred_contact_method: 'message',
     requirements: [],
     urgency: 'normal',
+    offered_rate: props.provider.hourly_rate ? Number(props.provider.hourly_rate) : null,
+    intent: 'inquiry',
 });
 
 const submitInquiry = () => {
+    inquiryForm.intent = inquiryIntent.value;
     inquiryForm.post(route('leads.store', props.provider.slug), {
         preserveScroll: true,
         onSuccess: () => {
             showInquiryModal.value = false;
             inquiryIntent.value = 'inquiry';
             inquiryForm.reset();
+            inquiryForm.offered_rate = props.provider.hourly_rate ? Number(props.provider.hourly_rate) : null;
+            inquiryForm.intent = 'inquiry';
         },
     });
 };
@@ -91,6 +96,12 @@ const pricingDisplay = computed(() => {
 
 // Reviews from provider (loaded via relationship)
 const reviews = computed(() => props.provider.reviews || []);
+
+const offerRateUnitLabel = computed(() => {
+    const pricingModel = String(props.provider?.pricing_model || '').toLowerCase();
+    if (pricingModel === 'flat_rate') return 'fixed';
+    return 'per hour';
+});
 
 const ratingDistribution = computed(() => {
     const dist = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -415,7 +426,7 @@ const resolveAvatar = (person, fallback) => {
                             </button>
                             <button
                                 v-if="canContactProvider"
-                                @click="showInquiryModal = true; inquiryIntent = 'offer'"
+                                @click="showInquiryModal = true; inquiryIntent = 'offer'; inquiryForm.offered_rate = provider.hourly_rate ? Number(provider.hourly_rate) : null"
                                 class="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-6 py-3 font-semibold text-primary-700 transition-colors hover:bg-primary-100"
                             >
                                 <CurrencyDollarIcon class="h-5 w-5" />
@@ -523,7 +534,7 @@ const resolveAvatar = (person, fallback) => {
                         </h3>
                         <p class="text-slate-600 mb-6">
                             {{ inquiryIntent === 'offer'
-                                ? 'Send your first message. You can submit your offer in chat after both sides exchange messages.'
+                                ? 'Your offer starts with the provider rate below. You can override it before sending.'
                                 : `Get in touch with ${provider.business_name}` }}
                         </p>
                         
@@ -557,6 +568,26 @@ const resolveAvatar = (person, fallback) => {
                                 <p v-if="inquiryForm.errors.message" class="mt-1 text-sm text-red-600">{{ inquiryForm.errors.message }}</p>
                             </div>
 
+                            <div v-if="inquiryIntent === 'offer'">
+                                <label class="block text-sm font-medium text-slate-700 mb-1">
+                                    Offered Rate (USD, {{ offerRateUnitLabel }})
+                                </label>
+                                <input
+                                    v-model="inquiryForm.offered_rate"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="0.00"
+                                />
+                                <p v-if="provider.hourly_rate" class="mt-1 text-xs text-slate-500">
+                                    Default provider rate: ${{ Number(provider.hourly_rate).toFixed(2) }} USD ({{ offerRateUnitLabel }})
+                                </p>
+                                <p v-if="inquiryForm.errors.offered_rate" class="mt-1 text-sm text-red-600">
+                                    {{ inquiryForm.errors.offered_rate }}
+                                </p>
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">How urgent is this?</label>
                                 <select v-model="inquiryForm.urgency" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
@@ -580,7 +611,11 @@ const resolveAvatar = (person, fallback) => {
                                     class="flex-1 px-6 py-3 bg-primary-600 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
                                     :disabled="inquiryForm.processing"
                                 >
-                                    {{ inquiryForm.processing ? 'Sending...' : 'Send Inquiry' }}
+                                    {{
+                                        inquiryForm.processing
+                                            ? 'Sending...'
+                                            : (inquiryIntent === 'offer' ? 'Send Offer' : 'Send Inquiry')
+                                    }}
                                 </button>
                             </div>
                         </form>
