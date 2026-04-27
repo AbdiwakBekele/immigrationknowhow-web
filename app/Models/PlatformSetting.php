@@ -23,6 +23,12 @@ class PlatformSetting extends Model
         'reviews_auto_approve',
         'email_notifications',
         'new_provider_alerts',
+        'dv_lottery_page_title',
+        'dv_lottery_page_subtitle',
+        'dv_lottery_description',
+        'dv_lottery_official_url',
+        'dv_lottery_cta_label',
+        'dv_lottery_warning_text',
     ];
 
     protected $appends = [
@@ -55,6 +61,12 @@ class PlatformSetting extends Model
             'reviews_auto_approve' => false,
             'email_notifications' => true,
             'new_provider_alerts' => true,
+            'dv_lottery_page_title' => 'DV Lottery',
+            'dv_lottery_page_subtitle' => 'Official Diversity Visa information and trusted guidance.',
+            'dv_lottery_description' => 'Always submit applications through the official U.S. Department of State portal.',
+            'dv_lottery_official_url' => 'https://dvprogram.state.gov/',
+            'dv_lottery_cta_label' => 'Open Official DV Lottery Website',
+            'dv_lottery_warning_text' => 'Never use unofficial third-party links for DV submissions. Use only the official government website.',
         ];
     }
 
@@ -122,6 +134,20 @@ class PlatformSetting extends Model
             'support_address' => $settings?->support_address ?: $defaults['support_address'],
             'site_tagline' => $settings?->site_tagline ?: $defaults['site_tagline'],
             'footer_tagline' => $settings?->footer_tagline ?: $defaults['footer_tagline'],
+        ];
+    }
+
+    public function dvLotteryContent(): array
+    {
+        $defaults = static::defaults();
+
+        return [
+            'title' => $this->dv_lottery_page_title ?: $defaults['dv_lottery_page_title'],
+            'subtitle' => $this->dv_lottery_page_subtitle ?: $defaults['dv_lottery_page_subtitle'],
+            'description' => $this->dv_lottery_description ?: $defaults['dv_lottery_description'],
+            'official_url' => $this->dv_lottery_official_url ?: $defaults['dv_lottery_official_url'],
+            'cta_label' => $this->dv_lottery_cta_label ?: $defaults['dv_lottery_cta_label'],
+            'warning_text' => $this->dv_lottery_warning_text ?: $defaults['dv_lottery_warning_text'],
         ];
     }
 

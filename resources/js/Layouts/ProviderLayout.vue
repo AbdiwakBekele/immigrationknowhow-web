@@ -336,6 +336,14 @@ onUnmounted(() => {
                             View Site
                         </Link>
                         <Link
+                            href="/library"
+                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
+                            title="Library"
+                            aria-label="Library"
+                        >
+                            <BookOpenIcon class="h-5 w-5" />
+                        </Link>
+                        <Link
                             href="/provider/dv-lottery"
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >
