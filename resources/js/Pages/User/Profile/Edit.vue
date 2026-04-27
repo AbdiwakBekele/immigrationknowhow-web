@@ -56,13 +56,11 @@ const fallbackLanguageOptions = [
     { value: 'ru', label: 'Russian' },
 ];
 
-const immigrationStatusOptions = [
-    { value: '', label: 'Prefer not to say' },
-    { value: 'citizen', label: 'U.S. Citizen' },
-    { value: 'permanent_resident', label: 'Permanent Resident' },
-    { value: 'visa_holder', label: 'Visa Holder' },
-    { value: 'asylum_seeker', label: 'Asylum Seeker' },
-    { value: 'daca', label: 'DACA Recipient' },
+const serviceLocationOptions = [
+    { value: 'usa', label: 'USA' },
+    { value: 'uk', label: 'UK' },
+    { value: 'europe', label: 'Europe' },
+    { value: 'canada', label: 'Canada' },
     { value: 'other', label: 'Other' },
 ];
 
@@ -107,8 +105,7 @@ const profileForm = useForm({
     country: props.user.country || '',
     preferred_language: normalizeLanguageValue(props.user.preferred_language) || 'en',
     languages_spoken: [...userLanguages.value],
-    immigration_status: props.user.immigration_status || '',
-    country_of_origin: props.user.country_of_origin || '',
+    service_location: props.user.service_location || '',
     has_children: Boolean(props.user.has_children),
     children_ages: Array.isArray(props.user.children_ages) ? [...props.user.children_ages] : [],
     has_pets: Boolean(props.user.has_pets),
@@ -511,20 +508,12 @@ const initialFor = (...values) => {
                                         :error="profileForm.errors.preferred_language"
                                     />
                                     <Select
-                                        v-model="profileForm.country_of_origin"
-                                        :options="countryOptions"
-                                        label="Country of origin"
-                                        placeholder="Select country"
+                                        v-model="profileForm.service_location"
+                                        :options="serviceLocationOptions"
+                                        label="Service location"
+                                        placeholder="Select service location"
                                         size="auth"
-                                        :error="profileForm.errors.country_of_origin"
-                                    />
-                                    <Select
-                                        v-model="profileForm.immigration_status"
-                                        :options="immigrationStatusOptions"
-                                        label="Immigration status"
-                                        placeholder="Select status"
-                                        size="auth"
-                                        :error="profileForm.errors.immigration_status"
+                                        :error="profileForm.errors.service_location"
                                     />
                                 </div>
 

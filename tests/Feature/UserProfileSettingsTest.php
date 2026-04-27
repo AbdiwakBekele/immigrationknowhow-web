@@ -62,8 +62,7 @@ class UserProfileSettingsTest extends TestCase
                 'country' => 'US',
                 'preferred_language' => 'en',
                 'languages_spoken' => ['en', 'es'],
-                'immigration_status' => 'permanent_resident',
-                'country_of_origin' => 'CA',
+                'service_location' => 'canada',
                 'has_children' => true,
                 'children_ages' => [4, 9],
                 'has_pets' => true,
@@ -79,8 +78,9 @@ class UserProfileSettingsTest extends TestCase
 
         $this->assertSame('Jacky', $user->first_name);
         $this->assertSame(['en', 'es'], $user->languages);
-        $this->assertSame('permanent_resident', data_get($user->onboarding_data, 'profile.immigration_status'));
-        $this->assertSame('CA', data_get($user->onboarding_data, 'profile.country_of_origin'));
+        $this->assertSame('canada', data_get($user->onboarding_data, 'profile.service_location'));
+        $this->assertNull(data_get($user->onboarding_data, 'profile.immigration_status'));
+        $this->assertNull(data_get($user->onboarding_data, 'profile.country_of_origin'));
         $this->assertSame([4, 9], data_get($user->onboarding_data, 'profile.children_ages'));
         $this->assertSame(['Dog'], data_get($user->onboarding_data, 'profile.pet_types'));
         $this->assertSame('https://example.com/jacky', data_get($user->onboarding_data, 'profile.social_links.0.url'));
