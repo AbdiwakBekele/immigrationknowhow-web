@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * Contract / offer lifecycle is tracked on the lead (status and contract_* timestamps),
  * not by auto-posting chat messages. When the user sends a contract, the lead reflects
  * an offer sent and pending the provider. When the provider accepts, the lead moves to
- * In Progress and contract acceptance is recorded.
+ * In Progress and contract acceptance is recorded. Offered/agreed contract rates
+ * are stored so later billing can use the accepted amount.
  */
 class Lead extends Model
 {
@@ -39,6 +40,9 @@ class Lead extends Model
         'responded_at',
         'contract_sent_at',
         'contract_accepted_at',
+        'contract_offered_rate',
+        'contract_agreed_rate',
+        'contract_id',
         'converted_at',
         'closed_at',
         'provider_notes',
@@ -58,6 +62,8 @@ class Lead extends Model
             'responded_at' => 'datetime',
             'contract_sent_at' => 'datetime',
             'contract_accepted_at' => 'datetime',
+            'contract_offered_rate' => 'decimal:2',
+            'contract_agreed_rate' => 'decimal:2',
             'converted_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
@@ -98,6 +104,11 @@ class Lead extends Model
     public function review(): HasOne
     {
         return $this->hasOne(Review::class);
+    }
+
+    public function contract(): BelongsTo
+    {
+        return $this->belongsTo(Contract::class);
     }
 
     public function affiliateReferral(): BelongsTo

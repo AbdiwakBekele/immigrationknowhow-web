@@ -9,6 +9,7 @@ use App\Enums\ServiceType;
 use App\Models\Lead;
 use App\Models\ServiceProvider;
 use App\Notifications\NewLeadNotification;
+use App\Services\Contracts\ContractLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class LeadController extends Controller
 {
     public function __construct(
         protected CreateAffiliateEarningAction $createAffiliateEarning,
+        protected ContractLifecycleService $contractLifecycle,
     ) {}
 
     public function create(ServiceProvider $provider): Response
@@ -56,11 +58,21 @@ class LeadController extends Controller
             'urgency' => ['required', 'in:low,normal,high,urgent'],
             'needed_by' => ['nullable', 'date', 'after_or_equal:today'],
             'budget_range' => ['nullable', 'string', 'max:100'],
+            'intent' => ['nullable', Rule::in(['inquiry', 'offer'])],
+            'offered_rate' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
         ]);
 
         $validated['preferred_contact_method'] = $validated['preferred_contact_method'] ?? 'message';
+        $intent = $validated['intent'] ?? 'inquiry';
+        unset($validated['intent']);
 
-        $lead = DB::transaction(function () use ($validated, $provider, $sender) {
+        $defaultProviderRate = $provider->hourly_rate !== null ? round((float) $provider->hourly_rate, 2) : null;
+        $offeredRate = array_key_exists('offered_rate', $validated) && $validated['offered_rate'] !== null
+            ? round((float) $validated['offered_rate'], 2)
+            : $defaultProviderRate;
+        unset($validated['offered_rate']);
+
+        $lead = DB::transaction(function () use ($validated, $provider, $sender, $intent, $offeredRate) {
             $source = $sender->affiliate_referral_id ? 'affiliate' : 'marketplace';
             $supportsAffiliateReferral = Schema::hasColumn('leads', 'affiliate_referral_id');
 
@@ -85,14 +97,20 @@ class LeadController extends Controller
             $conversation = $lead->createConversation();
             $conversation->addMessage($sender, $lead->message);
 
-            return $lead;
+            if ($intent === 'offer') {
+                $this->contractLifecycle->offer($lead, $sender, $offeredRate);
+            }
+
+            return $lead->refresh();
         });
 
         // Notify the provider
         $provider->user->notify(new NewLeadNotification($lead));
 
         return redirect()->route('messages.show', $lead->conversation)
-            ->with('success', 'Your inquiry has been sent! The provider will respond soon.');
+            ->with('success', $intent === 'offer'
+                ? 'Your offer has been sent. Waiting for provider acceptance.'
+                : 'Your inquiry has been sent! The provider will respond soon.');
     }
 
     // For providers to view their leads

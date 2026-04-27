@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Data\ContractSettlementInput;
 use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Contract;
 use App\Models\Lead;
 use App\Models\Review;
 use App\Notifications\NewReviewNotification;
+use App\Services\Contracts\ContractLifecycleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +24,10 @@ use Inertia\Response;
  */
 class ContractController extends Controller
 {
+    public function __construct(
+        protected ContractLifecycleService $lifecycle,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -110,17 +117,37 @@ class ContractController extends Controller
             return back()->with('error', 'Contract can only be sent from a new or contacted inquiry.');
         }
 
-        $lead->update([
-            'status' => LeadStatus::CONTACTED,
-            'responded_at' => $lead->responded_at ?? now(),
-            'contract_sent_at' => now(),
-            'provider_notes' => trim(collect([
-                $lead->provider_notes,
-                '['.now()->toDateTimeString().'] Contract sent by service needer',
-            ])->filter()->implode(PHP_EOL)),
+        $validated = $request->validate([
+            'offered_rate' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
         ]);
 
+        $this->lifecycle->offer($lead, $request->user(), isset($validated['offered_rate']) ? (float) $validated['offered_rate'] : null);
+
         return back()->with('success', 'Contract sent to provider. Waiting for provider acceptance.');
+    }
+
+    public function withdraw(Lead $lead, Request $request): RedirectResponse
+    {
+        if ($lead->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($lead->contract_accepted_at !== null || in_array($lead->status, [LeadStatus::IN_PROGRESS, LeadStatus::CONVERTED], true)) {
+            return back()->with('error', 'Accepted offers cannot be removed.');
+        }
+
+        if ($lead->contract_sent_at === null) {
+            return back()->with('success', 'No active offer to remove.');
+        }
+
+        /** @var Contract|null $contract */
+        $contract = $lead->contract;
+        if (! $contract) {
+            $contract = $this->lifecycle->ensureForLead($lead);
+        }
+        $this->lifecycle->withdraw($contract, $request->user());
+
+        return back()->with('success', 'Offer removed successfully.');
     }
 
     public function end(Lead $lead, Request $request): RedirectResponse
@@ -143,17 +170,18 @@ class ContractController extends Controller
             return back()->with('error', 'Only active or completed contracts can be closed.');
         }
 
+        $contract = $lead->contract ?: $this->lifecycle->ensureForLead($lead);
+        if ($contract->accepted_at && $contract->agreed_rate === null) {
+            return back()->with('error', 'Accepted contracts require an agreed rate before closing.');
+        }
+        $settlementInput = ContractSettlementInput::fromContract($contract);
+        if ($contract->accepted_at && $settlementInput->agreedRate === null) {
+            return back()->with('error', 'Unable to settle this contract without agreed rate data.');
+        }
+
         DB::transaction(function () use ($lead, $request, $validated) {
-            $lead->update([
-                'status' => LeadStatus::CLOSED,
-                'closed_at' => now(),
-                'provider_notes' => trim(collect([
-                    $lead->provider_notes,
-                    '['.now()->toDateTimeString().'] Contract ended by service needer'.(
-                        ! empty($validated['reason']) ? ' - '.$validated['reason'] : ''
-                    ),
-                ])->filter()->implode(PHP_EOL)),
-            ]);
+            $contract = $lead->contract ?: $this->lifecycle->ensureForLead($lead);
+            $this->lifecycle->end($contract, $request->user(), $validated['reason'] ?? null);
 
             $review = Review::firstOrNew([
                 'lead_id' => $lead->id,

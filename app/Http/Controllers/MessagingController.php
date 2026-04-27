@@ -76,8 +76,10 @@ class MessagingController extends Controller
         // Load conversation with messages
         $conversation->load([
             'user:id,first_name,last_name,avatar',
+            'serviceProvider:id,user_id,hourly_rate',
             'serviceProvider.user:id,first_name,last_name,avatar',
-            'lead:id,uuid,service_type,status,message,urgency,created_at,contract_sent_at,contract_accepted_at',
+            'lead:id,uuid,service_type,status,message,urgency,created_at,contract_sent_at,contract_accepted_at,contract_offered_rate,contract_agreed_rate,contract_id',
+            'lead.contract:id,uuid,lead_id,state,pricing_model,currency,offered_rate,agreed_rate,offered_at,accepted_at,withdrawn_at,ended_at,version',
             'messages' => fn ($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
         ]);
 
@@ -95,11 +97,13 @@ class MessagingController extends Controller
         $conversation->setAttribute('has_exchanged_messages', $hasExchangedMessages);
 
         if ($conversation->lead) {
+            $conversation->lead->setAttribute('provider_hourly_rate', $conversation->serviceProvider?->hourly_rate);
+            $contractState = $conversation->lead->contract?->state?->value;
             $conversation->lead->setAttribute(
                 'can_send_offer',
                 ! $isProvider
                     && in_array($conversation->lead->status, ['new', 'contacted'], true)
-                    && is_null($conversation->lead->contract_sent_at)
+                    && ($contractState ? in_array($contractState, ['draft', 'withdrawn', 'cancelled'], true) : is_null($conversation->lead->contract_sent_at))
             );
         }
 

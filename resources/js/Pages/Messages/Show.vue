@@ -27,6 +27,7 @@ const messagesContainer = ref(null);
 const fileInput = ref(null);
 const showLeadInfo = ref(false);
 const showCloseModal = ref(false);
+const showOfferModal = ref(false);
 
 const form = useForm({
     body: '',
@@ -35,12 +36,25 @@ const form = useForm({
 
 const closeContractForm = useForm({
     reason: '',
+    reason_details: '',
     review_rating: 5,
     review_comment: '',
     provider_payment_amount: null,
 });
+const offerForm = useForm({
+    offered_rate: null,
+});
 
 const attachmentPreviews = ref([]);
+const closeReasonOptions = [
+    { value: 'scope_completed', label: 'Work completed successfully' },
+    { value: 'goals_not_met', label: 'Project goals were not met' },
+    { value: 'communication_issues', label: 'Communication issues' },
+    { value: 'budget_or_rate', label: 'Budget or rate mismatch' },
+    { value: 'timeline_delays', label: 'Timeline delays' },
+    { value: 'change_of_plans', label: 'Change of plans' },
+    { value: 'other', label: 'Other' },
+];
 const layoutComponent = computed(() => (props.isProvider ? ProviderLayout : AppLayout));
 const messagesIndexHref = computed(() =>
     props.isProvider ? route('provider.messages.index') : route('messages.index'),
@@ -213,6 +227,11 @@ const getStatusColor = (status) => {
 const offerStage = computed(() => {
     const lead = props.conversation?.lead;
     if (!lead) return 'No offer yet';
+    const contract = lead.contract;
+    if (contract?.state === 'accepted' || contract?.state === 'in_progress') return 'Offer accepted - Contract active';
+    if (contract?.state === 'ended') return 'Contract ended';
+    if (contract?.state === 'withdrawn') return 'Offer withdrawn';
+    if (contract?.state === 'offered') return 'Offer sent - Waiting provider acceptance';
     if (lead.contract_accepted_at) return 'Offer accepted - Contract active';
     if (lead.contract_sent_at) return 'Offer sent - Waiting provider acceptance';
     if (props.conversation?.has_exchanged_messages) return 'Ready to send offer';
@@ -221,13 +240,73 @@ const offerStage = computed(() => {
 
 const canSendOffer = computed(() => {
     const lead = props.conversation?.lead;
-    return Boolean(lead) && !props.isProvider;
+    if (!lead || props.isProvider) return false;
+    const contractState = lead.contract?.state;
+    if (contractState) {
+        return ['draft', 'withdrawn', 'cancelled'].includes(contractState);
+    }
+    return !lead.contract_sent_at && !lead.contract_accepted_at && ['new', 'contacted'].includes(lead.status);
 });
+
+const canWithdrawOffer = computed(() => {
+    const lead = props.conversation?.lead;
+    if (!lead || props.isProvider) return false;
+    const contractState = lead.contract?.state;
+    if (contractState) {
+        return contractState === 'offered';
+    }
+    return Boolean(lead.contract_sent_at) && !lead.contract_accepted_at && ['new', 'contacted'].includes(lead.status);
+});
+
+const providerDefaultRate = computed(() => {
+    const raw = props.conversation?.lead?.provider_hourly_rate
+        ?? props.conversation?.service_provider?.hourly_rate
+        ?? props.conversation?.serviceProvider?.hourly_rate;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+});
+
+const formatUsd = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return `$${n.toFixed(2)} USD`;
+};
+
+const openOfferModal = () => {
+    offerForm.clearErrors();
+    offerForm.offered_rate = providerDefaultRate.value;
+    showOfferModal.value = true;
+};
+
+const closeOfferModal = () => {
+    showOfferModal.value = false;
+    offerForm.reset();
+    offerForm.clearErrors();
+};
 
 const sendOffer = () => {
     const lead = props.conversation?.lead;
     if (!lead?.uuid) return;
-    router.patch(route('contracts.send', lead.uuid), {}, {
+    offerForm.patch(route('contracts.send', lead.uuid), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeOfferModal();
+        },
+    });
+};
+
+const withdrawOffer = () => {
+    const lead = props.conversation?.lead;
+    const contract = lead?.contract;
+    if (contract?.uuid) {
+        router.patch(route('contracts.withdraw.by-contract', contract.uuid), {}, {
+            preserveScroll: true,
+        });
+        return;
+    }
+    if (!lead?.uuid) return;
+    router.patch(route('contracts.withdraw', lead.uuid), {}, {
         preserveScroll: true,
     });
 };
@@ -269,12 +348,17 @@ const submitCloseContract = () => {
     const lead = props.conversation?.lead;
     if (!lead?.uuid) return;
 
-    closeContractForm.transform((data) => ({
-        ...data,
-        provider_payment_amount: data.provider_payment_amount === null || data.provider_payment_amount === ''
-            ? null
-            : data.provider_payment_amount,
-    })).patch(route('contracts.end', lead.uuid), {
+    closeContractForm.transform((data) => {
+        const reason = (data.reason || '').trim();
+        const details = (data.reason_details || '').trim();
+        return {
+            ...data,
+            reason: details ? `${reason}: ${details}` : reason,
+            provider_payment_amount: data.provider_payment_amount === null || data.provider_payment_amount === ''
+                ? null
+                : data.provider_payment_amount,
+        };
+    }).patch(route('contracts.end', lead.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             closeCloseContractModal();
@@ -516,15 +600,35 @@ const getInitials = (person) => {
                             </span>
                         </div>
                         <button
-                            v-if="!isProvider"
+                            v-if="!isProvider && !canWithdrawOffer"
                             type="button"
                             class="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
                             :class="canSendOffer ? 'bg-primary-600 text-white hover:bg-primary-500' : 'cursor-not-allowed bg-slate-100 text-slate-400'"
-                            :disabled="false"
-                            @click="sendOffer"
+                            :disabled="!canSendOffer"
+                            @click="openOfferModal"
                         >
                             Give Offer
                         </button>
+                        <button
+                            v-if="canWithdrawOffer"
+                            type="button"
+                            class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                            @click="withdrawOffer"
+                        >
+                            Remove Offer
+                        </button>
+                        <p
+                            v-if="conversation.lead?.contract?.offered_rate !== null && conversation.lead?.contract?.offered_rate !== undefined"
+                            class="mt-2 text-xs text-slate-600"
+                        >
+                            Offered rate: {{ formatUsd(conversation.lead.contract.offered_rate) }}
+                        </p>
+                        <p
+                            v-if="conversation.lead?.contract?.agreed_rate !== null && conversation.lead?.contract?.agreed_rate !== undefined"
+                            class="mt-1 text-xs text-emerald-700"
+                        >
+                            Agreed rate: {{ formatUsd(conversation.lead.contract.agreed_rate) }}
+                        </p>
                         <p v-if="!isProvider" class="mt-2 text-xs text-slate-500">
                             Click Give Offer to send your contract offer.
                         </p>
@@ -555,6 +659,58 @@ const getInitials = (person) => {
             </div>
 
             <Teleport to="body">
+                <div v-if="showOfferModal" class="fixed inset-0 z-50 overflow-y-auto">
+                    <div class="flex min-h-full items-end justify-center p-4 sm:items-center">
+                        <div class="fixed inset-0 bg-black/50" @click="closeOfferModal"></div>
+                        <div class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                            <button
+                                type="button"
+                                class="absolute right-4 top-4 text-slate-400 transition-colors hover:text-slate-600"
+                                @click="closeOfferModal"
+                            >
+                                <XMarkIcon class="h-5 w-5" />
+                            </button>
+                            <h3 class="text-lg font-semibold text-slate-900">Send contract offer</h3>
+                            <p class="mt-1 text-sm text-slate-600">
+                                We prefilled the provider&apos;s rate. You can override it before sending.
+                            </p>
+                            <div class="mt-4">
+                                <label class="block text-sm font-medium text-slate-700" for="offer-rate-msg">
+                                    Offered rate (USD)
+                                </label>
+                                <input
+                                    id="offer-rate-msg"
+                                    v-model="offerForm.offered_rate"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                                    placeholder="0.00"
+                                />
+                                <p v-if="offerForm.errors.offered_rate" class="mt-1 text-xs text-rose-600">
+                                    {{ offerForm.errors.offered_rate }}
+                                </p>
+                            </div>
+                            <div class="mt-6 flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                                    @click="closeOfferModal"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    class="flex-1 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-500 disabled:opacity-60"
+                                    :disabled="offerForm.processing"
+                                    @click="sendOffer"
+                                >
+                                    {{ offerForm.processing ? 'Sending...' : 'Send Offer' }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div v-if="showCloseModal" class="fixed inset-0 z-50 overflow-y-auto">
                     <div class="flex min-h-full items-end justify-center p-4 sm:items-center">
                         <div class="fixed inset-0 bg-black/50" @click="closeCloseContractModal"></div>
@@ -659,16 +815,33 @@ const getInitials = (person) => {
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700">Optional closing note</label>
-                                    <textarea
+                                    <label class="block text-sm font-medium text-slate-700">Reason for ending contract</label>
+                                    <select
                                         v-model="closeContractForm.reason"
-                                        rows="2"
-                                        class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                                        placeholder="Why are you closing this contract?"
-                                    />
+                                        class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                    >
+                                        <option value="" disabled>Select a reason</option>
+                                        <option
+                                            v-for="option in closeReasonOptions"
+                                            :key="option.value"
+                                            :value="option.value"
+                                        >
+                                            {{ option.label }}
+                                        </option>
+                                    </select>
                                     <p v-if="closeContractForm.errors.reason" class="mt-1 text-sm text-rose-600">
                                         {{ closeContractForm.errors.reason }}
                                     </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700">Optional details</label>
+                                    <textarea
+                                        v-model="closeContractForm.reason_details"
+                                        rows="2"
+                                        class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                        placeholder="Add more context (optional)"
+                                    />
                                 </div>
                             </div>
 
@@ -683,7 +856,7 @@ const getInitials = (person) => {
                                 <button
                                     type="button"
                                     class="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
-                                    :disabled="closeContractForm.processing"
+                                    :disabled="closeContractForm.processing || !closeContractForm.reason"
                                     @click="submitCloseContract"
                                 >
                                     {{
