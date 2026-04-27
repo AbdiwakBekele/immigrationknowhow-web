@@ -15,6 +15,7 @@ import {
     CurrencyDollarIcon,
     ArchiveBoxIcon,
     TrashIcon,
+    UserGroupIcon as CommunityIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid, CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
 import { computed, ref } from 'vue';
@@ -451,6 +452,16 @@ const deleteConversation = (conversationUuid) => {
                                 class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
                                 <span>View Analytics</span>
+                                <ArrowRightIcon class="w-4 h-4" />
+                            </Link>
+                            <Link
+                                :href="route('community.index')"
+                                class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
+                            >
+                                <span class="inline-flex items-center gap-2">
+                                    <CommunityIcon class="h-4 w-4" />
+                                    Community
+                                </span>
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                         </div>

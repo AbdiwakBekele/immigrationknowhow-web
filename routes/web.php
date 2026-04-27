@@ -66,6 +66,9 @@ Route::get('/providers/{provider:slug}', [MarketplaceController::class, 'show'])
 Route::get('/sponsored/{ad:uuid}', [PublicAdController::class, 'show'])->name('ads.public.show');
 Route::get('/sponsored/{ad:uuid}/click', [PublicAdController::class, 'click'])->name('ads.public.click');
 Route::get('/community', [CommunityController::class, 'index'])->name('community.index');
+Route::get('/community/{communityPost}', [CommunityController::class, 'postPage'])
+    ->whereNumber('communityPost')
+    ->name('community.post-page');
 Route::get('/api/community/posts', [CommunityController::class, 'posts'])->name('community.posts');
 Route::get('/api/community/posts/{communityPost}', [CommunityController::class, 'show'])->name('community.posts.show');
 Route::post('/api/community/posts/{communityPost}/react', [CommunityController::class, 'react'])
@@ -73,6 +76,7 @@ Route::post('/api/community/posts/{communityPost}/react', [CommunityController::
 Route::get('/api/community/posts/{communityPost}/comments', [CommunityController::class, 'comments'])->name('community.posts.comments');
 Route::post('/api/community/posts/{communityPost}/comments', [CommunityController::class, 'addComment'])
     ->name('community.posts.comments.store');
+Route::get('/api/community/news', [CommunityController::class, 'news'])->name('community.news');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
