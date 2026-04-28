@@ -255,10 +255,11 @@ onMounted(async () => {
 <template>
     <Head :title="post?.title ? `${post.title} | Community` : 'Community Post'" />
     <component :is="layoutComponent">
-        <section class="bg-[#f8fafc] py-2">
-            <div class="mx-auto max-w-3xl px-3">
-                <Link href="/community" class="mb-4 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline">
-                    ← Back to Community
+        <section class="min-h-screen bg-slate-50 py-4 md:py-6">
+            <div class="mx-auto max-w-5xl px-3 sm:px-4 lg:px-6">
+                <Link href="/community" class="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50">
+                    <span aria-hidden="true">←</span>
+                    <span>Back to Community</span>
                 </Link>
 
                 <div v-if="postLoading" class="text-center text-sm text-[#64748b]">Loading post...</div>
@@ -270,77 +271,83 @@ onMounted(async () => {
                 </div>
 
                 <template v-else>
-                    <article class="rounded-2xl border border-[#dbe3ef] bg-white p-4 md:p-5">
-                        <div class="mb-2 text-xs font-semibold text-[#64748b]">
-                            {{ sectionLabel[post.category] || 'Community' }} · {{ post.tag }}
-                        </div>
-                        <h1 class="text-2xl font-bold text-[#111827] md:text-3xl">{{ post.title }}</h1>
-                        <p v-if="post.created_at" class="mt-1 text-xs text-[#94a3b8]">
-                            {{ new Date(post.created_at).toLocaleString() }}
-                        </p>
-
-                        <div v-if="post.image_url" class="relative mt-4 h-64 w-full overflow-hidden rounded-xl bg-[#e5e7eb] md:h-80">
-                            <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
+                    <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                        <div class="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-4 md:p-5">
+                            <div class="mb-2 inline-flex rounded-full border border-blue-200 bg-blue-100/70 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                {{ sectionLabel[post.category] || 'Community' }} · {{ post.tag }}
+                            </div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">{{ post.title }}</h1>
+                            <p v-if="post.created_at" class="mt-1 text-xs text-slate-500">
+                                {{ new Date(post.created_at).toLocaleString() }}
+                            </p>
                         </div>
 
-                        <a v-if="post.video_url && !youtubeVideoIdFromUrl(post.video_url)" :href="post.video_url" target="_blank" rel="noreferrer" class="mt-4 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline">
-                            Open video
-                        </a>
+                        <div class="p-4 md:p-6">
 
-                        <div v-if="post.video_url && youtubeVideoIdFromUrl(post.video_url)" class="relative mt-4 aspect-video w-full overflow-hidden rounded-xl bg-black">
-                            <iframe :src="`https://www.youtube.com/embed/${youtubeVideoIdFromUrl(post.video_url)}`" title="Post video" class="absolute inset-0 h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
-                        </div>
+                            <div v-if="post.image_url" class="relative h-64 w-full overflow-hidden rounded-2xl bg-[#e5e7eb] md:h-[24rem]">
+                                <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
+                            </div>
 
-                        <p class="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#374151]">{{ post.description }}</p>
-
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition" :class="engagement.liked ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-[#d7e0ee] bg-white text-[#334155] hover:bg-[#f8fafc]'" @click="reactToPost('like').catch((e) => alert(e?.message || 'Error'))">
-                                <HeartIcon class="h-4 w-4" />
-                                <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.likes }}</span>
-                            </button>
-                            <a href="#comments" class="inline-flex items-center gap-1.5 rounded-full border border-[#d7e0ee] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] transition hover:bg-[#f8fafc]">
-                                <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
-                                Comment <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.comments }}</span>
+                            <a v-if="post.video_url && !youtubeVideoIdFromUrl(post.video_url)" :href="post.video_url" target="_blank" rel="noreferrer" class="mt-4 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline">
+                                Open video
                             </a>
-                            <a href="#share-this-post" class="inline-flex items-center gap-1.5 rounded-full border border-[#d7e0ee] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] transition hover:bg-[#f8fafc]">
-                                <ShareIcon class="h-4 w-4" />
-                                Share <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.shares }}</span>
-                            </a>
-                            <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="engagement.bookmarked ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-[#d7e0ee] bg-white text-[#334155] hover:bg-[#f8fafc]'" @click="reactToPost('bookmark').catch((e) => alert(e?.message || 'Error'))">
-                                <BookmarkIcon class="h-4 w-4" />
-                                Bookmark <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.bookmarks }}</span>
-                            </button>
-                        </div>
 
-                        <div id="share-this-post" class="mt-5 border-t border-[#e5e7eb] pt-4 scroll-mt-24">
-                            <p class="text-xs font-semibold uppercase text-[#64748b]">Share this post</p>
-                            <p class="mt-0.5 break-all text-xs text-[#94a3b8]">{{ communityPostShareUrl(post.id) }}</p>
-                            <div class="mt-2 grid max-w-sm grid-cols-3 gap-2 sm:grid-cols-6">
-                                <button type="button" class="rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#1d4ed8] hover:bg-blue-50" @click="openShareTarget('facebook')">f</button>
-                                <button type="button" class="rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#0f172a] hover:bg-slate-50" @click="openShareTarget('x')">X</button>
-                                <button type="button" class="rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#0a66c2] hover:bg-blue-50" @click="openShareTarget('linkedin')">in</button>
-                                <button type="button" class="rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#16a34a] hover:bg-emerald-50" @click="openShareTarget('whatsapp')">wa</button>
-                                <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#334155] hover:bg-slate-50" @click="openShareTarget('email')">
-                                    <EnvelopeIcon class="h-4 w-4" />
+                            <div v-if="post.video_url && youtubeVideoIdFromUrl(post.video_url)" class="relative mt-4 aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                                <iframe :src="`https://www.youtube.com/embed/${youtubeVideoIdFromUrl(post.video_url)}`" title="Post video" class="absolute inset-0 h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
+                            </div>
+
+                            <p class="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-700">{{ post.description }}</p>
+
+                            <div class="mt-5 flex flex-wrap items-center gap-2">
+                                <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition" :class="engagement.liked ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'" @click="reactToPost('like').catch((e) => alert(e?.message || 'Error'))">
+                                    <HeartIcon class="h-4 w-4" />
+                                    <span>Like</span>
+                                    <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.likes }}</span>
                                 </button>
-                                <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-2 py-2 text-xs text-[#334155] hover:bg-slate-50" @click="onCopyShareLink">
-                                    <LinkIcon class="h-4 w-4" />
+                                <a href="#comments" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                    <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
+                                    Comment <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.comments }}</span>
+                                </a>
+                                <a href="#share-this-post" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                                    <ShareIcon class="h-4 w-4" />
+                                    Share <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.shares }}</span>
+                                </a>
+                                <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition" :class="engagement.bookmarked ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'" @click="reactToPost('bookmark').catch((e) => alert(e?.message || 'Error'))">
+                                    <BookmarkIcon class="h-4 w-4" />
+                                    Bookmark <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ engagement.bookmarks }}</span>
                                 </button>
                             </div>
-                            <div v-if="typeof navigator !== 'undefined' && navigator.share" class="mt-2 flex justify-end">
-                                <button type="button" class="rounded-full bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" @click="onNativeShare">
-                                    More share options
-                                </button>
+
+                            <div id="share-this-post" class="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 scroll-mt-24">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Share this post</p>
+                                <p class="mt-1 break-all text-xs text-slate-500">{{ communityPostShareUrl(post.id) }}</p>
+                                <div class="mt-3 grid max-w-sm grid-cols-3 gap-2 sm:grid-cols-6">
+                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#1d4ed8] hover:bg-blue-50" @click="openShareTarget('facebook')">f</button>
+                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#0f172a] hover:bg-slate-50" @click="openShareTarget('x')">X</button>
+                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#0a66c2] hover:bg-blue-50" @click="openShareTarget('linkedin')">in</button>
+                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#16a34a] hover:bg-emerald-50" @click="openShareTarget('whatsapp')">wa</button>
+                                    <button type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 hover:bg-slate-50" @click="openShareTarget('email')">
+                                        <EnvelopeIcon class="h-4 w-4" />
+                                    </button>
+                                    <button type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 hover:bg-slate-50" @click="onCopyShareLink">
+                                        <LinkIcon class="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <div v-if="typeof navigator !== 'undefined' && navigator.share" class="mt-3 flex justify-end">
+                                    <button type="button" class="rounded-full bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" @click="onNativeShare">
+                                        More share options
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </article>
 
-                    <div id="comments" class="mt-6 rounded-2xl border border-[#dbe3ef] bg-white p-4 md:p-6">
+                    <div id="comments" class="mt-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
                         <h2 class="text-lg font-bold text-[#111827]">Comments</h2>
                         <p v-if="commentsLoading" class="mt-2 text-sm text-[#64748b]">Loading comments...</p>
                         <div class="mt-3 max-h-80 space-y-2 overflow-y-auto">
                             <p v-if="comments.length === 0 && !commentsLoading" class="text-sm text-[#64748b]">No comments yet.</p>
-                            <div v-for="comment in comments" :key="comment.id" class="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                            <div v-for="comment in comments" :key="comment.id" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <div class="flex items-start gap-2.5">
                                     <img
                                         v-if="comment.author_avatar_url"
@@ -361,7 +368,7 @@ onMounted(async () => {
                                 </div>
                             </div>
                         </div>
-                        <textarea v-model="newComment" rows="4" placeholder="Write a comment..." class="mt-3 w-full rounded-xl border border-[#d1d9e6] px-3 py-2 text-sm outline-none focus:border-[#3b82f6]" />
+                        <textarea v-model="newComment" rows="4" placeholder="Write a comment..." class="mt-3 w-full rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-200" />
                         <p v-if="commentError" class="mt-1 text-sm text-[#b91c1c]">{{ commentError }}</p>
                         <div class="mt-2 flex justify-end">
                             <button type="button" class="rounded-full bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" @click="handleSubmitComment">

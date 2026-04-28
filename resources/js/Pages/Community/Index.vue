@@ -455,9 +455,28 @@ onMounted(() => {
 <template>
     <Head title="Community" />
     <component :is="layoutComponent">
-        <section class="bg-[#f8fafc] py-2">
-            <div class="mx-2 flex w-auto flex-col gap-2 px-0 md:mx-3 md:flex-row">
-                <aside class="w-full rounded-3xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-3 shadow-sm md:w-72 md:shrink-0">
+        <section class="min-h-screen bg-slate-50 py-4 md:py-6">
+            <div class="mx-auto max-w-[1380px] px-3 sm:px-4 lg:px-6">
+                <div class="mb-3 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 p-4 text-white shadow-lg md:mb-4 md:p-5">
+                    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <p class="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
+                                Global Community
+                            </p>
+                            <h1 class="mt-2 text-2xl font-extrabold tracking-tight md:text-3xl">Connect, ask, and grow together</h1>
+                            <p class="mt-1.5 max-w-2xl text-sm text-blue-100">
+                                Find trusted immigration insights, practical life tips, and the latest updates in one modern community hub.
+                            </p>
+                        </div>
+                        <div class="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-blue-50 backdrop-blur">
+                            <SparklesIcon class="h-4 w-4" />
+                            {{ filteredPosts.length }} active posts
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex w-auto flex-col gap-3 md:flex-row md:gap-4">
+                <aside class="w-full rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:sticky md:top-6 md:w-72 md:h-fit md:shrink-0">
                     <h1 class="text-[1.65rem] font-black tracking-tight text-slate-900">Community Feed</h1>
 
                     <div class="mt-3 border-t border-slate-200/80 pt-3">
@@ -550,14 +569,14 @@ onMounted(() => {
                 </aside>
 
                 <div class="min-w-0 flex-1">
-                    <div class="mx-auto grid max-w-[1180px] gap-2 xl:grid-cols-[minmax(0,760px)_300px]">
-                        <div class="rounded-2xl border border-[#dbe3ef] bg-white p-2 md:p-2.5">
+                    <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
+                        <div class="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <h2 class="text-2xl font-bold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
                                 <input
                                     v-model="search"
                                     :placeholder="`Search in ${sectionLabels[activeSection]}...`"
-                                    class="h-10 w-full rounded-full border border-[#cdd9ea] px-3 text-[15px] outline-none focus:border-[#3b82f6] sm:w-80"
+                                    class="h-11 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 text-[15px] text-slate-900 outline-none ring-blue-200 transition placeholder:text-slate-500 focus:border-blue-500 focus:bg-white focus:ring-2 sm:w-80"
                                 >
                             </div>
 
@@ -586,8 +605,8 @@ onMounted(() => {
                                 <p v-if="newsLoading" class="text-sm text-[#475569]">Loading latest news...</p>
                                 <p v-if="newsError" class="text-sm text-[#b91c1c]">{{ newsError }}</p>
 
-                                <div class="mt-2 grid gap-4 md:grid-cols-2">
-                                    <article v-for="item in filteredNewsItems" :key="item.id" class="m-1 rounded-xl border border-[#dde5f1] bg-white p-3 shadow-sm">
+                                <div class="mt-3 grid gap-4 md:grid-cols-2">
+                                    <article v-for="item in filteredNewsItems" :key="item.id" class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                                         <div v-if="item.image" class="relative mb-2 h-36 overflow-hidden rounded-lg bg-[#e5e7eb]">
                                             <img :src="item.image" :alt="item.title" class="h-full w-full object-cover">
                                         </div>
@@ -608,10 +627,10 @@ onMounted(() => {
                                 </p>
                                 <p v-if="postsError" class="text-sm text-[#b91c1c]">{{ postsError }}</p>
 
-                                    <article v-for="post in filteredPosts" :key="post.id" class="rounded-2xl border border-slate-200 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition-shadow hover:shadow-md">
+                                    <article v-for="post in filteredPosts" :key="post.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                                     <Link :href="communityPostPath(post.id)" class="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2">
                                         <div v-if="post.image_url" class="relative mb-2 h-40 overflow-hidden rounded-lg bg-[#e5e7eb]">
-                                            <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
+                                            <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]">
                                         </div>
                                         <div class="mb-1.5 inline-block rounded-full bg-[#eef2ff] px-2 py-1 text-xs font-semibold text-[#3730a3]">{{ post.tag }}</div>
                                         <h3 class="text-xl font-bold text-[#111827] group-hover:underline">{{ post.title }}</h3>
@@ -648,11 +667,11 @@ onMounted(() => {
                             </div>
                         </div>
 
-                        <aside class="h-fit rounded-2xl border border-[#dbe3ef] bg-white p-3">
+                        <aside class="h-fit rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                             <h3 class="text-base font-bold text-[#111827]">Recent Posts</h3>
                             <p class="mt-1 text-xs text-[#64748b]">Latest updates from the community feed.</p>
                             <div class="mt-3 space-y-2.5">
-                                <Link v-for="post in recentPosts" :key="`recent-${post.id}`" :href="communityPostPath(post.id)" class="block rounded-xl border border-[#e4eaf4] p-2 transition hover:bg-[#f8fafc]">
+                                <Link v-for="post in recentPosts" :key="`recent-${post.id}`" :href="communityPostPath(post.id)" class="block rounded-2xl border border-slate-200 p-2.5 transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm">
                                     <div class="flex items-start gap-2.5">
                                         <div v-if="post.image_url" class="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#e2e8f0]">
                                             <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
@@ -670,6 +689,7 @@ onMounted(() => {
                             </div>
                         </aside>
                     </div>
+                </div>
                 </div>
             </div>
 
