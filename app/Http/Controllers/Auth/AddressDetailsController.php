@@ -522,14 +522,23 @@ class AddressDetailsController extends Controller
             return back()->withErrors(['code' => 'Invalid or expired code. Try again or request a new code.']);
         }
 
+        $nextOnboardingStep = 4;
         Log::channel('single')->info('FLOW_DEBUG step transition', [
             'from_step' => 3,
-            'to_step' => 4,
-            'reason' => 'otp_verified_redirect_to_onboarding_step_4',
+            'to_step' => $nextOnboardingStep,
+            'reason' => $user->followsProviderOnboarding()
+                ? 'otp_verified_redirect_to_onboarding_step_4_provider'
+                : 'otp_verified_redirect_to_onboarding_step_4_user',
             'user_id' => $user->id,
         ]);
 
-        return $this->redirectToNextStep($user)->with('success', 'Phone number verified.');
+        $nextStepRedirect = $this->redirectToNextStep($user);
+
+        if ($user->followsProviderOnboarding()) {
+            return $nextStepRedirect;
+        }
+
+        return $nextStepRedirect->with('success', 'Phone number verified.');
     }
 
     protected function redirectToNextStep($user): RedirectResponse

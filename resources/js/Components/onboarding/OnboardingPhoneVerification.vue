@@ -202,13 +202,12 @@ const submitOtp = () => {
     });
 
     otpForm.post(route('address-detail.verify'), {
+        preserveState: false,
         preserveScroll: true,
-        onSuccess: (page) => {
+        onSuccess: () => {
             console.log('[FLOW_DEBUG] Step 3 verify success', {
-                nextUrl: page?.url || window.location.href,
                 expectedStep: 4,
             });
-            router.visit(route('onboarding.index', { step: 4 }));
         },
         onError: (errors) => {
             console.log('[FLOW_DEBUG] Step 3 verify validation/errors', errors);

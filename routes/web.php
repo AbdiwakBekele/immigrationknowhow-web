@@ -26,7 +26,6 @@ use App\Http\Controllers\VideoProductController;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
 use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
 use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
-use App\Http\Controllers\WelcomeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -37,7 +36,7 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', WelcomeController::class)->name('home');
+Route::redirect('/', '/login')->name('home');
 Route::get('/favicon.ico', fn () => redirect('/favicon.svg', 301));
 
 Route::post('/locale', function (Request $request) {
