@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
@@ -16,6 +17,7 @@ const layoutComponent = computed(() => {
     if (props.adPortal?.portal === 'user') return AppLayout;
     return AdvertiserLayout;
 });
+const adsIndexHref = computed(() => route(`${props.adsRouteNamePrefix}.index`));
 
 const form = useForm({
     title: '',
@@ -42,7 +44,16 @@ const onImageSelected = (event) => {
     <component :is="layoutComponent">
         <div class="mx-auto max-w-4xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h1 class="text-2xl font-semibold text-slate-900">Create ad</h1>
+                <div class="flex items-center gap-3">
+                    <Link
+                        :href="adsIndexHref"
+                        class="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="Back to my ads"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <h1 class="text-2xl font-semibold text-slate-900">Create ad</h1>
+                </div>
                 <p class="mt-1 text-sm text-slate-500">
                     Publish fee:
                     {{ adPostingPrice.currency }} {{ (Number(adPostingPrice.amount_cents || 0) / 100).toFixed(2) }}.
@@ -79,7 +90,7 @@ const onImageSelected = (event) => {
                     <button type="submit" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700" :disabled="form.processing">
                         {{ form.processing ? 'Saving...' : 'Create ad' }}
                     </button>
-                    <Link :href="route(`${adsRouteNamePrefix}.index`)" class="text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</Link>
+                    <Link :href="adsIndexHref" class="text-sm font-medium text-slate-600 hover:text-slate-800">Cancel</Link>
                 </div>
             </form>
         </div>

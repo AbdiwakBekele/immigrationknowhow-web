@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { XMarkIcon } from '@heroicons/vue/24/outline';
+import { ArrowLeftIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -20,6 +20,7 @@ const layoutComponent = computed(() => {
     if (props.adPortal?.portal === 'user') return AppLayout;
     return AdvertiserLayout;
 });
+const adsIndexHref = computed(() => route(`${props.adsRouteNamePrefix}.index`));
 
 const form = useForm({
     title: props.ad.title || '',
@@ -125,7 +126,16 @@ const resubmitForReview = () => {
     <component :is="layoutComponent">
         <div class="mx-auto max-w-5xl space-y-6">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h1 class="text-2xl font-semibold text-slate-900">Edit ad</h1>
+                <div class="flex items-center gap-3">
+                    <Link
+                        :href="adsIndexHref"
+                        class="inline-flex items-center justify-center rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="Back to my ads"
+                    >
+                        <ArrowLeftIcon class="h-5 w-5" />
+                    </Link>
+                    <h1 class="text-2xl font-semibold text-slate-900">Edit ad</h1>
+                </div>
                 <p class="mt-1 text-sm text-slate-500">Status: {{ formatAdStatus(ad.status) }}</p>
             </div>
 
@@ -255,7 +265,7 @@ const resubmitForReview = () => {
                         </button>
                     </div>
 
-                    <Link :href="route(`${adsRouteNamePrefix}.index`)" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
+                    <Link :href="adsIndexHref" class="inline-flex text-sm font-medium text-slate-600 hover:text-slate-800">
                         Back to ads
                     </Link>
                 </div>
