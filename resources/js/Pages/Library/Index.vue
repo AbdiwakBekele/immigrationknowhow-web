@@ -7,6 +7,8 @@ import {
     BookmarkIcon,
     CalendarDaysIcon,
     DocumentTextIcon,
+    GlobeAltIcon,
+    ChevronDownIcon,
     ListBulletIcon,
     MagnifyingGlassIcon,
     MusicalNoteIcon,
@@ -36,7 +38,12 @@ const selectedAuthor = ref(props.filters?.author || '');
 const selectedType = ref(props.filters?.type || '');
 const selectedAccess = ref(props.filters?.access || '');
 const selectedSort = ref(props.filters?.sort || 'newest');
-const localeCodes = ['en', 'fr', 'es'];
+const localeOptions = [
+    { value: 'en', label: 'English' },
+    { value: 'fr', label: 'French' },
+    { value: 'es', label: 'Spanish' },
+];
+const localeCodes = localeOptions.map((option) => option.value);
 const normalizeLocale = (value) => {
     const locale = typeof value === 'string' ? value.trim() : '';
 
@@ -364,20 +371,28 @@ const actionHref = (item) => {
                             </button>
                         </div>
 
-                        <div class="mt-4 flex justify-center">
-                            <label class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-700 shadow-sm">
-                                <span class="text-base">{{ locale.toUpperCase() }}</span>
-                                <span class="h-4 w-px bg-neutral-200" aria-hidden="true"></span>
-                                <span class="sr-only">Language</span>
-                                <select
-                                    v-model="locale"
-                                    class="border-0 bg-transparent p-0 text-sm font-semibold text-neutral-700 outline-none focus:ring-0"
-                                    @change="updateLocale"
-                                >
-                                    <option value="en">EN</option>
-                                    <option value="fr">FR</option>
-                                    <option value="es">ES</option>
-                                </select>
+                        <div class="mt-5 flex justify-center">
+                            <label class="group relative inline-flex items-center gap-2.5 rounded-2xl border border-neutral-200/90 bg-gradient-to-b from-white to-neutral-50/90 py-2.5 pl-3.5 pr-10 text-sm shadow-sm ring-1 ring-black/[0.03] transition hover:border-blue-200/80 hover:shadow-md">
+                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/80">
+                                    <GlobeAltIcon class="h-4 w-4" aria-hidden="true" />
+                                </span>
+                                <span class="flex min-w-0 flex-col text-left">
+                                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Interface language</span>
+                                    <select
+                                        v-model="locale"
+                                        class="min-w-0 max-w-[14rem] cursor-pointer appearance-none border-0 bg-transparent py-0 pl-0 pr-1 text-sm font-semibold leading-tight text-neutral-900 outline-none focus:ring-0"
+                                        @change="updateLocale"
+                                    >
+                                        <option
+                                            v-for="option in localeOptions"
+                                            :key="option.value"
+                                            :value="option.value"
+                                        >
+                                            {{ option.value.toUpperCase() }} — {{ option.label }}
+                                        </option>
+                                    </select>
+                                </span>
+                                <ChevronDownIcon class="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
                             </label>
                         </div>
                     </form>

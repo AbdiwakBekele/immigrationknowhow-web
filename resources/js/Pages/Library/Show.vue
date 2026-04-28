@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
+    ArrowLeftIcon,
     BookOpenIcon,
     MusicalNoteIcon,
     ClockIcon,
@@ -67,6 +68,26 @@ let landingAudioWasRestored = false;
 const libraryPayUrl = computed(() => route('library.pay', { item: props.item.slug }));
 
 const libraryCartAddUrl = computed(() => route('library.cart.add', { item: props.item.slug }));
+
+const libraryListUrl = computed(() => {
+    if (props.item.type === 'audiobook') {
+        return route('library.audiobooks');
+    }
+    if (props.item.type === 'ebook') {
+        return route('library.ebooks');
+    }
+    return route('library.index');
+});
+
+const libraryListLabel = computed(() => {
+    if (props.item.type === 'audiobook') {
+        return 'Audiobooks';
+    }
+    if (props.item.type === 'ebook') {
+        return 'E-Books';
+    }
+    return 'Library';
+});
 
 const formatFileSize = (bytes) => {
     if (!bytes) return 'N/A';
@@ -386,13 +407,49 @@ const handleLandingAudioVisibility = () => {
     }
 };
 
+const languageLabelsByCode = {
+    en: 'English',
+    fr: 'French',
+    es: 'Spanish',
+    de: 'German',
+    it: 'Italian',
+    pt: 'Portuguese',
+    ar: 'Arabic',
+    hi: 'Hindi',
+    zh: 'Chinese',
+    ja: 'Japanese',
+    ko: 'Korean',
+    ru: 'Russian',
+};
+
+const formatLanguageDisplay = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+
+    const compactTokens = raw
+        .split(/[\s,;|/]+/)
+        .map((token) => token.trim().toLowerCase())
+        .filter((token) => /^[a-z]{2,5}$/.test(token));
+
+    const uniqueTokens = [...new Set(compactTokens)];
+    if (uniqueTokens.length) {
+        const labels = uniqueTokens.map((code) => {
+            const codeLabel = languageLabelsByCode[code];
+            return codeLabel ? `${code.toUpperCase()}: ${codeLabel}` : code.toUpperCase();
+        });
+        return labels.join(', ');
+    }
+
+    return raw;
+};
+
 const metadataFacts = computed(() => ([
     { label: 'Author', value: props.item.author },
     { label: 'Publisher', value: props.item.publisher },
     { label: 'Published', value: publicationDisplay.value },
     { label: 'Pages Count', value: props.item.page_count ? `${props.item.page_count}` : null },
     { label: 'ISBN', value: props.item.isbn },
-    { label: 'Language', value: props.item.language },
+    { label: 'Language', value: formatLanguageDisplay(props.item.language) },
 ]).filter((fact) => fact.value !== null && fact.value !== undefined && String(fact.value).trim() !== ''));
 
 const moreInfoFacts = computed(() => ([
@@ -428,27 +485,62 @@ onBeforeUnmount(() => {
                 aria-hidden="true"
             />
             <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                <!-- Breadcrumb -->
-                <nav
-                    class="mb-6 flex flex-wrap items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-500 sm:text-sm sm:normal-case sm:tracking-normal"
-                >
+                <!-- Back + path -->
+                <div class="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
                     <Link
-                        href="/library"
-                        class="rounded-md px-1.5 py-0.5 text-slate-600 transition hover:bg-white/80 hover:text-primary-700"
+                        :href="libraryListUrl"
+                        class="group inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/90 px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200/50 transition hover:-translate-y-px hover:border-primary-200/90 hover:from-primary-50/30 hover:to-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
                     >
-                        Library
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100/90 text-slate-600 ring-1 ring-slate-200/60 transition group-hover:bg-primary-50 group-hover:text-primary-700 group-hover:ring-primary-200/60">
+                            <ArrowLeftIcon class="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span>Back to {{ libraryListLabel }}</span>
                     </Link>
-                    <ChevronRightIcon class="h-3.5 w-3.5 shrink-0 text-slate-400 sm:h-4 sm:w-4" />
-                    <Link
-                        v-if="item.category"
-                        :href="`/library?category=${item.category.slug}`"
-                        class="rounded-md px-1.5 py-0.5 text-slate-600 transition hover:bg-white/80 hover:text-primary-700"
+                    <nav
+                        class="min-w-0 flex-1"
+                        aria-label="Breadcrumb"
                     >
-                        {{ item.category.name }}
-                    </Link>
-                    <ChevronRightIcon v-if="item.category" class="h-3.5 w-3.5 shrink-0 text-slate-400 sm:h-4 sm:w-4" />
-                    <span class="max-w-[min(100%,28rem)] truncate text-slate-900">{{ item.title }}</span>
-                </nav>
+                        <ol
+                            class="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 rounded-2xl border border-slate-200/60 bg-white/80 px-3 py-2.5 shadow-sm ring-1 ring-slate-200/40 backdrop-blur-sm sm:px-4 sm:py-2.5"
+                        >
+                            <li class="inline-flex min-w-0 items-center">
+                                <Link
+                                    :href="libraryListUrl"
+                                    class="truncate text-xs font-semibold text-slate-500 transition hover:text-primary-600 sm:text-sm"
+                                >
+                                    {{ libraryListLabel }}
+                                </Link>
+                            </li>
+                            <li class="inline-flex" aria-hidden="true">
+                                <ChevronRightIcon class="h-3.5 w-3.5 text-slate-300 sm:h-4 sm:w-4" />
+                            </li>
+                            <li
+                                v-if="item.category"
+                                class="inline-flex min-w-0 items-center"
+                            >
+                                <Link
+                                    :href="`/library?category=${item.category.slug}`"
+                                    class="truncate text-xs font-semibold text-slate-500 transition hover:text-primary-600 sm:text-sm"
+                                >
+                                    {{ item.category.name }}
+                                </Link>
+                            </li>
+                            <li
+                                v-if="item.category"
+                                class="inline-flex"
+                                aria-hidden="true"
+                            >
+                                <ChevronRightIcon class="h-3.5 w-3.5 text-slate-300 sm:h-4 sm:w-4" />
+                            </li>
+                            <li
+                                class="min-w-0 text-xs font-bold text-slate-900 sm:text-sm"
+                                aria-current="page"
+                            >
+                                <span class="line-clamp-2 sm:line-clamp-1">{{ item.title }}</span>
+                            </li>
+                        </ol>
+                    </nav>
+                </div>
 
                 <div class="grid gap-6 lg:grid-cols-12 lg:gap-8">
                     <!-- Main -->
@@ -575,7 +667,7 @@ onBeforeUnmount(() => {
                                                 v-if="item.language"
                                                 class="inline-flex items-center rounded-full border border-sky-100 bg-sky-50/90 px-3 py-1 text-xs font-semibold text-sky-800"
                                             >
-                                                {{ item.language }}
+                                                {{ formatLanguageDisplay(item.language) }}
                                             </span>
                                         </div>
 
@@ -948,7 +1040,7 @@ onBeforeUnmount(() => {
 	                                    </div>
 	                                    <div v-if="item.language" class="flex items-center justify-between gap-3">
 	                                        <dt class="text-slate-500">Language</dt>
-	                                        <dd class="font-semibold text-slate-900">{{ item.language }}</dd>
+	                                        <dd class="font-semibold text-slate-900">{{ formatLanguageDisplay(item.language) }}</dd>
 	                                    </div>
 	                                </dl>
                             </div>

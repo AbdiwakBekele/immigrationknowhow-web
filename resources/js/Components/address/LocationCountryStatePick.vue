@@ -18,6 +18,21 @@ const props = defineProps({
 });
 
 const stateOptions = ref(props.initialStateOptions || []);
+const normalizedCountryOptions = computed(() => {
+    const options = Array.isArray(props.countryOptions) ? [...props.countryOptions] : [];
+    const hasOther = options.some((option) => {
+        if (option && typeof option === 'object') {
+            return String(option.value || '').toUpperCase() === 'OTHER';
+        }
+        return String(option || '').toUpperCase() === 'OTHER';
+    });
+
+    if (!hasOther) {
+        options.push({ value: 'OTHER', label: 'Other' });
+    }
+
+    return options;
+});
 const locationQuery = ref((locationLabel.value ?? '') || '');
 const locationResults = ref([]);
 const locationSearchLoading = ref(false);
@@ -175,7 +190,7 @@ watch(
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Select
                 v-model="country"
-                :options="countryOptions"
+                :options="normalizedCountryOptions"
                 label="Country"
                 placeholder="Select country"
                 size="auth"

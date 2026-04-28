@@ -13,24 +13,36 @@ class PhoneDialOptions
     {
         $util = PhoneNumberUtil::getInstance();
         $labels = CountryOptions::labels();
-        $regions = $util->getSupportedRegions();
 
         $options = [];
-        foreach ($regions as $code) {
-            $countryCode = $util->getCountryCodeForRegion($code);
-            if (! $countryCode) {
-                continue;
+        foreach (CountryOptions::codes() as $code) {
+            $dialCode = static::fallbackDialCodeForNonIsoRegion($code);
+            if ($dialCode === null) {
+                $countryCode = $util->getCountryCodeForRegion($code);
+                if (! $countryCode) {
+                    continue;
+                }
+                $dialCode = (string) $countryCode;
             }
 
             $options[] = [
                 'value' => $code,
                 'label' => $labels[$code] ?? $code,
-                'dial' => (string) $countryCode,
+                'dial' => $dialCode,
             ];
         }
 
         usort($options, fn (array $a, array $b): int => strcmp($a['label'], $b['label']));
 
         return $options;
+    }
+
+    private static function fallbackDialCodeForNonIsoRegion(string $code): ?string
+    {
+        return match (strtoupper($code)) {
+            // Product-level grouping, not an ISO country code.
+            'EU' => '00',
+            default => null,
+        };
     }
 }
