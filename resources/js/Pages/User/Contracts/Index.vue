@@ -85,9 +85,19 @@ const selectedLead = ref(null);
 
 const endForm = useForm({
     reason: '',
+    reason_details: '',
     review_rating: 5,
     review_comment: '',
 });
+const closeReasonOptions = [
+    { value: 'scope_completed', label: 'Work completed successfully' },
+    { value: 'goals_not_met', label: 'Project goals were not met' },
+    { value: 'communication_issues', label: 'Communication issues' },
+    { value: 'budget_or_rate', label: 'Budget or rate mismatch' },
+    { value: 'timeline_delays', label: 'Timeline delays' },
+    { value: 'change_of_plans', label: 'Change of plans' },
+    { value: 'other', label: 'Other' },
+];
 
 const sendContract = (lead) => {
     router.patch(route('contracts.send', lead.uuid), {}, { preserveScroll: true });
@@ -111,7 +121,14 @@ const closeEndModal = () => {
 const submitEndContract = () => {
     if (!selectedLead.value) return;
 
-    endForm.patch(route('contracts.end', selectedLead.value.uuid), {
+    endForm.transform((data) => {
+        const reason = (data.reason || '').trim();
+        const details = (data.reason_details || '').trim();
+        return {
+            ...data,
+            reason: details ? `${reason}: ${details}` : reason,
+        };
+    }).patch(route('contracts.end', selectedLead.value.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             closeEndModal();
@@ -318,14 +335,31 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-slate-700">Optional ending note</label>
-                                <textarea
+                                <label class="block text-sm font-medium text-slate-700">Reason for ending contract</label>
+                                <select
                                     v-model="endForm.reason"
+                                    class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                                >
+                                    <option value="" disabled>Select a reason</option>
+                                    <option
+                                        v-for="option in closeReasonOptions"
+                                        :key="option.value"
+                                        :value="option.value"
+                                    >
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                                <p v-if="endForm.errors.reason" class="mt-1 text-sm text-rose-600">{{ endForm.errors.reason }}</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Optional details</label>
+                                <textarea
+                                    v-model="endForm.reason_details"
                                     rows="2"
                                     class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                                    placeholder="Why are you ending this contract?"
+                                    placeholder="Add more context (optional)"
                                 />
-                                <p v-if="endForm.errors.reason" class="mt-1 text-sm text-rose-600">{{ endForm.errors.reason }}</p>
                             </div>
                         </div>
 
@@ -340,7 +374,7 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
                             <button
                                 type="button"
                                 class="flex-1 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
-                                :disabled="endForm.processing"
+                                :disabled="endForm.processing || !endForm.reason"
                                 @click="submitEndContract"
                             >
                                 {{ endForm.processing ? 'Submitting...' : 'Close and submit review' }}

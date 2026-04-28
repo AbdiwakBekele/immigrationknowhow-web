@@ -133,6 +133,11 @@ class ServiceProvider extends Model
         return $this->hasMany(Review::class);
     }
 
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class);
+    }
+
     public function libraryItems(): HasMany
     {
         return $this->hasMany(LibraryItem::class, 'provider_id');

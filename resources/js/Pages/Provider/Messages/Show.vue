@@ -211,6 +211,11 @@ const getStatusColor = (status) => {
 const offerStage = computed(() => {
     const lead = props.conversation?.lead;
     if (!lead) return 'No offer yet';
+    const contract = lead.contract;
+    if (contract?.state === 'accepted' || contract?.state === 'in_progress') return 'Offer accepted - Contract active';
+    if (contract?.state === 'ended') return 'Contract ended';
+    if (contract?.state === 'withdrawn') return 'Offer withdrawn by user';
+    if (contract?.state === 'offered') return 'Offer sent by user';
     if (lead.contract_accepted_at) return 'Offer accepted - Contract active';
     if (lead.contract_sent_at) return 'Offer sent by user';
     return 'No offer sent yet';
@@ -219,11 +224,37 @@ const offerStage = computed(() => {
 const canAcceptOffer = computed(() => {
     const lead = props.conversation?.lead;
     if (!lead || !props.isProvider) return false;
+    const contract = lead.contract;
+    if (contract?.state) {
+        return contract.state === 'offered' && ['new', 'contacted'].includes(lead.status);
+    }
     return Boolean(lead.contract_sent_at) && !lead.contract_accepted_at && ['new', 'contacted'].includes(lead.status);
+});
+
+const formatUsd = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return `$${n.toFixed(2)} USD`;
+};
+
+const formatDateTime = (date) => {
+    if (!date) return '—';
+    return new Date(date).toLocaleString();
+};
+
+const isContractClosed = computed(() => {
+    const lead = props.conversation?.lead;
+    if (!lead) return false;
+    return lead.contract?.state === 'ended' || ['closed', 'declined'].includes(lead.status);
 });
 
 const acceptOffer = () => {
     const lead = props.conversation?.lead;
+    const contract = lead?.contract;
+    if (contract?.uuid) {
+        router.patch(route('provider.contracts.accept', contract.uuid), {}, { preserveScroll: true });
+        return;
+    }
     if (!lead?.uuid) return;
     router.patch(route('provider.leads.status', lead.uuid), { status: 'in_progress' }, { preserveScroll: true });
 };
@@ -460,6 +491,18 @@ const getAvatarInitial = (person) => {
                                 {{ conversation.lead.status }}
                             </span>
                         </div>
+                        <p
+                            v-if="conversation.lead?.contract?.offered_rate !== null && conversation.lead?.contract?.offered_rate !== undefined"
+                            class="mt-2 text-xs text-slate-700"
+                        >
+                            Offered rate: {{ formatUsd(conversation.lead.contract.offered_rate) }}
+                        </p>
+                        <p
+                            v-if="conversation.lead?.contract?.agreed_rate !== null && conversation.lead?.contract?.agreed_rate !== undefined"
+                            class="mt-1 text-xs text-emerald-700"
+                        >
+                            Accepted rate: {{ formatUsd(conversation.lead.contract.agreed_rate) }}
+                        </p>
                         <button
                             v-if="canAcceptOffer"
                             type="button"
@@ -471,6 +514,31 @@ const getAvatarInitial = (person) => {
                         <p v-else class="mt-2 text-xs text-slate-500">
                             Waiting for user offer before acceptance.
                         </p>
+                        <div
+                            v-if="isContractClosed"
+                            class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900"
+                        >
+                            <p class="text-sm font-semibold text-emerald-800">Contract Closed</p>
+                            <p class="mt-1">
+                                <span class="font-medium">Closed at:</span>
+                                {{ formatDateTime(conversation.lead?.contract?.ended_at || conversation.lead?.closed_at) }}
+                            </p>
+                            <p v-if="conversation.lead?.contract?.ended_reason" class="mt-1">
+                                <span class="font-medium">Reason:</span>
+                                {{ conversation.lead.contract.ended_reason }}
+                            </p>
+                            <p v-if="conversation.lead?.contract?.agreed_rate !== null && conversation.lead?.contract?.agreed_rate !== undefined" class="mt-1">
+                                <span class="font-medium">Final agreed rate:</span>
+                                {{ formatUsd(conversation.lead.contract.agreed_rate) }}
+                            </p>
+                            <p v-if="conversation.lead?.review?.rating" class="mt-1">
+                                <span class="font-medium">Client rating:</span>
+                                {{ conversation.lead.review.rating }}/5
+                            </p>
+                            <p v-if="conversation.lead?.review?.comment" class="mt-1 text-emerald-800/90">
+                                "{{ conversation.lead.review.comment }}"
+                            </p>
+                        </div>
                     </aside>
                 </div>
             </div>

@@ -457,58 +457,58 @@ onMounted(() => {
     <component :is="layoutComponent">
         <section class="bg-[#f8fafc] py-2">
             <div class="mx-2 flex w-auto flex-col gap-2 px-0 md:mx-3 md:flex-row">
-                <aside class="w-full rounded-2xl border border-[#dbe3ef] bg-white p-2.5 md:w-72 md:shrink-0">
-                    <h1 class="text-2xl font-extrabold text-[#111827]">Community Feed</h1>
+                <aside class="w-full rounded-3xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 p-3 shadow-sm md:w-72 md:shrink-0">
+                    <h1 class="text-[1.65rem] font-black tracking-tight text-slate-900">Community Feed</h1>
 
-                    <div class="mt-3 border-t border-[#eef2f7] pt-3">
+                    <div class="mt-3 border-t border-slate-200/80 pt-3">
                         <button
-                            class="mb-2 w-full rounded-lg px-2 py-1.5 text-left text-sm font-semibold transition-colors"
-                            :class="activeSection === 'feed' ? 'bg-[#e8f0ff] text-[#1d4ed8]' : 'text-[#111827] hover:bg-[#f3f6fb]'"
+                            class="mb-2 w-full rounded-xl px-2.5 py-2 text-left text-[15px] font-semibold transition-all duration-200"
+                            :class="activeSection === 'feed' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500/50' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'"
                             type="button"
                             @click="activeSection = 'feed'"
                         >
                             <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100">
-                                    <HomeIcon class="h-3.5 w-3.5 text-[#1d4ed8]" />
+                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100/90">
+                                    <HomeIcon class="h-3.5 w-3.5 text-blue-700" />
                                 </span>
                                 Feed
                             </span>
                         </button>
 
-                        <h2 class="mb-1 text-xs font-bold uppercase tracking-wide text-[#64748b]">Ask Community</h2>
+                        <h2 class="mb-1 text-[13px] font-bold uppercase tracking-[0.12em] text-slate-500">Ask Community</h2>
                         <button
-                            class="mb-1 ml-3 w-[calc(100%-12px)] rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors"
-                            :class="activeSection === 'ask-intro' ? 'bg-[#e8f0ff] text-[#1d4ed8]' : 'text-[#111827] hover:bg-[#f3f6fb]'"
+                            class="mb-1 ml-3 w-[calc(100%-12px)] rounded-xl px-2.5 py-2 text-left text-[15px] font-medium transition-all duration-200"
+                            :class="activeSection === 'ask-intro' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500/50' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'"
                             type="button"
                             @click="activeSection = 'ask-intro'"
                         >
                             <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100">
-                                    <ChatBubbleLeftRightIcon class="h-3.5 w-3.5 text-[#0284c7]" />
+                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-100/90">
+                                    <ChatBubbleLeftRightIcon class="h-3.5 w-3.5 text-sky-700" />
                                 </span>
                                 Intro
                             </span>
                         </button>
                         <button
-                            class="mb-2 ml-3 w-[calc(100%-12px)] rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors"
-                            :class="activeSection === 'ask-announcement' ? 'bg-[#e8f0ff] text-[#1d4ed8]' : 'text-[#111827] hover:bg-[#f3f6fb]'"
+                            class="mb-2 ml-3 w-[calc(100%-12px)] rounded-xl px-2.5 py-2 text-left text-[15px] font-medium transition-all duration-200"
+                            :class="activeSection === 'ask-announcement' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500/50' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'"
                             type="button"
                             @click="activeSection = 'ask-announcement'"
                         >
                             <span class="inline-flex items-center gap-2">
-                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100">
-                                    <MegaphoneIcon class="h-3.5 w-3.5 text-[#ea580c]" />
+                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100/90">
+                                    <MegaphoneIcon class="h-3.5 w-3.5 text-orange-700" />
                                 </span>
                                 Announcement
                             </span>
                         </button>
 
-                        <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-[#64748b]">Immigrant Resources</h2>
+                        <h2 class="mb-2 text-[13px] font-bold uppercase tracking-[0.12em] text-slate-500">Immigrant Resources</h2>
                         <button
                             v-for="section in sections"
                             :key="section"
-                            class="mb-1 ml-3 w-[calc(100%-12px)] rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors"
-                            :class="activeSection === section ? 'bg-[#e8f0ff] text-[#1d4ed8]' : 'text-[#111827] hover:bg-[#f3f6fb]'"
+                            class="mb-1 ml-3 w-[calc(100%-12px)] rounded-xl px-2.5 py-2 text-left text-[15px] font-medium transition-all duration-200"
+                            :class="activeSection === section ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500/50' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'"
                             type="button"
                             @click="activeSection = section"
                         >
@@ -532,10 +532,10 @@ onMounted(() => {
                             </span>
                         </button>
 
-                        <h2 class="mb-1.5 mt-3 text-xs font-bold uppercase tracking-wide text-[#64748b]">Immigration News</h2>
+                        <h2 class="mb-1.5 mt-3 text-[13px] font-bold uppercase tracking-[0.12em] text-slate-500">Immigration News</h2>
                         <button
-                            class="ml-3 w-[calc(100%-12px)] rounded-lg px-2 py-1.5 text-left text-sm font-medium transition-colors"
-                            :class="activeSection === 'immigration-news' ? 'bg-[#e8f0ff] text-[#1d4ed8]' : 'text-[#111827] hover:bg-[#f3f6fb]'"
+                            class="ml-3 w-[calc(100%-12px)] rounded-xl px-2.5 py-2 text-left text-[15px] font-medium transition-all duration-200"
+                            :class="activeSection === 'immigration-news' ? 'bg-blue-600 text-white shadow-sm ring-1 ring-blue-500/50' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'"
                             type="button"
                             @click="() => { activeSection = 'immigration-news'; if (!newsItems.length && !newsLoading) fetchNews(country); }"
                         >
@@ -553,11 +553,11 @@ onMounted(() => {
                     <div class="mx-auto grid max-w-[1180px] gap-2 xl:grid-cols-[minmax(0,760px)_300px]">
                         <div class="rounded-2xl border border-[#dbe3ef] bg-white p-2 md:p-2.5">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <h2 class="text-xl font-bold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
+                                <h2 class="text-2xl font-bold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
                                 <input
                                     v-model="search"
                                     :placeholder="`Search in ${sectionLabels[activeSection]}...`"
-                                    class="h-10 w-full rounded-full border border-[#cdd9ea] px-3 text-sm outline-none focus:border-[#3b82f6] sm:w-80"
+                                    class="h-10 w-full rounded-full border border-[#cdd9ea] px-3 text-[15px] outline-none focus:border-[#3b82f6] sm:w-80"
                                 >
                             </div>
 
@@ -608,34 +608,35 @@ onMounted(() => {
                                 </p>
                                 <p v-if="postsError" class="text-sm text-[#b91c1c]">{{ postsError }}</p>
 
-                                <article v-for="post in filteredPosts" :key="post.id" class="rounded-xl border border-[#dde5f1] p-2.5">
+                                    <article v-for="post in filteredPosts" :key="post.id" class="rounded-2xl border border-slate-200 p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition-shadow hover:shadow-md">
                                     <Link :href="communityPostPath(post.id)" class="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2">
                                         <div v-if="post.image_url" class="relative mb-2 h-40 overflow-hidden rounded-lg bg-[#e5e7eb]">
                                             <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
                                         </div>
                                         <div class="mb-1.5 inline-block rounded-full bg-[#eef2ff] px-2 py-1 text-xs font-semibold text-[#3730a3]">{{ post.tag }}</div>
-                                        <h3 class="text-lg font-bold text-[#111827] group-hover:underline">{{ post.title }}</h3>
-                                        <p class="mt-1.5 line-clamp-3 text-sm text-[#4b5563]">{{ post.description }}</p>
+                                        <h3 class="text-xl font-bold text-[#111827] group-hover:underline">{{ post.title }}</h3>
+                                        <p class="mt-1.5 line-clamp-3 text-[15px] text-[#4b5563]">{{ post.description }}</p>
                                     </Link>
 
                                     <div class="mt-3 flex flex-wrap items-center gap-2">
-                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition" :class="engagement[post.id]?.liked ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-[#d7e0ee] bg-white text-[#334155] hover:bg-[#f8fafc]'" @click="onToggleLike(post.id)">
+                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm transition-all duration-200" :class="engagement[post.id]?.liked ? 'border-rose-200 bg-rose-50 text-rose-700 ring-1 ring-rose-200/70' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'" @click="onToggleLike(post.id)">
                                             <HeartIcon class="h-4 w-4" />
+                                            <span>Like</span>
                                             <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px] tabular-nums">{{ getActionCount(post, 'likes') }}</span>
                                         </button>
-                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border border-[#d7e0ee] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] transition hover:bg-[#f8fafc]" @click="onComment(post)">
+                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50" @click="onComment(post)">
                                             <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
                                             Comment
                                             <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ getActionCount(post, 'comments') }}</span>
                                         </button>
-                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border border-[#d7e0ee] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] transition hover:bg-[#f8fafc]" @click="onShare(post)">
+                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50" @click="onShare(post)">
                                             <ShareIcon class="h-4 w-4" />
                                             Share
                                             <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ getActionCount(post, 'shares') }}</span>
                                         </button>
-                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition" :class="engagement[post.id]?.bookmarked ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-[#d7e0ee] bg-white text-[#334155] hover:bg-[#f8fafc]'" @click="onToggleBookmark(post.id)">
+                                        <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm transition-all duration-200" :class="engagement[post.id]?.bookmarked ? 'border-blue-200 bg-blue-50 text-blue-700 ring-1 ring-blue-200/70' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'" @click="onToggleBookmark(post.id)">
                                             <BookmarkIcon class="h-4 w-4" />
-                                            Bookmark
+                                            Save
                                             <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[11px]">{{ getActionCount(post, 'bookmarks') }}</span>
                                         </button>
                                     </div>

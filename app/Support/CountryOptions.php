@@ -42,10 +42,11 @@ class CountryOptions
     public static function labels(): array
     {
         return [
-            'US' => 'United States',
+            'US' => 'U.S.A',
             'CA' => 'Canada',
             'EU' => 'Europe',
-            'GB' => 'Great Britain',
+            'GB' => 'U.K.',
+            'OTHER' => 'Other',
         ];
     }
 }

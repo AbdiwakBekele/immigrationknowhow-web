@@ -83,7 +83,9 @@ class MessageController extends Controller
         $conversation->load([
             'user:id,first_name,last_name,avatar',
             'serviceProvider.user:id,first_name,last_name,avatar',
-            'lead:id,uuid,service_type,status,message,urgency,created_at,contract_sent_at,contract_accepted_at',
+            'lead:id,uuid,service_type,status,message,urgency,created_at,closed_at,contract_sent_at,contract_accepted_at,contract_offered_rate,contract_agreed_rate,contract_id',
+            'lead.contract:id,uuid,lead_id,state,pricing_model,currency,offered_rate,agreed_rate,offered_at,accepted_at,withdrawn_at,ended_at,ended_reason,version',
+            'lead.review:id,lead_id,rating,comment,created_at',
             'messages' => fn ($q) => $q->with('sender:id,first_name,last_name,avatar')->orderBy('created_at', 'asc'),
         ]);
 

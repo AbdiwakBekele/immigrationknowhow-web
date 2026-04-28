@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,6 +55,32 @@ class CommunityController extends Controller
 
     public function posts(Request $request): JsonResponse
     {
+        if (! Schema::hasTable('community_posts')) {
+            Log::warning('community.posts.table_missing', [
+                'table' => 'community_posts',
+                'path' => $request->path(),
+                'query' => $request->query(),
+            ]);
+
+            return response()->json([
+                'posts' => [
+                    'current_page' => 1,
+                    'data' => [],
+                    'first_page_url' => $request->url().'?page=1',
+                    'from' => null,
+                    'last_page' => 1,
+                    'last_page_url' => $request->url().'?page=1',
+                    'links' => [],
+                    'next_page_url' => null,
+                    'path' => $request->url(),
+                    'per_page' => 20,
+                    'prev_page_url' => null,
+                    'to' => null,
+                    'total' => 0,
+                ],
+            ]);
+        }
+
         Log::info('community.posts.request', [
             'path' => $request->path(),
             'query' => $request->query(),
@@ -62,8 +89,11 @@ class CommunityController extends Controller
         ]);
 
         try {
-            $requestedCategory = $request->filled('category') ? $request->string('category')->toString() : 'feed';
-            $requestedSearch = $request->filled('search') ? $request->string('search')->toString() : '';
+            $requestedCategory = $request->filled('category') ? trim($request->string('category')->toString()) : 'feed';
+            if ($requestedCategory === '') {
+                $requestedCategory = 'feed';
+            }
+            $requestedSearch = $request->filled('search') ? trim($request->string('search')->toString()) : '';
             $publishedBaseCount = CommunityPost::query()->published()->count();
             Log::info('community.posts.diagnostics.start', [
                 'published_count' => $publishedBaseCount,
@@ -73,12 +103,12 @@ class CommunityController extends Controller
 
             $query = CommunityPost::query()->published()->latest();
 
-            if ($request->filled('category') && $request->string('category') !== 'feed') {
-                $query->where('category', $request->string('category'));
+            if ($requestedCategory !== 'feed') {
+                $query->where('category', $requestedCategory);
             }
 
-            if ($request->filled('search')) {
-                $term = '%'.$request->string('search').'%';
+            if ($requestedSearch !== '') {
+                $term = '%'.$requestedSearch.'%';
                 $query->where(function ($inner) use ($term): void {
                     $inner->where('title', 'like', $term)
                         ->orWhere('description', 'like', $term)
@@ -105,7 +135,7 @@ class CommunityController extends Controller
             }
 
             $reactionMap = [];
-            if ($dedupeKey && $items->isNotEmpty()) {
+            if ($dedupeKey && $items->isNotEmpty() && $this->canQueryReactionDedupe()) {
                 $reactionMap = CommunityPostReaction::query()
                     ->where('dedupe_key', $dedupeKey)
                     ->whereIn('community_post_id', $items->pluck('id'))
@@ -560,5 +590,11 @@ class CommunityController extends Controller
         }
 
         return '';
+    }
+
+    private function canQueryReactionDedupe(): bool
+    {
+        return Schema::hasTable('community_post_reactions')
+            && Schema::hasColumn('community_post_reactions', 'dedupe_key');
     }
 }
