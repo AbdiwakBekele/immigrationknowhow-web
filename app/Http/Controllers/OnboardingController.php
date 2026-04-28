@@ -123,7 +123,9 @@ class OnboardingController extends Controller
                 ])
             : collect();
 
-        $component = $isAdvertiser ? 'Onboarding/Advertiser' : 'Onboarding/Index';
+        $component = $isAdvertiser
+            ? 'Onboarding/Advertiser'
+            : ($isProvider ? 'Onboarding/Provider' : 'Onboarding/ServiceNeeder');
 
         return Inertia::render($component, [
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'address', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
