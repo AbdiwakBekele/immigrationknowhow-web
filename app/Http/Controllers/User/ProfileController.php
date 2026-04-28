@@ -23,6 +23,8 @@ use Illuminate\Support\Str;
 
 class ProfileController extends Controller
 {
+    private const SERVICE_LOCATION_OPTIONS = ['usa', 'uk', 'europe', 'canada', 'other'];
+
     public function edit(): Response
     {
         $user = auth()->user();
@@ -48,8 +50,7 @@ class ProfileController extends Controller
                 [
                     'avatar_url' => $user->avatar_url,
                     'languages_spoken' => $user->languages ?? [],
-                    'immigration_status' => data_get($profileData, 'immigration_status'),
-                    'country_of_origin' => data_get($profileData, 'country_of_origin'),
+                    'service_location' => data_get($profileData, 'service_location') ?? data_get($profileData, 'country_of_origin'),
                     'has_children' => (bool) data_get($profileData, 'has_children', false),
                     'children_ages' => data_get($profileData, 'children_ages', []),
                     'has_pets' => (bool) data_get($profileData, 'has_pets', false),
@@ -93,8 +94,7 @@ class ProfileController extends Controller
             'preferred_language' => ['nullable', 'string', 'max:50'],
             'languages_spoken' => ['nullable', 'array'],
             'languages_spoken.*' => ['string', 'max:50'],
-            'immigration_status' => ['nullable', 'string', 'max:100'],
-            'country_of_origin' => ['nullable', 'string', 'max:100'],
+            'service_location' => ['nullable', 'string', Rule::in(self::SERVICE_LOCATION_OPTIONS)],
             'has_children' => ['boolean'],
             'children_ages' => ['nullable', 'array', 'max:12'],
             'children_ages.*' => ['nullable', 'integer', 'min:0', 'max:25'],
@@ -109,8 +109,9 @@ class ProfileController extends Controller
         ]);
 
         $onboardingData = $user->onboarding_data ?? [];
-        data_set($onboardingData, 'profile.immigration_status', $validated['immigration_status'] ?? null);
-        data_set($onboardingData, 'profile.country_of_origin', $validated['country_of_origin'] ?? null);
+        data_set($onboardingData, 'profile.service_location', $validated['service_location'] ?? null);
+        data_set($onboardingData, 'profile.country_of_origin', null);
+        data_set($onboardingData, 'profile.immigration_status', null);
         data_set($onboardingData, 'profile.has_children', (bool) ($validated['has_children'] ?? false));
         data_set($onboardingData, 'profile.children_ages', $this->cleanChildAges($validated['children_ages'] ?? []));
         data_set($onboardingData, 'profile.has_pets', (bool) ($validated['has_pets'] ?? false));
@@ -482,7 +483,7 @@ class ProfileController extends Controller
             filled($user->city) || filled($user->state) || filled($user->country),
             ! empty($user->languages),
             filled($user->avatar),
-            filled(data_get($profileData, 'country_of_origin')) || filled(data_get($profileData, 'immigration_status')),
+            filled(data_get($profileData, 'service_location')) || filled(data_get($profileData, 'country_of_origin')),
             ! empty(data_get($profileData, 'social_links', [])),
             ! empty(data_get($profileData, 'hobbies', [])),
             (bool) data_get($profileData, 'has_children', false) || (bool) data_get($profileData, 'has_pets', false),

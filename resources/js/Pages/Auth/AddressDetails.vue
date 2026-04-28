@@ -11,6 +11,15 @@ import { ArrowLeftIcon } from '@heroicons/vue/20/solid';
 import { parsePlaceToAddressFields } from '@/utils/googlePlaceAddress';
 import { SIGNUP_FLOW_STEPS_PROVIDER, SIGNUP_FLOW_STEPS_USER, SIGNUP_STEP } from '@/constants/authFlowProgress';
 
+const providerServiceLocationOptions = [
+    { value: 'usa', label: 'USA' },
+    { value: 'uk', label: 'UK' },
+    { value: 'europe', label: 'Europe' },
+    { value: 'canada', label: 'Canada' },
+    { value: 'other', label: 'Other' },
+];
+const serviceLocationWithStates = ['usa', 'canada', 'uk'];
+
 const props = defineProps({
     isProvider: { type: Boolean, default: false },
     address: { type: String, default: '' },
@@ -54,8 +63,8 @@ const phoneForm = useForm({
     county: props.county,
     location_label: props.location_label,
     preferred_language: props.preferred_language,
-    coverage_country: props.coverageArea?.country || props.country || 'US',
-    coverage_state: props.coverageArea?.state || props.state || '',
+    coverage_country: props.coverageArea?.country || 'usa',
+    coverage_state: props.coverageArea?.state || '',
     coverage_postal_code: props.coverageArea?.postal_code || '',
     service_area: {
         remote: props.serviceArea?.remote ?? false,
@@ -64,9 +73,6 @@ const phoneForm = useForm({
         areas: props.serviceArea?.areas ?? [],
     },
 });
-
-const coverageCityHold = ref('');
-const coveragePostalHold = ref('');
 
 const autocompleteStatus = ref('');
 let autocompleteDebounce = null;
@@ -177,7 +183,7 @@ const goBack = () => {
             <div v-if="isProvider" class="space-y-5">
                 <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Coverage area</p>
                 <p class="text-sm text-neutral-600">
-                    Select the country and state or region where you offer services. You will enter your full business address in a later step.
+                    Select your service location where you offer services. You will enter your full business address in a later step.
                 </p>
 
                 <label class="mt-1 flex cursor-pointer items-center gap-2">
@@ -189,27 +195,43 @@ const goBack = () => {
                     <span class="text-sm text-neutral-700">I serve the client in their location</span>
                 </label>
 
-                <LocationCountryStatePick
-                    v-model:country="phoneForm.coverage_country"
-                    v-model:state="phoneForm.coverage_state"
-                    v-model:city="coverageCityHold"
-                    v-model:postal-code="coveragePostalHold"
-                    v-model:county="phoneForm.county"
-                    v-model:location-label="phoneForm.location_label"
-                    country-state-only
-                    :country-options="countryOptions"
-                    :initial-state-options="stateOptions"
+                <Select
+                    v-model="phoneForm.coverage_country"
+                    :options="providerServiceLocationOptions"
+                    label="Service Location"
+                    placeholder="Select service location"
+                    size="auth"
+                    required
                 />
 
-                <Input
-                    v-model="phoneForm.coverage_postal_code"
-                    label="ZIP / postal code"
-                    placeholder="e.g. 48226"
-                    size="compact"
-                    :required="phoneForm.coverage_country === 'US'"
-                />
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Select
+                        v-if="serviceLocationWithStates.includes(phoneForm.coverage_country) && stateOptions.length > 0"
+                        v-model="phoneForm.coverage_state"
+                        :options="stateOptions"
+                        label="State"
+                        placeholder="Select state"
+                        size="auth"
+                        required
+                    />
+                    <Input
+                        v-else
+                        v-model="phoneForm.coverage_state"
+                        label="State / region"
+                        placeholder="Enter state or region"
+                        size="compact"
+                        required
+                    />
+
+                    <Input
+                        v-model="phoneForm.coverage_postal_code"
+                        label="City / ZIP code"
+                        placeholder="Enter city or ZIP code"
+                        size="compact"
+                        :required="phoneForm.coverage_country === 'usa'"
+                    />
+                </div>
                 <p v-if="phoneForm.errors.coverage_postal_code" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_postal_code }}</p>
-
                 <p v-if="phoneForm.errors.coverage_country" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_country }}</p>
                 <p v-if="phoneForm.errors.coverage_state" class="text-sm font-medium text-red-600">{{ phoneForm.errors.coverage_state }}</p>
 

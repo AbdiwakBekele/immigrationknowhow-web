@@ -23,7 +23,7 @@ class UserProfileCompletion
             filled($user->city) || filled($user->state) || filled($user->country),
             ! empty($user->languages),
             filled($user->avatar),
-            filled(data_get($profileData, 'country_of_origin')),
+            filled(data_get($profileData, 'service_location')) || filled(data_get($profileData, 'country_of_origin')),
             ! empty(data_get($profileData, 'social_links', [])),
             ! empty(data_get($profileData, 'hobbies', [])),
             (bool) data_get($profileData, 'has_children', false) || (bool) data_get($profileData, 'has_pets', false),

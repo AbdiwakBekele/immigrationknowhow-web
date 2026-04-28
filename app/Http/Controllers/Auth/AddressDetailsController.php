@@ -21,6 +21,15 @@ use Inertia\Response;
 
 class AddressDetailsController extends Controller
 {
+    private const PROVIDER_SERVICE_LOCATIONS = ['usa', 'uk', 'europe', 'canada', 'other'];
+    private const PROVIDER_SERVICE_LOCATION_COUNTRY_CODES = [
+        'usa' => 'US',
+        'canada' => 'CA',
+        'uk' => 'GB',
+        'europe' => null,
+        'other' => null,
+    ];
+
     public function __construct(
         protected PhoneVerificationService $phoneVerification
     ) {}
@@ -34,12 +43,16 @@ class AddressDetailsController extends Controller
             'ip' => $request->ip(),
         ]);
 
-        if ($user->hasCompletedSignupPhoneStep()) {
-            return $this->redirectToNextStep($user);
+        if (! $user->followsProviderOnboarding()) {
+            if ($user->hasCompletedSignupPhoneStep()) {
+                return $this->redirectToNextStep($user);
+            }
+
+            return redirect()->route('onboarding.index', ['step' => 2]);
         }
 
-        if (! $user->followsProviderOnboarding()) {
-            return redirect()->route('onboarding.index', ['step' => 2]);
+        if ($user->hasCompletedSignupAddressStep() && $user->hasCompletedSignupPhoneStep()) {
+            return $this->redirectToNextStep($user);
         }
 
         if (! $user->isAdmin() && ! $user->isAffiliate() && $user->hasCompletedSignupAddressStep()) {
@@ -48,7 +61,11 @@ class AddressDetailsController extends Controller
 
         $onboardingLocation = $user->onboarding_data['location'] ?? [];
         $coverageArea = $user->onboarding_data['coverage_area'] ?? [];
-        $coverageCountry = $coverageArea['country'] ?? $user->country ?? 'US';
+        $coverageCountry = strtolower((string) ($coverageArea['country'] ?? 'usa'));
+        if (! in_array($coverageCountry, self::PROVIDER_SERVICE_LOCATIONS, true)) {
+            $coverageCountry = 'usa';
+        }
+        $providerStateCountryCode = self::PROVIDER_SERVICE_LOCATION_COUNTRY_CODES[$coverageCountry] ?? null;
         $isProvider = $user->followsProviderOnboarding();
         $serviceAreaDefaults = [
             'remote' => false,
@@ -70,7 +87,9 @@ class AddressDetailsController extends Controller
             'location_label' => $onboardingLocation['label'] ?? '',
             'preferred_language' => $user->preferred_language ?? 'en',
             'countryOptions' => CountryOptions::selectOptions(),
-            'stateOptions' => UsStateOptions::selectOptions($isProvider ? $coverageCountry : ($user->country ?? 'US')),
+            'stateOptions' => UsStateOptions::selectOptions(
+                $isProvider ? ($providerStateCountryCode ?? 'US') : ($user->country ?? 'US')
+            ),
             'coverageArea' => [
                 'country' => $coverageCountry,
                 'state' => $coverageArea['state'] ?? $user->state ?? '',
@@ -214,6 +233,8 @@ class AddressDetailsController extends Controller
     public function sendOtp(Request $request): RedirectResponse
     {
         $user = $request->user();
+        $isProviderFlow = $user->followsProviderOnboarding();
+        $isProviderCoverageSubmission = $isProviderFlow && $request->filled('coverage_country');
 
         Log::channel('single')->info('AddressDetails sendOtp request received.', [
             'user_id' => $user?->id,
@@ -234,7 +255,7 @@ class AddressDetailsController extends Controller
             'has_phone' => filled($request->input('phone')),
         ]);
 
-        if ($user->hasCompletedSignupPhoneStep()) {
+        if ($user->hasCompletedSignupPhoneStep() && ! $isProviderCoverageSubmission) {
             Log::channel('single')->info('AddressDetails sendOtp skipped because phone is already verified.', [
                 'user_id' => $user->id,
             ]);
@@ -242,7 +263,7 @@ class AddressDetailsController extends Controller
             return $this->redirectToNextStep($user);
         }
 
-        if ($user->followsProviderOnboarding()) {
+        if ($isProviderFlow) {
             $isCoverageStep = $request->filled('coverage_country');
 
             if (! $isCoverageStep) {
@@ -251,15 +272,15 @@ class AddressDetailsController extends Controller
                 ]);
 
                 $coverage = $user->onboarding_data['coverage_area'] ?? [];
-                if (empty($coverage['country']) || $coverage['state'] === null || $coverage['state'] === '') {
+                if (empty($coverage['country']) || empty($coverage['state'])) {
                     return redirect()
                         ->route('address-detail')
                         ->withErrors(['phone' => 'Please complete coverage area before adding your phone number.']);
                 }
-                if (strtoupper((string) ($coverage['country'] ?? '')) === 'US' && ! filled($coverage['postal_code'] ?? null)) {
+                if (($coverage['country'] ?? null) === 'usa' && ! filled($coverage['postal_code'] ?? null)) {
                     return redirect()
                         ->route('address-detail')
-                        ->withErrors(['phone' => 'Please add a ZIP code for your coverage area (United States).']);
+                        ->withErrors(['phone' => 'Please add a city or ZIP code for your coverage area (USA).']);
                 }
 
                 $this->phoneVerification->sendOtp($user, $validated['phone']);
@@ -273,13 +294,13 @@ class AddressDetailsController extends Controller
             }
 
             $validated = $request->validate([
-                'coverage_country' => ['required', 'string', Rule::in(CountryOptions::codes())],
+                'coverage_country' => ['required', 'string', Rule::in(self::PROVIDER_SERVICE_LOCATIONS)],
                 'coverage_state' => ['required', 'string', 'max:120'],
                 'coverage_postal_code' => [
                     'nullable',
                     'string',
                     'max:32',
-                    Rule::requiredIf(fn () => strtoupper((string) $request->input('coverage_country')) === 'US'),
+                    Rule::requiredIf(fn () => $request->input('coverage_country') === 'usa'),
                 ],
                 'service_area' => ['sometimes', 'array'],
                 'service_area.remote' => ['sometimes', 'boolean'],
@@ -326,14 +347,17 @@ class AddressDetailsController extends Controller
                 'service_area' => $onboardingData['service-area'],
             ]);
 
+            $nextProviderStep = $user->hasCompletedSignupPhoneStep() ? 4 : 3;
             Log::channel('single')->info('FLOW_DEBUG step transition', [
                 'from_step' => 2,
-                'to_step' => 3,
-                'reason' => 'provider_coverage_saved_redirect_to_phone_verification',
+                'to_step' => $nextProviderStep,
+                'reason' => $nextProviderStep === 4
+                    ? 'provider_coverage_saved_phone_already_verified_redirect_to_step_4'
+                    : 'provider_coverage_saved_redirect_to_phone_verification',
                 'user_id' => $user->id,
             ]);
 
-            return redirect()->route('onboarding.index', ['step' => 3]);
+            return redirect()->route('onboarding.index', ['step' => $nextProviderStep]);
         }
 
         $validated = $request->validate([
