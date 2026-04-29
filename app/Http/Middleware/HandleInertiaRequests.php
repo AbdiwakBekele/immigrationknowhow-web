@@ -71,6 +71,7 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'branding' => fn () => PlatformSetting::branding(),
+            'dvLottery' => fn () => PlatformSetting::current()->dvLotteryContent(),
             'unread_notifications_count' => function () use ($request) {
                 if (! $request->user()) {
                     return 0;

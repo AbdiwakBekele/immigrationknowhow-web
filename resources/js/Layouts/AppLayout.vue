@@ -25,6 +25,7 @@ import {
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+const dvLottery = computed(() => page.props.dvLottery ?? {});
 /** Live override so the sidebar badge can update without a full navigation (same count as server share). */
 const liveUnreadOverride = ref(null);
 
@@ -78,12 +79,13 @@ const navigation = computed(() => [
     { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
     { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
-    {
-        name: 'DV Lottery',
-        href: 'https://dvprogram.state.gov/',
-        icon: BookOpenIcon,
-        external: true,
-    },
+    ...(dvLottery.value.show_in_menu
+        ? [{
+            name: 'DV Lottery',
+            href: route('user.dv-lottery.index'),
+            icon: BookOpenIcon,
+        }]
+        : []),
 ]);
 
 const userNavigation = computed(() => [

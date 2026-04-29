@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 
 class PlatformSetting extends Model
@@ -29,6 +30,9 @@ class PlatformSetting extends Model
         'dv_lottery_official_url',
         'dv_lottery_cta_label',
         'dv_lottery_warning_text',
+        'dv_lottery_open_from',
+        'dv_lottery_open_to',
+        'dv_lottery_show_in_menu_after_close',
     ];
 
     protected $appends = [
@@ -43,6 +47,9 @@ class PlatformSetting extends Model
             'reviews_auto_approve' => 'boolean',
             'email_notifications' => 'boolean',
             'new_provider_alerts' => 'boolean',
+            'dv_lottery_open_from' => 'date',
+            'dv_lottery_open_to' => 'date',
+            'dv_lottery_show_in_menu_after_close' => 'boolean',
         ];
     }
 
@@ -67,6 +74,9 @@ class PlatformSetting extends Model
             'dv_lottery_official_url' => 'https://dvprogram.state.gov/',
             'dv_lottery_cta_label' => 'Open Official DV Lottery Website',
             'dv_lottery_warning_text' => 'Never use unofficial third-party links for DV submissions. Use only the official government website.',
+            'dv_lottery_open_from' => null,
+            'dv_lottery_open_to' => null,
+            'dv_lottery_show_in_menu_after_close' => true,
         ];
     }
 
@@ -140,14 +150,43 @@ class PlatformSetting extends Model
     public function dvLotteryContent(): array
     {
         $defaults = static::defaults();
+        $today = Carbon::today();
+        $openFrom = $this->dv_lottery_open_from;
+        $openTo = $this->dv_lottery_open_to;
+        $hasValidDateRange = $openFrom && $openTo && $openFrom->lessThanOrEqualTo($openTo);
+        $isOpen = $hasValidDateRange
+            && $today->greaterThanOrEqualTo($openFrom)
+            && $today->lessThanOrEqualTo($openTo);
+        $isClosed = $hasValidDateRange && $today->greaterThan($openTo);
+        $daysUntilClose = $hasValidDateRange ? $today->diffInDays($openTo, false) : null;
+        $isClosingSoon = $hasValidDateRange
+            && $isOpen
+            && $daysUntilClose !== null
+            && $daysUntilClose >= 0
+            && $daysUntilClose <= 7;
+        $showAfterClose = $this->dv_lottery_show_in_menu_after_close;
+        if ($showAfterClose === null) {
+            $showAfterClose = true;
+        }
+        $showInMenu = $isOpen || ($isClosed && (bool) $showAfterClose);
 
         return [
             'title' => $this->dv_lottery_page_title ?: $defaults['dv_lottery_page_title'],
-            'subtitle' => $this->dv_lottery_page_subtitle ?: $defaults['dv_lottery_page_subtitle'],
+            'short_description' => $this->dv_lottery_page_subtitle ?: $defaults['dv_lottery_page_subtitle'],
             'description' => $this->dv_lottery_description ?: $defaults['dv_lottery_description'],
             'official_url' => $this->dv_lottery_official_url ?: $defaults['dv_lottery_official_url'],
             'cta_label' => $this->dv_lottery_cta_label ?: $defaults['dv_lottery_cta_label'],
             'warning_text' => $this->dv_lottery_warning_text ?: $defaults['dv_lottery_warning_text'],
+            'open_from' => optional($openFrom)->toDateString(),
+            'open_to' => optional($openTo)->toDateString(),
+            'show_in_menu_after_close' => (bool) $showAfterClose,
+            'is_open' => $isOpen,
+            'is_closed' => $isClosed,
+            'is_closing_soon' => $isClosingSoon,
+            'show_in_menu' => $showInMenu,
+            'status_message' => $isClosed
+                ? 'The DV Lottery is now closed'
+                : ($isClosingSoon ? 'Hurry up! DV Lottery sign-up will be closed soon' : null),
         ];
     }
 

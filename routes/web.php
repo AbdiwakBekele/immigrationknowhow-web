@@ -428,6 +428,8 @@ Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
         Route::get('/dashboard', Admin\DashboardController::class)->name('dashboard');
         Route::get('/dv-lottery', [DvLotteryController::class, 'adminIndex'])->name('dv-lottery.index');
         Route::patch('/dv-lottery', [DvLotteryController::class, 'update'])->name('dv-lottery.update');
+        Route::post('/dv-lottery/close-now', [DvLotteryController::class, 'closeNow'])->name('dv-lottery.close-now');
+        Route::delete('/dv-lottery', [DvLotteryController::class, 'destroy'])->name('dv-lottery.destroy');
         Route::get('/notifications', [Admin\NotificationController::class, 'index'])->name('notifications.index');
         Route::get('/email-logs', [Admin\EmailLogController::class, 'index'])->name('email-logs.index');
         Route::post('/notifications/read-all', [Admin\NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');

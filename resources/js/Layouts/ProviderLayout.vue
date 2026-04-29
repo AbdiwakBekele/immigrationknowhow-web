@@ -23,6 +23,7 @@ import {
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+const dvLottery = computed(() => page.props.dvLottery ?? {});
 
 const providerLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
@@ -59,7 +60,7 @@ const unreadMessagesLabel = computed(() => {
     return String(n);
 });
 
-const navigation = [
+const navigation = computed(() => [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
     { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
@@ -68,13 +69,19 @@ const navigation = [
     { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
     { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
     { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
-    { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
+    ...(dvLottery.value.show_in_menu
+        ? [{
+            name: 'DV Lottery',
+            href: '/provider/dv-lottery',
+            icon: BookOpenIcon,
+        }]
+        : []),
     { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
     { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
     { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
     { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
     { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
-];
+]);
 
 const logout = () => {
     router.post('/logout');
@@ -345,6 +352,7 @@ onUnmounted(() => {
                             <BookOpenIcon class="h-5 w-5" />
                         </Link>
                         <Link
+                            v-if="dvLottery.show_in_menu"
                             href="/provider/dv-lottery"
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >

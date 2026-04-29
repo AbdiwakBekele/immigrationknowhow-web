@@ -20,7 +20,7 @@ defineProps({
                     </p>
                         <h1 class="mt-2 admin-title">{{ content.title || 'DV Lottery' }}</h1>
                         <p class="admin-subtitle">
-                            {{ content.subtitle || 'Official Diversity Visa information for users and families.' }}
+                            {{ content.short_description || 'Official Diversity Visa information for providers and their clients.' }}
                         </p>
                     </div>
                 </div>
@@ -30,6 +30,12 @@ defineProps({
                 <h2 class="text-lg font-semibold text-slate-900">Official Website</h2>
                 <p class="mt-2 text-sm text-slate-600">
                     {{ content.description || 'Always submit applications through the official U.S. Department of State portal.' }}
+                </p>
+                <p class="mt-2 text-sm font-medium text-slate-700">
+                    DV entry period:
+                    <span class="font-semibold">{{ content.open_from || 'Not set' }}</span>
+                    -
+                    <span class="font-semibold">{{ content.open_to || 'Not set' }}</span>
                 </p>
 
                 <div class="mt-5 flex flex-wrap items-center gap-3">
@@ -45,8 +51,17 @@ defineProps({
                 </div>
             </section>
 
-            <section class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                {{ content.warning_text || 'Never use unofficial third-party links for DV submissions. This page links only to the official government URL.' }}
+            <section
+                :class="[
+                    'rounded-xl p-4 text-sm',
+                    content.is_closed
+                        ? 'border border-rose-200 bg-rose-50 text-rose-900'
+                        : content.is_closing_soon
+                            ? 'border border-amber-200 bg-amber-50 text-amber-900'
+                            : 'border border-slate-200 bg-slate-50 text-slate-700',
+                ]"
+            >
+                {{ content.status_message || 'DV Lottery is currently open.' }}
             </section>
         </div>
     </AppLayout>

@@ -16,14 +16,22 @@ import {
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const sidebarOpen = ref(false);
+const dvLottery = computed(() => page.props.dvLottery ?? {});
 
-const navigation = [
+const navigation = computed(() => [
     { name: 'Dashboard', href: '/affiliate/dashboard', icon: HomeIcon },
-    { name: 'DV Lottery', href: 'https://dvprogram.state.gov/', icon: LinkIcon, external: true },
+    ...(dvLottery.value.show_in_menu
+        ? [{
+            name: 'DV Lottery',
+            href: dvLottery.value.official_url || 'https://dvprogram.state.gov/',
+            icon: LinkIcon,
+            external: true,
+        }]
+        : []),
     { name: 'Earnings', href: '/affiliate/earnings', icon: ChartBarIcon },
     { name: 'Payouts', href: '/affiliate/payouts', icon: BanknotesIcon },
     { name: 'Profile', href: '/affiliate/profile', icon: UserCircleIcon },
-];
+]);
 
 const isActive = (href) => page.url.startsWith(href);
 const logout = () => router.post('/logout');

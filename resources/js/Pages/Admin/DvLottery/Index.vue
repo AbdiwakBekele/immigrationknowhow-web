@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
@@ -12,17 +12,31 @@ const flashSuccess = computed(() => page.props.flash?.success);
 
 const form = useForm({
     title: props.content.title ?? '',
-    subtitle: props.content.subtitle ?? '',
-    description: props.content.description ?? '',
+    short_description: props.content.short_description ?? '',
     official_url: props.content.official_url ?? '',
-    cta_label: props.content.cta_label ?? '',
-    warning_text: props.content.warning_text ?? '',
+    open_from: props.content.open_from ?? '',
+    open_to: props.content.open_to ?? '',
+    show_in_menu_after_close: Boolean(props.content.show_in_menu_after_close),
 });
 
 const save = () => {
     form.patch(route('admin.dv-lottery.update'), {
         preserveScroll: true,
     });
+};
+
+const closeNow = () => {
+    if (!window.confirm('Mark DV Lottery as closed now?')) {
+        return;
+    }
+    router.post(route('admin.dv-lottery.close-now'), {}, { preserveScroll: true });
+};
+
+const clearDvLottery = () => {
+    if (!window.confirm('Delete/clear DV Lottery setup? This will hide it from menus until reconfigured.')) {
+        return;
+    }
+    router.delete(route('admin.dv-lottery.destroy'), { preserveScroll: true });
 };
 </script>
 
@@ -54,9 +68,9 @@ const save = () => {
 
             <form class="space-y-4" @submit.prevent="save">
                 <section class="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-slate-900">DV Lottery content</h2>
+                    <h2 class="text-lg font-semibold text-slate-900">DV Lottery settings</h2>
                     <p class="mt-2 text-sm text-slate-600">
-                        These values are shown on Admin, User, and Provider DV Lottery pages.
+                        Configure title, short description, official URL, and strict open/close date window.
                     </p>
 
                     <div class="mt-5 grid gap-4">
@@ -67,35 +81,37 @@ const save = () => {
                         </div>
 
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Page subtitle</label>
-                            <input v-model="form.subtitle" type="text" class="input w-full" maxlength="255" />
-                            <p v-if="form.errors.subtitle" class="mt-1 text-xs text-rose-600">{{ form.errors.subtitle }}</p>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Short description</label>
+                            <input v-model="form.short_description" type="text" class="input w-full" maxlength="255" />
+                            <p v-if="form.errors.short_description" class="mt-1 text-xs text-rose-600">{{ form.errors.short_description }}</p>
                         </div>
 
                         <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Description</label>
-                            <textarea v-model="form.description" rows="3" class="input w-full"></textarea>
-                            <p v-if="form.errors.description" class="mt-1 text-xs text-rose-600">{{ form.errors.description }}</p>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Official URL</label>
+                            <input v-model="form.official_url" type="url" class="input w-full" maxlength="255" />
+                            <p v-if="form.errors.official_url" class="mt-1 text-xs text-rose-600">{{ form.errors.official_url }}</p>
                         </div>
 
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Official URL</label>
-                                <input v-model="form.official_url" type="url" class="input w-full" maxlength="255" />
-                                <p v-if="form.errors.official_url" class="mt-1 text-xs text-rose-600">{{ form.errors.official_url }}</p>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Open from</label>
+                                <input v-model="form.open_from" type="date" class="input w-full" />
+                                <p v-if="form.errors.open_from" class="mt-1 text-xs text-rose-600">{{ form.errors.open_from }}</p>
                             </div>
                             <div>
-                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Button label</label>
-                                <input v-model="form.cta_label" type="text" class="input w-full" maxlength="120" />
-                                <p v-if="form.errors.cta_label" class="mt-1 text-xs text-rose-600">{{ form.errors.cta_label }}</p>
+                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Open to</label>
+                                <input v-model="form.open_to" type="date" class="input w-full" />
+                                <p v-if="form.errors.open_to" class="mt-1 text-xs text-rose-600">{{ form.errors.open_to }}</p>
                             </div>
                         </div>
 
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Warning text</label>
-                            <textarea v-model="form.warning_text" rows="3" class="input w-full"></textarea>
-                            <p v-if="form.errors.warning_text" class="mt-1 text-xs text-rose-600">{{ form.errors.warning_text }}</p>
-                        </div>
+                        <label class="flex items-start gap-3 rounded-lg border border-slate-200 p-3">
+                            <input v-model="form.show_in_menu_after_close" type="checkbox" class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                            <span class="text-sm text-slate-700">
+                                Keep DV Lottery in menu after close. If unchecked, it disappears from menu once `Open to` passes.
+                            </span>
+                        </label>
+
                     </div>
                 </section>
 
@@ -106,6 +122,20 @@ const save = () => {
                         :disabled="form.processing"
                     >
                         {{ form.processing ? 'Saving...' : 'Save DV Lottery Content' }}
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                        @click="closeNow"
+                    >
+                        Close DV Lottery Now
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-xl border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-900 transition hover:bg-rose-100"
+                        @click="clearDvLottery"
+                    >
+                        Delete / Clear DV Lottery
                     </button>
                 </div>
             </form>
@@ -122,12 +152,8 @@ const save = () => {
                         <dd class="text-sm text-slate-900">{{ props.content.title }}</dd>
                     </div>
                     <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Subtitle</dt>
-                        <dd class="text-sm text-slate-900">{{ props.content.subtitle }}</dd>
-                    </div>
-                    <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Description</dt>
-                        <dd class="text-sm text-slate-900">{{ props.content.description }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Short description</dt>
+                        <dd class="text-sm text-slate-900">{{ props.content.short_description }}</dd>
                     </div>
                     <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
                         <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Official URL</dt>
@@ -138,12 +164,20 @@ const save = () => {
                         </dd>
                     </div>
                     <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Button Label</dt>
-                        <dd class="text-sm text-slate-900">{{ props.content.cta_label }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Open from</dt>
+                        <dd class="text-sm text-slate-900">{{ props.content.open_from }}</dd>
                     </div>
                     <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Warning</dt>
-                        <dd class="text-sm text-slate-900">{{ props.content.warning_text }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Open to</dt>
+                        <dd class="text-sm text-slate-900">{{ props.content.open_to }}</dd>
+                    </div>
+                    <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Keep in menu after close</dt>
+                        <dd class="text-sm text-slate-900">{{ props.content.show_in_menu_after_close ? 'Yes' : 'No' }}</dd>
+                    </div>
+                    <div class="grid gap-2 px-4 py-3 md:grid-cols-[180px_1fr]">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Current status</dt>
+                        <dd class="text-sm text-slate-900">{{ props.content.status_message || 'Open window active or not yet in closing week.' }}</dd>
                     </div>
                 </dl>
 
