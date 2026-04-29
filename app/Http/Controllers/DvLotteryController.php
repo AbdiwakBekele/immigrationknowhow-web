@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PlatformSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,24 +36,47 @@ class DvLotteryController extends Controller
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:120'],
-            'subtitle' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string', 'max:1000'],
+            'short_description' => ['required', 'string', 'max:255'],
             'official_url' => ['required', 'url', 'max:255'],
-            'cta_label' => ['required', 'string', 'max:120'],
-            'warning_text' => ['required', 'string', 'max:1000'],
+            'open_from' => ['required', 'date'],
+            'open_to' => ['required', 'date', 'after_or_equal:open_from'],
+            'show_in_menu_after_close' => ['nullable', 'boolean'],
         ]);
 
         $settings = PlatformSetting::current();
         $settings->update([
             'dv_lottery_page_title' => $validated['title'],
-            'dv_lottery_page_subtitle' => $validated['subtitle'],
-            'dv_lottery_description' => $validated['description'],
+            'dv_lottery_page_subtitle' => $validated['short_description'],
             'dv_lottery_official_url' => $validated['official_url'],
-            'dv_lottery_cta_label' => $validated['cta_label'],
-            'dv_lottery_warning_text' => $validated['warning_text'],
+            'dv_lottery_open_from' => $validated['open_from'],
+            'dv_lottery_open_to' => $validated['open_to'],
+            'dv_lottery_show_in_menu_after_close' => (bool) ($validated['show_in_menu_after_close'] ?? false),
         ]);
 
         return back()->with('success', 'DV Lottery content updated successfully.');
+    }
+
+    public function closeNow(): RedirectResponse
+    {
+        PlatformSetting::current()->update([
+            'dv_lottery_open_to' => Carbon::today()->subDay()->toDateString(),
+        ]);
+
+        return back()->with('success', 'DV Lottery has been marked as closed.');
+    }
+
+    public function destroy(): RedirectResponse
+    {
+        PlatformSetting::current()->update([
+            'dv_lottery_page_title' => null,
+            'dv_lottery_page_subtitle' => null,
+            'dv_lottery_official_url' => null,
+            'dv_lottery_open_from' => null,
+            'dv_lottery_open_to' => null,
+            'dv_lottery_show_in_menu_after_close' => false,
+        ]);
+
+        return back()->with('success', 'DV Lottery settings were cleared.');
     }
 
     private function content(): array

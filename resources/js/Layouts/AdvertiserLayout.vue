@@ -16,9 +16,17 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const sidebarOpen = ref(false);
 const adPortal = computed(() => page.props.adPortal || {});
+const dvLottery = computed(() => page.props.dvLottery ?? {});
 const navigation = computed(() => [
     { name: 'Dashboard', href: adPortal.value.dashboardHref || '/advertiser/dashboard', icon: HomeIcon },
-    { name: 'DV Lottery', href: 'https://dvprogram.state.gov/', icon: LinkIcon, external: true },
+    ...(dvLottery.value.show_in_menu
+        ? [{
+            name: 'DV Lottery',
+            href: dvLottery.value.official_url || 'https://dvprogram.state.gov/',
+            icon: LinkIcon,
+            external: true,
+        }]
+        : []),
     { name: 'My Ads', href: adPortal.value.adsHref || '/advertiser/ads', icon: MegaphoneIcon },
     { name: 'Ad Analytics', href: adPortal.value.analyticsHref || '/advertiser/analytics', icon: ChartBarIcon },
 ]);
