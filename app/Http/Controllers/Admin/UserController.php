@@ -85,7 +85,9 @@ class UserController extends Controller
         }
 
         $allowedSorts = ['created_at', 'first_name', 'email', 'last_login_at'];
+        $sortAliases = ['last_login' => 'last_login_at'];
         $sortBy = $request->get('sort', 'created_at');
+        $sortBy = $sortAliases[$sortBy] ?? $sortBy;
         $sortDir = $request->get('dir', 'desc');
 
         if (! in_array($sortBy, $allowedSorts, true)) {
