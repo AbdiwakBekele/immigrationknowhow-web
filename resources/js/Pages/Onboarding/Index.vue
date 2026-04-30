@@ -33,12 +33,7 @@ const props = defineProps({
 const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
 const MAX_USER_SERVICE_SELECTIONS = 8;
 
-const resolveStep = (value, fallback) => {
-    const parsed = Number.parseInt(String(value ?? ''), 10);
-    return Number.isFinite(parsed) ? parsed : fallback;
-};
-
-const currentStep = ref(resolveStep(props.initialStep, props.requiresPhoneVerification ? 3 : (props.isProvider ? 4 : 2)));
+const currentStep = ref(props.initialStep ?? (props.requiresPhoneVerification ? 3 : 4));
 
 const pageTitle = computed(() => (
     props.requiresPhoneVerification && currentStep.value === 3
@@ -571,15 +566,6 @@ function onProviderAddressLineInput() {
         void runProviderAddressAutocomplete();
     }, 300);
 }
-
-watch(
-    () => [props.initialStep, props.requiresPhoneVerification, props.isProvider],
-    ([initialStep, requiresPhoneVerification, isProvider]) => {
-        const fallbackStep = requiresPhoneVerification ? 3 : (isProvider ? 4 : 2);
-        currentStep.value = resolveStep(initialStep, fallbackStep);
-    },
-    { immediate: true },
-);
 
 watch(
     currentStep,
