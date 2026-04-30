@@ -18,11 +18,13 @@ use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\Contracts\ContractController as ContractsContractController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
+use App\Http\Controllers\PublicLibraryApiController;
 use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\User;
 use App\Http\Controllers\User\AiAssistantController;
 use App\Http\Controllers\VideoProductController;
+use App\Http\Middleware\PublicApiRequestLogger;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
 use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
 use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
@@ -77,6 +79,9 @@ Route::get('/api/community/posts/{communityPost}/comments', [CommunityController
 Route::post('/api/community/posts/{communityPost}/comments', [CommunityController::class, 'addComment'])
     ->name('community.posts.comments.store');
 Route::get('/api/community/news', [CommunityController::class, 'news'])->name('community.news');
+Route::get('/api/public/library-items', [PublicLibraryApiController::class, 'index'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.library-items');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
