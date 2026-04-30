@@ -43,7 +43,22 @@ const search = ref(props.filters.search || '');
 const roleFilter = ref(props.filters.role || '');
 const statusFilter = ref(props.filters.status || '');
 const backgroundCheckFilter = ref(props.filters.background_check || '');
-const sort = ref(props.filters.sort || 'created_at');
+const sortOptions = [
+    { value: 'created_at', label: 'Newest' },
+    { value: 'first_name', label: 'First name' },
+    { value: 'email', label: 'Email' },
+    { value: 'last_login_at', label: 'Last login' },
+];
+const sortAliases = {
+    last_login: 'last_login_at',
+};
+const normalizeSort = (value) => {
+    const canonicalValue = sortAliases[value] || value;
+    return sortOptions.some((option) => option.value === canonicalValue)
+        ? canonicalValue
+        : 'created_at';
+};
+const sort = ref(normalizeSort(props.filters.sort));
 const dir = ref(props.filters.dir || 'desc');
 const isEditMode = ref(false);
 const avatarPreviewUrl = ref(null);
@@ -127,7 +142,7 @@ const applyFilters = () => {
             role: roleFilter.value || undefined,
             status: statusFilter.value || undefined,
             background_check: backgroundCheckFilter.value || undefined,
-            sort: sort.value || undefined,
+                            sort: normalizeSort(sort.value) || undefined,
             dir: dir.value || undefined,
             view: props.filters.view || undefined,
         },
@@ -586,10 +601,13 @@ const impersonateUser = (row) => {
                         v-model="sort"
                         class="admin-select !w-auto min-w-[160px]"
                     >
-                        <option value="created_at">Newest</option>
-                        <option value="first_name">First name</option>
-                        <option value="email">Email</option>
-                        <option value="last_login_at">Last login</option>
+                        <option
+                            v-for="option in sortOptions"
+                            :key="option.value"
+                            :value="option.value"
+                        >
+                            {{ option.label }}
+                        </option>
                     </select>
 
                     <select
@@ -1350,11 +1368,12 @@ const impersonateUser = (row) => {
                             v-if="!isEditMode && canImpersonateSelected"
                             type="button"
                             variant="secondary"
-                            class="!border-blue-200 !bg-white !text-blue-800 hover:!bg-blue-50"
+                            class="!h-10 !w-10 !border-blue-200 !bg-white !p-0 !text-blue-800 hover:!bg-blue-50"
+                            title="View site as this user"
+                            aria-label="View site as this user"
                             @click="impersonateSelectedUser"
                         >
-                            <ArrowRightOnRectangleIcon class="h-4 w-4" />
-                            View as this user
+                            <ArrowsRightLeftIcon class="h-4 w-4" />
                         </Button>
 
                         <Button

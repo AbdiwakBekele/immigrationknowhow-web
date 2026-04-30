@@ -370,18 +370,27 @@ const userAvatarInitial = computed(() => {
         </aside>
 
         <div class="lg:pl-64">
-            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
-                <div class="flex h-16 items-center justify-between px-4 sm:px-6">
-                    <button
-                        type="button"
-                        class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
-                        aria-label="Open menu"
-                        @click="sidebarOpen = true"
-                    >
-                        <Bars3Icon class="h-6 w-6" />
-                    </button>
+            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+                <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center gap-3">
+                        <button
+                            type="button"
+                            class="rounded-2xl p-2.5 text-slate-500 hover:bg-slate-100 lg:hidden"
+                            aria-label="Open menu"
+                            @click="sidebarOpen = true"
+                        >
+                            <Bars3Icon class="h-6 w-6" />
+                        </button>
 
-                    <div class="flex-1 lg:flex-none"></div>
+                        <div class="hidden sm:block">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                User portal
+                            </p>
+                            <h1 class="text-lg font-semibold text-slate-900">
+                                Welcome back
+                            </h1>
+                        </div>
+                    </div>
 
                     <div class="flex items-center gap-2 sm:gap-3">
                         <Link
@@ -422,9 +431,18 @@ const userAvatarInitial = computed(() => {
                         </Link>
                         <Link
                             href="/"
-                            class="hidden items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100 sm:inline-flex"
+                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                            title="View Site"
+                            aria-label="View Site"
                         >
-                            View Site
+                            <HomeIcon class="h-6 w-6" />
+                        </Link>
+                        <Link
+                            v-if="dvLottery.show_in_menu"
+                            :href="route('user.dv-lottery.index')"
+                            class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
+                        >
+                            DV Lottery
                         </Link>
                         <button
                             type="button"
