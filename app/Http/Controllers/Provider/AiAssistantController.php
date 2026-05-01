@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\User;
+namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\AiAssistantSubscription;
@@ -48,7 +48,7 @@ class AiAssistantController extends Controller
                 ->first()
             : null;
 
-        return Inertia::render('User/AiAssistant/Index', [
+        return Inertia::render('Provider/AiAssistant/Index', [
             'subscription' => $subscription,
             'isAddonActive' => $subscription?->isActive() ?? false,
             'monthlyPrice' => '4.99',
@@ -62,7 +62,6 @@ class AiAssistantController extends Controller
             return back()->with('error', 'AI add-on is not ready yet. Please run database migrations.');
         }
 
-        // Use STRIPE_SECRET strictly for AI add-on checkout.
         $stripeSecret = trim((string) env('STRIPE_SECRET', ''));
         if ($stripeSecret === '') {
             return back()->with('error', 'STRIPE_SECRET is not configured.');
@@ -79,7 +78,7 @@ class AiAssistantController extends Controller
                     'currency' => 'usd',
                     'product_data' => [
                         'name' => 'AI Assistant Add-on',
-                        'description' => 'ChatGPT assistant access for service seekers',
+                        'description' => 'Monthly AI assistant access from your provider dashboard',
                     ],
                     'unit_amount' => 499,
                     'recurring' => [
@@ -97,12 +96,13 @@ class AiAssistantController extends Controller
                 'mode' => 'subscription',
                 'customer_email' => $user->email,
                 'client_reference_id' => (string) $user->id,
-                'success_url' => route('user.ai-assistant.index', [], true).'?checkout=success&session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('user.ai-assistant.index', [], true).'?checkout=cancelled',
+                'success_url' => route('provider.ai-assistant.index', [], true).'?checkout=success&session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('provider.ai-assistant.index', [], true).'?checkout=cancelled',
                 'line_items' => [$lineItem],
                 'metadata' => [
                     'app' => 'ai_assistant',
                     'user_id' => (string) $user->id,
+                    'context' => 'provider',
                     'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
                 ],
                 'subscription_data' => [
@@ -134,6 +134,7 @@ class AiAssistantController extends Controller
                     'checkout_session' => $session->toArray(),
                     'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
                     'source' => 'checkout_created',
+                    'context' => 'provider',
                 ]),
             ]
         );
@@ -161,7 +162,7 @@ class AiAssistantController extends Controller
             return back()->with('error', 'Please subscribe to the AI add-on first.');
         }
 
-        $result = $assistant->ask($user, $validated['question']);
+        $result = $assistant->ask($user, $validated['question'], 'provider');
         if ($result['error']) {
             return back()->with('error', $result['error']);
         }

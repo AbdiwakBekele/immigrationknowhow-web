@@ -160,25 +160,37 @@ class LibraryController extends Controller
             ->values();
     }
 
-    public function cart(): Response
+    public function cartPayload(): array
     {
         $items = $this->syncAndResolveCartItems();
         $currency = strtoupper((string) ($items->first()?->currency ?? 'USD'));
         $total = round($items->reduce(static fn (float $carry, LibraryItem $item): float => $carry + (float) ($item->price ?? 0), 0.0), 2);
 
-        $stripeConfigured = $this->stripeIsConfigured();
-        $manualAvailable = $this->manualPaymentsEnabled();
-
-        return Inertia::render('Library/Cart', [
+        return [
             'items' => $items->values(),
             'total' => $total,
             'currency' => $currency,
-            'stripeConfigured' => $stripeConfigured,
-            'manualPaymentsAvailable' => $manualAvailable,
-        ]);
+            'stripeConfigured' => $this->stripeIsConfigured(),
+            'manualPaymentsAvailable' => $this->manualPaymentsEnabled(),
+        ];
     }
 
-    public function addToCart(LibraryItem $item): RedirectResponse
+    /** Cart index route after add-to-cart, checkout errors/cancel — provider portal sends cart_portal=provider. */
+    protected function resolvedCartRouteName(?Request $request = null): string
+    {
+        $request ??= request();
+
+        return $request->input('cart_portal') === 'provider'
+            ? 'provider.library.cart'
+            : 'library.cart';
+    }
+
+    public function cart(): Response
+    {
+        return Inertia::render('Library/Cart', $this->cartPayload());
+    }
+
+    public function addToCart(Request $request, LibraryItem $item): RedirectResponse
     {
         abort_unless($item->is_active, 404);
 
@@ -202,7 +214,7 @@ class LibraryController extends Controller
         $ids = $this->getLibraryCartIds();
         if (in_array($item->id, $ids, true)) {
             return redirect()
-                ->route('library.cart')
+                ->route($this->resolvedCartRouteName($request))
                 ->with('info', 'This title is already in your cart.');
         }
 
@@ -219,7 +231,7 @@ class LibraryController extends Controller
         $this->setLibraryCartIds($ids);
 
         return redirect()
-            ->route('library.cart')
+            ->route($this->resolvedCartRouteName($request))
             ->with('success', 'Added to your cart.');
     }
 
@@ -234,13 +246,14 @@ class LibraryController extends Controller
         return back()->with('success', 'Removed from cart.');
     }
 
-    public function checkoutCart(): RedirectResponse|Response|SymfonyResponse
+    public function checkoutCart(Request $request): RedirectResponse|Response|SymfonyResponse
     {
+        $cartRouteName = $this->resolvedCartRouteName($request);
         $items = $this->syncAndResolveCartItems();
 
         if ($items->isEmpty()) {
             return redirect()
-                ->route('library.cart')
+                ->route($cartRouteName)
                 ->with('error', 'Your cart is empty or the titles are no longer available.');
         }
 
@@ -250,7 +263,7 @@ class LibraryController extends Controller
             }
 
             return redirect()
-                ->route('library.cart')
+                ->route($cartRouteName)
                 ->with('error', config('app.debug')
                     ? 'Stripe checkout is not configured. Add STRIPE_KEY and STRIPE_SECRET, then run php artisan config:clear.'
                     : 'Online checkout is not available right now. Please try again later or contact support.');
@@ -263,7 +276,7 @@ class LibraryController extends Controller
             $unitAmount = (int) round((float) $item->price * 100);
             if ($currency === 'usd' && $unitAmount < 50) {
                 return redirect()
-                    ->route('library.cart')
+                    ->route($cartRouteName)
                     ->with('error', 'One or more prices are below the minimum for card payments. Please contact support.');
             }
 
@@ -291,7 +304,7 @@ class LibraryController extends Controller
         ));
         if ($currency === 'usd' && $totalCents < 50) {
             return redirect()
-                ->route('library.cart')
+                ->route($cartRouteName)
                 ->with('error', 'The order total is below the minimum for card payments. Please contact support.');
         }
 
@@ -306,7 +319,7 @@ class LibraryController extends Controller
                 'customer_email' => auth()->user()->email,
                 'client_reference_id' => (string) auth()->id(),
                 'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('library.cart', [], true),
+                'cancel_url' => route($cartRouteName, [], true),
                 'metadata' => [
                     'app' => 'library',
                     'library_item_ids' => $itemIdsString,
@@ -326,7 +339,7 @@ class LibraryController extends Controller
             ]);
 
             return redirect()
-                ->route('library.cart')
+                ->route($cartRouteName)
                 ->with('error', config('app.debug')
                     ? 'Payment could not start: '.$e->getMessage()
                     : 'Payment could not start. Please try again or contact support.');
@@ -335,7 +348,7 @@ class LibraryController extends Controller
         $checkoutUrl = $session->url;
         if (! is_string($checkoutUrl) || trim($checkoutUrl) === '') {
             return redirect()
-                ->route('library.cart')
+                ->route($cartRouteName)
                 ->with('error', 'Could not start checkout. Please try again.');
         }
 

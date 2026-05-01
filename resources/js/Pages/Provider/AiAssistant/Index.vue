@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 
 const props = defineProps({
@@ -20,14 +20,14 @@ const form = useForm({
 });
 
 const submitQuestion = () => {
-    form.post(route('user.ai-assistant.ask'), {
+    form.post(route('provider.ai-assistant.ask'), {
         preserveScroll: true,
         onSuccess: () => form.reset(),
     });
 };
 
 const checkout = () => {
-    useForm({}).post(route('user.ai-assistant.checkout'));
+    useForm({}).post(route('provider.ai-assistant.checkout'));
 };
 
 const statusLabel = computed(() => {
@@ -39,13 +39,14 @@ const statusLabel = computed(() => {
 <template>
     <Head title="AI Assistant" />
 
-    <AppLayout>
-        <div class="mx-auto max-w-5xl space-y-6">
+    <ProviderLayout>
+        <div class="mx-auto max-w-5xl space-y-6 pb-10">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h1 class="text-2xl font-semibold text-slate-900">AI Assistant</h1>
                 <p class="mt-2 text-sm text-slate-600">
-                    Ask questions about public resources like EBT, DMV, and other immigration support topics.
-                    The assistant can suggest providers and library books on the site that match your topic.
+                    Ask about public programs, USCIS-style processes at a general level, client education angles, peers on the
+                    marketplace, and library books you can reference. Same add-on subscription as members; billing is per
+                    your account email.
                 </p>
                 <div class="mt-4 flex flex-wrap items-center gap-3">
                     <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -74,10 +75,12 @@ const statusLabel = computed(() => {
                     v-model="form.question"
                     rows="5"
                     class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 outline-none focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
-                    placeholder="Example: How do I get an EBT card in Texas? Also find Spanish-speaking providers near Houston."
+                    placeholder="Example: Summarize EBT eligibility basics my clients often confuse. Any library books on SNAP for newcomers?"
                 />
-                <div class="mt-3 flex items-center justify-between">
-                    <p class="text-xs text-slate-500">General guidance only; always verify with official sources.</p>
+                <div class="mt-3 flex items-center justify-between gap-4">
+                    <p class="text-xs text-slate-500">
+                        General information only—not legal advice. Verify with official sources before relying on guidance.
+                    </p>
                     <Button :disabled="form.processing || !form.question.trim() || !isAddonActive" @click="submitQuestion">
                         {{ form.processing ? 'Asking...' : 'Ask AI' }}
                     </Button>
@@ -93,7 +96,7 @@ const statusLabel = computed(() => {
                         <div>
                             <h2 class="text-base font-semibold tracking-tight text-slate-900">Recommended</h2>
                             <p class="mt-0.5 text-[11px] leading-snug text-slate-500">
-                                Library titles picked for your question.
+                                Library titles matched to your question.
                             </p>
                         </div>
                     </div>
@@ -154,13 +157,15 @@ const statusLabel = computed(() => {
                         </a>
                     </div>
                     <p v-else class="mt-3 text-sm text-slate-600">
-                        No library titles were matched to this question. Try naming a topic covered in the catalog, or
-                        browse the library.
+                        No library titles were matched to this question. Try naming a topic from the catalog, or browse the
+                        library.
                     </p>
                 </div>
 
                 <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h2 class="text-lg font-semibold text-slate-900">Provider matches</h2>
+                    <p class="mt-1 text-xs text-slate-500">
+                        Marketplace providers that fit the inferred request (discovery / referrals).</p>
                     <div v-if="lastResponse.providers?.length" class="mt-3 grid gap-3 md:grid-cols-2">
                         <a
                             v-for="provider in lastResponse.providers"
@@ -181,5 +186,5 @@ const statusLabel = computed(() => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </ProviderLayout>
 </template>
