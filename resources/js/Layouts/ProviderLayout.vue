@@ -16,9 +16,11 @@ import {
     Bars3Icon,
     BellIcon,
     BookOpenIcon,
+    SparklesIcon,
     MegaphoneIcon,
     ArrowRightOnRectangleIcon,
     XMarkIcon,
+    ShoppingCartIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -60,6 +62,14 @@ const unreadMessagesLabel = computed(() => {
     return String(n);
 });
 
+const libraryCartCount = computed(() => Number(page.props.library_cart_count ?? 0) || 0);
+const libraryCartBadge = computed(() => {
+    const n = libraryCartCount.value;
+    if (n < 1) return '';
+    if (n > 99) return '99+';
+    return String(n);
+});
+
 const navigation = computed(() => [
     { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
     { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
@@ -68,6 +78,7 @@ const navigation = computed(() => [
     { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
     { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
     { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
+    { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
     { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
     ...(dvLottery.value.show_in_menu
         ? [{
@@ -346,10 +357,24 @@ onUnmounted(() => {
                             <HomeIcon class="h-5 w-5" />
                         </Link>
                         <Link
+                            :href="route('provider.library.cart')"
+                            class="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
+                            title="Library cart"
+                            aria-label="Library cart"
+                        >
+                            <ShoppingCartIcon class="h-5 w-5" />
+                            <span
+                                v-if="libraryCartCount > 0"
+                                class="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white tabular-nums"
+                            >
+                                {{ libraryCartBadge }}
+                            </span>
+                        </Link>
+                        <Link
                             href="/library"
                             class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
-                            title="Library"
-                            aria-label="Library"
+                            title="Member library storefront"
+                            aria-label="Member library storefront"
                         >
                             <BookOpenIcon class="h-5 w-5" />
                         </Link>

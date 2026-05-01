@@ -326,6 +326,9 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
     ->group(function () {
 
         Route::get('/dashboard', [Provider\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/ai-assistant', [Provider\AiAssistantController::class, 'index'])->name('ai-assistant.index');
+        Route::post('/ai-assistant/checkout', [Provider\AiAssistantController::class, 'checkout'])->name('ai-assistant.checkout');
+        Route::post('/ai-assistant/ask', [Provider\AiAssistantController::class, 'ask'])->name('ai-assistant.ask');
         Route::get('/dv-lottery', [DvLotteryController::class, 'providerIndex'])->name('dv-lottery.index');
         Route::get('/subscriptions', [Provider\SubscriptionController::class, 'index'])->name('subscriptions.index');
         Route::post('/subscriptions/checkout/{plan:uuid}', [Provider\SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
@@ -378,6 +381,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
 
         // Provider library (separate from service-seeker /library/my page)
         Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
+        Route::get('/library/cart', [Provider\LibraryController::class, 'cart'])->name('library.cart');
 
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility

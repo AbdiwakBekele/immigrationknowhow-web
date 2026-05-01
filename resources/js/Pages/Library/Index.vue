@@ -459,7 +459,7 @@ const actionHref = (item) => {
                     v-if="visibleItems.length"
                     :class="[
                         viewMode === 'grid'
-                            ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'
+                            ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                             : 'grid gap-4',
                     ]"
                 >
@@ -468,14 +468,14 @@ const actionHref = (item) => {
                         :key="item.uuid"
                         :class="[
                             'group overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
-                            viewMode === 'list' ? 'grid gap-4 p-4 sm:grid-cols-[12rem_1fr]' : '',
+                            viewMode === 'list' ? 'grid gap-4 p-4 sm:grid-cols-[10rem_1fr]' : '',
                         ]"
                     >
                         <Link
                             :href="item.has_access ? readUrl(item) : showUrl(item)"
                             :class="[
                                 'relative block overflow-hidden bg-neutral-100',
-                                viewMode === 'list' ? 'h-44 rounded-lg sm:h-full' : 'h-44',
+                                viewMode === 'list' ? 'h-40 rounded-lg sm:h-full sm:min-h-[10rem]' : 'h-40',
                             ]"
                         >
                             <img

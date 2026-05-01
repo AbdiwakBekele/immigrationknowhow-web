@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\LibraryController as SiteLibraryController;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use Illuminate\Http\Request;
@@ -11,6 +12,11 @@ use Inertia\Response;
 
 class LibraryController extends Controller
 {
+    public function cart(SiteLibraryController $library): Response
+    {
+        return Inertia::render('Provider/Library/Cart', $library->cartPayload());
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -22,6 +28,7 @@ class LibraryController extends Controller
             })
             ->with([
                 'libraryAuthor',
+                'category',
                 'userAccess' => function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 },
