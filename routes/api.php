@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Mobile\MobileVideoStreamController;
 use App\Http\Controllers\Api\Mobile\OnboardingController;
 use App\Http\Controllers\Api\Mobile\ProviderDashboardController;
 use App\Http\Controllers\Api\Mobile\ProviderLeadsController;
+use App\Http\Controllers\Api\Mobile\ProviderBackgroundChecksController;
+use App\Http\Controllers\Api\Mobile\ProviderAnalyticsController;
 use App\Http\Controllers\Api\Mobile\ProviderNotificationsController;
 use App\Http\Controllers\Api\Mobile\ProvidersController;
 use App\Http\Controllers\Api\Mobile\ProviderSubscriptionsController;
@@ -123,6 +125,11 @@ Route::prefix('mobile')->group(function () {
         Route::get('/notifications', [ProviderNotificationsController::class, 'index']);
         Route::post('/notifications/read-all', [ProviderNotificationsController::class, 'markAllAsRead']);
         Route::post('/notifications/{notification}/read', [ProviderNotificationsController::class, 'markAsRead']);
+        Route::get('/analytics', ProviderAnalyticsController::class);
+        Route::get('/background-checks', [ProviderBackgroundChecksController::class, 'index']);
+        Route::post('/background-checks', [ProviderBackgroundChecksController::class, 'store']);
+        Route::get('/background-checks/{backgroundCheck:uuid}', [ProviderBackgroundChecksController::class, 'show']);
+        Route::post('/background-checks/{backgroundCheck:uuid}/refresh', [ProviderBackgroundChecksController::class, 'refresh']);
     });
 
     Route::middleware('auth:sanctum')->prefix('messages')->group(function () {
