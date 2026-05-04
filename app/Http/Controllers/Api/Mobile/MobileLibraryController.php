@@ -187,7 +187,13 @@ class MobileLibraryController extends Controller
                         $access->where('user_id', $user->id)->whereNotNull('purchased_at');
                     });
                 })
-                ->with(['libraryAuthor', 'category'])
+                ->with([
+                    'libraryAuthor',
+                    'category',
+                    'userAccess' => function ($q) use ($user) {
+                        $q->where('user_id', $user->id);
+                    },
+                ])
                 ->orderByDesc('is_featured')
                 ->orderByDesc('created_at')
                 ->paginate($perPage, ['*'], 'page');
@@ -199,6 +205,7 @@ class MobileLibraryController extends Controller
                 })
                 ->with([
                     'libraryAuthor',
+                    'category',
                     'userAccess' => function ($q) use ($user) {
                         $q->where('user_id', $user->id);
                     },
@@ -212,6 +219,31 @@ class MobileLibraryController extends Controller
                 )
                 ->paginate($perPage, ['*'], 'page');
         }
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(function (LibraryItem $item) use ($user) {
+                $access = $item->relationLoaded('userAccess')
+                    ? $item->userAccess->first()
+                    : $item->userAccess()->where('user_id', $user->id)->first();
+
+                return [
+                    'id' => $item->id,
+                    'uuid' => $item->uuid,
+                    'title' => $item->title,
+                    'slug' => $item->slug,
+                    'type' => $item->type,
+                    'description' => $item->description ? mb_strimwidth(strip_tags((string) $item->description), 0, 280, '…') : null,
+                    'cover_image_url' => $item->cover_image_url,
+                    'is_premium' => (bool) $item->is_premium,
+                    'price' => $item->price !== null ? (float) $item->price : null,
+                    'currency' => $item->currency,
+                    'category' => $item->category ? ['name' => $item->category->name, 'slug' => $item->category->slug] : null,
+                    'author' => $item->author,
+                    'is_favorite' => (bool) ($access?->is_favorite),
+                    'has_access' => (bool) ($access?->purchased_at),
+                ];
+            })
+        );
 
         return response()->json([
             'success' => true,
