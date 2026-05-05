@@ -8,6 +8,7 @@ use App\Support\UsStateOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
@@ -21,8 +22,23 @@ class LocationLookupController extends Controller
 
         $country = strtoupper((string) ($validated['country'] ?? 'US'));
 
+        Log::channel('single')->info('LocationLookup states requested.', [
+            'country' => $country,
+            'ip' => $request->ip(),
+            'user_id' => $request->user()?->id,
+        ]);
+
+        $states = $this->stateOptions($country);
+
+        Log::channel('single')->info('LocationLookup states response.', [
+            'country' => $country,
+            'count' => count($states),
+            'ip' => $request->ip(),
+            'user_id' => $request->user()?->id,
+        ]);
+
         return response()->json([
-            'states' => $this->stateOptions($country),
+            'states' => $states,
         ]);
     }
 
@@ -35,7 +51,17 @@ class LocationLookupController extends Controller
         ]);
 
         $country = strtoupper((string) ($validated['country'] ?? 'US'));
+        $query = trim($validated['q']);
         if ($country !== 'US' || ! Schema::hasTable('uszips')) {
+            Log::channel('single')->info('LocationLookup search skipped (non-US or missing table).', [
+                'country' => $country,
+                'state_id' => strtoupper($validated['state_id']),
+                'q' => $query,
+                'has_table_uszips' => Schema::hasTable('uszips'),
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->id,
+            ]);
+
             return response()->json([
                 'results' => [],
             ]);
@@ -48,14 +74,32 @@ class LocationLookupController extends Controller
             : (in_array('county', $columns, true) ? 'county' : null);
 
         if (! in_array($stateColumn, $columns, true) || ! $countyColumn) {
+            Log::channel('single')->warning('LocationLookup search unavailable (schema mismatch).', [
+                'country' => $country,
+                'state_column' => $stateColumn,
+                'county_column' => $countyColumn,
+                'columns' => $columns,
+                'ip' => $request->ip(),
+                'user_id' => $request->user()?->id,
+            ]);
+
             return response()->json([
                 'results' => [],
             ]);
         }
 
-        $query = trim($validated['q']);
         $stateId = strtoupper($validated['state_id']);
         $results = collect();
+        $startedAt = microtime(true);
+
+        Log::channel('single')->info('LocationLookup search requested.', [
+            'country' => $country,
+            'state_id' => $stateId,
+            'q' => $query,
+            'q_is_numeric' => ctype_digit($query),
+            'ip' => $request->ip(),
+            'user_id' => $request->user()?->id,
+        ]);
 
         if (ctype_digit($query)) {
             $zipMatches = UsZip::query()
@@ -116,8 +160,33 @@ class LocationLookupController extends Controller
             $results = $results->merge($countyMatches)->merge($cityMatches);
         }
 
+        $finalResults = $results->unique('label')->values()->take(15)->all();
+        $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+        Log::channel('single')->info('LocationLookup search response.', [
+            'country' => $country,
+            'state_id' => $stateId,
+            'q' => $query,
+            'elapsed_ms' => $elapsedMs,
+            'count' => count($finalResults),
+            // keep this bounded; just enough to debug what user sees
+            'preview' => collect($finalResults)
+                ->take(5)
+                ->map(fn ($row) => [
+                    'type' => $row['type'] ?? null,
+                    'label' => $row['label'] ?? null,
+                    'zip' => $row['zip'] ?? null,
+                    'city' => $row['city'] ?? null,
+                    'county' => $row['county'] ?? null,
+                    'state_id' => $row['state_id'] ?? null,
+                ])
+                ->all(),
+            'ip' => $request->ip(),
+            'user_id' => $request->user()?->id,
+        ]);
+
         return response()->json([
-            'results' => $results->unique('label')->values()->take(15)->all(),
+            'results' => $finalResults,
         ]);
     }
 

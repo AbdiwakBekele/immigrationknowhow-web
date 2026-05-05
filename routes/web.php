@@ -17,6 +17,7 @@ use App\Http\Controllers\DvLotteryController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\Contracts\ContractController as ContractsContractController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\Onboarding\ProviderPhoneVerificationController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\PublicLibraryApiController;
 use App\Http\Controllers\PublicAdController;
@@ -157,12 +158,20 @@ Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->group(functio
 Route::middleware(['auth'])->group(function () {
     Route::get('/address-detail', [Auth\AddressDetailsController::class, 'show'])->name('address-detail');
     Route::get('/address-detail/autocomplete', [Auth\AddressDetailsController::class, 'autocomplete'])->name('address-detail.autocomplete');
+    Route::get('/address-detail/places', [Auth\AddressDetailsController::class, 'places'])->name('address-detail.places');
+    Route::get('/address-detail/place', [Auth\AddressDetailsController::class, 'place'])->name('address-detail.place');
     Route::post('/address-detail', [Auth\AddressDetailsController::class, 'sendOtp'])->name('address-detail.send');
     Route::get('/address-detail/otp', [Auth\AddressDetailsController::class, 'showOtp'])->name('address-detail.otp');
     Route::post('/address-detail/verify', [Auth\AddressDetailsController::class, 'verify'])->name('address-detail.verify');
 
     Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+    Route::get('/onboarding/user', [OnboardingController::class, 'user'])->name('onboarding.user');
+    Route::get('/onboarding/provider', [OnboardingController::class, 'provider'])->name('onboarding.provider');
     Route::get('/onboarding/advertiser', [OnboardingController::class, 'advertiser'])->name('onboarding.advertiser');
+    Route::post('/onboarding/provider/phone/send', [ProviderPhoneVerificationController::class, 'send'])
+        ->name('onboarding.provider.phone.send');
+    Route::post('/onboarding/provider/phone/verify', [ProviderPhoneVerificationController::class, 'verify'])
+        ->name('onboarding.provider.phone.verify');
 
     Route::get('/api/locations/states', [LocationLookupController::class, 'states'])->name('locations.states');
     Route::get('/api/locations/search', [LocationLookupController::class, 'search'])->name('locations.search');
