@@ -22,7 +22,17 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    sendRouteName: {
+        type: String,
+        default: 'address-detail.send',
+    },
+    verifyRouteName: {
+        type: String,
+        default: 'address-detail.verify',
+    },
 });
+
+const emit = defineEmits(['verified']);
 
 const otpForm = useForm({
     code: '',
@@ -201,13 +211,14 @@ const submitOtp = () => {
         codeLength: String(otpForm.code || '').length,
     });
 
-    otpForm.post(route('address-detail.verify'), {
-        preserveState: false,
+    otpForm.post(route(props.verifyRouteName), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             console.log('[FLOW_DEBUG] Step 3 verify success', {
                 expectedStep: 4,
             });
+            emit('verified');
         },
         onError: (errors) => {
             console.log('[FLOW_DEBUG] Step 3 verify validation/errors', errors);
@@ -228,7 +239,8 @@ const resendOtp = () => {
         phoneLast4: fullDigits.value.slice(-4),
         hasSentOtp: hasSentOtp.value,
     });
-    resendForm.post(route('address-detail.send'), {
+    resendForm.post(route(props.sendRouteName), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             hasSentOtp.value = true;
@@ -303,17 +315,17 @@ defineExpose({
         <form v-if="!hasSentOtp" class="space-y-4" @submit.prevent="resendOtp">
             <div class="space-y-1.5">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="text-sm font-medium text-neutral-700">Cell number</span>
+                    <span class="text-sm font-medium text-neutral-700">Phone number</span>
                     <span class="text-sm text-red-500">*</span>
                 </div>
                 <div
-                    class="flex rounded-xl border transition-all duration-200 focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20"
-                    :class="resendForm.errors.phone ? 'border-red-300 ring-2 ring-red-500/20' : 'border-neutral-300'"
+                    class="flex rounded-2xl border bg-white/95 shadow-sm transition-all duration-200 focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-100"
+                    :class="resendForm.errors.phone ? 'border-red-300 focus-within:border-red-400 focus-within:ring-4 focus-within:ring-red-100' : 'border-slate-200'"
                 >
-                    <Listbox v-model="countryIso" as="div" class="relative shrink-0 border-r border-neutral-200 bg-white">
+                    <Listbox v-model="countryIso" as="div" class="relative shrink-0 border-r border-slate-200 bg-transparent">
                         <ListboxButton
                             type="button"
-                            class="flex h-[46px] min-w-[7.5rem] items-center gap-2 py-2 pl-3 pr-8 text-left text-sm text-neutral-900 focus:outline-none"
+                            class="flex h-[58px] min-w-[7.5rem] items-center gap-2 bg-transparent py-4 pl-5 pr-10 text-left text-base text-slate-900 focus:outline-none"
                         >
                             <span :class="[flagClass(countryIso), 'h-4 w-5 rounded-sm']" aria-hidden="true" />
                             <span class="font-medium tabular-nums">+{{ selectedDial }}</span>
@@ -355,7 +367,7 @@ defineExpose({
                         placeholder="123-456-7890"
                         required
                         maxlength="12"
-                        class="min-w-0 flex-1 border-0 bg-white px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+                        class="min-w-0 flex-1 rounded-r-2xl border-0 bg-transparent px-5 py-4 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         :aria-invalid="!!resendForm.errors.phone"
                         @input="handlePhoneInput"
                     />

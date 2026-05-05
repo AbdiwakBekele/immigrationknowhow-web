@@ -20,11 +20,11 @@ final class UserHomeUrl
 
             if ($user->followsProviderOnboarding()) {
                 return $user->hasCompletedSignupAddressStep()
-                    ? route('onboarding.index', ['step' => 3])
+                    ? route('onboarding.provider', ['step' => 3])
                     : route('address-detail');
             }
 
-            return route('onboarding.index', ['step' => 2]);
+            return route('onboarding.user', ['step' => 2]);
         }
 
         if ($user->isAdvertiser() && ! $user->hasCompletedOnboarding()) {
@@ -32,7 +32,9 @@ final class UserHomeUrl
         }
 
         if (! $user->isAffiliate() && ! $user->hasCompletedOnboarding()) {
-            return route('onboarding.index');
+            return $user->followsProviderOnboarding()
+                ? route('onboarding.provider')
+                : route('onboarding.user');
         }
 
         if ($isImpersonating) {

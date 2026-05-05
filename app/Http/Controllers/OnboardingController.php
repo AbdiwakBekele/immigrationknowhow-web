@@ -37,7 +37,56 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.advertiser', $params);
         }
 
-        return $this->renderOnboardingPage($request, false);
+        // Compat entry-point: redirect to dedicated onboarding pages.
+        $params = $request->filled('step')
+            ? ['step' => $request->integer('step')]
+            : [];
+
+        return $request->user()?->followsProviderOnboarding()
+            ? redirect()->route('onboarding.provider', $params)
+            : redirect()->route('onboarding.user', $params);
+    }
+
+    public function user(Request $request): Response|RedirectResponse
+    {
+        if ($request->user()?->isAdvertiser()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.advertiser', $params);
+        }
+
+        if ($request->user()?->followsProviderOnboarding()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.provider', $params);
+        }
+
+        return $this->renderOnboardingPage($request, false, 'user');
+    }
+
+    public function provider(Request $request): Response|RedirectResponse
+    {
+        if ($request->user()?->isAdvertiser()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.advertiser', $params);
+        }
+
+        if (! $request->user()?->followsProviderOnboarding()) {
+            $params = $request->filled('step')
+                ? ['step' => $request->integer('step')]
+                : [];
+
+            return redirect()->route('onboarding.user', $params);
+        }
+
+        return $this->renderOnboardingPage($request, false, 'provider');
     }
 
     public function advertiser(Request $request): Response|RedirectResponse
@@ -50,10 +99,10 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.index', $params);
         }
 
-        return $this->renderOnboardingPage($request, true);
+        return $this->renderOnboardingPage($request, true, 'advertiser');
     }
 
-    private function renderOnboardingPage(Request $request, bool $forceAdvertiser): Response|RedirectResponse
+    private function renderOnboardingPage(Request $request, bool $forceAdvertiser, string $mode): Response|RedirectResponse
     {
         $user = auth()->user();
 
@@ -62,9 +111,9 @@ class OnboardingController extends Controller
         }
 
         $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
-        $isProvider = $user->followsProviderOnboarding();
         $isAdvertiser = $forceAdvertiser || $user->isAdvertiser();
-        $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
+        $isProvider = $mode === 'provider';
+        $requestedStep = (int) $request->integer('step', $isProvider ? 2 : 2);
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index entry', [
             'user_id' => $user->id,
@@ -73,9 +122,10 @@ class OnboardingController extends Controller
             'has_completed_signup_address_step' => $user->hasCompletedSignupAddressStep(),
             'phone_verified_at' => $user->phone_verified_at,
             'phone_present' => filled($user->phone),
-            'is_provider_flow' => $user->followsProviderOnboarding(),
+            'is_provider_flow' => $isProvider,
         ]);
 
+        // Providers must complete coverage (address-detail) before phone verification (step 3).
         if ($needsPhone && $isProvider && ! $user->hasCompletedSignupAddressStep()) {
             return redirect()->route('address-detail');
         }
@@ -84,14 +134,13 @@ class OnboardingController extends Controller
             $user->assignRole(UserRole::PROVIDER->value);
         }
 
-        if ($needsPhone && ! $isProvider) {
-            $initialStep = max(2, min(3, $requestedStep));
-        } elseif ($needsPhone) {
-            $initialStep = 3;
+        if ($mode === 'user') {
+            $initialStep = $needsPhone ? max(2, min(3, $requestedStep)) : 4;
+        } elseif ($mode === 'provider') {
+            $initialStep = $needsPhone ? 3 : max(4, min(7, $requestedStep));
         } else {
-            $initialStep = $isProvider
-                ? max(4, min(7, $requestedStep))
-                : max(4, min(4, $requestedStep));
+            // advertiser
+            $initialStep = $needsPhone ? 3 : max(2, min(3, $requestedStep));
         }
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index resolved step', [
@@ -123,9 +172,12 @@ class OnboardingController extends Controller
                 ])
             : collect();
 
-        $component = $isAdvertiser
-            ? 'Onboarding/Advertiser'
-            : 'Onboarding/Index';
+        $component = match ($mode) {
+            'provider' => 'Onboarding/Provider',
+            'user' => 'Onboarding/User',
+            'advertiser' => 'Onboarding/Advertiser',
+            default => 'Onboarding/User',
+        };
 
         return Inertia::render($component, [
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'address', 'city', 'state', 'postal_code', 'country', 'preferred_language']),

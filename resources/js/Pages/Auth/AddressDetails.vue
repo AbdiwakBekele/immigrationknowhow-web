@@ -317,6 +317,7 @@ const goBack = () => {
                     v-model:location-label="phoneForm.location_label"
                     :country-options="countryOptions"
                     :initial-state-options="stateOptions"
+                    location-mode="google"
                 />
 
                 <p v-if="phoneForm.errors.country" class="text-sm font-medium text-red-600">{{ phoneForm.errors.country }}</p>

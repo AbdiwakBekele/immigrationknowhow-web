@@ -313,11 +313,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
             if ($this->followsProviderOnboarding()) {
                 return $this->hasCompletedSignupAddressStep()
-                    ? route('onboarding.index', ['step' => 3])
+                    ? route('onboarding.provider', ['step' => 3])
                     : route('address-detail');
             }
 
-            return route('onboarding.index', ['step' => 2]);
+            return route('onboarding.user', ['step' => 2]);
         }
 
         if ($this->isAdvertiser() && ! $this->hasCompletedOnboarding()) {
@@ -325,7 +325,9 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         if (! $this->hasCompletedOnboarding()) {
-            return route('onboarding.index');
+            return $this->followsProviderOnboarding()
+                ? route('onboarding.provider')
+                : route('onboarding.user');
         }
 
         if ($this->isAdmin()) {

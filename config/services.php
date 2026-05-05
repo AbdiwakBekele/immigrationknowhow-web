@@ -18,6 +18,12 @@ return [
         ],
     ],
 
+    'google' => [
+        'maps_api_key' => ($k = env('GOOGLE_MAPS_API_KEY')) !== null && (string) $k !== ''
+            ? trim((string) $k)
+            : '',
+    ],
+
     /*
     | Stripe — library checkout reads these. Accepts common alternate env names.
     | Publishable: STRIPE_KEY (preferred) or STRIPE_PUBLISHABLE_KEY.

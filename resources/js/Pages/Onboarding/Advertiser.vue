@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -21,6 +21,8 @@ const props = defineProps({
     existingData: Object,
 });
 
+const draftStorageKey = computed(() => `ikh_onboarding_advertiser_draft:${props.user?.id ?? 'guest'}`);
+
 const currentStep = ref(props.initialStep ?? (props.requiresPhoneVerification ? 3 : 4));
 const totalSteps = computed(() => SIGNUP_FLOW_STEPS_USER);
 const isAddressStep = computed(() => currentStep.value === 2);
@@ -38,6 +40,38 @@ const formData = ref({
     preferred_language: props.existingData?.language?.preferred || props.user?.preferred_language || 'en',
     confirms_advertiser_intent: false,
 });
+
+const loadDraft = () => {
+    try {
+        const raw = sessionStorage.getItem(draftStorageKey.value);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && parsed.formData) {
+            formData.value = { ...formData.value, ...parsed.formData };
+        }
+    } catch {
+        // ignore corrupt draft
+    }
+};
+
+const saveDraft = () => {
+    try {
+        sessionStorage.setItem(
+            draftStorageKey.value,
+            JSON.stringify({
+                formData: formData.value,
+            }),
+        );
+    } catch {
+        // ignore quota / private mode
+    }
+};
+
+onMounted(() => {
+    loadDraft();
+});
+
+watch(formData, () => saveDraft(), { deep: true });
 
 const submittingAddress = ref(false);
 const saving = ref(false);
@@ -89,6 +123,11 @@ const submitAddressStep = () => {
             submittingAddress.value = true;
         },
         onSuccess: () => {
+            try {
+                sessionStorage.removeItem(draftStorageKey.value);
+            } catch {
+                // ignore
+            }
             addressError.value = '';
             currentStep.value = 3;
         },
@@ -123,6 +162,13 @@ const completeOnboarding = () => {
         languages: [formData.value.preferred_language || 'en'],
         services_needed: [],
     }, {
+        onSuccess: () => {
+            try {
+                sessionStorage.removeItem(draftStorageKey.value);
+            } catch {
+                // ignore
+            }
+        },
         onFinish: () => {
             saving.value = false;
         },
@@ -171,16 +217,17 @@ const continuePhoneStep = () => {
         </template>
 
         <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
-            <OnboardingPhoneVerification
-                v-if="isPhoneStep && phoneVerification"
-                ref="phoneVerificationRef"
-                :phone="phoneVerification.phone"
-                :phone-dial-options="phoneVerification.phoneDialOptions"
-                :is-provider="false"
-                :use-external-actions="true"
-            />
+            <div v-if="props.requiresPhoneVerification && phoneVerification" v-show="isPhoneStep">
+                <OnboardingPhoneVerification
+                    ref="phoneVerificationRef"
+                    :phone="phoneVerification.phone"
+                    :phone-dial-options="phoneVerification.phoneDialOptions"
+                    :is-provider="false"
+                    :use-external-actions="true"
+                />
+            </div>
 
-            <div v-else-if="isAddressStep" class="space-y-5">
+            <div v-show="isAddressStep" class="space-y-5">
                 <Input
                     v-model="formData.address_line_1"
                     label="Street address"
@@ -241,7 +288,7 @@ const continuePhoneStep = () => {
                 </p>
             </div>
 
-            <div v-else class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div v-show="!isPhoneStep && !isAddressStep" class="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3">
                     <input
                         v-model="formData.confirms_advertiser_intent"

@@ -48,7 +48,7 @@ class AddressDetailsController extends Controller
                 return $this->redirectToNextStep($user);
             }
 
-            return redirect()->route('onboarding.index', ['step' => 2]);
+            return redirect()->route('onboarding.user', ['step' => 2]);
         }
 
         if ($user->hasCompletedSignupAddressStep() && $user->hasCompletedSignupPhoneStep()) {
@@ -56,7 +56,7 @@ class AddressDetailsController extends Controller
         }
 
         if (! $user->isAdmin() && ! $user->isAffiliate() && $user->hasCompletedSignupAddressStep()) {
-            return redirect()->route('onboarding.index', ['step' => 3]);
+            return redirect()->route('onboarding.user', ['step' => 3]);
         }
 
         $onboardingLocation = $user->onboarding_data['location'] ?? [];
@@ -230,27 +230,179 @@ class AddressDetailsController extends Controller
         ]);
     }
 
+    public function places(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'query' => ['required', 'string', 'min:3', 'max:255'],
+            'state' => ['sometimes', 'nullable', 'string', 'size:2'],
+        ]);
+
+        $query = trim($validated['query']);
+        $state = isset($validated['state']) && $validated['state'] !== null
+            ? strtoupper(trim((string) $validated['state']))
+            : null;
+        $apiKey = (string) config('services.google.maps_api_key', env('GOOGLE_MAPS_API_KEY'));
+
+        Log::channel('single')->info('AddressDetails places requested.', [
+            'user_id' => $user?->id,
+            'query' => $query,
+            'state' => $state,
+            'ip' => $request->ip(),
+            'has_api_key' => filled($apiKey),
+        ]);
+
+        if (! filled($apiKey)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Google API key is missing.',
+            ], 500);
+        }
+
+        // Use Text Search (places:searchText) so that queries match any keyword
+        // within the address, not only prefixes (e.g. "william" finds "123 William St...").
+        $response = Http::timeout(10)
+            ->withHeaders([
+                'X-Goog-Api-Key' => $apiKey,
+                'X-Goog-FieldMask' => 'places.name,places.formattedAddress',
+            ])
+            ->post('https://places.googleapis.com/v1/places:searchText', [
+                'textQuery' => $state ? "{$query}, {$state}" : $query,
+                'regionCode' => 'US',
+                'maxResultCount' => 7,
+            ]);
+
+        if (! $response->successful()) {
+            Log::channel('single')->warning('AddressDetails places API call failed.', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Places request failed.',
+            ], 502);
+        }
+
+        $suggestions = collect(data_get($response->json(), 'places', []))
+            ->map(fn ($place) => [
+                'place' => data_get($place, 'name'),
+                'text' => data_get($place, 'formattedAddress'),
+            ])
+            ->filter(fn ($row) => filled($row['place']) && filled($row['text']))
+            ->values()
+            ->take(7)
+            ->all();
+
+        Log::channel('single')->info('AddressDetails places response.', [
+            'user_id' => $user?->id,
+            'query' => $query,
+            'state' => $state,
+            'count' => count($suggestions),
+            'ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $suggestions,
+        ]);
+    }
+
+    public function place(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'place' => ['required', 'string', 'max:255'],
+        ]);
+
+        $placeResourceName = trim($validated['place']);
+        $apiKey = (string) config('services.google.maps_api_key', env('GOOGLE_MAPS_API_KEY'));
+
+        Log::channel('single')->info('AddressDetails place requested.', [
+            'user_id' => $user?->id,
+            'place' => $placeResourceName,
+            'ip' => $request->ip(),
+            'has_api_key' => filled($apiKey),
+        ]);
+
+        if (! filled($apiKey)) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Google API key is missing.',
+            ], 500);
+        }
+
+        $placeResponse = Http::timeout(10)
+            ->withHeaders([
+                'X-Goog-Api-Key' => $apiKey,
+                'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
+            ])
+            ->get("https://places.googleapis.com/v1/{$placeResourceName}");
+
+        if (! $placeResponse->successful()) {
+            Log::channel('single')->warning('AddressDetails place details call failed.', [
+                'status' => $placeResponse->status(),
+                'body' => $placeResponse->json(),
+                'place' => $placeResourceName,
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Place details request failed.',
+            ], 502);
+        }
+
+        $place = $placeResponse->json();
+
+        Log::channel('single')->info('AddressDetails place resolved.', [
+            'user_id' => $user?->id,
+            'place' => $placeResourceName,
+            'formatted' => data_get($place, 'formattedAddress'),
+            'ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $place,
+        ]);
+    }
+
     public function sendOtp(Request $request): RedirectResponse
     {
         $user = $request->user();
         $isProviderFlow = $user->followsProviderOnboarding();
         $isProviderCoverageSubmission = $isProviderFlow && $request->filled('coverage_country');
 
+        $rawAddressPayload = [
+            'address' => $request->input('address'),
+            'city' => $request->input('city'),
+            'state' => $request->input('state'),
+            'country' => $request->input('country'),
+            'postal_code' => $request->input('postal_code'),
+            'county' => $request->input('county'),
+            'location_label' => $request->input('location_label'),
+            'preferred_language' => $request->input('preferred_language'),
+            'serve_client_in_location' => $request->boolean('serve_client_in_location'),
+            'coverage_country' => $request->input('coverage_country'),
+            'coverage_state' => $request->input('coverage_state'),
+            'coverage_postal_code' => $request->input('coverage_postal_code'),
+            'service_area' => $request->input('service_area'),
+        ];
+
         Log::channel('single')->info('AddressDetails sendOtp request received.', [
             'user_id' => $user?->id,
             'route' => $request->path(),
             'ip' => $request->ip(),
-            'address_payload' => [
-                'address' => $request->input('address'),
-                'city' => $request->input('city'),
-                'state' => $request->input('state'),
-                'country' => $request->input('country'),
-                'postal_code' => $request->input('postal_code'),
-                'preferred_language' => $request->input('preferred_language'),
-                'serve_client_in_location' => $request->boolean('serve_client_in_location'),
-                'coverage_country' => $request->input('coverage_country'),
-                'coverage_state' => $request->input('coverage_state'),
-                'service_area' => $request->input('service_area'),
+            'address_payload' => $rawAddressPayload,
+            'address_completeness' => [
+                'has_state' => filled($request->input('state')),
+                'has_city' => filled($request->input('city')),
+                'has_postal_code' => filled($request->input('postal_code')),
+                'has_country' => filled($request->input('country')),
+                'has_street_address' => filled($request->input('address')),
+                'has_location_label' => filled($request->input('location_label')),
+                // Helpful heuristic: LocationCountryStatePick sets location_label on API selection.
+                'likely_used_location_api' => filled($request->input('location_label')),
             ],
             'has_phone' => filled($request->input('phone')),
         ]);
@@ -357,7 +509,7 @@ class AddressDetailsController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            return redirect()->route('onboarding.index', ['step' => $nextProviderStep]);
+            return redirect()->route('onboarding.provider', ['step' => $nextProviderStep]);
         }
 
         $validated = $request->validate([
@@ -475,7 +627,7 @@ class AddressDetailsController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            return redirect()->route('onboarding.index', ['step' => 3]);
+            return redirect()->route('onboarding.user', ['step' => 3]);
         }
 
         $this->phoneVerification->sendOtp($user, $phone);
@@ -496,7 +648,7 @@ class AddressDetailsController extends Controller
             return $this->redirectToNextStep($user);
         }
 
-        return redirect()->route('onboarding.index', ['step' => 3]);
+        return redirect()->route('onboarding.user', ['step' => 3]);
     }
 
     public function verify(Request $request): RedirectResponse
@@ -548,9 +700,9 @@ class AddressDetailsController extends Controller
                 $user->assignRole(UserRole::PROVIDER->value);
             }
 
-            return redirect()->route('onboarding.index', ['step' => 4]);
+            return redirect()->route('onboarding.provider', ['step' => 4]);
         }
 
-        return redirect()->route('onboarding.index', ['step' => 4]);
+        return redirect()->route('onboarding.user', ['step' => 4]);
     }
 }
