@@ -30,6 +30,49 @@ const props = defineProps({
 const page = usePage();
 const user = page.props.auth.user;
 
+const profileCompletion = computed(() => Number(props.stats?.profileCompletion ?? 0) || 0);
+const unreadMessagesCount = computed(() => Number(props.stats?.unreadMessages ?? 0) || 0);
+const totalLeadsCount = computed(() => Number(props.stats?.totalLeads ?? 0) || 0);
+
+const quickActions = computed(() => [
+    {
+        title: 'Find Providers',
+        subtitle: 'Search for services',
+        href: route('marketplace.index'),
+        icon: MagnifyingGlassIcon,
+        iconClass: 'bg-blue-100 text-blue-600',
+    },
+    {
+        title: 'Messages',
+        subtitle: `${unreadMessagesCount.value} unread`,
+        href: route('messages.index'),
+        icon: ChatBubbleLeftRightIcon,
+        iconClass: 'bg-emerald-100 text-emerald-600',
+        badge: unreadMessagesCount.value > 0 ? (unreadMessagesCount.value > 9 ? '9+' : String(unreadMessagesCount.value)) : '',
+    },
+    {
+        title: 'Library',
+        subtitle: 'E-books & audiobooks',
+        href: route('library.my'),
+        icon: BookOpenIcon,
+        iconClass: 'bg-violet-100 text-violet-600',
+    },
+    {
+        title: 'Profile',
+        subtitle: 'Update your info',
+        href: route('profile.edit'),
+        icon: UserCircleIcon,
+        iconClass: 'bg-slate-100 text-slate-600',
+    },
+    {
+        title: 'Community',
+        subtitle: 'Join discussions',
+        href: route('community.index'),
+        icon: UserGroupIcon,
+        iconClass: 'bg-amber-100 text-amber-600',
+    },
+]);
+
 const getLeadStatusColor = (status) => {
     const colors = {
         new: 'bg-blue-100 text-blue-700',
@@ -143,122 +186,85 @@ const purchaseRowPrice = (purchase) => {
     <Head title="Dashboard" />
 
     <AppLayout>
-        <div class="mx-auto max-w-7xl space-y-5">
-            <div class="flex items-end justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                <div>
-                    <h1 class="text-xl font-display font-bold text-slate-900">
+        <div class="mx-auto max-w-7xl space-y-4 px-2 pb-4 sm:space-y-5 sm:px-3">
+            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="bg-gradient-to-r from-sky-600 via-sky-600 to-indigo-600 p-5 text-white sm:p-6">
+                    <h1 class="text-2xl font-display font-bold">
                         Welcome back, {{ user.first_name }}!
                     </h1>
-                    <p class="mt-0.5 text-sm text-slate-500">
+                    <p class="mt-1 text-sm text-white/90">
                         Here's what's happening with your immigration journey.
                     </p>
-                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
                         <span
                             v-if="stats?.preferredLanguageLabel"
-                            class="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                            class="rounded-full border border-white/30 bg-white/20 px-3 py-1 text-xs font-semibold"
                         >
                             {{ stats.preferredLanguageLabel }}
                         </span>
-                        <span class="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            {{ stats?.profileCompletion ?? 0 }}% complete
+                        <span class="rounded-full border border-white/30 bg-white/20 px-3 py-1 text-xs font-semibold">
+                            {{ profileCompletion }}% profile complete
                         </span>
                     </div>
                 </div>
-                <span class="hidden rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 sm:inline-flex">
-                    Your dashboard
-                </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Link
-                    :href="route('marketplace.index')"
-                    class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                >
-                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 transition-colors group-hover:bg-blue-200">
-                        <MagnifyingGlassIcon class="h-5 w-5 text-blue-600" />
+                <div class="grid grid-cols-3 gap-2 border-t border-sky-100 bg-white p-3 sm:gap-3">
+                    <div class="rounded-xl bg-slate-50 p-3 text-center">
+                        <p class="text-lg font-bold text-slate-900">{{ totalLeadsCount }}</p>
+                        <p class="text-xs text-slate-500">Inquiries</p>
                     </div>
-                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
-                        Find Providers
-                    </h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Search for services</p>
-                </Link>
+                    <div class="rounded-xl bg-slate-50 p-3 text-center">
+                        <p class="text-lg font-bold text-slate-900">{{ unreadMessagesCount }}</p>
+                        <p class="text-xs text-slate-500">Unread messages</p>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 p-3 text-center">
+                        <p class="text-lg font-bold text-slate-900">{{ profileCompletion }}%</p>
+                        <p class="text-xs text-slate-500">Profile complete</p>
+                    </div>
+                </div>
+            </section>
 
+            <section class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Quick actions</h2>
+                </div>
+                <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <Link
-                    :href="route('messages.index')"
-                    class="group relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
+                    v-for="action in quickActions"
+                    :key="action.title"
+                    :href="action.href"
+                    class="group relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                     <span
-                        v-if="stats?.unreadMessages"
-                        class="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white"
+                        v-if="action.badge"
+                        class="absolute right-3 top-3 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white"
                     >
-                        {{ stats.unreadMessages > 9 ? '9+' : stats.unreadMessages }}
+                        {{ action.badge }}
                     </span>
-                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 transition-colors group-hover:bg-emerald-200">
-                        <ChatBubbleLeftRightIcon class="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
-                        Messages
-                    </h3>
-                    <p class="mt-0.5 text-xs text-slate-500">{{ stats?.unreadMessages || 0 }} unread</p>
-                </Link>
-
-                <Link
-                    :href="route('library.my')"
-                    class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                >
-                    <div
-                        class="mb-3 flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-violet-100 transition-colors group-hover:bg-violet-200"
-                    >
+                    <div class="mb-3 flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl" :class="action.iconClass">
                         <img
-                            v-if="libraryShortcutCoverUrl"
+                            v-if="action.title === 'Library' && libraryShortcutCoverUrl"
                             :src="libraryShortcutCoverUrl"
                             alt=""
                             class="h-full w-full object-cover object-top"
                         />
-                        <BookOpenIcon v-else class="h-5 w-5 text-violet-600" />
+                        <component :is="action.icon" v-else class="h-5 w-5" />
                     </div>
-                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
-                        Library
-                    </h3>
-                    <p class="mt-0.5 text-xs text-slate-500">E-books & audiobooks</p>
-                </Link>
-
-                <Link
-                    :href="route('profile.edit')"
-                    class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                >
-                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 transition-colors group-hover:bg-slate-200">
-                        <UserCircleIcon class="h-5 w-5 text-slate-600" />
-                    </div>
-                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
-                        Profile
-                    </h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Update your info</p>
-                </Link>
-                <Link
-                    :href="route('community.index')"
-                    class="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md"
-                >
-                    <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 transition-colors group-hover:bg-amber-200">
-                        <UserGroupIcon class="h-5 w-5 text-amber-600" />
-                    </div>
-                    <h3 class="font-semibold text-slate-900 transition-colors group-hover:text-sky-700">
-                        Community
-                    </h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Join community discussions</p>
+                    <h3 class="font-semibold text-slate-900">{{ action.title }}</h3>
+                    <p class="mt-0.5 text-xs text-slate-500">{{ action.subtitle }}</p>
                 </Link>
             </div>
+            </section>
 
-                <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <!-- Main Content -->
                     <div class="space-y-5 lg:col-span-2">
                         <!-- Recent Inquiries -->
-                        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-100 p-4 sm:p-5">
                                 <h2 class="text-lg font-display font-bold text-slate-900">
                                     Your Inquiries
                                 </h2>
-                                <span class="text-sm text-slate-500">{{ stats?.totalLeads || 0 }} total</span>
+                                <span class="text-sm text-slate-500">{{ totalLeadsCount }} total</span>
                             </div>
 
                             <div v-if="recentLeads?.length" class="divide-y divide-slate-100">
@@ -266,7 +272,7 @@ const purchaseRowPrice = (purchase) => {
                                     v-for="lead in recentLeads" 
                                     :key="lead.uuid"
                                     :href="conversationHref(lead.conversation?.uuid)"
-                                    class="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
+                                    class="flex items-center gap-3 p-4 transition-colors hover:bg-slate-50 sm:gap-4"
                                 >
                                     <img
                                         v-if="resolveAvatar(lead.service_provider?.user)"
@@ -292,7 +298,7 @@ const purchaseRowPrice = (purchase) => {
                                         </div>
                                         <p class="text-sm text-slate-500 truncate">{{ lead.message }}</p>
                                     </div>
-                                    <span class="text-sm text-slate-400 flex-shrink-0">
+                                    <span class="hidden flex-shrink-0 text-sm text-slate-400 sm:inline">
                                         {{ formatTimeAgo(lead.created_at) }}
                                     </span>
                                     <div v-if="lead.conversation?.uuid" class="flex items-center gap-1">
@@ -330,8 +336,8 @@ const purchaseRowPrice = (purchase) => {
                         </div>
 
                         <!-- Recommended Providers -->
-                        <div v-if="recommendedProviders?.length" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                        <div v-if="recommendedProviders?.length" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-100 p-4 sm:p-5">
                                 <h2 class="text-lg font-display font-bold text-slate-900">
                                     Recommended for You
                                 </h2>
@@ -340,12 +346,12 @@ const purchaseRowPrice = (purchase) => {
                                 </Link>
                             </div>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+                            <div class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:gap-4 sm:p-4">
                                 <Link 
                                     v-for="provider in recommendedProviders" 
                                     :key="provider.id"
                                     :href="route('marketplace.show', provider.slug)"
-                                    class="flex items-start gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                                    class="flex items-start gap-3 rounded-xl bg-slate-50 p-3 transition-colors hover:bg-slate-100 sm:gap-4 sm:p-4"
                                 >
                                     <img
                                         v-if="resolveAvatar(provider.user)"
@@ -384,8 +390,8 @@ const purchaseRowPrice = (purchase) => {
                     <!-- Sidebar -->
                     <div class="space-y-5">
                         <!-- Recent Messages Preview -->
-                        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-100 p-4">
                                 <h3 class="font-semibold text-slate-900">Recent Messages</h3>
                                 <Link :href="route('messages.index')" class="text-sm text-primary-600 hover:text-primary-700">
                                     View all
@@ -445,8 +451,8 @@ const purchaseRowPrice = (purchase) => {
                         </div>
 
                         <!-- Library Preview -->
-                        <div v-if="libraryItems?.length" class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                        <div v-if="libraryItems?.length" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-100 p-4">
                                 <h3 class="font-semibold text-slate-900">From the Library</h3>
                                 <Link :href="route('library.my')" class="text-sm text-primary-600 hover:text-primary-700">
                                     Browse all
@@ -492,8 +498,8 @@ const purchaseRowPrice = (purchase) => {
                         </div>
 
                         <!-- Purchased Library Items -->
-                        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div class="flex items-center justify-between border-b border-slate-100 p-4">
                                 <h3 class="font-semibold text-slate-900">Your Purchases</h3>
                                 <Link :href="route('library.my')" class="text-sm text-primary-600 hover:text-primary-700">
                                     Open library
@@ -541,7 +547,7 @@ const purchaseRowPrice = (purchase) => {
                         </div>
 
                         <!-- Profile Completion -->
-                        <div v-if="stats?.profileCompletion < 100" class="rounded-xl border border-sky-100 bg-gradient-to-br from-sky-50 to-indigo-50 p-6 shadow-sm">
+                        <div v-if="profileCompletion < 100" class="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-indigo-50 p-6 shadow-sm">
                             <h3 class="font-semibold text-slate-900 mb-2">Complete Your Profile</h3>
                             <p class="text-sm text-slate-600 mb-4">
                                 A complete profile helps providers better understand your needs.
@@ -549,11 +555,11 @@ const purchaseRowPrice = (purchase) => {
                             <div class="mb-4">
                                 <div class="flex items-center justify-between text-sm mb-2">
                                     <span class="text-slate-600">Progress</span>
-                                    <span class="font-medium text-sky-700">{{ stats?.profileCompletion || 0 }}%</span>
+                                    <span class="font-medium text-sky-700">{{ profileCompletion }}%</span>
                                 </div>
                                 <div class="h-2 overflow-hidden rounded-full bg-white">
                                     <div
-                                        :style="{ width: `${stats?.profileCompletion || 0}%` }"
+                                        :style="{ width: `${profileCompletion}%` }"
                                         class="h-full rounded-full bg-sky-600 transition-all"
                                     ></div>
                                 </div>

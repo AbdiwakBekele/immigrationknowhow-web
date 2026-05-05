@@ -10,6 +10,7 @@ use App\Support\UploadLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
@@ -24,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Ensure API preflight/response headers are always applied in local web/mobile dev.
+        $middleware->append(HandleCors::class);
+
         $middleware->web(append: [
             SetLocaleFromSession::class,
             HandleInertiaRequests::class,
