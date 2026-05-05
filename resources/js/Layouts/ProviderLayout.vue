@@ -70,29 +70,42 @@ const libraryCartBadge = computed(() => {
     return String(n);
 });
 
-const navigation = computed(() => [
-    { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
-    { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
-    { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
-    { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
-    { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
-    { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
-    { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
-    { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
-    { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
-    ...(dvLottery.value.show_in_menu
-        ? [{
-            name: 'DV Lottery',
-            href: '/provider/dv-lottery',
-            icon: BookOpenIcon,
-        }]
-        : []),
-    { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
-    { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
-    { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
-    { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
-    { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
-]);
+const navigation = computed(() => {
+    const items = [
+        { name: 'Dashboard', href: '/provider/dashboard', icon: HomeIcon },
+        { name: 'Notifications', href: '/provider/notifications', icon: BellIcon },
+        { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
+        { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
+        { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
+        { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
+        { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
+        { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
+        { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
+        ...(dvLottery.value.show_in_menu
+            ? [{
+                name: 'DV Lottery',
+                href: '/provider/dv-lottery',
+                icon: BookOpenIcon,
+            }]
+            : []),
+        { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
+        { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
+        { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
+        { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
+        { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
+    ];
+
+    const seen = new Set();
+
+    return items.filter((item) => {
+        const key = (item.href || '').trim();
+        if (!key || seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+});
 
 const logout = () => {
     router.post('/logout');

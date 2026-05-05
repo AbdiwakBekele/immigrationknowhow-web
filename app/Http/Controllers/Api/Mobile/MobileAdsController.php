@@ -99,7 +99,7 @@ class MobileAdsController extends Controller
     {
         $validated = $this->validateAd($request);
         $priceCents = max(0, (int) config('ads.default_price_cents', 2500));
-        $imageUrl = trim((string) ($validated['image_url'] ?? '')) ?: null;
+        $imageUrl = $this->resolveImageUrl($request, $validated);
         $requireApproval = (bool) config('ads.require_admin_approval', true);
 
         if ($priceCents > 0) {
@@ -142,13 +142,13 @@ class MobileAdsController extends Controller
     {
         $this->authorizeAd($request, $ad);
         $validated = $this->validateAd($request, false);
+        $imageUrl = $this->resolveImageUrl($request, $validated, $ad->image_url);
+
         $ad->update([
             'title' => $validated['title'],
             'description' => $validated['description'],
             'cta_url' => $validated['cta_url'],
-            'image_url' => array_key_exists('image_url', $validated)
-                ? (trim((string) $validated['image_url']) ?: null)
-                : $ad->image_url,
+            'image_url' => $imageUrl,
         ]);
 
         return response()->json([
@@ -283,6 +283,7 @@ class MobileAdsController extends Controller
             'description' => ['required', 'string', 'max:5000'],
             'cta_url' => ['required', 'url:http,https', 'max:2048'],
             'image_url' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'string', 'max:2048'],
+            'image' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'image', 'max:5120'],
         ];
         $validated = $request->validate($rules);
 
@@ -294,6 +295,21 @@ class MobileAdsController extends Controller
         }
 
         return $validated;
+    }
+
+    private function resolveImageUrl(Request $request, array $validated, ?string $fallback = null): ?string
+    {
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('ads', 'public');
+            return '/storage/'.$path;
+        }
+
+        if (array_key_exists('image_url', $validated)) {
+            $explicit = trim((string) ($validated['image_url'] ?? ''));
+            return $explicit !== '' ? $explicit : null;
+        }
+
+        return $fallback;
     }
 
     private function toAdPayload(Ad $ad): array
