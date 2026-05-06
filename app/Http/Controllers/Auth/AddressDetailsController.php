@@ -259,17 +259,19 @@ class AddressDetailsController extends Controller
             ], 500);
         }
 
-        // Use Text Search (places:searchText) so that queries match any keyword
-        // within the address, not only prefixes (e.g. "william" finds "123 William St...").
+        // Use Autocomplete so numeric-prefix inputs (e.g. "40350") still return street-address suggestions.
+        // We append the selected state abbreviation to bias results while keeping prefix behavior.
+        $input = $state ? "{$query} {$state}" : $query;
+
         $response = Http::timeout(10)
             ->withHeaders([
                 'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'places.name,places.formattedAddress',
+                'X-Goog-FieldMask' => 'suggestions.placePrediction.place,suggestions.placePrediction.text',
             ])
-            ->post('https://places.googleapis.com/v1/places:searchText', [
-                'textQuery' => $state ? "{$query}, {$state}" : $query,
-                'regionCode' => 'US',
-                'maxResultCount' => 7,
+            ->post('https://places.googleapis.com/v1/places:autocomplete', [
+                'input' => $input,
+                'includedRegionCodes' => ['US'],
+                'includedPrimaryTypes' => ['street_address', 'premise', 'subpremise'],
             ]);
 
         if (! $response->successful()) {
@@ -284,11 +286,16 @@ class AddressDetailsController extends Controller
             ], 502);
         }
 
-        $suggestions = collect(data_get($response->json(), 'places', []))
-            ->map(fn ($place) => [
-                'place' => data_get($place, 'name'),
-                'text' => data_get($place, 'formattedAddress'),
-            ])
+        $suggestions = collect(data_get($response->json(), 'suggestions', []))
+            ->map(function ($item) {
+                $place = data_get($item, 'placePrediction.place');
+                $text = data_get($item, 'placePrediction.text.text') ?? data_get($item, 'placePrediction.text');
+
+                return [
+                    'place' => $place,
+                    'text' => is_string($text) ? $text : null,
+                ];
+            })
             ->filter(fn ($row) => filled($row['place']) && filled($row['text']))
             ->values()
             ->take(7)

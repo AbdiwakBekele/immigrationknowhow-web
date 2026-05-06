@@ -50,8 +50,23 @@ const isPhoneStep = computed(() => props.requiresPhoneVerification && currentSte
 const isCongratsStep = computed(() => currentStep.value === 4);
 
 const MAX_USER_SERVICE_SELECTIONS = 8;
+const SELECT_LATER_SERVICE_OPTION = {
+    value: 'select_later',
+    label: 'I will select one later on',
+};
 
-const userServiceTypeOptions = computed(() => props.serviceTypes || []);
+const getOptionValue = (option) => (typeof option === 'object' ? option?.value : option);
+
+const userServiceTypeOptions = computed(() => {
+    const baseOptions = Array.isArray(props.serviceTypes) ? props.serviceTypes : [];
+    const hasSelectLaterOption = baseOptions.some(
+        (option) =>
+            getOptionValue(option) === SELECT_LATER_SERVICE_OPTION.value
+            || option?.label === SELECT_LATER_SERVICE_OPTION.label,
+    );
+
+    return hasSelectLaterOption ? baseOptions : [SELECT_LATER_SERVICE_OPTION, ...baseOptions];
+});
 
 const formData = ref({
     services_needed: [],
@@ -120,12 +135,21 @@ const submittingUserAddress = ref(false);
 const saving = ref(false);
 
 const userServiceTypes = computed({
-    get: () =>
-        Array.isArray(formData.value.services_needed)
-            ? [...new Set(formData.value.services_needed.filter((value) => value))]
-            : [],
+    get: () => {
+        const selected = Array.isArray(formData.value.services_needed)
+            ? [...new Set(formData.value.services_needed.filter((value) => value && value !== SELECT_LATER_SERVICE_OPTION.value))]
+            : [];
+
+        if (selected.length === 0) {
+            return [SELECT_LATER_SERVICE_OPTION.value];
+        }
+
+        return selected;
+    },
     set: (values) => {
-        const selected = Array.isArray(values) ? [...new Set(values.filter((value) => value))] : [];
+        const selected = Array.isArray(values)
+            ? [...new Set(values.filter((value) => value && value !== SELECT_LATER_SERVICE_OPTION.value))]
+            : [];
         if (selected.length > MAX_USER_SERVICE_SELECTIONS) {
             formData.value.services_needed = selected.slice(0, MAX_USER_SERVICE_SELECTIONS);
             userServicesLimitError.value = `You can select up to ${MAX_USER_SERVICE_SELECTIONS} services.`;
@@ -263,7 +287,7 @@ const goBack = () => {
                         v-model="userServiceTypes"
                         :options="userServiceTypeOptions"
                         label="Select services needed (up to 8)"
-                        placeholder="I will select one later on"
+                        placeholder="Select services needed"
                         :multiple="true"
                         size="auth"
                     />

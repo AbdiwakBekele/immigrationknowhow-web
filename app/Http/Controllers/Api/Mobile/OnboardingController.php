@@ -36,17 +36,29 @@ class OnboardingController extends Controller
 
         $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
         $isProvider = $user->followsProviderOnboarding();
+        $isAdvertiser = $user->isAdvertiser();
 
-        $requestedStep = (int) $request->integer('step', $isProvider ? 4 : 2);
+        $requestedStepDefault = $isProvider ? 4 : 2;
+        $requestedStep = (int) $request->integer('step', $requestedStepDefault);
 
-        if ($needsPhone && ! $isProvider) {
-            $initialStep = max(2, min(3, $requestedStep));
-        } elseif ($needsPhone) {
-            $initialStep = 3;
+        if ($isProvider) {
+            if ($needsPhone) {
+                $initialStep = $user->hasCompletedSignupAddressStep() ? 3 : 2;
+            } else {
+                $initialStep = max(4, min(7, $requestedStep));
+            }
+        } elseif ($isAdvertiser) {
+            if ($needsPhone && ! $user->hasCompletedSignupAddressStep()) {
+                $initialStep = 2;
+            } elseif ($needsPhone) {
+                $initialStep = 3;
+            } else {
+                $advStep = (int) $request->integer('step', 4);
+                $initialStep = max(2, min(4, $advStep));
+            }
         } else {
-            $initialStep = $isProvider
-                ? max(4, min(7, $requestedStep))
-                : 4;
+            // Service seeker — mirror web Onboarding/User routing.
+            $initialStep = $needsPhone ? max(2, min(3, $requestedStep)) : 4;
         }
 
         $subscriptionPlans = $isProvider
@@ -70,6 +82,8 @@ class OnboardingController extends Controller
                 ])
             : collect();
 
+        $countryForStates = $request->input('country') ?? $user->country ?? 'US';
+
         return $this->success('OK', [
             'user' => (new UserResource($user))->resolve(),
             'initialStep' => $initialStep,
@@ -81,14 +95,19 @@ class OnboardingController extends Controller
                 ]
                 : null,
             'isProvider' => $isProvider,
+            'isAdvertiser' => $isAdvertiser && ! $isProvider,
             'serviceTypes' => $isProvider
                 ? ServiceTypeOptions::selectOptions('provider')
-                : ServiceTypeOptions::selectOptions('user'),
+                : ($isAdvertiser ? [] : ServiceTypeOptions::selectOptions('user')),
             'countryOptions' => CountryOptions::selectOptions(),
-            'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
+            'stateOptions' => UsStateOptions::selectOptions($countryForStates),
             'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
-            'steps' => $isProvider ? $this->providerSteps() : $this->userSteps(),
+            'steps' => match (true) {
+                $isProvider => $this->providerSteps(),
+                $isAdvertiser => $this->advertiserSteps(),
+                default => $this->userSteps(),
+            },
             'subscriptionPlans' => $subscriptionPlans,
             'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
         ]);
@@ -186,7 +205,9 @@ class OnboardingController extends Controller
             ]);
         }
 
-        // User flow: save address & optionally send OTP
+        // Seeker / advertiser: save address & optional profile/services, then optionally send OTP.
+        $userServiceTypeValues = ServiceTypeOptions::values('user');
+
         $validated = $request->validate([
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'city' => ['sometimes', 'required', 'string', 'max:120'],
@@ -197,6 +218,11 @@ class OnboardingController extends Controller
             'location_label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferred_language' => ['sometimes', 'required', 'string', Rule::in(array_keys(LanguageOptions::labels()))],
             'phone' => ['sometimes', 'required', 'string', 'min:10', 'max:32'],
+            'services_needed' => ['sometimes', 'nullable', 'array', 'max:8'],
+            'services_needed.*' => ['string', Rule::in($userServiceTypeValues)],
+            'number_of_children' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
+            'children_ages_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'dogs_count' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
         $address = $validated['address'] ?? $user->address;
@@ -220,6 +246,20 @@ class OnboardingController extends Controller
             ], 422);
         }
 
+        $profilePatch = [];
+        if (array_key_exists('number_of_children', $validated)) {
+            $profilePatch['number_of_children'] = $validated['number_of_children'];
+            $profilePatch['has_children'] = (int) $validated['number_of_children'] > 0;
+        }
+        if (array_key_exists('children_ages_text', $validated)) {
+            $profilePatch['children_ages_text'] = $validated['children_ages_text'];
+        }
+        if (array_key_exists('dogs_count', $validated)) {
+            $profilePatch['dogs_count'] = $validated['dogs_count'];
+        }
+
+        $profileExtras = array_merge($user->onboarding_data['profile'] ?? [], $profilePatch);
+
         $onboardingData = array_merge($user->onboarding_data ?? [], [
             'location' => array_merge($user->onboarding_data['location'] ?? [], [
                 'city' => $city,
@@ -229,7 +269,14 @@ class OnboardingController extends Controller
                 'county' => $county,
                 'label' => $locationLabel,
             ]),
+            'profile' => $profileExtras,
         ]);
+
+        if (array_key_exists('services_needed', $validated) && is_array($validated['services_needed'])) {
+            $onboardingData['services'] = array_merge($user->onboarding_data['services'] ?? [], [
+                'services_needed' => $validated['services_needed'],
+            ]);
+        }
 
         $user->update([
             'address' => $address,
@@ -554,6 +601,14 @@ class OnboardingController extends Controller
         return [
             ['key' => 'services', 'title' => 'Services', 'description' => 'What kind of help are you looking for?'],
             ['key' => 'complete', 'title' => 'Review', 'description' => 'You are ready to continue'],
+        ];
+    }
+
+    private function advertiserSteps(): array
+    {
+        return [
+            ['key' => 'address', 'title' => 'Address', 'description' => 'Where should we localize your ad audience?'],
+            ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
     }
 

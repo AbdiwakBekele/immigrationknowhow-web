@@ -129,14 +129,11 @@ const fetchGooglePlacesOptions = async () => {
 
         const payload = await response.json();
         const rawOptions = Array.isArray(payload?.data) ? payload.data : [];
-        const stateToken = state.value ? `, ${String(state.value).toUpperCase()}` : '';
-        const options = stateToken
-            ? rawOptions.filter((opt) => String(opt?.text || '').toUpperCase().includes(stateToken))
-            : rawOptions;
-
-        googlePlaceOptions.value = options;
-        googleDropdownOpen.value = options.length > 0;
-        if (!options.length) {
+        // Don't over-filter results client-side; we already validate the selected place's state
+        // after resolving place details in selectGooglePlaceOption().
+        googlePlaceOptions.value = rawOptions;
+        googleDropdownOpen.value = rawOptions.length > 0;
+        if (!rawOptions.length) {
             googleAutocompleteStatus.value = 'No matching addresses found.';
         }
     } catch {

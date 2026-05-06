@@ -30,6 +30,7 @@ Route::prefix('mobile')->group(function () {
         ->middleware('throttle:120,1');
 
     Route::prefix('auth')->group(function () {
+        Route::get('/register-meta', [AuthController::class, 'registerMeta']);
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
 

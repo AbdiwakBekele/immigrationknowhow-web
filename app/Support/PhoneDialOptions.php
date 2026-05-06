@@ -3,46 +3,48 @@
 namespace App\Support;
 
 use libphonenumber\PhoneNumberUtil;
+use Locale;
 
 class PhoneDialOptions
 {
     /**
+     * All regions libphonenumber knows, with ITU calling codes (for phone verification pickers).
+     *
      * @return list<array{value: string, label: string, dial: string}>
      */
     public static function selectOptions(): array
     {
         $util = PhoneNumberUtil::getInstance();
-        $labels = CountryOptions::labels();
-
         $options = [];
-        foreach (CountryOptions::codes() as $code) {
-            $dialCode = static::fallbackDialCodeForNonIsoRegion($code);
-            if ($dialCode === null) {
-                $countryCode = $util->getCountryCodeForRegion($code);
-                if (! $countryCode) {
-                    continue;
-                }
-                $dialCode = (string) $countryCode;
+
+        foreach ($util->getSupportedRegions() as $region) {
+            $region = (string) $region;
+            $countryCode = $util->getCountryCodeForRegion($region);
+            if ($countryCode <= 0) {
+                continue;
             }
 
             $options[] = [
-                'value' => $code,
-                'label' => $labels[$code] ?? $code,
-                'dial' => $dialCode,
+                'value' => $region,
+                'label' => static::regionLabel($region),
+                'dial' => (string) $countryCode,
             ];
         }
 
-        usort($options, fn (array $a, array $b): int => strcmp($a['label'], $b['label']));
+        usort($options, fn (array $a, array $b): int => strcasecmp($a['label'], $b['label']));
 
         return $options;
     }
 
-    private static function fallbackDialCodeForNonIsoRegion(string $code): ?string
+    private static function regionLabel(string $regionCode): string
     {
-        return match (strtoupper($code)) {
-            // Product-level grouping, not an ISO country code.
-            'EU' => '00',
-            default => null,
-        };
+        if (class_exists(Locale::class)) {
+            $name = Locale::getDisplayRegion('und_'.$regionCode, 'en');
+            if (is_string($name) && $name !== '') {
+                return $name;
+            }
+        }
+
+        return $regionCode;
     }
 }

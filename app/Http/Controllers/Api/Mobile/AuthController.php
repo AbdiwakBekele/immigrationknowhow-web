@@ -8,12 +8,21 @@ use App\Http\Requests\Mobile\RegisterRequest;
 use App\Http\Resources\Mobile\UserResource;
 use App\Models\User;
 use App\Support\RoleHelper;
+use App\Support\ServiceTypeOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function registerMeta(): JsonResponse
+    {
+        return $this->success('OK', [
+            'service_types_user' => ServiceTypeOptions::selectOptions('user'),
+            'service_types_provider' => ServiceTypeOptions::selectOptions('provider'),
+        ]);
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $validated = $request->validated();
