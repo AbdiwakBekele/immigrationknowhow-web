@@ -120,7 +120,6 @@ const checkout = () => {
                         Your messages are saved to your account and will appear here in order.
                     </p>
                 </div>
-                <Button v-if="!isAddonActive" size="sm" @click="checkout">Buy add-on</Button>
             </div>
             <p v-if="flashError" class="mt-2 text-xs font-medium text-rose-700">{{ flashError }}</p>
         </div>
