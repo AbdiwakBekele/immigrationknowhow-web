@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { 
     ArrowLeftIcon,
+    ArrowRightIcon,
     ChatBubbleLeftRightIcon,
     CheckCircleIcon,
     ClockIcon,
@@ -67,6 +68,73 @@ const contactMethods = [
 
 const messageLength = computed(() => form.message.length);
 const isMessageValid = computed(() => form.message.length >= 2);
+const selectedServiceLabel = computed(() => {
+    const selected = props.serviceTypes?.find((type) => type.value === form.service_type);
+    return selected?.label || 'Selected service';
+});
+
+/** Query params aligned with Marketplace/Index.vue + MarketplaceController */
+const marketplaceHref = (extra = {}) => {
+    const q = { ...extra };
+    if (form.service_type) {
+        q.service_type = form.service_type;
+    }
+    if (q.free_consultation) {
+        q.free_consultation = 1;
+    }
+    if (q.remote_only) {
+        q.remote_only = 1;
+    }
+    Object.keys(q).forEach((key) => {
+        if (q[key] === '' || q[key] === null || q[key] === undefined) {
+            delete q[key];
+        }
+    });
+    return route('marketplace.index', q);
+};
+
+const marketplaceFilterCards = computed(() => {
+    const cards = [
+        {
+            id: 'browse-service',
+            title: selectedServiceLabel.value,
+            subtitle: 'See everyone offering this service',
+            href: marketplaceHref({}),
+        },
+        {
+            id: 'top-rated',
+            title: 'Top rated',
+            subtitle: 'Highest ratings first',
+            href: marketplaceHref({ sort: 'rating' }),
+        },
+        {
+            id: 'most-reviews',
+            title: 'Most reviewed',
+            subtitle: 'Popular by review count',
+            href: marketplaceHref({ sort: 'reviews' }),
+        },
+    ];
+
+    if (props.provider?.free_consultation) {
+        cards.push({
+            id: 'free-consult',
+            title: 'Free consultation',
+            subtitle: 'Offers a free consult',
+            href: marketplaceHref({ sort: 'rating', free_consultation: 1 }),
+        });
+    }
+
+    if (props.provider?.serves_remote) {
+        cards.push({
+            id: 'remote',
+            title: 'Remote-friendly',
+            subtitle: 'Works with clients remotely',
+            href: marketplaceHref({ sort: 'rating', remote_only: 1 }),
+        });
+    }
+
+    return cards;
+});
 
 const formatProviderRating = (rating) => {
     if (rating === null || rating === undefined || String(rating).trim() === '') {
@@ -279,40 +347,65 @@ const formatProviderRating = (rating) => {
                     <!-- Provider Sidebar -->
                     <div class="space-y-6">
                         <div class="bg-white rounded-2xl shadow-soft p-6">
+                            <h3 class="text-base font-semibold text-slate-900 mb-4">Quick filters</h3>
+                            <div class="space-y-3">
+                                <Link
+                                    v-for="card in marketplaceFilterCards"
+                                    :key="card.id"
+                                    :href="card.href"
+                                    class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-primary-300 hover:bg-primary-50"
+                                >
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-slate-900">{{ card.title }}</p>
+                                        <p class="mt-1 text-xs text-slate-500">{{ card.subtitle }}</p>
+                                    </div>
+                                    <ArrowRightIcon class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                                </Link>
+                            </div>
+                        </div>
+
+                        <Link
+                            :href="route('marketplace.show', provider.slug)"
+                            class="block rounded-2xl border border-transparent bg-white p-6 shadow-soft transition hover:border-primary-200 hover:shadow-md"
+                        >
                             <div class="flex items-center gap-4 mb-4">
                                 <img 
                                     :src="provider.user?.avatar || '/img/default-avatar.png'"
                                     :alt="provider.business_name"
                                     class="w-16 h-16 rounded-xl object-cover"
                                 />
-                                <div>
+                                <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">
                                         <h3 class="font-semibold text-slate-900">{{ provider.business_name }}</h3>
-                                        <CheckBadgeSolid v-if="provider.background_check_status === 'clear'" class="w-5 h-5 text-primary-500" />
+                                        <CheckBadgeSolid v-if="provider.background_check_status === 'clear'" class="w-5 h-5 shrink-0 text-primary-500" />
                                     </div>
-                                    <div class="flex items-center gap-1 mt-1">
+                                    <div class="mt-1 flex flex-wrap items-center gap-1">
                                         <StarSolid class="w-4 h-4 text-secondary-500" />
                                         <span class="text-sm text-slate-600">{{ formatProviderRating(provider.average_rating) }}</span>
                                         <span class="text-sm text-slate-400">({{ provider.total_reviews }} reviews)</span>
                                     </div>
+                                    <p class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary-600">
+                                        View listing
+                                        <ArrowRightIcon class="h-3.5 w-3.5" />
+                                    </p>
                                 </div>
                             </div>
 
                             <div class="space-y-3 text-sm">
                                 <div v-if="provider.free_consultation" class="flex items-center gap-3 text-green-600">
-                                    <CheckCircleIcon class="w-5 h-5" />
+                                    <CheckCircleIcon class="w-5 h-5 shrink-0" />
                                     <span>Free consultation available</span>
                                 </div>
                                 <div class="flex items-center gap-3 text-slate-600">
-                                    <ClockIcon class="w-5 h-5 text-slate-400" />
+                                    <ClockIcon class="w-5 h-5 shrink-0 text-slate-400" />
                                     <span>Usually responds within 24 hours</span>
                                 </div>
                                 <div v-if="provider.hourly_rate" class="flex items-center gap-3 text-slate-600">
-                                    <CurrencyDollarIcon class="w-5 h-5 text-slate-400" />
+                                    <CurrencyDollarIcon class="w-5 h-5 shrink-0 text-slate-400" />
                                     <span>${{ provider.hourly_rate }}/hour</span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
 
                         <div class="bg-amber-50 rounded-2xl p-6">
                             <div class="flex items-start gap-3">

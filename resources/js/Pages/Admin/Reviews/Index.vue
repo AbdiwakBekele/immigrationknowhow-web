@@ -1,5 +1,5 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { StarIcon, ChatBubbleLeftRightIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 
@@ -18,6 +18,19 @@ defineProps({
         default: () => [],
     },
 });
+
+const reviewsPageLink = (query = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, String(value));
+        }
+    });
+
+    const qs = params.toString();
+    return qs ? `/admin/reviews?${qs}` : '/admin/reviews';
+};
 </script>
 
 <template>
@@ -36,27 +49,36 @@ defineProps({
             </section>
 
             <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                <Link
+                    :href="reviewsPageLink()"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-xl bg-amber-100 p-2">
                         <StarIcon class="h-5 w-5 text-amber-700" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.average_rating ?? 0 }}</p>
                     <p class="text-sm text-slate-500">Average rating</p>
-                </article>
-                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                </Link>
+                <Link
+                    :href="reviewsPageLink({ today: 'yes' })"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-xl bg-sky-100 p-2">
                         <ChatBubbleLeftRightIcon class="h-5 w-5 text-sky-600" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.today ?? 0 }}</p>
                     <p class="text-sm text-slate-500">New today</p>
-                </article>
-                <article class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                </Link>
+                <Link
+                    :href="reviewsPageLink({ flagged: 'yes' })"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-xl bg-rose-100 p-2">
                         <ExclamationTriangleIcon class="h-5 w-5 text-rose-600" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.pending ?? 0 }}</p>
                     <p class="text-sm text-slate-500">Pending moderation</p>
-                </article>
+                </Link>
             </section>
 
             <section class="admin-panel border-dashed border-slate-300 text-center">

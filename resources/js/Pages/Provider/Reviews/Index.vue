@@ -8,7 +8,7 @@ import {
     FlagIcon,
     ChevronDownIcon
 } from '@heroicons/vue/24/solid';
-import { StarIcon as StarOutline, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
+import { StarIcon as StarOutline, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/vue/24/outline';
 import { ref, computed } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
@@ -80,11 +80,24 @@ const submitReport = () => {
     });
 };
 
+const cleanQuery = (params) => {
+    const q = { ...params };
+    Object.keys(q).forEach((key) => {
+        if (q[key] === '' || q[key] === null || q[key] === undefined) {
+            delete q[key];
+        }
+    });
+    return q;
+};
+
+/** Preset links (do not merge current filters — card actions replace the view). */
+const reviewsFilteredHref = (params = {}) => route('provider.reviews.index', cleanQuery(params));
+
 const applyFilter = (key, value) => {
-    router.get('/provider/portal-reviews', {
+    router.get(route('provider.reviews.index'), cleanQuery({
         ...props.filters,
         [key]: value || undefined,
-    }, {
+    }), {
         preserveState: true,
         preserveScroll: true,
     });
@@ -122,45 +135,65 @@ const ratingDistribution = computed(() => {
 
             <!-- Stats Overview -->
             <div class="grid sm:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl border border-gray-100 p-4 text-center">
+                <Link
+                    :href="reviewsFilteredHref()"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 text-center transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-3xl font-display font-bold text-gray-900">{{ stats.total || 0 }}</div>
                     <div class="text-sm text-gray-500">Total Reviews</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4 text-center">
+                </Link>
+                <Link
+                    :href="reviewsFilteredHref({ sort: 'highest' })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 text-center transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="flex items-center justify-center gap-1">
                         <span class="text-3xl font-display font-bold text-gray-900">{{ Number(stats.average || 0).toFixed(1) }}</span>
                         <StarSolid class="h-6 w-6 text-yellow-500" />
                     </div>
                     <div class="text-sm text-gray-500">Average Rating</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4 text-center">
+                </Link>
+                <Link
+                    :href="reviewsFilteredHref({ rating: 5 })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 text-center transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-3xl font-display font-bold text-yellow-600">{{ stats.distribution?.[5] || 0 }}</div>
                     <div class="text-sm text-gray-500">5-Star Reviews</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4 text-center">
+                </Link>
+                <Link
+                    :href="reviewsFilteredHref({ responded: 'no' })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 text-center transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-3xl font-display font-bold text-orange-600">{{ stats.awaiting_response || 0 }}</div>
                     <div class="text-sm text-gray-500">Awaiting Response</div>
-                </div>
+                </Link>
             </div>
 
             <div class="grid lg:grid-cols-3 gap-6">
                 <!-- Rating Distribution -->
                 <div class="bg-white rounded-xl border border-gray-100 p-6">
                     <h2 class="font-semibold text-gray-900 mb-4">Rating Distribution</h2>
-                    <div class="space-y-3">
-                        <div v-for="item in ratingDistribution" :key="item.rating" class="flex items-center gap-3">
-                            <div class="flex items-center gap-1 w-12">
+                    <div class="space-y-2">
+                        <Link
+                            v-for="item in ratingDistribution"
+                            :key="item.rating"
+                            :href="reviewsFilteredHref({ rating: item.rating })"
+                            class="-mx-2 flex items-center gap-3 rounded-lg p-2 transition hover:bg-gray-50"
+                        >
+                            <div class="flex w-12 items-center gap-1">
                                 <span class="text-sm font-medium">{{ item.rating }}</span>
                                 <StarSolid class="h-4 w-4 text-yellow-500" />
                             </div>
-                            <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
                                 <div 
-                                    class="h-full bg-yellow-500 rounded-full transition-all"
+                                    class="h-full rounded-full bg-yellow-500 transition-all"
                                     :style="{ width: `${item.percentage}%` }"
                                 ></div>
                             </div>
-                            <span class="text-sm text-gray-500 w-8">{{ item.count }}</span>
-                        </div>
+                            <span class="inline-flex w-10 items-center justify-end gap-0.5 text-sm text-gray-500">
+                                {{ item.count }}
+                                <ArrowRightIcon class="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+                            </span>
+                        </Link>
                     </div>
                 </div>
 

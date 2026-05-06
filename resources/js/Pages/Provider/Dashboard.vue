@@ -89,6 +89,7 @@ const statCards = computed(() => [
         icon: UserGroupIcon,
         chip: props.stats?.leadsTrend !== undefined ? `${Math.abs(props.stats.leadsTrend)}%` : 'Overview',
         trend: props.stats?.leadsTrend,
+        href: route('provider.leads.index'),
     },
     {
         title: 'Open Leads',
@@ -97,6 +98,7 @@ const statCards = computed(() => [
         accent: 'emerald',
         icon: ChatBubbleLeftRightIcon,
         chip: 'Active',
+        href: route('provider.leads.index', { open: 1 }),
     },
     {
         title: 'Average Rating',
@@ -105,6 +107,7 @@ const statCards = computed(() => [
         accent: 'amber',
         icon: StarIcon,
         chip: 'Reviews',
+        href: route('provider.reviews.index'),
     },
     {
         title: 'Profile Views (30d)',
@@ -114,6 +117,7 @@ const statCards = computed(() => [
         icon: EyeIcon,
         chip: props.stats?.viewsTrend !== undefined ? `${Math.abs(props.stats.viewsTrend)}%` : 'Traffic',
         trend: props.stats?.viewsTrend,
+        href: route('provider.analytics.index'),
     },
 ]);
 
@@ -171,6 +175,17 @@ const deleteConversation = (conversationUuid) => {
     router.delete(route('provider.messages.destroy', conversationUuid), {
         preserveScroll: true,
     });
+};
+
+const reviewListHref = (review) => {
+    const q = { sort: 'newest' };
+    if (review?.rating != null) {
+        q.rating = review.rating;
+    }
+    if (!review?.provider_response) {
+        q.responded = 'no';
+    }
+    return route('provider.reviews.index', q);
 };
 </script>
 
@@ -267,10 +282,12 @@ const deleteConversation = (conversationUuid) => {
 
             <!-- Stats Grid -->
             <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <article
+                <component
                     v-for="card in statCards"
                     :key="card.title"
-                    class="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    :is="card.href ? Link : 'article'"
+                    :href="card.href"
+                    class="block rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div class="inline-flex h-10 w-10 items-center justify-center rounded-xl" :class="accentMap[card.accent].box">
@@ -286,7 +303,7 @@ const deleteConversation = (conversationUuid) => {
                         <p class="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">{{ card.value }}</p>
                         <p class="mt-2 text-sm leading-6 text-slate-500">{{ card.sublabel }}</p>
                     </div>
-                </article>
+                </component>
             </section>
 
             <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -367,23 +384,42 @@ const deleteConversation = (conversationUuid) => {
                 <!-- Sidebar -->
                 <div class="space-y-6">
                     <!-- Conversion Rate -->
-                    <div class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
-                        <h3 class="mb-4 text-xl font-semibold text-slate-900">Conversion Rate</h3>
-                        <div class="relative pt-1">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm text-slate-500">Leads Converted</span>
-                                <span class="text-sm font-medium text-primary-600">{{ stats.conversionRate || 0 }}%</span>
+                    <div class="rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition hover:border-primary-200 hover:shadow-md">
+                        <Link
+                            :href="route('provider.analytics.index')"
+                            class="block p-6 pb-4"
+                        >
+                            <h3 class="mb-4 text-xl font-semibold text-slate-900">Conversion Rate</h3>
+                            <div class="relative pt-1">
+                                <div class="mb-2 flex items-center justify-between">
+                                    <span class="text-sm text-slate-500">Leads Converted</span>
+                                    <span class="text-sm font-medium text-primary-600">{{ stats.conversionRate || 0 }}%</span>
+                                </div>
+                                <div class="h-3 overflow-hidden rounded-full bg-slate-100">
+                                    <div 
+                                        :style="{ width: `${stats.conversionRate || 0}%` }"
+                                        class="h-full rounded-full bg-gradient-to-r from-primary-500 to-primary-400 transition-all"
+                                    ></div>
+                                </div>
                             </div>
-                            <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
-                                <div 
-                                    :style="{ width: `${stats.conversionRate || 0}%` }"
-                                    class="h-full bg-gradient-to-r from-primary-500 to-primary-400 rounded-full transition-all"
-                                ></div>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between mt-4 text-sm">
-                            <span class="text-slate-500">{{ stats.convertedLeads || 0 }} converted</span>
-                            <span class="text-slate-500">{{ stats.totalLeads || 0 }} total</span>
+                            <p class="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary-600">
+                                View funnel in analytics
+                                <ArrowRightIcon class="h-3.5 w-3.5" />
+                            </p>
+                        </Link>
+                        <div class="flex items-center justify-between gap-4 border-t border-slate-100 px-6 py-3 text-sm">
+                            <Link
+                                :href="route('provider.leads.index', { status: 'converted' })"
+                                class="font-medium text-slate-600 transition hover:text-primary-600"
+                            >
+                                {{ stats.convertedLeads || 0 }} converted
+                            </Link>
+                            <Link
+                                :href="route('provider.leads.index')"
+                                class="font-medium text-slate-600 transition hover:text-primary-600"
+                            >
+                                {{ stats.totalLeads || 0 }} total
+                            </Link>
                         </div>
                     </div>
 
@@ -397,7 +433,12 @@ const deleteConversation = (conversationUuid) => {
                         </div>
 
                         <div v-if="recentReviews?.length" class="divide-y divide-slate-100">
-                            <div v-for="review in recentReviews" :key="review.uuid" class="p-4">
+                            <Link
+                                v-for="review in recentReviews"
+                                :key="review.uuid"
+                                :href="reviewListHref(review)"
+                                class="block p-4 transition-colors hover:bg-slate-50"
+                            >
                                 <div class="flex items-center gap-2 mb-2">
                                     <div class="flex items-center gap-0.5 rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                                         <StarSolid v-for="i in review.rating" :key="i" class="h-4 w-4" />
@@ -405,8 +446,8 @@ const deleteConversation = (conversationUuid) => {
                                     <span class="text-sm text-slate-400">{{ formatTimeAgo(review.created_at) }}</span>
                                 </div>
                                 <p class="text-sm text-slate-600 line-clamp-2">{{ review.comment }}</p>
-                                <p class="text-xs text-slate-400 mt-2">– {{ review.user?.first_name }}</p>
-                            </div>
+                                <p class="mt-2 text-xs text-slate-400">– {{ review.user?.first_name }}</p>
+                            </Link>
                         </div>
                         
                         <div v-else class="p-6 text-center text-slate-500 text-sm">

@@ -35,13 +35,19 @@ class LeadsController extends Controller
             ->where('service_provider_id', $provider->id)
             ->with(['user:id,first_name,last_name,email,avatar', 'conversation:id,uuid,lead_id']);
 
-        // Apply filters
-        if ($request->filled('status')) {
+        // Apply filters (open = new + contacted + in_progress; mutually exclusive with status)
+        if ($request->boolean('open') && ! $request->filled('status')) {
+            $query->open();
+        } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         if ($request->filled('urgency')) {
             $query->where('urgency', $request->urgency);
+        }
+
+        if ($request->filled('service_type')) {
+            $query->where('service_type', $request->service_type);
         }
 
         if ($request->filled('search')) {
@@ -73,7 +79,7 @@ class LeadsController extends Controller
         return Inertia::render('Provider/Leads/Index', [
             'leads' => $leads,
             'stats' => $stats,
-            'filters' => $request->only(['status', 'urgency', 'search']),
+            'filters' => $request->only(['status', 'urgency', 'search', 'service_type', 'open']),
         ]);
     }
 

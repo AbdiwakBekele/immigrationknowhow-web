@@ -58,6 +58,19 @@ const clearFilters = () => {
     router.get(route('admin.providers.index'), {}, { preserveState: true, preserveScroll: true });
 };
 
+const providersPageLink = (query = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, String(value));
+        }
+    });
+
+    const qs = params.toString();
+    return qs ? `/admin/providers?${qs}` : '/admin/providers';
+};
+
 const primaryServiceValue = (provider) => {
     const types = provider?.service_types;
     if (!Array.isArray(types) || types.length === 0) {
@@ -147,27 +160,36 @@ const avatarUrl = (provider) => {
             </section>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                <Link
+                    :href="providersPageLink()"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-lg bg-sky-100 p-1.5">
                         <BriefcaseIcon class="h-5 w-5 text-sky-600" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.total }}</p>
                     <p class="text-sm text-slate-500">Total providers</p>
-                </div>
-                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                </Link>
+                <Link
+                    :href="providersPageLink({ verified: 'yes' })"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-lg bg-emerald-100 p-1.5">
                         <CheckBadgeIcon class="h-5 w-5 text-emerald-600" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.verified }}</p>
                     <p class="text-sm text-slate-500">Verified</p>
-                </div>
-                <div class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm">
+                </Link>
+                <Link
+                    :href="providersPageLink({ active: 'yes' })"
+                    class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
                     <div class="mb-2 inline-flex rounded-lg bg-indigo-100 p-1.5">
                         <Squares2X2Icon class="h-5 w-5 text-indigo-600" />
                     </div>
                     <p class="text-xl font-semibold tracking-tight text-slate-900">{{ stats.active }}</p>
                     <p class="text-sm text-slate-500">Active listings</p>
-                </div>
+                </Link>
             </div>
 
             <section class="admin-panel">
@@ -236,14 +258,18 @@ const avatarUrl = (provider) => {
                         <li
                             v-for="category in categoryCards"
                             :key="category.key"
-                            class="flex items-center justify-between bg-white px-4 py-3 transition-colors hover:bg-slate-50"
                         >
-                            <p class="truncate text-sm font-medium text-slate-700">
-                                {{ category.label || categoryLabel(category.key) }}
-                            </p>
-                            <span class="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                {{ category.count }}
-                            </span>
+                            <Link
+                                :href="providersPageLink({ service_type: category.key === 'other' ? 'other' : category.key })"
+                                class="flex items-center justify-between bg-white px-4 py-3 transition-colors hover:bg-slate-50"
+                            >
+                                <p class="truncate text-sm font-medium text-slate-700">
+                                    {{ category.label || categoryLabel(category.key) }}
+                                </p>
+                                <span class="inline-flex min-w-[2rem] items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                    {{ category.count }}
+                                </span>
+                            </Link>
                         </li>
                     </ul>
                 </div>
