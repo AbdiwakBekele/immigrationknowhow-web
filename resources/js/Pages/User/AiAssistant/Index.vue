@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Button from '@/Components/ui/Button.vue';
 import ChatPanel from '@/Components/AiAssistant/ChatPanel.vue';
@@ -22,6 +22,10 @@ const statusLabel = computed(() => {
     if (!props.subscription) return 'Not subscribed';
     return props.subscription.status || 'inactive';
 });
+
+const checkout = () => {
+    useForm({}).post(route('user.ai-assistant.checkout'));
+};
 </script>
 
 <template>
