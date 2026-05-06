@@ -1,7 +1,7 @@
 <script setup>
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
+import ProfileShareModal from '@/Components/marketplace/ProfileShareModal.vue';
 import ProviderProfileFeed from '@/Components/marketplace/ProviderProfileFeed.vue';
 import { 
     CheckBadgeIcon,
@@ -16,9 +16,10 @@ import {
     ShieldCheckIcon,
     ArrowLeftIcon,
     HeartIcon,
+    ShareIcon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
-import { StarIcon as StarSolid, CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
+import { StarIcon as StarSolid, CheckBadgeIcon as CheckBadgeSolid, HeartIcon as HeartSolid } from '@heroicons/vue/24/solid';
 import { StarIcon as StarOutline } from '@heroicons/vue/24/outline';
 import { ref, computed } from 'vue';
 
@@ -29,6 +30,8 @@ const props = defineProps({
     serviceTypeLabels: { type: Array, default: () => [] },
     /** True when the logged-in provider is viewing their own public listing (e.g. Preview from edit). */
     isOwnListingPreview: { type: Boolean, default: false },
+    canFavorite: { type: Boolean, default: false },
+    isFavorited: { type: Boolean, default: false },
     /** Public profile URL, title, description, and image for sharing / Open Graph */
     providerShare: {
         type: Object,
@@ -41,8 +44,75 @@ const props = defineProps({
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
+const providerPersonName = computed(() => {
+    const u = props.provider?.user || {};
+    const first = (u.first_name || '').trim();
+    const last = (u.last_name || '').trim();
+    return [first, last].filter(Boolean).join(' ');
+});
+
+/** Account-registered full name (User accessor), same as first + last when present. */
+const providerRegisteredFullName = computed(() => {
+    const fromUser = (props.provider?.user?.full_name || '').trim();
+    if (fromUser) return fromUser;
+    return providerPersonName.value;
+});
+
+const providerBusinessName = computed(() => {
+    const v = (props.provider?.business_name || '').trim();
+    return v || '';
+});
+
+const providerPrimaryName = computed(() => {
+    return providerPersonName.value || props.provider?.business_name || 'Provider';
+});
+
+/** Main headline: registered full name first, else business / fallback. */
+const providerHeadlineName = computed(() => {
+    if (providerRegisteredFullName.value) return providerRegisteredFullName.value;
+    return providerBusinessName.value || 'Provider';
+});
+
+/** Subtitle under headline: business only when headline is the person (not duplicate). */
+const providerHeadlineSubtitle = computed(() => {
+    if (!providerBusinessName.value) return '';
+    if (!providerRegisteredFullName.value) return '';
+    // Same string (e.g. sole prop using legal name as business): no subtitle
+    if (providerBusinessName.value === providerRegisteredFullName.value) return '';
+    return providerBusinessName.value;
+});
+
+const providerDisplayTitle = computed(() => {
+    // Used for <Head> / avatar fallback; keep it stable even if business missing.
+    return providerBusinessName.value || providerPrimaryName.value || 'Provider Profile';
+});
+
+const avatarFallbackName = computed(() => {
+    // Avatar should use the service provider (personal) letters when possible.
+    return providerPersonName.value || 'Service Provider';
+});
+
 const showInquiryModal = ref(false);
 const inquiryIntent = ref('inquiry');
+const shareModalOpen = ref(false);
+
+const favoriteForm = useForm({});
+
+const toggleFavorite = () => {
+    if (props.isOwnListingPreview) {
+        return;
+    }
+    if (!user.value) {
+        router.visit(route('login'));
+        return;
+    }
+    if (!props.canFavorite) {
+        return;
+    }
+    favoriteForm.post(route('user.provider-favorites.toggle', props.provider.slug), {
+        preserveScroll: true,
+    });
+};
 
 const inquiryForm = useForm({
     service_type: props.provider.service_types?.[0] || 'other',
@@ -132,10 +202,26 @@ const resolveAvatar = (person, fallback) => {
     }
     return `/storage/${candidate}`;
 };
+
+const socialLinks = computed(() => {
+    const p = props.provider || {};
+    const links = [
+        { key: 'linkedin_url', label: 'LinkedIn', url: p.linkedin_url },
+        { key: 'facebook_url', label: 'Facebook', url: p.facebook_url },
+        { key: 'twitter_url', label: 'X', url: p.twitter_url },
+        { key: 'instagram_url', label: 'Instagram', url: p.instagram_url },
+        { key: 'youtube_url', label: 'YouTube', url: p.youtube_url },
+        { key: 'tiktok_url', label: 'TikTok', url: p.tiktok_url },
+    ];
+
+    return links
+        .map((l) => ({ ...l, url: (l.url || '').trim() }))
+        .filter((l) => l.url);
+});
 </script>
 
 <template>
-    <Head :title="provider.business_name || 'Provider Profile'">
+    <Head :title="providerDisplayTitle">
         <meta head-key="description" name="description" :content="providerShare.description" />
         <link head-key="canonical" rel="canonical" :href="providerShare.url" />
         <meta head-key="og:title" property="og:title" :content="providerShare.title" />
@@ -151,7 +237,7 @@ const resolveAvatar = (person, fallback) => {
 
     <AppLayout>
         <div class="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50">
-            <div class="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+            <div class="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-7">
                 <div
                     v-if="isOwnListingPreview"
                     class="mb-4 rounded-2xl border border-primary-200/80 bg-gradient-to-r from-primary-50 to-sky-50 px-4 py-3.5 text-sm text-primary-900 shadow-sm"
@@ -176,43 +262,58 @@ const resolveAvatar = (person, fallback) => {
                     Back to Providers
                 </Link>
 
-                <div class="grid gap-6 lg:grid-cols-3 xl:gap-8">
+                <div class="grid gap-4 lg:grid-cols-3 xl:gap-6">
                     <!-- Main Content -->
-                    <div class="lg:col-span-2 space-y-6">
+                    <div class="lg:col-span-2 space-y-4">
                         <!-- Provider Header Card -->
                         <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-sm ring-1 ring-white/70">
-                            <!-- Cover Gradient -->
-                            <div class="relative h-40 overflow-hidden bg-gradient-to-r from-primary-700 via-sky-600 to-cyan-500">
-                                <div class="absolute -left-8 -top-8 h-36 w-36 rounded-full bg-white/15 blur-2xl"></div>
-                                <div class="absolute -right-8 top-5 h-32 w-32 rounded-full bg-cyan-100/25 blur-2xl"></div>
-                            </div>
-                            
-                            <div class="px-6 pb-6 sm:px-7">
+                            <div class="px-5 py-5 sm:px-6">
                                 <!-- Avatar & Basic Info -->
-                                <div class="-mt-14 flex flex-col gap-4 sm:flex-row sm:items-end">
+                                <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
                                     <div class="relative">
                                         <img
-                                            :src="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=96`)"
-                                            :alt="provider.business_name"
-                                            class="h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-xl"
+                                            :src="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarFallbackName)}&background=3B95F3&color=fff&size=96`)"
+                                            :alt="providerDisplayTitle"
+                                            class="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-xl"
                                         />
                                         <div v-if="provider.background_check_status === 'clear'" class="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                             <CheckBadgeSolid class="h-6 w-6 text-primary-600" />
                                         </div>
                                     </div>
                                     <div class="flex-1 sm:pb-2">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <h1 class="text-2xl font-display font-bold text-slate-900">
-                                                {{ provider.business_name }}
-                                            </h1>
-                                            <span v-if="provider.is_featured" class="rounded-full bg-secondary-100 px-2 py-0.5 text-xs font-semibold text-secondary-700">
+                                        <div class="flex flex-wrap items-start gap-2">
+                                            <div class="min-w-0 flex-1">
+                                                <h1 class="text-3xl font-display font-bold leading-tight text-slate-900 sm:text-4xl">
+                                                    {{ providerHeadlineName }}
+                                                </h1>
+                                                <p
+                                                    v-if="providerHeadlineSubtitle"
+                                                    class="mt-1.5 text-lg font-medium text-slate-600 sm:text-xl"
+                                                >
+                                                    {{ providerHeadlineSubtitle }}
+                                                </p>
+                                            </div>
+                                            <span
+                                                v-if="provider.is_featured"
+                                                class="mt-1 inline-flex flex-shrink-0 rounded-full bg-secondary-100 px-2 py-0.5 text-xs font-semibold text-secondary-700"
+                                            >
                                                 Featured
                                             </span>
                                         </div>
-                                        <p v-if="provider.tagline" class="text-slate-600 mt-1">{{ provider.tagline }}</p>
-                                        <div class="mt-2 flex flex-wrap gap-2">
-                                            <span 
-                                                v-for="label in serviceTypeLabels" 
+                                        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                                            <span v-if="provider.business_email" class="truncate">
+                                                <span class="text-slate-400">Email:</span>
+                                                <span class="ml-1 font-medium text-slate-700">{{ provider.business_email }}</span>
+                                            </span>
+                                            <span v-if="provider.business_phone" class="truncate">
+                                                <span class="text-slate-400">Phone:</span>
+                                                <span class="ml-1 font-medium text-slate-700">{{ provider.business_phone }}</span>
+                                            </span>
+                                        </div>
+                                        <p v-if="provider.tagline" class="text-slate-600 mt-2">{{ provider.tagline }}</p>
+                                        <div v-if="serviceTypeLabels.length" class="mt-3 flex flex-wrap gap-2">
+                                            <span
+                                                v-for="label in serviceTypeLabels"
                                                 :key="label"
                                                 class="rounded-lg bg-primary-50 px-2.5 py-1 text-sm font-medium text-primary-700"
                                             >
@@ -221,15 +322,31 @@ const resolveAvatar = (person, fallback) => {
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 sm:pb-2">
-                                        <ProfileSharePanel :share="providerShare" menu-align="right" />
-                                        <button class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-500">
-                                            <HeartIcon class="h-5 w-5" />
+                                        <button
+                                            type="button"
+                                            class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                            aria-label="Share provider profile"
+                                            @click="shareModalOpen = true"
+                                        >
+                                            <ShareIcon class="h-5 w-5" />
+                                        </button>
+                                        <button
+                                            v-if="canFavorite"
+                                            type="button"
+                                            class="rounded-lg p-2 transition-colors hover:bg-slate-100"
+                                            :class="isFavorited ? 'text-red-500 hover:text-red-600' : 'text-slate-400 hover:text-red-500'"
+                                            :disabled="favoriteForm.processing"
+                                            :aria-label="isFavorited ? 'Remove from favorites' : 'Add to favorites'"
+                                            @click="toggleFavorite"
+                                        >
+                                            <HeartSolid v-if="isFavorited" class="h-5 w-5" />
+                                            <HeartIcon v-else class="h-5 w-5" />
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- Stats Row -->
-                                <div class="mt-6 flex flex-wrap gap-3 border-t border-slate-100 pt-5">
+                                <div class="mt-5 flex flex-wrap gap-2.5 border-t border-slate-100 pt-4">
                                     <div class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                         <div class="flex">
                                             <template v-for="i in 5" :key="i">
@@ -251,7 +368,7 @@ const resolveAvatar = (person, fallback) => {
                                 </div>
 
                                 <!-- Tags -->
-                                <div class="mt-4 flex flex-wrap gap-2">
+                                <div class="mt-3 flex flex-wrap gap-2">
                                     <span v-if="provider.serves_remote" class="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
                                         <GlobeAltIcon class="h-4 w-4" />
                                         Remote Available
@@ -269,7 +386,7 @@ const resolveAvatar = (person, fallback) => {
                         </div>
 
                         <!-- About Section -->
-                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
                             <h2 class="text-lg font-display font-bold text-slate-900 mb-4">About</h2>
                             <div class="prose prose-slate max-w-none">
                                 <p class="text-slate-600 whitespace-pre-line leading-relaxed">
@@ -295,11 +412,11 @@ const resolveAvatar = (person, fallback) => {
                         <ProviderProfileFeed
                             :posts="profileFeed"
                             :business-name="provider.business_name || ''"
-                            :avatar-url="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(provider.business_name || 'P')}&background=3B95F3&color=fff&size=80`)"
+                            :avatar-url="resolveAvatar(provider.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarFallbackName)}&background=3B95F3&color=fff&size=80`)"
                         />
 
                         <!-- Pricing Section -->
-                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
                             <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Pricing</h2>
                             <div class="grid sm:grid-cols-2 gap-4">
                                 <div v-if="provider.hourly_rate" class="rounded-xl bg-slate-50 p-4">
@@ -323,8 +440,84 @@ const resolveAvatar = (person, fallback) => {
                             </p>
                         </div>
 
+                        <!-- Coverage & Service Area -->
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
+                            <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Coverage</h2>
+
+                            <div class="flex flex-wrap gap-2">
+                                <span v-if="provider.serves_remote" class="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
+                                    <GlobeAltIcon class="h-4 w-4" />
+                                    Remote
+                                </span>
+                                <span v-if="provider.serves_in_person" class="inline-flex items-center gap-1 rounded-full border border-purple-100 bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
+                                    <MapPinIcon class="h-4 w-4" />
+                                    In-person
+                                </span>
+                                <span v-if="provider.service_radius_miles" class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-700">
+                                    <MapPinIcon class="h-4 w-4 text-slate-500" />
+                                    {{ provider.service_radius_miles }} mile radius
+                                </span>
+                            </div>
+
+                            <div v-if="provider.service_areas?.length" class="mt-5 border-t border-slate-100 pt-5">
+                                <h3 class="text-sm font-semibold text-slate-900 mb-3">Service areas</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <span
+                                        v-for="(area, idx) in provider.service_areas"
+                                        :key="`${area}-${idx}`"
+                                        class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                                    >
+                                        {{ area }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Credentials -->
+                        <div
+                            v-if="provider.license_number || provider.license_state || provider.license_expiry || provider.certifications?.length || provider.health_certificates?.length"
+                            class="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"
+                        >
+                            <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Credentials</h2>
+
+                            <div v-if="provider.license_number || provider.license_state || provider.license_expiry" class="rounded-xl bg-slate-50 p-4">
+                                <div class="text-sm font-semibold text-slate-900">License</div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                    <span v-if="provider.license_number" class="font-medium text-slate-900">{{ provider.license_number }}</span>
+                                    <span v-if="provider.license_state" class="text-slate-500"> · {{ provider.license_state }}</span>
+                                    <span v-if="provider.license_expiry" class="text-slate-500"> · Expires {{ formatDate(provider.license_expiry) }}</span>
+                                </div>
+                            </div>
+
+                            <div v-if="provider.certifications?.length" class="mt-5">
+                                <h3 class="text-sm font-semibold text-slate-900 mb-3">Certifications</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <span
+                                        v-for="(cert, idx) in provider.certifications"
+                                        :key="`${cert}-${idx}`"
+                                        class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                                    >
+                                        {{ cert }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div v-if="provider.health_certificates?.length" class="mt-5">
+                                <h3 class="text-sm font-semibold text-slate-900 mb-3">Health certificates</h3>
+                                <div class="flex flex-wrap gap-2">
+                                    <span
+                                        v-for="(cert, idx) in provider.health_certificates"
+                                        :key="`${cert}-${idx}`"
+                                        class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700"
+                                    >
+                                        {{ cert }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Reviews Section -->
-                        <div class="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm">
+                        <div class="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
                             <div class="flex items-center justify-between mb-6">
                                 <h2 class="text-lg font-display font-bold text-slate-900">Reviews</h2>
                             </div>
@@ -404,7 +597,7 @@ const resolveAvatar = (person, fallback) => {
                     <!-- Sidebar -->
                     <div class="space-y-6 lg:col-span-1">
                         <!-- Contact Card -->
-                        <div class="sticky top-24 rounded-2xl border border-slate-200/70 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+                        <div class="sticky top-24 rounded-2xl border border-slate-200/70 bg-white/95 p-5 shadow-sm backdrop-blur-sm">
                             <div class="text-center mb-6">
                                 <div class="text-sm text-slate-500 mb-1">Starting from</div>
                                 <div class="text-3xl font-display font-bold text-slate-900">
@@ -452,6 +645,20 @@ const resolveAvatar = (person, fallback) => {
 
                             <!-- Quick Info -->
                             <div class="mt-6 pt-6 border-t border-slate-100 space-y-4">
+                                <div v-if="provider.business_phone" class="flex items-center gap-3 text-sm">
+                                    <PhoneIcon class="h-5 w-5 text-slate-400" />
+                                    <div class="min-w-0">
+                                        <div class="text-slate-500">Phone</div>
+                                        <div class="font-medium text-slate-900 truncate">{{ provider.business_phone }}</div>
+                                    </div>
+                                </div>
+                                <div v-if="provider.business_email" class="flex items-center gap-3 text-sm">
+                                    <ChatBubbleLeftRightIcon class="h-5 w-5 text-slate-400" />
+                                    <div class="min-w-0">
+                                        <div class="text-slate-500">Email</div>
+                                        <div class="font-medium text-slate-900 truncate">{{ provider.business_email }}</div>
+                                    </div>
+                                </div>
                                 <div v-if="provider.service_radius_miles" class="flex items-center gap-3 text-sm">
                                     <MapPinIcon class="h-5 w-5 text-slate-400" />
                                     <div>
@@ -467,6 +674,29 @@ const resolveAvatar = (person, fallback) => {
                                             {{ provider.languages_offered.map(getLanguageLabel).join(', ') }}
                                         </div>
                                     </div>
+                                </div>
+                                <div v-if="provider.years_experience" class="flex items-center gap-3 text-sm">
+                                    <BriefcaseIcon class="h-5 w-5 text-slate-400" />
+                                    <div>
+                                        <div class="text-slate-500">Experience</div>
+                                        <div class="font-medium text-slate-900">{{ provider.years_experience }} years</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div v-if="socialLinks.length" class="mt-6 pt-6 border-t border-slate-100">
+                                <div class="text-sm font-semibold text-slate-900 mb-3">Social</div>
+                                <div class="flex flex-wrap gap-2">
+                                    <a
+                                        v-for="link in socialLinks"
+                                        :key="link.key"
+                                        :href="link.url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                        {{ link.label }}
+                                    </a>
                                 </div>
                             </div>
 
@@ -623,5 +853,7 @@ const resolveAvatar = (person, fallback) => {
                 </div>
             </div>
         </Teleport>
+
+        <ProfileShareModal v-model="shareModalOpen" :share="providerShare" />
     </AppLayout>
 </template>

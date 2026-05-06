@@ -33,11 +33,27 @@ class MarketplaceController extends Controller
         $viewerCountryRaw = $request->user()?->country;
         $viewerCountry = is_string($viewerCountryRaw) ? trim($viewerCountryRaw) : '';
 
+        $favoriteProviderIds = [];
+        if ($request->user()?->hasRole('user')) {
+            $favoriteProviderIds = $request->user()
+                ->favoriteServiceProviders()
+                ->pluck('service_providers.id')
+                ->all();
+        }
+
         $query = ServiceProvider::query()
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
             ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
+
+        if ($request->boolean('favorites')) {
+            if ($request->user()?->hasRole('user')) {
+                $query->whereIn('service_providers.id', $favoriteProviderIds);
+            } else {
+                $query->whereRaw('0 = 1');
+            }
+        }
 
         // Apply filters
         if ($request->filled('service_type')) {
@@ -82,18 +98,30 @@ class MarketplaceController extends Controller
         $query->orderByDesc('is_featured');
 
         $providers = $query->paginate(12)->withQueryString();
+
+        $favoriteSet = array_flip($favoriteProviderIds);
         $providers->setCollection(
-            $providers->getCollection()->map(
-                fn (ServiceProvider $p) => $p->append('primary_service_type')
-            )
+            $providers->getCollection()->map(function (ServiceProvider $p) use ($favoriteSet) {
+                $p->append('primary_service_type');
+                $p->setAttribute('is_favorited', isset($favoriteSet[$p->id]));
+
+                return $p;
+            })
         );
+
+        $featuredProviders = $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null);
+        if ($request->boolean('favorites') && $request->user()?->hasRole('user')) {
+            $featuredProviders = $featuredProviders
+                ->filter(fn (ServiceProvider $p) => isset($favoriteSet[$p->id]))
+                ->values();
+        }
 
         return Inertia::render('Marketplace/Index', [
             'providers' => $providers,
-            'filters' => $request->only(['service_type', 'language', 'location', 'search', 'remote_only', 'free_consultation', 'sort']),
+            'filters' => $request->only(['service_type', 'language', 'location', 'search', 'remote_only', 'free_consultation', 'sort', 'favorites']),
             'serviceTypes' => ServiceType::options(),
             'languages' => $this->languages,
-            'featuredProviders' => $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null),
+            'featuredProviders' => $featuredProviders,
         ]);
     }
 
@@ -141,12 +169,17 @@ class MarketplaceController extends Controller
             $provider->unsetRelation('profilePosts');
         }
 
+        $canFavorite = $viewer && $viewer->hasRole('user') && ! $isOwner;
+        $isFavorited = $canFavorite && $viewer->favoriteServiceProviders()->whereKey($provider->getKey())->exists();
+
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
             'profileFeed' => $profileFeed->all(),
             'similarProviders' => $similarProviders,
             'canContactProvider' => auth()->check() && ! auth()->user()->isProvider(),
             'isOwnListingPreview' => $isOwner,
+            'canFavorite' => $canFavorite,
+            'isFavorited' => $isFavorited,
             'serviceTypeLabels' => collect($provider->service_types ?? [])
                 ->map(fn ($type) => ServiceType::tryFrom($type)?->label() ?? $type)
                 ->toArray(),
