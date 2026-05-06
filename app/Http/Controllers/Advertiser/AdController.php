@@ -30,11 +30,20 @@ class AdController extends Controller
             ->get()
             ->map(fn (Ad $ad) => $this->toAdPayload($ad));
 
+        $totalViews = $ads->sum(fn (array $ad) => (int) ($ad['analytics']['views'] ?? 0));
+        $totalClicks = $ads->sum(fn (array $ad) => (int) ($ad['analytics']['clicks'] ?? 0));
+        $overallCtr = $totalViews > 0 ? round(($totalClicks / $totalViews) * 100, 2) : 0.0;
+
         return Inertia::render('Advertiser/Ads/Index', [
             'ads' => $ads,
             'adPostingPrice' => $this->adPricingPayload(),
             'adsRouteNamePrefix' => $this->adsRouteNamePrefix($request),
             'adPortal' => $this->adPortalPayload($request),
+            'analyticsSummary' => [
+                'views' => $totalViews,
+                'clicks' => $totalClicks,
+                'ctr' => $overallCtr,
+            ],
         ]);
     }
 

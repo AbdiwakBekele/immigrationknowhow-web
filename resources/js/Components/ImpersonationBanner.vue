@@ -11,6 +11,7 @@ const leaving = ref(false);
 const leave = () => {
     leaving.value = true;
     router.post(route('impersonation.leave'), {}, {
+        replace: true,
         onFinish: () => {
             leaving.value = false;
         },

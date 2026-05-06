@@ -35,7 +35,6 @@ export function adminMainNavItems({
         { name: 'Affiliates', href: '/admin/affiliates', icon: LinkIcon },
         { name: 'Subscription Plans', href: '/admin/subscription-plans', icon: CreditCardIcon },
         { name: 'Subscription Reports', href: '/admin/subscriptions/reports', icon: ChartBarIcon },
-        { name: 'Service Types', href: '/admin/service-types', icon: Squares2X2Icon },
         { name: 'Reports', href: '/admin/reports', icon: ChartBarIcon },
         { name: 'Email Logs', href: '/admin/email-logs', icon: LinkIcon },
     ];
@@ -49,6 +48,7 @@ export function adminSettingsNavItems() {
                 { name: 'General settings', href: '/admin/settings' },
                 { name: 'Email templates', href: '/admin/email-templates' },
                 { name: 'Library categories', href: '/admin/library-categories' },
+                { name: 'Service Types', href: '/admin/service-types' },
             ],
         },
     ];

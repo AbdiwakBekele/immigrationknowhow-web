@@ -295,7 +295,7 @@ const getAvatarInitial = (person) => {
     <Head :title="`Chat with ${otherParticipant.first_name}`" />
 
     <ProviderLayout>
-        <div class="h-[calc(100vh-4rem)] flex flex-col bg-slate-50">
+        <div class="-mx-1.5 -my-1.5 sm:-mx-2 sm:-my-2 lg:-mx-3 lg:-my-3 h-[calc(100vh-5rem)] min-h-0 flex flex-col bg-slate-50">
             <div class="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3">
                 <div class="mx-auto flex w-full max-w-7xl items-center justify-between">
                     <div class="flex items-center gap-4">
@@ -568,7 +568,7 @@ const getAvatarInitial = (person) => {
                         </div>
                     </div>
 
-                    <form class="flex items-end gap-3" @submit.prevent="sendMessage">
+                    <form class="flex items-stretch gap-2" @submit.prevent="sendMessage">
                         <input
                             ref="fileInput"
                             type="file"
@@ -580,19 +580,18 @@ const getAvatarInitial = (person) => {
 
                         <button
                             type="button"
-                            class="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                            class="h-12 w-12 inline-flex items-center justify-center rounded-xl border border-transparent text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
                             @click="triggerFileInput"
                         >
                             <PaperClipIcon class="w-5 h-5" />
                         </button>
 
-                        <div class="flex-1 relative">
+                        <div class="flex-1">
                             <textarea
                                 v-model="form.body"
                                 placeholder="Type your message..."
                                 rows="1"
-                                class="w-full px-4 py-3 bg-slate-100 border-0 rounded-2xl text-slate-900 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                style="min-height: 48px; max-height: 120px;"
+                                class="w-full min-h-12 max-h-[120px] resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-100"
                                 @keydown="handleKeydown"
                             ></textarea>
                         </div>
@@ -601,9 +600,9 @@ const getAvatarInitial = (person) => {
                             type="submit"
                             :disabled="form.processing || (!form.body.trim() && form.attachments.length === 0)"
                             :class="[
-                                'p-3 rounded-xl transition-all',
+                                'h-12 w-12 inline-flex items-center justify-center rounded-xl transition',
                                 (form.body.trim() || form.attachments.length > 0)
-                                    ? 'bg-primary-600 text-white hover:bg-primary-500'
+                                    ? 'bg-primary-600 text-white shadow-sm hover:bg-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-200'
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed',
                             ]"
                         >

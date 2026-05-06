@@ -108,7 +108,7 @@ const destroyItem = (item) => {
                     <span class="text-sm text-gray-500">{{ items?.total ?? 0 }} total</span>
                 </div>
 
-                <div v-if="items?.data?.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div v-if="items?.data?.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <article
                         v-for="item in items.data"
                         :key="item.id"

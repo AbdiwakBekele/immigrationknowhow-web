@@ -471,7 +471,7 @@ const canImpersonate = (row) => {
 const impersonateUser = (row) => {
     if (!canImpersonate(row)) return;
 
-    router.post(route('admin.users.impersonate', { user: row.id }));
+    router.post(route('admin.users.impersonate', { user: row.id }), {}, { replace: true });
 };
 </script>
 

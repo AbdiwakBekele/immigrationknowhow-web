@@ -32,10 +32,6 @@ const paidPlanCheckoutBlocked = (plan) => {
     if (!props.stripeBillingConfigured) {
         return 'stripe';
     }
-    const priceId = plan.stripe_price_id;
-    if (typeof priceId !== 'string' || priceId.trim() === '') {
-        return 'price';
-    }
     return null;
 };
 
@@ -182,12 +178,6 @@ const changePlan = (planUuid) => {
                                     <span v-if="checkoutLoadingPlanUuid === plan.uuid">Opening secure checkout…</span>
                                     <span v-else>Subscribe with Stripe</span>
                                 </button>
-                                <p
-                                    v-if="paidPlanCheckoutBlocked(plan) === 'price'"
-                                    class="text-xs text-amber-700"
-                                >
-                                    This plan is missing a Stripe price ID. Ask an administrator to link the plan in Stripe.
-                                </p>
                             </template>
                             <span
                                 v-else-if="currentPlanId === plan.id"
@@ -204,12 +194,6 @@ const changePlan = (planUuid) => {
                                 >
                                     Switch Plan
                                 </button>
-                                <p
-                                    v-if="paidPlanCheckoutBlocked(plan) === 'price'"
-                                    class="text-xs text-amber-700"
-                                >
-                                    This plan is missing a Stripe price ID.
-                                </p>
                             </template>
                         </div>
                     </div>

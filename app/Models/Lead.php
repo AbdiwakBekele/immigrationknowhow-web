@@ -23,6 +23,10 @@ class Lead extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $appends = [
+        'service_type_label',
+    ];
+
     protected $fillable = [
         'uuid',
         'user_id',
@@ -119,7 +123,12 @@ class Lead extends Model
     // Accessors
     public function getServiceTypeLabelAttribute(): string
     {
-        return ServiceType::tryFrom($this->service_type)?->label() ?? $this->service_type;
+        $type = $this->service_type;
+        if (! is_string($type) || trim($type) === '') {
+            return '';
+        }
+
+        return ServiceType::tryFrom($type)?->label() ?? $type;
     }
 
     public function getUrgencyColorAttribute(): string
