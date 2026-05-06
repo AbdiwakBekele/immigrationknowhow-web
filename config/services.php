@@ -39,6 +39,9 @@ return [
         'webhook_secret' => ($w = env('STRIPE_WEBHOOK_SECRET')) !== null && (string) $w !== ''
             ? trim((string) $w)
             : '',
+        'ai_assistant_price_id' => ($p = env('STRIPE_AI_ASSISTANT_PRICE_ID')) !== null && (string) $p !== ''
+            ? trim((string) $p)
+            : '',
     ],
 
     'openai' => [

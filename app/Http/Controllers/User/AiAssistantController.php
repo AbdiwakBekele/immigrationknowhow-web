@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
 use App\Services\Ai\ServiceSeekerAssistantService;
 use Illuminate\Http\RedirectResponse;
@@ -48,11 +49,28 @@ class AiAssistantController extends Controller
                 ->first()
             : null;
 
+        $chatMessages = Schema::hasTable('ai_assistant_messages')
+            ? AiAssistantMessage::query()
+                ->where('user_id', $user->id)
+                ->where('context', 'user')
+                ->orderBy('id')
+                ->limit(60)
+                ->get(['id', 'role', 'content', 'created_at'])
+                ->map(fn ($m) => [
+                    'id' => (string) $m->id,
+                    'role' => $m->role,
+                    'text' => $m->content,
+                    'ts' => optional($m->created_at)->toISOString(),
+                ])
+                ->values()
+            : collect();
+
         return Inertia::render('User/AiAssistant/Index', [
             'subscription' => $subscription,
             'isAddonActive' => $subscription?->isActive() ?? false,
             'monthlyPrice' => '4.99',
             'currency' => 'USD',
+            'chatMessages' => $chatMessages,
         ]);
     }
 
@@ -62,13 +80,13 @@ class AiAssistantController extends Controller
             return back()->with('error', 'AI add-on is not ready yet. Please run database migrations.');
         }
 
-        // Use STRIPE_SECRET strictly for AI add-on checkout.
-        $stripeSecret = trim((string) env('STRIPE_SECRET', ''));
+        // Use centralized Stripe config for AI add-on checkout.
+        $stripeSecret = trim((string) config('services.stripe.secret', ''));
         if ($stripeSecret === '') {
             return back()->with('error', 'STRIPE_SECRET is not configured.');
         }
 
-        $priceId = trim((string) env('STRIPE_AI_ASSISTANT_PRICE_ID', ''));
+        $priceId = trim((string) config('services.stripe.ai_assistant_price_id', ''));
         $lineItem = $priceId !== ''
             ? [
                 'price' => $priceId,
@@ -166,6 +184,25 @@ class AiAssistantController extends Controller
             return back()->with('error', $result['error']);
         }
 
+        if (Schema::hasTable('ai_assistant_messages')) {
+            AiAssistantMessage::create([
+                'user_id' => $user->id,
+                'context' => 'user',
+                'role' => 'user',
+                'content' => $validated['question'],
+            ]);
+            AiAssistantMessage::create([
+                'user_id' => $user->id,
+                'context' => 'user',
+                'role' => 'assistant',
+                'content' => (string) ($result['answer'] ?? ''),
+                'meta' => array_filter([
+                    'providers_count' => is_array($result['providers'] ?? null) ? count($result['providers']) : null,
+                    'books_count' => is_array($result['books'] ?? null) ? count($result['books']) : null,
+                ], fn ($v) => $v !== null),
+            ]);
+        }
+
         return back()->with('ai_assistant_response', [
             'question' => $validated['question'],
             'answer' => $result['answer'],
@@ -176,7 +213,7 @@ class AiAssistantController extends Controller
 
     private function syncSubscriptionFromCheckoutSession(int $userId, string $sessionId): void
     {
-        $stripeSecret = trim((string) env('STRIPE_SECRET', ''));
+        $stripeSecret = trim((string) config('services.stripe.secret', ''));
         if ($stripeSecret === '') {
             return;
         }
