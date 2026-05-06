@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
 use App\Services\Ai\ServiceSeekerAssistantService;
 use Illuminate\Http\JsonResponse;
@@ -69,7 +70,7 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        $stripeSecret = trim((string) env('STRIPE_SECRET', ''));
+        $stripeSecret = trim((string) config('services.stripe.secret', ''));
         if ($stripeSecret === '') {
             return response()->json([
                 'success' => false,
@@ -78,7 +79,7 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        $priceId = trim((string) env('STRIPE_AI_ASSISTANT_PRICE_ID', ''));
+        $priceId = trim((string) config('services.stripe.ai_assistant_price_id', ''));
         $lineItem = $priceId !== ''
             ? [
                 'price' => $priceId,
@@ -204,6 +205,21 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
+        if (Schema::hasTable('ai_assistant_messages')) {
+            AiAssistantMessage::create([
+                'user_id' => $user->id,
+                'context' => 'mobile',
+                'role' => 'user',
+                'content' => $validated['question'],
+            ]);
+            AiAssistantMessage::create([
+                'user_id' => $user->id,
+                'context' => 'mobile',
+                'role' => 'assistant',
+                'content' => (string) ($result['answer'] ?? ''),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'OK',
@@ -217,7 +233,7 @@ class AiAssistantController extends Controller
 
     private function syncSubscriptionFromCheckoutSession(int $userId, string $sessionId): void
     {
-        $stripeSecret = trim((string) env('STRIPE_SECRET', ''));
+        $stripeSecret = trim((string) config('services.stripe.secret', ''));
         if ($stripeSecret === '') {
             return;
         }

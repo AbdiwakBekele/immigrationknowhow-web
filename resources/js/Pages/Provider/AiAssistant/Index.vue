@@ -1,34 +1,22 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import Button from '@/Components/ui/Button.vue';
+import ChatPanel from '@/Components/AiAssistant/ChatPanel.vue';
 
 const props = defineProps({
     subscription: Object,
     isAddonActive: Boolean,
     monthlyPrice: String,
     currency: String,
+    chatMessages: { type: Array, default: () => [] },
 });
 
 const page = usePage();
 const lastResponse = computed(() => page.props.flash?.ai_assistant_response || null);
 const flashError = computed(() => page.props.flash?.error || null);
 const flashSuccess = computed(() => page.props.flash?.success || null);
-const form = useForm({
-    question: '',
-});
-
-const submitQuestion = () => {
-    form.post(route('provider.ai-assistant.ask'), {
-        preserveScroll: true,
-        onSuccess: () => form.reset(),
-    });
-};
-
-const checkout = () => {
-    useForm({}).post(route('provider.ai-assistant.checkout'));
-};
 
 const statusLabel = computed(() => {
     if (!props.subscription) return 'Not subscribed';
@@ -64,31 +52,13 @@ const statusLabel = computed(() => {
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div v-if="lastResponse" class="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <h2 class="text-lg font-semibold text-slate-900">Answer</h2>
-                    <p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-700">{{ lastResponse.answer }}</p>
-                </div>
-
-                <label class="mb-2 block text-sm font-medium text-slate-700">Ask the AI assistant</label>
-                <textarea
-                    v-model="form.question"
-                    rows="5"
-                    class="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 outline-none focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
-                    placeholder="Example: Summarize EBT eligibility basics my clients often confuse. Any library books on SNAP for newcomers?"
-                />
-                <div class="mt-3 flex items-center justify-between gap-4">
-                    <p class="text-xs text-slate-500">
-                        General information only—not legal advice. Verify with official sources before relying on guidance.
-                    </p>
-                    <Button :disabled="form.processing || !form.question.trim() || !isAddonActive" @click="submitQuestion">
-                        {{ form.processing ? 'Asking...' : 'Ask AI' }}
-                    </Button>
-                </div>
-                <p v-if="flashError" class="mt-2 text-xs font-medium text-rose-700">{{ flashError }}</p>
-                <p v-else-if="flashSuccess" class="mt-2 text-xs font-medium text-emerald-700">{{ flashSuccess }}</p>
-                <p v-if="!isAddonActive" class="mt-2 text-xs text-amber-700">Subscribe to unlock AI chat.</p>
-            </div>
+            <ChatPanel
+                :initial-messages="chatMessages"
+                ask-route-name="provider.ai-assistant.ask"
+                checkout-route-name="provider.ai-assistant.checkout"
+                :is-addon-active="isAddonActive"
+                placeholder="Example: Summarize EBT eligibility basics my clients often confuse. Any library books on SNAP for newcomers?"
+            />
 
             <div v-if="lastResponse" class="space-y-4">
                 <div class="rounded-xl border border-slate-200/90 bg-gradient-to-br from-white via-white to-slate-50/80 p-4 shadow-sm">
