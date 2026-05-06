@@ -33,6 +33,11 @@ class ReviewController extends Controller
             $query->where('rating', $request->rating);
         }
 
+        // Filter by date (today only)
+        if ($request->filled('today') && $request->today === 'yes') {
+            $query->whereDate('created_at', today());
+        }
+
         // Search
         if ($request->filled('search')) {
             $search = $request->search;
@@ -91,7 +96,7 @@ class ReviewController extends Controller
 
         return Inertia::render('Admin/Reviews/Index', [
             'reviews' => $reviews,
-            'filters' => $request->only(['flagged', 'rating', 'search']),
+            'filters' => $request->only(['flagged', 'rating', 'today', 'search']),
             'stats' => $stats,
             'reviewsByRating' => $reviewsByRating,
         ]);

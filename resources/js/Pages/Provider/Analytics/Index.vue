@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { 
     ChartBarIcon,
@@ -8,7 +8,7 @@ import {
     ClockIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
-    EyeIcon,
+    ArrowRightIcon,
     FunnelIcon
 } from '@heroicons/vue/24/outline';
 import { ref, computed } from 'vue';
@@ -23,9 +23,33 @@ const props = defineProps({
 
 const selectedPeriod = ref(props.period);
 
+const cleanQuery = (params) => {
+    const q = { ...params };
+    Object.keys(q).forEach((key) => {
+        if (q[key] === '' || q[key] === null || q[key] === undefined) {
+            delete q[key];
+        }
+    });
+    return q;
+};
+
+const leadsHref = (params = {}) => route('provider.leads.index', cleanQuery(params));
+
+const reviewsHref = (params = {}) => route('provider.reviews.index', cleanQuery(params));
+
+const funnelStageHref = (stageLabel) => {
+    const map = {
+        Received: {},
+        Contacted: { status: 'contacted' },
+        'In Progress': { status: 'in_progress' },
+        Converted: { status: 'converted' },
+    };
+    return leadsHref(map[stageLabel] || {});
+};
+
 const changePeriod = (days) => {
     selectedPeriod.value = days;
-    router.get('/provider/analytics', { period: days }, {
+    router.get(route('provider.analytics.index'), { period: days }, {
         preserveState: true,
         preserveScroll: true,
     });
@@ -42,6 +66,50 @@ const formatChange = (change) => {
     if (change === 0) return '0%';
     return (change > 0 ? '+' : '') + change + '%';
 };
+
+const statCards = computed(() => [
+    {
+        id: 'total-leads',
+        href: leadsHref({}),
+        icon: UserGroupIcon,
+        iconWrap: 'bg-blue-100',
+        iconClass: 'text-blue-600',
+        value: props.stats.leads?.total || 0,
+        label: 'Total Leads',
+        trend: props.stats.leads?.change ?? 0,
+        showTrend: true,
+    },
+    {
+        id: 'conversion-rate',
+        href: leadsHref({ status: 'converted' }),
+        icon: FunnelIcon,
+        iconWrap: 'bg-green-100',
+        iconClass: 'text-green-600',
+        value: `${props.stats.leads?.conversionRate || 0}%`,
+        label: 'Conversion Rate',
+        showTrend: false,
+    },
+    {
+        id: 'avg-rating',
+        href: reviewsHref({}),
+        icon: StarIcon,
+        iconWrap: 'bg-yellow-100',
+        iconClass: 'text-yellow-600',
+        value: props.stats.reviews?.averageRating || 0,
+        label: `Average Rating (${props.stats.reviews?.total || 0} reviews)`,
+        showTrend: false,
+    },
+    {
+        id: 'response-time',
+        href: leadsHref({ status: 'new' }),
+        icon: ClockIcon,
+        iconWrap: 'bg-purple-100',
+        iconClass: 'text-purple-600',
+        value: props.stats.avgResponseTime || 'N/A',
+        label: 'Avg. Response Time',
+        showTrend: false,
+    },
+]);
 </script>
 
 <template>
@@ -75,63 +143,49 @@ const formatChange = (change) => {
 
             <!-- Stats Cards -->
             <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <!-- Leads -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-2 bg-blue-100 rounded-lg">
-                            <UserGroupIcon class="h-5 w-5 text-blue-600" />
+                <Link
+                    v-for="card in statCards"
+                    :key="card.id"
+                    :href="card.href"
+                    class="group block rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md"
+                >
+                    <div class="mb-4 flex items-center justify-between">
+                        <div class="rounded-lg p-2" :class="card.iconWrap">
+                            <component :is="card.icon" class="h-5 w-5" :class="card.iconClass" />
                         </div>
-                        <span 
+                        <span
+                            v-if="card.showTrend"
                             class="flex items-center text-sm font-medium"
-                            :class="stats.leads?.change >= 0 ? 'text-green-600' : 'text-red-600'"
+                            :class="card.trend >= 0 ? 'text-green-600' : 'text-red-600'"
                         >
-                            <ArrowTrendingUpIcon v-if="stats.leads?.change >= 0" class="h-4 w-4 mr-1" />
-                            <ArrowTrendingDownIcon v-else class="h-4 w-4 mr-1" />
-                            {{ formatChange(stats.leads?.change || 0) }}
+                            <ArrowTrendingUpIcon v-if="card.trend >= 0" class="mr-1 h-4 w-4" />
+                            <ArrowTrendingDownIcon v-else class="mr-1 h-4 w-4" />
+                            {{ formatChange(card.trend) }}
                         </span>
+                        <ArrowRightIcon
+                            v-else
+                            class="h-5 w-5 shrink-0 text-gray-400 transition group-hover:text-primary-600"
+                            aria-hidden="true"
+                        />
                     </div>
-                    <div class="text-3xl font-display font-bold text-gray-900">{{ stats.leads?.total || 0 }}</div>
-                    <div class="text-sm text-gray-500 mt-1">Total Leads</div>
-                </div>
-
-                <!-- Conversion Rate -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-2 bg-green-100 rounded-lg">
-                            <FunnelIcon class="h-5 w-5 text-green-600" />
-                        </div>
-                    </div>
-                    <div class="text-3xl font-display font-bold text-gray-900">{{ stats.leads?.conversionRate || 0 }}%</div>
-                    <div class="text-sm text-gray-500 mt-1">Conversion Rate</div>
-                </div>
-
-                <!-- Reviews -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-2 bg-yellow-100 rounded-lg">
-                            <StarIcon class="h-5 w-5 text-yellow-600" />
-                        </div>
-                    </div>
-                    <div class="text-3xl font-display font-bold text-gray-900">{{ stats.reviews?.averageRating || 0 }}</div>
-                    <div class="text-sm text-gray-500 mt-1">Average Rating ({{ stats.reviews?.total || 0 }} reviews)</div>
-                </div>
-
-                <!-- Response Time -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="p-2 bg-purple-100 rounded-lg">
-                            <ClockIcon class="h-5 w-5 text-purple-600" />
-                        </div>
-                    </div>
-                    <div class="text-3xl font-display font-bold text-gray-900">{{ stats.avgResponseTime || 'N/A' }}</div>
-                    <div class="text-sm text-gray-500 mt-1">Avg. Response Time</div>
-                </div>
+                    <div class="font-display text-3xl font-bold text-gray-900">{{ card.value }}</div>
+                    <div class="mt-1 text-sm text-gray-500">{{ card.label }}</div>
+                </Link>
             </div>
 
             <div class="grid lg:grid-cols-2 gap-6">
                 <!-- Leads Trend Chart -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Leads Over Time</h2>
+                <Link
+                    :href="leadsHref({})"
+                    class="block rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:border-primary-200 hover:shadow-md"
+                >
+                    <div class="mb-4 flex items-start justify-between gap-3">
+                        <h2 class="text-lg font-semibold text-gray-900">Leads Over Time</h2>
+                        <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary-600">
+                            Open leads
+                            <ArrowRightIcon class="h-3.5 w-3.5" aria-hidden="true" />
+                        </span>
+                    </div>
                     <div v-if="trends.leads?.length" class="h-64">
                         <!-- Simple bar chart representation -->
                         <div class="flex items-end justify-between h-48 gap-1">
@@ -151,28 +205,32 @@ const formatChange = (change) => {
                             <span>{{ trends.leads[trends.leads.length - 1]?.date }}</span>
                         </div>
                     </div>
-                    <div v-else class="h-64 flex items-center justify-center text-gray-400">
+                    <div v-else class="flex h-64 items-center justify-center text-gray-400">
                         <div class="text-center">
-                            <ChartBarIcon class="h-12 w-12 mx-auto mb-2" />
+                            <ChartBarIcon class="mx-auto mb-2 h-12 w-12" />
                             <p>No data for this period</p>
                         </div>
                     </div>
-                </div>
+                </Link>
 
                 <!-- Conversion Funnel -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Conversion Funnel</h2>
-                    <div class="space-y-4">
-                        <div 
-                            v-for="(stage, index) in conversionFunnel" 
+                    <div class="space-y-2">
+                        <Link
+                            v-for="(stage, index) in conversionFunnel"
                             :key="stage.stage"
-                            class="relative"
+                            :href="funnelStageHref(stage.stage)"
+                            class="block rounded-xl p-2 transition hover:bg-gray-50"
                         >
-                            <div class="flex items-center justify-between mb-1">
+                            <div class="mb-1 flex items-center justify-between gap-3">
                                 <span class="text-sm font-medium text-gray-700">{{ stage.stage }}</span>
-                                <span class="text-sm text-gray-500">{{ stage.count }} ({{ stage.percentage }}%)</span>
+                                <span class="inline-flex shrink-0 items-center gap-1 text-sm text-gray-500">
+                                    {{ stage.count }} ({{ stage.percentage }}%)
+                                    <ArrowRightIcon class="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+                                </span>
                             </div>
-                            <div class="h-8 bg-gray-100 rounded-lg overflow-hidden">
+                            <div class="h-8 overflow-hidden rounded-lg bg-gray-100">
                                 <div 
                                     class="h-full rounded-lg transition-all duration-500"
                                     :class="[
@@ -184,33 +242,37 @@ const formatChange = (change) => {
                                     :style="{ width: `${stage.percentage}%` }"
                                 ></div>
                             </div>
-                        </div>
+                        </Link>
                     </div>
                 </div>
 
                 <!-- Top Services -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Most Requested Services</h2>
-                    <div v-if="topServices.length" class="space-y-3">
-                        <div 
-                            v-for="(service, index) in topServices" 
+                    <div v-if="topServices.length" class="space-y-2">
+                        <Link
+                            v-for="(service, index) in topServices"
                             :key="service.service"
-                            class="flex items-center gap-4"
+                            :href="leadsHref({ service_type: service.service })"
+                            class="flex items-center gap-4 rounded-xl p-2 transition hover:bg-gray-50"
                         >
-                            <span class="text-lg font-bold text-gray-300 w-6">{{ index + 1 }}</span>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-1">
+                            <span class="w-6 text-lg font-bold text-gray-300">{{ index + 1 }}</span>
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-1 flex items-center justify-between gap-2">
                                     <span class="font-medium text-gray-900">{{ service.label }}</span>
-                                    <span class="text-sm text-gray-500">{{ service.count }} leads</span>
+                                    <span class="inline-flex shrink-0 items-center gap-1 text-sm text-gray-500">
+                                        {{ service.count }} leads
+                                        <ArrowRightIcon class="h-3.5 w-3.5 text-gray-400" aria-hidden="true" />
+                                    </span>
                                 </div>
-                                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div class="h-2 overflow-hidden rounded-full bg-gray-100">
                                     <div 
-                                        class="h-full bg-primary-500 rounded-full"
+                                        class="h-full rounded-full bg-primary-500"
                                         :style="{ width: `${(service.count / topServices[0].count) * 100}%` }"
                                     ></div>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     </div>
                     <div v-else class="text-center py-8 text-gray-400">
                         <p>No service data for this period</p>
@@ -221,18 +283,27 @@ const formatChange = (change) => {
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Review Insights</h2>
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="text-center p-4 bg-yellow-50 rounded-xl">
+                        <Link
+                            :href="reviewsHref({ rating: 5 })"
+                            class="rounded-xl bg-yellow-50 p-4 text-center transition hover:bg-yellow-100"
+                        >
                             <div class="text-3xl font-bold text-yellow-600">{{ stats.reviews?.fiveStars || 0 }}</div>
-                            <div class="text-sm text-gray-600 mt-1">5-Star Reviews</div>
-                        </div>
-                        <div class="text-center p-4 bg-blue-50 rounded-xl">
+                            <div class="mt-1 text-sm text-gray-600">5-Star Reviews</div>
+                        </Link>
+                        <Link
+                            :href="reviewsHref({ responded: 'no' })"
+                            class="rounded-xl bg-blue-50 p-4 text-center transition hover:bg-blue-100"
+                        >
                             <div class="text-3xl font-bold text-blue-600">{{ stats.reviews?.needsResponse || 0 }}</div>
-                            <div class="text-sm text-gray-600 mt-1">Awaiting Response</div>
-                        </div>
-                        <div class="text-center p-4 bg-green-50 rounded-xl col-span-2">
+                            <div class="mt-1 text-sm text-gray-600">Awaiting Response</div>
+                        </Link>
+                        <Link
+                            :href="leadsHref({ status: 'converted' })"
+                            class="col-span-2 rounded-xl bg-green-50 p-4 text-center transition hover:bg-green-100"
+                        >
                             <div class="text-3xl font-bold text-green-600">{{ stats.leads?.converted || 0 }}</div>
-                            <div class="text-sm text-gray-600 mt-1">Converted Leads</div>
-                        </div>
+                            <div class="mt-1 text-sm text-gray-600">Converted Leads</div>
+                        </Link>
                     </div>
                 </div>
             </div>

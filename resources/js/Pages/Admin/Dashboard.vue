@@ -100,6 +100,7 @@ const statCards = computed(() => [
         accent: 'blue',
         icon: UsersIcon,
         chip: `${props.userStats.today || 0} today`,
+        href: '/admin/users',
     },
     {
         title: 'Service Providers',
@@ -108,6 +109,7 @@ const statCards = computed(() => [
         accent: 'emerald',
         icon: UserGroupIcon,
         chip: `${props.providerStats.today || 0} new today`,
+        href: '/admin/providers',
     },
     {
         title: 'Pending Verifications',
@@ -116,6 +118,7 @@ const statCards = computed(() => [
         accent: 'amber',
         icon: ShieldCheckIcon,
         chip: (props.backgroundCheckStats.pending || 0) > 0 ? 'Action needed' : 'Up to date',
+        href: '/admin/background-checks',
     },
     {
         title: 'Total Leads',
@@ -124,6 +127,7 @@ const statCards = computed(() => [
         accent: 'violet',
         icon: ChatBubbleLeftRightIcon,
         chip: `${props.leadStats.today || 0} today`,
+        href: '/admin/leads',
     },
     {
         title: 'New Providers Today',
@@ -132,6 +136,7 @@ const statCards = computed(() => [
         accent: 'cyan',
         icon: PlusIcon,
         chip: 'Daily',
+        href: '/admin/providers',
     },
     {
         title: 'New Users Today',
@@ -140,6 +145,7 @@ const statCards = computed(() => [
         accent: 'sky',
         icon: UsersIcon,
         chip: 'Daily',
+        href: '/admin/users',
     },
     {
         title: 'Sold eBooks Today',
@@ -148,6 +154,7 @@ const statCards = computed(() => [
         accent: 'indigo',
         icon: BookOpenIcon,
         chip: 'Sales',
+        href: '/admin/library',
     },
     {
         title: 'Active Providers Today',
@@ -156,6 +163,7 @@ const statCards = computed(() => [
         accent: 'teal',
         icon: ClockIcon,
         chip: 'Logged in today',
+        href: '/admin/providers',
     },
 ]);
 
@@ -230,9 +238,10 @@ const accentMap = {
             </section>
 
             <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <article
+                <Link
                     v-for="card in statCards"
                     :key="card.title"
+                    :href="card.href"
                     class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                     <div class="flex items-start gap-3">
@@ -255,7 +264,7 @@ const accentMap = {
                             {{ card.sublabel }}
                         </p>
                     </div>
-                </article>
+                </Link>
             </section>
 
             <section class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">

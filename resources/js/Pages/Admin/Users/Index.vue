@@ -362,6 +362,19 @@ const hasActiveFilters = computed(() => {
     );
 });
 
+const usersPageLink = (query = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, String(value));
+        }
+    });
+
+    const qs = params.toString();
+    return qs ? `/admin/users?${qs}` : '/admin/users';
+};
+
 const summaryCards = computed(() => [
     {
         title: 'Total Users',
@@ -371,6 +384,7 @@ const summaryCards = computed(() => [
         box: 'bg-blue-50 text-blue-700',
         chip: 'Overview',
         chipClass: 'bg-blue-100 text-blue-700',
+        href: usersPageLink(),
     },
     {
         title: 'Verified Users',
@@ -380,6 +394,7 @@ const summaryCards = computed(() => [
         box: 'bg-emerald-50 text-emerald-700',
         chip: 'Trusted',
         chipClass: 'bg-emerald-100 text-emerald-700',
+        href: usersPageLink({ status: 'verified' }),
     },
     {
         title: 'Unverified Users',
@@ -389,6 +404,7 @@ const summaryCards = computed(() => [
         box: 'bg-amber-50 text-amber-700',
         chip: 'Attention',
         chipClass: 'bg-amber-100 text-amber-700',
+        href: usersPageLink({ status: 'unverified' }),
     },
     {
         title: 'New Today',
@@ -398,6 +414,7 @@ const summaryCards = computed(() => [
         box: 'bg-cyan-50 text-cyan-700',
         chip: 'Daily',
         chipClass: 'bg-cyan-100 text-cyan-700',
+        href: usersPageLink({ sort: 'created_at', dir: 'desc' }),
     },
 ]);
 
@@ -507,9 +524,10 @@ const impersonateUser = (row) => {
             </section>
 
             <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <article
+                <Link
                     v-for="card in summaryCards"
                     :key="card.title"
+                    :href="card.href"
                     class="rounded-[1.1rem] border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                     <div class="flex items-start gap-3">
@@ -526,7 +544,7 @@ const impersonateUser = (row) => {
                         <p class="mt-1 text-xl font-semibold tracking-tight text-slate-900">{{ card.value }}</p>
                         <p class="mt-1 line-clamp-1 text-xs text-slate-500">{{ card.subtitle }}</p>
                     </div>
-                </article>
+                </Link>
             </section>
 
             <section class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">

@@ -11,7 +11,8 @@ import {
     XCircleIcon,
     ArrowPathIcon,
     EyeIcon,
-    ChevronDownIcon
+    ChevronDownIcon,
+    ArrowTrendingUpIcon,
 } from '@heroicons/vue/24/outline';
 import { ref, computed, watch } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
@@ -25,6 +26,22 @@ const props = defineProps({
 const searchQuery = ref(props.filters.search || '');
 const statusFilter = ref(props.filters.status || '');
 const urgencyFilter = ref(props.filters.urgency || '');
+const serviceTypeFilter = ref(props.filters.service_type || '');
+const openLeadsOnly = ref(Boolean(props.filters.open));
+
+const leadsQuery = () => {
+    const params = {
+        search: searchQuery.value || undefined,
+        urgency: urgencyFilter.value || undefined,
+        service_type: serviceTypeFilter.value || undefined,
+    };
+    if (openLeadsOnly.value && !statusFilter.value) {
+        params.open = 1;
+    } else if (statusFilter.value) {
+        params.status = statusFilter.value;
+    }
+    return params;
+};
 
 const statusOptions = [
     { value: '', label: 'All Statuses' },
@@ -45,11 +62,7 @@ const urgencyOptions = [
 ];
 
 const applyFilters = () => {
-    router.get('/provider/leads', {
-        search: searchQuery.value || undefined,
-        status: statusFilter.value || undefined,
-        urgency: urgencyFilter.value || undefined,
-    }, {
+    router.get(route('provider.leads.index'), leadsQuery(), {
         preserveState: true,
         preserveScroll: true,
     });
@@ -62,7 +75,13 @@ watch(searchQuery, () => {
     searchTimeout = setTimeout(applyFilters, 300);
 });
 
-watch([statusFilter, urgencyFilter], applyFilters);
+watch(statusFilter, (v) => {
+    if (v) {
+        openLeadsOnly.value = false;
+    }
+});
+
+watch([statusFilter, urgencyFilter, serviceTypeFilter], applyFilters);
 
 const updateLeadStatus = (leadId, newStatus) => {
     router.patch(`/provider/leads/${leadId}/status`, {
@@ -140,26 +159,44 @@ const firstInitial = (...values) => {
 
             <!-- Stats Cards -->
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-                <div class="bg-white rounded-xl border border-gray-100 p-4">
+                <Link
+                    :href="route('provider.leads.index')"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</div>
                     <div class="text-sm text-gray-500">Total Leads</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4">
+                </Link>
+                <Link
+                    :href="route('provider.leads.index', { status: 'new' })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-2xl font-bold text-yellow-600">{{ stats.new || 0 }}</div>
                     <div class="text-sm text-gray-500">New</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4">
+                </Link>
+                <Link
+                    :href="route('provider.leads.index', { status: 'in_progress' })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-2xl font-bold text-purple-600">{{ stats.in_progress || 0 }}</div>
                     <div class="text-sm text-gray-500">In Progress</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4">
+                </Link>
+                <Link
+                    :href="route('provider.leads.index', { status: 'converted' })"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                >
                     <div class="text-2xl font-bold text-green-600">{{ stats.converted || 0 }}</div>
                     <div class="text-sm text-gray-500">Converted</div>
-                </div>
-                <div class="bg-white rounded-xl border border-gray-100 p-4">
-                    <div class="text-2xl font-bold text-primary-600">{{ stats.conversion_rate || '0%' }}</div>
+                </Link>
+                <Link
+                    :href="route('provider.analytics.index')"
+                    class="block rounded-xl border border-gray-100 bg-white p-4 transition hover:border-primary-200 hover:shadow-sm"
+                >
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-2xl font-bold text-primary-600">{{ stats.conversion_rate || '0%' }}</span>
+                        <ArrowTrendingUpIcon class="h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+                    </div>
                     <div class="text-sm text-gray-500">Conversion Rate</div>
-                </div>
+                </Link>
             </div>
 
             <!-- Filters -->
