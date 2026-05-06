@@ -232,7 +232,7 @@ const firstInitial = (...values) => {
             </div>
 
             <!-- Leads Table -->
-            <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-xl border border-gray-100 overflow-visible">
                 <div v-if="leads.data?.length" class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b border-gray-100">
@@ -284,7 +284,7 @@ const firstInitial = (...values) => {
                                             {{ lead.status.replace('_', ' ') }}
                                             <ChevronDownIcon class="h-4 w-4" />
                                         </MenuButton>
-                                        <MenuItems class="absolute left-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-10">
+                                        <MenuItems class="absolute left-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
                                             <MenuItem 
                                                 v-for="status in statusOptions.slice(1)" 
                                                 :key="status.value"

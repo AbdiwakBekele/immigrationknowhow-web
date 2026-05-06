@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import ProviderProfileFeed from '@/Components/marketplace/ProviderProfileFeed.vue';
 import Button from '@/Components/ui/Button.vue';
 import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
+import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import {
     PencilSquareIcon,
@@ -21,6 +22,7 @@ import {
     ChatBubbleLeftRightIcon,
     SparklesIcon,
     UserPlusIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -232,6 +234,106 @@ const uploadAvatar = (event) => {
             avatarTypeError.value = '';
         },
     });
+};
+
+const professionalModalOpen = ref(false);
+
+const splitList = (value) => String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const pricingModelOptions = [
+    { value: '', label: 'Not set' },
+    { value: 'hourly', label: 'Hourly' },
+    { value: 'flat_rate', label: 'Flat rate' },
+    { value: 'consultation', label: 'Consultation' },
+    { value: 'custom', label: 'Custom' },
+];
+
+const professionalForm = useForm({
+    business_name: props.provider?.business_name ?? '',
+    service_types_text: (props.provider?.service_types || []).join(', '),
+    specializations_text: (props.provider?.specializations || []).join(', '),
+    languages_offered_text: (props.provider?.languages_offered || []).join(', '),
+    years_experience: props.provider?.years_experience ?? '',
+    serves_remote: Boolean(props.provider?.serves_remote),
+    serves_in_person: Boolean(props.provider?.serves_in_person),
+    service_radius_miles: props.provider?.service_radius_miles ?? '',
+
+    pricing_model: props.provider?.pricing_model ?? '',
+    hourly_rate: props.provider?.hourly_rate ?? '',
+    consultation_fee: props.provider?.consultation_fee ?? '',
+    free_consultation: Boolean(props.provider?.free_consultation),
+    pricing_notes: props.provider?.pricing_notes ?? '',
+
+    linkedin_url: props.provider?.linkedin_url ?? '',
+    facebook_url: props.provider?.facebook_url ?? '',
+    twitter_url: props.provider?.twitter_url ?? '',
+    instagram_url: props.provider?.instagram_url ?? '',
+    youtube_url: props.provider?.youtube_url ?? '',
+    tiktok_url: props.provider?.tiktok_url ?? '',
+    accepting_clients: Boolean(props.provider?.accepting_clients),
+});
+
+const openProfessionalModal = () => {
+    professionalForm.defaults({
+        business_name: props.provider?.business_name ?? '',
+        service_types_text: (props.provider?.service_types || []).join(', '),
+        specializations_text: (props.provider?.specializations || []).join(', '),
+        languages_offered_text: (props.provider?.languages_offered || []).join(', '),
+        years_experience: props.provider?.years_experience ?? '',
+        serves_remote: Boolean(props.provider?.serves_remote),
+        serves_in_person: Boolean(props.provider?.serves_in_person),
+        service_radius_miles: props.provider?.service_radius_miles ?? '',
+        pricing_model: props.provider?.pricing_model ?? '',
+        hourly_rate: props.provider?.hourly_rate ?? '',
+        consultation_fee: props.provider?.consultation_fee ?? '',
+        free_consultation: Boolean(props.provider?.free_consultation),
+        pricing_notes: props.provider?.pricing_notes ?? '',
+        linkedin_url: props.provider?.linkedin_url ?? '',
+        facebook_url: props.provider?.facebook_url ?? '',
+        twitter_url: props.provider?.twitter_url ?? '',
+        instagram_url: props.provider?.instagram_url ?? '',
+        youtube_url: props.provider?.youtube_url ?? '',
+        tiktok_url: props.provider?.tiktok_url ?? '',
+        accepting_clients: Boolean(props.provider?.accepting_clients),
+    });
+    professionalForm.reset();
+    professionalForm.clearErrors();
+    professionalModalOpen.value = true;
+};
+
+const saveProfessionalDetails = () => {
+    professionalForm
+        .transform((data) => ({
+            business_name: data.business_name,
+            service_types: splitList(data.service_types_text),
+            specializations: splitList(data.specializations_text),
+            languages_offered: splitList(data.languages_offered_text),
+            years_experience: data.years_experience === '' ? null : Number(data.years_experience),
+            serves_remote: Boolean(data.serves_remote),
+            serves_in_person: Boolean(data.serves_in_person),
+            service_radius_miles: data.service_radius_miles === '' ? null : Number(data.service_radius_miles),
+            pricing_model: data.pricing_model || null,
+            hourly_rate: data.hourly_rate === '' ? null : Number(data.hourly_rate),
+            consultation_fee: data.consultation_fee === '' ? null : Number(data.consultation_fee),
+            free_consultation: Boolean(data.free_consultation),
+            pricing_notes: data.pricing_notes || null,
+            linkedin_url: data.linkedin_url || null,
+            facebook_url: data.facebook_url || null,
+            twitter_url: data.twitter_url || null,
+            instagram_url: data.instagram_url || null,
+            youtube_url: data.youtube_url || null,
+            tiktok_url: data.tiktok_url || null,
+            accepting_clients: Boolean(data.accepting_clients),
+        }))
+        .patch(route('provider.profile.update'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                professionalModalOpen.value = false;
+            },
+        });
 };
 </script>
 
@@ -511,30 +613,87 @@ const uploadAvatar = (event) => {
 
                             <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
                                 <div class="border-b border-slate-200 px-5 py-4">
-                                    <h2 class="text-lg font-semibold text-slate-950">Professional details</h2>
-                                    <p class="mt-1 text-sm text-slate-500">Services, pricing, credentials, and social links.</p>
-                                </div>
-                                <div class="space-y-8 p-5">
-                                    <div>
-                                        <h3 class="text-sm font-semibold text-slate-950">Services and expertise</h3>
-                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
-                                            <p><span class="font-semibold text-slate-900">Service types:</span> {{ provider?.service_types?.join(', ') || 'Not specified' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Specializations:</span> {{ provider?.specializations?.join(', ') || 'Not specified' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Years of experience:</span> {{ provider?.years_experience ?? 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Serves remote:</span> {{ provider?.serves_remote ? 'Yes' : 'No' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Serves in person:</span> {{ provider?.serves_in_person ? 'Yes' : 'No' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Service radius (miles):</span> {{ provider?.service_radius_miles ?? 'Not set' }}</p>
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <h2 class="text-lg font-semibold text-slate-950">Professional details</h2>
+                                            <p class="mt-1 text-sm text-slate-500">Services, pricing, credentials, and social links.</p>
                                         </div>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100"
+                                            @click="openProfessionalModal"
+                                        >
+                                            <PencilSquareIcon class="h-4 w-4" />
+                                            Edit
+                                        </button>
                                     </div>
+                                </div>
+                                <div class="space-y-6 p-5">
+                                    <div class="grid gap-4 lg:grid-cols-2">
+                                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Services</p>
+                                            <div class="mt-3 space-y-3">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-slate-900">Service types</p>
+                                                    <p class="mt-1 text-sm text-slate-700">{{ provider?.service_types?.join(', ') || 'Not specified' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-sm font-semibold text-slate-900">Specializations</p>
+                                                    <p class="mt-1 text-sm text-slate-700">{{ provider?.specializations?.join(', ') || 'Not specified' }}</p>
+                                                </div>
+                                                <div class="grid gap-3 sm:grid-cols-3">
+                                                    <div>
+                                                        <p class="text-xs font-semibold text-slate-500">Experience</p>
+                                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ provider?.years_experience ?? '—' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-xs font-semibold text-slate-500">Remote</p>
+                                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ provider?.serves_remote ? 'Yes' : 'No' }}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p class="text-xs font-semibold text-slate-500">In person</p>
+                                                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ provider?.serves_in_person ? 'Yes' : 'No' }}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                    <div class="border-t border-slate-100 pt-8">
-                                        <h3 class="text-sm font-semibold text-slate-950">Pricing</h3>
-                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
-                                            <p><span class="font-semibold text-slate-900">Pricing model:</span> {{ provider?.pricing_model || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Hourly rate:</span> {{ formatCurrency(provider?.hourly_rate) }}</p>
-                                            <p><span class="font-semibold text-slate-900">Consultation fee:</span> {{ formatCurrency(provider?.consultation_fee) }}</p>
-                                            <p><span class="font-semibold text-slate-900">Free consultation:</span> {{ provider?.free_consultation ? 'Yes' : 'No' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Pricing notes:</span> {{ provider?.pricing_notes || 'No pricing notes' }}</p>
+                                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Pricing</p>
+                                            <div class="mt-3 grid gap-3 sm:grid-cols-3">
+                                                <div>
+                                                    <p class="text-xs font-semibold text-slate-500">Model</p>
+                                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ provider?.pricing_model || '—' }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs font-semibold text-slate-500">Hourly</p>
+                                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatCurrency(provider?.hourly_rate) }}</p>
+                                                </div>
+                                                <div>
+                                                    <p class="text-xs font-semibold text-slate-500">Consultation</p>
+                                                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatCurrency(provider?.consultation_fee) }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                                                <span
+                                                    class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                                    :class="provider?.free_consultation ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'"
+                                                >
+                                                    {{ provider?.free_consultation ? 'Free consultation' : 'Paid consultation' }}
+                                                </span>
+                                                <span
+                                                    class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                                                    :class="provider?.accepting_clients ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-slate-50 text-slate-700'"
+                                                >
+                                                    {{ provider?.accepting_clients ? 'Accepting clients' : 'Not accepting clients' }}
+                                                </span>
+                                            </div>
+                                            <p v-if="provider?.pricing_notes" class="mt-4 text-sm text-slate-700">
+                                                {{ provider.pricing_notes }}
+                                            </p>
+                                            <p v-else class="mt-4 text-sm text-slate-500">
+                                                No pricing notes.
+                                            </p>
                                         </div>
                                     </div>
 
@@ -566,17 +725,34 @@ const uploadAvatar = (event) => {
                                         </div>
                                     </div>
 
-                                    <div class="border-t border-slate-100 pt-8">
-                                        <h3 class="text-sm font-semibold text-slate-950">Social and availability</h3>
-                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
-                                            <p><span class="font-semibold text-slate-900">LinkedIn:</span> {{ provider?.linkedin_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Facebook:</span> {{ provider?.facebook_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Twitter:</span> {{ provider?.twitter_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Instagram:</span> {{ provider?.instagram_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">YouTube:</span> {{ provider?.youtube_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">TikTok:</span> {{ provider?.tiktok_url || 'Not set' }}</p>
-                                            <p><span class="font-semibold text-slate-900">Accepting clients:</span> {{ provider?.accepting_clients ? 'Yes' : 'No' }}</p>
-                                        </div>
+                                    <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Social</p>
+                                        <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">LinkedIn</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.linkedin_url || '—' }}</dd>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">Facebook</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.facebook_url || '—' }}</dd>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">Twitter</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.twitter_url || '—' }}</dd>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">Instagram</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.instagram_url || '—' }}</dd>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">YouTube</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.youtube_url || '—' }}</dd>
+                                            </div>
+                                            <div class="flex items-center justify-between gap-4">
+                                                <dt class="text-slate-500">TikTok</dt>
+                                                <dd class="truncate font-medium text-slate-900">{{ provider?.tiktok_url || '—' }}</dd>
+                                            </div>
+                                        </dl>
                                     </div>
                                 </div>
                             </section>
@@ -745,4 +921,152 @@ const uploadAvatar = (event) => {
             </div>
         </div>
     </ProviderLayout>
+
+    <TransitionRoot as="template" :show="professionalModalOpen">
+        <Dialog as="div" class="relative z-50" @close="professionalModalOpen = false">
+            <TransitionChild
+                as="template"
+                enter="ease-out duration-200"
+                enter-from="opacity-0"
+                enter-to="opacity-100"
+                leave="ease-in duration-150"
+                leave-from="opacity-100"
+                leave-to="opacity-0"
+            >
+                <div class="fixed inset-0 bg-slate-900/50" />
+            </TransitionChild>
+
+            <div class="fixed inset-0 overflow-y-auto p-4 sm:p-6">
+                <div class="flex min-h-full items-center justify-center">
+                    <TransitionChild
+                        as="template"
+                        enter="ease-out duration-200"
+                        enter-from="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
+                        enter-to="opacity-100 translate-y-0 sm:scale-100"
+                        leave="ease-in duration-150"
+                        leave-from="opacity-100 translate-y-0 sm:scale-100"
+                        leave-to="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
+                    >
+                        <DialogPanel class="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-slate-200">
+                            <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+                                <div>
+                                    <DialogTitle class="text-lg font-semibold text-slate-950">Edit professional details</DialogTitle>
+                                    <p class="mt-1 text-sm text-slate-600">Updates your public listing details.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+                                    @click="professionalModalOpen = false"
+                                >
+                                    <XMarkIcon class="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <form class="space-y-6 px-6 py-6" @submit.prevent="saveProfessionalDetails">
+                                <div class="grid gap-5 md:grid-cols-2">
+                                    <Input v-model="professionalForm.business_name" label="Business name" required :error="professionalForm.errors.business_name" />
+                                    <Input v-model="professionalForm.years_experience" label="Years of experience" type="number" min="0" :error="professionalForm.errors.years_experience" />
+                                </div>
+
+                                <div class="grid gap-5 md:grid-cols-2">
+                                    <Input
+                                        v-model="professionalForm.service_types_text"
+                                        label="Service types (comma-separated)"
+                                        helper="Example: immigration_attorney, translator"
+                                        :error="professionalForm.errors.service_types"
+                                        required
+                                    />
+                                    <Input
+                                        v-model="professionalForm.languages_offered_text"
+                                        label="Languages offered (comma-separated)"
+                                        helper="Example: en, es"
+                                        :error="professionalForm.errors.languages_offered"
+                                        required
+                                    />
+                                </div>
+
+                                <Input
+                                    v-model="professionalForm.specializations_text"
+                                    label="Specializations (comma-separated)"
+                                    :error="professionalForm.errors.specializations"
+                                />
+
+                                <div class="grid gap-5 md:grid-cols-2">
+                                    <Select
+                                        v-model="professionalForm.pricing_model"
+                                        :options="pricingModelOptions"
+                                        label="Pricing model"
+                                        placeholder="Not set"
+                                        size="auth"
+                                        :error="professionalForm.errors.pricing_model"
+                                    />
+                                    <Input v-model="professionalForm.hourly_rate" label="Hourly rate" type="number" min="0" step="0.01" :error="professionalForm.errors.hourly_rate" />
+                                    <Input v-model="professionalForm.consultation_fee" label="Consultation fee" type="number" min="0" step="0.01" :error="professionalForm.errors.consultation_fee" />
+                                    <Input v-model="professionalForm.service_radius_miles" label="Service radius (miles)" type="number" min="1" max="500" :error="professionalForm.errors.service_radius_miles" />
+                                </div>
+
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                        <input v-model="professionalForm.serves_remote" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                                        Serves remote
+                                    </label>
+                                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                        <input v-model="professionalForm.serves_in_person" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                                        Serves in person
+                                    </label>
+                                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                        <input v-model="professionalForm.free_consultation" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                                        Free consultation
+                                    </label>
+                                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
+                                        <input v-model="professionalForm.accepting_clients" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                                        Accepting clients
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <label class="mb-3 block text-base font-medium text-slate-700">Pricing notes</label>
+                                    <textarea
+                                        v-model="professionalForm.pricing_notes"
+                                        rows="3"
+                                        class="w-full resize-none rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                                        placeholder="Optional notes about your pricing..."
+                                    />
+                                    <p v-if="professionalForm.errors.pricing_notes" class="mt-2 text-sm font-medium text-red-600">
+                                        {{ professionalForm.errors.pricing_notes }}
+                                    </p>
+                                </div>
+
+                                <div class="grid gap-5 md:grid-cols-2">
+                                    <Input v-model="professionalForm.linkedin_url" label="LinkedIn URL" :error="professionalForm.errors.linkedin_url" />
+                                    <Input v-model="professionalForm.facebook_url" label="Facebook URL" :error="professionalForm.errors.facebook_url" />
+                                    <Input v-model="professionalForm.twitter_url" label="Twitter/X URL" :error="professionalForm.errors.twitter_url" />
+                                    <Input v-model="professionalForm.instagram_url" label="Instagram URL" :error="professionalForm.errors.instagram_url" />
+                                    <Input v-model="professionalForm.youtube_url" label="YouTube URL" :error="professionalForm.errors.youtube_url" />
+                                    <Input v-model="professionalForm.tiktok_url" label="TikTok URL" :error="professionalForm.errors.tiktok_url" />
+                                </div>
+
+                                <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                                        @click="professionalModalOpen = false"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :disabled="professionalForm.processing"
+                                        class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Save changes
+                                    </button>
+                                </div>
+                            </form>
+                        </DialogPanel>
+                    </TransitionChild>
+                </div>
+            </div>
+        </Dialog>
+    </TransitionRoot>
 </template>

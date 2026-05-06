@@ -7,6 +7,7 @@ import {
     BookmarkIcon,
     CalendarDaysIcon,
     DocumentTextIcon,
+    MusicalNoteIcon,
     HeartIcon,
     ShoppingCartIcon,
 } from '@heroicons/vue/24/outline';
@@ -137,8 +138,13 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 :alt="item.title"
                                 class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
                             />
-                            <div v-else class="flex h-full w-full items-center justify-center bg-neutral-100">
-                                <DocumentTextIcon class="h-16 w-16 text-neutral-300" />
+                            <div
+                                v-else
+                                class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
+                            >
+                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-12 w-12 text-white/90" />
+                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-12 w-12 text-white/90" />
+                                <DocumentTextIcon v-else class="h-12 w-12 text-white/90" />
                             </div>
                             <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
                                 {{ itemCategory(item) }}
@@ -247,8 +253,13 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 :alt="item.title"
                                 class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
                             />
-                            <div v-else class="flex h-full w-full items-center justify-center bg-neutral-100">
-                                <DocumentTextIcon class="h-16 w-16 text-neutral-300" />
+                            <div
+                                v-else
+                                class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
+                            >
+                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-12 w-12 text-white/90" />
+                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-12 w-12 text-white/90" />
+                                <DocumentTextIcon v-else class="h-12 w-12 text-white/90" />
                             </div>
                             <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
                                 {{ itemCategory(item) }}

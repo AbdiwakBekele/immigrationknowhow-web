@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Provider;
 
+use App\Actions\Provider\SyncProviderStripeSubscription;
 use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
@@ -12,15 +13,57 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Stripe;
 use Stripe\Subscription as StripeSubscription;
 
 class SubscriptionController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, SyncProviderStripeSubscription $syncProviderSubscription): Response|RedirectResponse
     {
         $provider = $this->resolveProvider($request);
+
+        $checkoutStatus = (string) $request->query('checkout', '');
+        $checkoutSessionId = (string) $request->query('session_id', '');
+
+        if ($checkoutStatus === 'success' && $checkoutSessionId !== '') {
+            if (! StripeConfig::hasSecretKey()) {
+                return redirect()
+                    ->route('provider.subscriptions.index')
+                    ->with('error', 'Stripe is not configured.');
+            }
+
+            try {
+                Stripe::setApiKey((string) config('services.stripe.secret'));
+                $session = StripeCheckoutSession::retrieve($checkoutSessionId);
+                $subscriptionId = is_string($session->subscription) ? $session->subscription : null;
+                if (! $subscriptionId) {
+                    return redirect()
+                        ->route('provider.subscriptions.index')
+                        ->with('error', 'Subscription could not be verified.');
+                }
+
+                $subscription = StripeSubscription::retrieve($subscriptionId);
+                $syncProviderSubscription($subscription, $provider->id);
+            } catch (\Throwable $e) {
+                return redirect()
+                    ->route('provider.subscriptions.index')
+                    ->with('error', config('app.debug')
+                        ? 'Could not confirm subscription: '.$e->getMessage()
+                        : 'Could not confirm subscription. Please refresh and try again.');
+            }
+
+            return redirect()
+                ->route('provider.subscriptions.index')
+                ->with('success', 'Subscription activated successfully.');
+        }
+
+        if ($checkoutStatus === 'cancelled') {
+            return redirect()
+                ->route('provider.subscriptions.index')
+                ->with('info', 'Checkout cancelled.');
+        }
 
         $types = is_array($provider->service_types) ? $provider->service_types : [];
 
@@ -59,7 +102,7 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function checkout(Request $request, SubscriptionPlan $plan): RedirectResponse
+    public function checkout(Request $request, SubscriptionPlan $plan): RedirectResponse|SymfonyResponse
     {
         $provider = $this->resolveProvider($request);
 
@@ -117,7 +160,7 @@ class SubscriptionController extends Controller
                 'mode' => 'subscription',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
+                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
                 'line_items' => $lineItems,
                 'metadata' => [

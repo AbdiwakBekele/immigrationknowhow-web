@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureAffiliatePortalAccess;
 use App\Http\Middleware\EnsureOnboardingComplete;
 use App\Http\Middleware\EnsurePhoneVerified;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RedirectImpersonatedFromAdmin;
 use App\Http\Middleware\SetLocaleFromSession;
 use App\Support\UploadLimit;
 use Illuminate\Foundation\Application;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'onboarding.complete' => EnsureOnboardingComplete::class,
             'phone.verified' => EnsurePhoneVerified::class,
             'affiliate.access' => EnsureAffiliatePortalAccess::class,
+            'impersonation.redirect_admin_back' => RedirectImpersonatedFromAdmin::class,
         ]);
 
         // Disable CSRF for webhooks

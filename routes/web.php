@@ -408,7 +408,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         // Ads
         Route::prefix('ads')->name('ads.')->group(function () {
             Route::get('/', [Advertiser\AdController::class, 'index'])->name('index');
-            Route::get('/analytics', Advertiser\AnalyticsController::class)->name('analytics');
+            Route::get('/analytics', fn () => redirect()->to('/provider/ads?tab=analytics'))->name('analytics');
             Route::get('/create', [Advertiser\AdController::class, 'create'])->name('create');
             Route::post('/', [Advertiser\AdController::class, 'store'])->name('store');
             Route::get('/{ad:uuid}/edit', [Advertiser\AdController::class, 'edit'])->name('edit');
@@ -437,7 +437,7 @@ Route::middleware(['auth', 'role:affiliate', 'affiliate.access', 'verified'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'role:admin|super_admin', 'onboarding.complete'])
+Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|super_admin', 'onboarding.complete'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {

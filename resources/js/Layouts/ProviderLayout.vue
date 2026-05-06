@@ -77,10 +77,9 @@ const navigation = computed(() => {
         { name: 'Leads', href: '/provider/leads', icon: InboxIcon },
         { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
         { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
-        { name: 'Ad Analytics', href: '/provider/ads/analytics', icon: ChartBarIcon },
         { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
+        { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
         { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
-        { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
         ...(dvLottery.value.show_in_menu
             ? [{
                 name: 'DV Lottery',
@@ -88,11 +87,10 @@ const navigation = computed(() => {
                 icon: BookOpenIcon,
             }]
             : []),
-        { name: 'Profile', href: '/provider/profile', icon: UserCircleIcon },
         { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
         { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
         { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
-        { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
+        { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
     ];
 
     const seen = new Set();
@@ -114,13 +112,8 @@ const logout = () => {
 const isActive = (href) => {
     const path = page.url.split('?')[0] ?? '';
 
-    if (href === '/provider/ads/analytics') {
-        return path === href || path.startsWith(`${href}/`);
-    }
-
     if (href === '/provider/ads') {
-        return (path === href || path.startsWith(`${href}/`))
-            && !path.startsWith('/provider/ads/analytics');
+        return path === href || path.startsWith(`${href}/`);
     }
 
     let target = typeof href === 'string' ? href : '';

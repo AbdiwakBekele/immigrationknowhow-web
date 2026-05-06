@@ -108,11 +108,11 @@ const getAvatarInitial = (person) => {
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Messaging</p>
                     <h1 class="mt-2 admin-title">Client messages</h1>
-                    <p class="admin-subtitle">
-                        {{ totalUnread > 0 ? `${totalUnread} unread message${totalUnread > 1 ? 's' : ''}` : 'All caught up!' }}
+                    <p v-if="totalUnread > 0" class="admin-subtitle">
+                        {{ `${totalUnread} unread message${totalUnread > 1 ? 's' : ''}` }}
                     </p>
                     <p class="text-sm text-slate-500 mt-2 max-w-xl">
-                        One-on-one threads linked to service inquiries. Not a public forum — only clients who contacted you appear here.
+                        One-on-one inquiry threads (only clients who contacted you).
                     </p>
                 </div>
                 <Link :href="route('provider.messages.archived')" class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
