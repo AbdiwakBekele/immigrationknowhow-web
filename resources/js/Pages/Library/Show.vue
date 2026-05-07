@@ -66,6 +66,14 @@ let landingAudioWasRestored = false;
 
 /** Full URL for Stripe / manual pay step — use a real `<a href>` so navigation works even if an Inertia visit stalls (e.g. slow Stripe API). */
 const libraryPayUrl = computed(() => route('library.pay', { item: props.item.slug }));
+const sharePurchaseUrl = computed(() => {
+    const path = route('library.show', { item: props.item.slug });
+    const isAbsolute = /^https?:\/\//i.test(String(path));
+    if (typeof window !== 'undefined' && !isAbsolute) {
+        return `${window.location.origin}${path}`;
+    }
+    return path;
+});
 
 const libraryCartAddUrl = computed(() => route('library.cart.add', { item: props.item.slug }));
 
@@ -131,6 +139,28 @@ const purchaseItem = () => {
     router.post(route('library.purchase', { item: props.item.slug }), {}, {
         preserveScroll: true,
     });
+};
+
+const sharePurchaseLink = async () => {
+    const title = `"${props.item.title}" on IKH Library`;
+    const url = sharePurchaseUrl.value;
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        try {
+            await navigator.share({ title, url });
+            return;
+        } catch {
+            // Fall back to clipboard below.
+        }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        window.alert('Book link copied.');
+        return;
+    }
+
+    window.prompt('Copy this book link:', url);
 };
 
 const progressValue = (progress) => {
@@ -1014,6 +1044,7 @@ onBeforeUnmount(() => {
                                 <button
                                     type="button"
                                     class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                    @click="sharePurchaseLink"
                                 >
                                     <ShareIcon class="h-4 w-4" />
                                     Share

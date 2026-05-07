@@ -148,7 +148,7 @@ class HandleInertiaRequests extends Middleware
     private function providerRequiresBackgroundCheck(Request $request): bool
     {
         $user = $request->user();
-        if (! $user || ! $user->hasRole('provider')) {
+        if (! $user) {
             return false;
         }
 
@@ -159,7 +159,9 @@ class HandleInertiaRequests extends Middleware
 
         $providerTypes = collect($provider->service_types)
             ->filter(fn ($value) => is_string($value) && trim($value) !== '')
-            ->map(fn ($value) => trim((string) $value))
+            ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+            ->filter()
+            ->unique()
             ->values();
 
         if ($providerTypes->isEmpty()) {
@@ -170,10 +172,14 @@ class HandleInertiaRequests extends Middleware
             Schema::hasTable('service_type_options')
             && Schema::hasColumn('service_type_options', 'requires_background_check')
         ) {
-            return ServiceTypeOption::query()
-                ->whereIn('value', $providerTypes->all())
+            $requiredTypes = ServiceTypeOption::query()
                 ->where('requires_background_check', true)
-                ->exists();
+                ->pluck('value')
+                ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+                ->filter()
+                ->unique();
+
+            return $providerTypes->intersect($requiredTypes)->isNotEmpty();
         }
 
         return $this->includesDefaultBackgroundCheckTypes($providerTypes);
@@ -182,7 +188,35 @@ class HandleInertiaRequests extends Middleware
     private function includesDefaultBackgroundCheckTypes(Collection $providerTypes): bool
     {
         return $providerTypes
-            ->intersect(['pet_sitter', 'babysitter', 'tutor'])
+            ->intersect(['pet_sitter', 'petsitter', 'babysitter', 'baby_sitter', 'tutor'])
             ->isNotEmpty();
+    }
+
+    private function normalizeServiceTypeValue(string $value): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/i', '_', strtolower(trim($value))), '_');
+    }
+
+    private function canonicalServiceTypeValue(string $value): string
+    {
+        $normalized = $this->normalizeServiceTypeValue($value);
+
+        if (($normalized === 'pet_sitter' || str_contains($normalized, 'pet')) && str_contains($normalized, 'sitter')) {
+            return 'pet_sitter';
+        }
+
+        if (str_contains($normalized, 'babysitter') || (str_contains($normalized, 'baby') && str_contains($normalized, 'sitter'))) {
+            return 'babysitter';
+        }
+
+        if (str_contains($normalized, 'tutor')) {
+            return 'tutor';
+        }
+
+        if ((str_contains($normalized, 'health') || str_contains($normalized, 'healthcare')) && str_contains($normalized, 'navigator')) {
+            return 'health_navigator';
+        }
+
+        return $normalized;
     }
 }

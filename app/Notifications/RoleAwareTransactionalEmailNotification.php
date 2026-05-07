@@ -31,12 +31,14 @@ class RoleAwareTransactionalEmailNotification extends Notification
 
         $mail = (new MailMessage)
             ->subject($payload['subject'])
-            ->greeting('Hello '.($payload['tokens']['{{first_name}}'] ?: 'there').'!')
-            ->line($payload['body']);
-
-        if (filled($payload['action_label']) && filled($payload['action_url'])) {
-            $mail->action($payload['action_label'], $payload['action_url']);
-        }
+            // Use a standard Blade view to avoid markdown/CSS inliner overhead.
+            ->view('emails.transactional', [
+                'subject' => $payload['subject'],
+                'greeting' => 'Hello '.($payload['tokens']['{{first_name}}'] ?: 'there').'!',
+                'body' => (string) $payload['body'],
+                'actionLabel' => $payload['action_label'],
+                'actionUrl' => $payload['action_url'],
+            ]);
 
         $mail->withSymfonyMessage(function (Email $message) use ($payload, $notifiable): void {
             $headers = $message->getHeaders();
