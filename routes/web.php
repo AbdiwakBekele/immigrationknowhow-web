@@ -258,6 +258,9 @@ Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function 
     Route::get('/providers/{provider:slug}/contact', [LeadController::class, 'create'])->name('leads.create');
     Route::post('/providers/{provider:slug}/contact', [LeadController::class, 'store'])->name('leads.store');
 
+    Route::post('/providers/{provider:slug}/favorite', [User\ProviderFavoriteController::class, 'toggle'])
+        ->name('user.provider-favorites.toggle');
+
     // User Contracts (service provider acceptance and contract lifecycle)
     Route::prefix('contracts')->name('contracts.')->group(function () {
         Route::get('/', [User\ContractController::class, 'index'])->name('index');

@@ -253,7 +253,7 @@ body {
 
     /* Provider card */
     .provider-card {
-        @apply card-hover p-6 flex flex-col gap-4;
+        @apply card-hover p-4 flex flex-col gap-3;
     }
 
     /* Message bubble */

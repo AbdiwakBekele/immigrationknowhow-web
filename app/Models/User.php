@@ -7,6 +7,7 @@ use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -98,6 +99,13 @@ class User extends Authenticatable implements MustVerifyEmail
     public function serviceProvider(): HasOne
     {
         return $this->hasOne(ServiceProvider::class);
+    }
+
+    /** Service seekers: saved marketplace providers. */
+    public function favoriteServiceProviders(): BelongsToMany
+    {
+        return $this->belongsToMany(ServiceProvider::class, 'provider_favorites', 'user_id', 'service_provider_id')
+            ->withTimestamps();
     }
 
     public function affiliateProfile(): HasOne

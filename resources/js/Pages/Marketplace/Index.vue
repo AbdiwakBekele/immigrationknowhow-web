@@ -32,6 +32,7 @@ const form = reactive({
     location: props.filters?.location || '',
     remote_only: props.filters?.remote_only || false,
     free_consultation: props.filters?.free_consultation || false,
+    favorites: [true, 'true', 1, '1', 'on'].includes(props.filters?.favorites),
     sort: props.filters?.sort || 'rating',
 });
 
@@ -60,7 +61,7 @@ const serviceTypeOptions = computed(() => {
 });
 
 const hasActiveFilters = computed(() => {
-    return form.service_type || form.language || form.location || form.remote_only || form.free_consultation;
+    return form.service_type || form.language || form.location || form.remote_only || form.free_consultation || form.favorites;
 });
 const activeFilterCount = computed(() => {
     return [
@@ -69,6 +70,7 @@ const activeFilterCount = computed(() => {
         Boolean(form.location),
         Boolean(form.remote_only),
         Boolean(form.free_consultation),
+        Boolean(form.favorites),
     ].filter(Boolean).length;
 });
 
@@ -91,6 +93,9 @@ const activeFilterPills = computed(() => {
     if (form.free_consultation) {
         pills.push('Free consultation');
     }
+    if (form.favorites) {
+        pills.push('Favorites');
+    }
     return pills;
 });
 
@@ -108,6 +113,7 @@ const clearFilters = () => {
     form.location = '';
     form.remote_only = false;
     form.free_consultation = false;
+    form.favorites = false;
     form.sort = 'rating';
     applyFilters();
 };
@@ -130,28 +136,28 @@ watch(() => form.sort, () => {
     <Head title="Find Service Providers" />
 
     <AppLayout>
-        <div class="mx-auto max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-700 via-indigo-700 to-violet-700 px-6 py-8 text-white shadow-xl sm:px-8 sm:py-10">
+        <div class="mx-auto max-w-[1440px] space-y-4 px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+            <section class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-700 via-indigo-700 to-violet-700 px-5 py-5 text-white shadow-xl sm:px-7 sm:py-6">
                 <div class="pointer-events-none absolute -left-12 -top-8 h-40 w-40 rounded-full bg-white/15 blur-2xl"></div>
                 <div class="pointer-events-none absolute -right-12 top-5 h-44 w-44 rounded-full bg-fuchsia-200/20 blur-2xl"></div>
-                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div class="max-w-2xl">
                         <p class="text-xs font-semibold uppercase tracking-wider text-sky-100">Marketplace</p>
-                        <h1 class="mt-2 text-3xl font-display font-bold sm:text-4xl">Find trusted service providers</h1>
-                        <p class="mt-3 text-sm text-sky-50 sm:text-base">
+                        <h1 class="mt-1.5 text-3xl font-display font-bold sm:text-4xl">Find trusted service providers</h1>
+                        <p class="mt-2.5 text-sm text-sky-50 sm:text-base">
                             Browse verified professionals for legal support, taxes, language services, and more.
                         </p>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <div class="rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-sm">
+                    <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                        <div class="rounded-2xl border border-white/20 bg-white/15 px-4 py-2.5 backdrop-blur-sm">
                             <p class="text-xs text-sky-100">Providers</p>
                             <p class="text-lg font-semibold">{{ providers.total }}</p>
                         </div>
-                        <div class="rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-sm">
+                        <div class="rounded-2xl border border-white/20 bg-white/15 px-4 py-2.5 backdrop-blur-sm">
                             <p class="text-xs text-sky-100">Featured</p>
                             <p class="text-lg font-semibold">{{ featuredProviders?.length || 0 }}</p>
                         </div>
-                        <div class="col-span-2 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-sm sm:col-span-1">
+                        <div class="col-span-2 rounded-2xl border border-white/20 bg-white/15 px-4 py-2.5 backdrop-blur-sm sm:col-span-1">
                             <p class="text-xs text-sky-100">Active filters</p>
                             <p class="text-lg font-semibold">{{ activeFilterCount }}</p>
                         </div>
@@ -159,7 +165,7 @@ watch(() => form.sort, () => {
                 </div>
             </section>
 
-            <section class="sticky top-20 z-20 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-sm backdrop-blur sm:p-5">
+            <section class="sticky top-20 z-20 rounded-2xl border border-slate-200/80 bg-white/95 p-3.5 shadow-sm backdrop-blur sm:p-4">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div class="relative flex-1">
                         <MagnifyingGlassIcon class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -167,7 +173,7 @@ watch(() => form.sort, () => {
                             v-model="form.search"
                             type="text"
                             placeholder="Search by provider, service, language, or keyword..."
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
+                            class="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
                         />
                     </div>
 
@@ -240,7 +246,7 @@ watch(() => form.sort, () => {
                     leave-from-class="opacity-100 translate-y-0"
                     leave-to-class="opacity-0 -translate-y-2"
                 >
-                    <div v-if="showFilters" class="mt-4 grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div v-if="showFilters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-4">
                         <Select
                             v-model="form.language"
                             :options="languageOptions"
@@ -275,6 +281,15 @@ watch(() => form.sort, () => {
                                 />
                                 <span class="text-sm text-slate-700">Free consultation</span>
                             </label>
+                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                <input
+                                    v-model="form.favorites"
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
+                                    @change="applyFilters"
+                                />
+                                <span class="text-sm text-slate-700">My favorites</span>
+                            </label>
                             </div>
                         </div>
                         <div class="flex flex-col">
@@ -296,7 +311,7 @@ watch(() => form.sort, () => {
                     </h2>
                     <span class="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">Recommended</span>
                 </div>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <ProviderCard
                         v-for="provider in featuredProviders"
                         :key="provider.id"
@@ -305,7 +320,7 @@ watch(() => form.sort, () => {
                 </div>
             </section>
 
-            <section class="space-y-4">
+            <section class="space-y-3">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-900">
                         {{ hasActiveFilters || form.search ? 'Search Results' : 'All Providers' }}
@@ -316,7 +331,7 @@ watch(() => form.sort, () => {
                     </p>
                 </div>
 
-                <div v-if="providers.data.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div v-if="providers.data.length" class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <ProviderCard
                         v-for="provider in providers.data"
                         :key="provider.id"
