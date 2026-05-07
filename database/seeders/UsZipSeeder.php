@@ -20,7 +20,13 @@ class UsZipSeeder extends Seeder
             throw new RuntimeException('The uszips table does not exist. Run migrations before seeding.');
         }
 
-        $path = $this->resolveDumpPath();
+        try {
+            $path = $this->resolveDumpPath();
+        } catch (RuntimeException $e) {
+            // This dataset is optional for local development; skip without failing the entire seeding run.
+            $this->command?->warn('US ZIP seed skipped: '.$e->getMessage());
+            return;
+        }
         $availableColumns = Schema::getColumnListing('uszips');
         $targetColumns = collect([
             'zip',
@@ -110,8 +116,16 @@ class UsZipSeeder extends Seeder
             }
         }
 
+        $prettyCandidates = implode(PHP_EOL . '  - ', array_map(
+            static fn (string $path) => $path,
+            array_values(array_filter($candidates, 'is_string'))
+        ));
+
         throw new RuntimeException(
-            'Unable to find uszips.sql.gz. Set USZIPS_SQL_PATH=/absolute/path/to/uszips.sql.gz or place it at database/seeders/data/uszips.sql.gz.'
+            "Unable to find uszips.sql.gz." . PHP_EOL .
+            "Set USZIPS_SQL_PATH to an absolute path (Windows example: C:\\Users\\you\\Downloads\\uszips.sql.gz) " .
+            "or place the file in one of these locations:" . PHP_EOL .
+            "  - {$prettyCandidates}"
         );
     }
 

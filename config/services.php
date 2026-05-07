@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'from_number' => env('TWILIO_FROM_NUMBER'),
+        // VA... Twilio Verify Service SID
+        'verify_service_sid' => env('TWILIO_VERIFY_SERVICE_SID', env('TWILIO_VERIFY_SID')),
+        'verify_code_length' => (int) env('TWILIO_VERIFY_CODE_LENGTH', 6),
+        'fake' => env('TWILIO_FAKE', false),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],

@@ -542,6 +542,8 @@ Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|supe
             Route::get('/email-templates', [Admin\EmailTemplateController::class, 'index'])->name('email-templates.index');
             Route::get('/email-templates/{emailTemplate}', [Admin\EmailTemplateController::class, 'show'])->name('email-templates.show');
             Route::patch('/email-templates/{emailTemplate}', [Admin\EmailTemplateController::class, 'update'])->name('email-templates.update');
+            Route::post('/email-templates/{emailTemplate}/send-test', [Admin\EmailTemplateController::class, 'sendTest'])
+                ->name('email-templates.send-test');
             Route::get('/subscription-plans', [Admin\SubscriptionPlanController::class, 'index'])->name('subscription-plans.index');
             Route::get('/subscription-plans/create', [Admin\SubscriptionPlanController::class, 'create'])->name('subscription-plans.create');
             Route::post('/subscription-plans', [Admin\SubscriptionPlanController::class, 'store'])->name('subscription-plans.store');

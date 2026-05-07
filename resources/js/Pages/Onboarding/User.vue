@@ -133,6 +133,7 @@ const userServicesLimitError = ref('');
 const userAddressError = ref('');
 const submittingUserAddress = ref(false);
 const saving = ref(false);
+const locationPickerRef = ref(null);
 
 const userServiceTypes = computed({
     get: () => {
@@ -177,8 +178,21 @@ const backPhoneVerificationStep = () => {
 
 const submitUserAddressStep = () => {
     userAddressError.value = '';
+    if (locationPickerRef.value?.isResolvingLocation) {
+        userAddressError.value = 'Finishing address selection. Please wait a moment and try again.';
+        return;
+    }
+    const pickerStatus = String(locationPickerRef.value?.statusMessage || '').trim();
+    if (pickerStatus) {
+        userAddressError.value = pickerStatus;
+        return;
+    }
     if (!formData.value.city || !formData.value.state || !formData.value.country) {
-        userAddressError.value = 'Please complete city, state, and country to continue.';
+        userAddressError.value = 'Please select a valid address from the suggestions so city/state/ZIP populate.';
+        return;
+    }
+    if (String(formData.value.country || '').toUpperCase() === 'US' && !formData.value.postal_code) {
+        userAddressError.value = 'Please select an address that includes a ZIP code.';
         return;
     }
 
@@ -296,6 +310,7 @@ const goBack = () => {
                     </p>
 
                     <LocationCountryStatePick
+                        ref="locationPickerRef"
                         v-model:country="formData.country"
                         v-model:state="formData.state"
                         v-model:city="formData.city"
