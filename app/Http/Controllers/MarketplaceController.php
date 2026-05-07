@@ -32,9 +32,10 @@ class MarketplaceController extends Controller
     {
         $viewerCountryRaw = $request->user()?->country;
         $viewerCountry = is_string($viewerCountryRaw) ? trim($viewerCountryRaw) : '';
+        $favoritesEnabled = $this->favoritesEnabled();
 
         $favoriteProviderIds = [];
-        if ($request->user()?->hasRole('user')) {
+        if ($favoritesEnabled && $request->user()?->hasRole('user')) {
             $favoriteProviderIds = $request->user()
                 ->favoriteServiceProviders()
                 ->pluck('service_providers.id')
@@ -48,7 +49,7 @@ class MarketplaceController extends Controller
             ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
 
         if ($request->boolean('favorites')) {
-            if ($request->user()?->hasRole('user')) {
+            if ($favoritesEnabled && $request->user()?->hasRole('user')) {
                 $query->whereIn('service_providers.id', $favoriteProviderIds);
             } else {
                 $query->whereRaw('0 = 1');
@@ -110,7 +111,7 @@ class MarketplaceController extends Controller
         );
 
         $featuredProviders = $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null);
-        if ($request->boolean('favorites') && $request->user()?->hasRole('user')) {
+        if ($favoritesEnabled && $request->boolean('favorites') && $request->user()?->hasRole('user')) {
             $featuredProviders = $featuredProviders
                 ->filter(fn (ServiceProvider $p) => isset($favoriteSet[$p->id]))
                 ->values();
@@ -169,8 +170,10 @@ class MarketplaceController extends Controller
             $provider->unsetRelation('profilePosts');
         }
 
-        $canFavorite = $viewer && $viewer->hasRole('user') && ! $isOwner;
-        $isFavorited = $canFavorite && $viewer->favoriteServiceProviders()->whereKey($provider->getKey())->exists();
+        $favoritesEnabled = $this->favoritesEnabled();
+        $canFavorite = $favoritesEnabled && $viewer && $viewer->hasRole('user') && ! $isOwner;
+        $isFavorited = $canFavorite
+            && $viewer->favoriteServiceProviders()->whereKey($provider->getKey())->exists();
 
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
@@ -221,5 +224,10 @@ class MarketplaceController extends Controller
             ->limit(4)
             ->get()
             ->map(fn (ServiceProvider $p) => $p->append('primary_service_type'));
+    }
+
+    private function favoritesEnabled(): bool
+    {
+        return Schema::hasTable('provider_favorites');
     }
 }

@@ -8,6 +8,7 @@ use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Models\Message;
 use App\Models\ServiceProvider;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -152,21 +153,10 @@ class DashboardController extends Controller
 
     protected function getRecommendedProviders($user)
     {
-        // Get user's service interests from their leads or onboarding data
-        $serviceTypes = [];
-
-        // From previous leads
-        $leadServiceTypes = Lead::where('user_id', $user->id)
-            ->distinct()
-            ->pluck('service_type')
-            ->toArray();
-
-        // From onboarding data
-        if (! empty($user->onboarding_data['services']['types'])) {
-            $serviceTypes = array_merge($serviceTypes, $user->onboarding_data['services']['types']);
-        }
-
-        $serviceTypes = array_unique(array_merge($serviceTypes, $leadServiceTypes));
+        $serviceTypes = $this->userInterestedServiceTypes($user);
+        $userLanguages = $this->userPreferredLanguages($user);
+        $userState = is_string($user->state) ? trim($user->state) : '';
+        $userCity = is_string($user->city) ? trim($user->city) : '';
 
         $query = ServiceProvider::query()
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
@@ -175,26 +165,82 @@ class DashboardController extends Controller
             ->verified()
             ->whereUserCountry($user->country);
 
-        // If we have service preferences, prioritize matching providers
-        if (! empty($serviceTypes)) {
-            $query->where(function ($q) use ($serviceTypes) {
-                foreach ($serviceTypes as $type) {
-                    $q->orWhereJsonContains('service_types', $type);
-                }
-            });
+        // State-level discovery: show providers in the same state.
+        if ($userState !== '') {
+            $query->whereHas('user', fn ($uq) => $uq->where('state', $userState));
         }
 
-        // Prefer same state or remote when user has a state
-        if ($user->state) {
-            $query->where(function ($q) use ($user) {
-                $q->where('serves_remote', true)
-                    ->orWhereHas('user', fn ($uq) => $uq->where('state', $user->state));
-            });
-        }
+        return $query
+            ->limit(120)
+            ->get()
+            ->map(function (ServiceProvider $provider) use ($serviceTypes, $userLanguages, $userCity) {
+                $providerServiceTypes = collect($provider->service_types ?? [])
+                    ->map(fn ($type) => $this->normalizeMatchValue((string) $type))
+                    ->filter()
+                    ->unique()
+                    ->values();
+                $providerLanguages = collect($provider->languages_offered ?? [])
+                    ->map(fn ($language) => $this->normalizeMatchValue((string) $language))
+                    ->filter()
+                    ->unique()
+                    ->values();
 
-        return $query->orderByDesc('is_featured')
-            ->orderByDesc('average_rating')
-            ->limit(4)
-            ->get();
+                $serviceMatchCount = $providerServiceTypes->intersect($serviceTypes)->count();
+                $languageMatchCount = $providerLanguages->intersect($userLanguages)->count();
+
+                $providerCity = $this->normalizeMatchValue((string) ($provider->user?->city ?? ''));
+                $normalizedUserCity = $this->normalizeMatchValue($userCity);
+                $sameCity = $normalizedUserCity !== '' && $providerCity !== '' && $providerCity === $normalizedUserCity;
+
+                // Weighted score: interests > language > proximity > quality.
+                $score = ($serviceMatchCount * 35)
+                    + ($languageMatchCount * 20)
+                    + ($sameCity ? 18 : 0)
+                    + ($provider->serves_in_person ? 8 : 0)
+                    + ($provider->serves_remote ? 4 : 0)
+                    + min(10, (float) ($provider->average_rating ?? 0));
+
+                $provider->setAttribute('match_score', $score);
+
+                return $provider;
+            })
+            ->sortByDesc(fn (ServiceProvider $provider) => [
+                (float) ($provider->match_score ?? 0),
+                (int) $provider->is_featured,
+                (float) ($provider->average_rating ?? 0),
+                (int) ($provider->total_reviews ?? 0),
+            ])
+            ->take(8)
+            ->values();
+    }
+
+    private function userInterestedServiceTypes($user): Collection
+    {
+        $fromOnboarding = collect($user->onboarding_data['services']['types'] ?? []);
+        $fromLeads = Lead::where('user_id', $user->id)
+            ->distinct()
+            ->pluck('service_type');
+
+        return $fromOnboarding
+            ->merge($fromLeads)
+            ->map(fn ($type) => $this->normalizeMatchValue((string) $type))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    private function userPreferredLanguages($user): Collection
+    {
+        return collect($user->languages ?? [])
+            ->push($user->preferred_language)
+            ->map(fn ($language) => $this->normalizeMatchValue((string) $language))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    private function normalizeMatchValue(string $value): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/i', '_', strtolower(trim($value))), '_');
     }
 }

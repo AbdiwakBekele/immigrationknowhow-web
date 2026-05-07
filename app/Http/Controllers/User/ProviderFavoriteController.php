@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ProviderFavoriteController extends Controller
 {
     public function toggle(Request $request, ServiceProvider $provider): RedirectResponse
     {
+        if (! Schema::hasTable('provider_favorites')) {
+            return back()->with('error', 'Favorites are currently unavailable.');
+        }
+
         $user = $request->user();
         abort_unless($user && $user->hasRole('user'), 403);
 
