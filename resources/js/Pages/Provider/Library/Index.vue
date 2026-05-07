@@ -75,8 +75,8 @@ const userAccessRecord = (item) => {
 
 const isFavorited = (item) => Boolean(userAccessRecord(item)?.is_favorite);
 
-const readUrl = (item) => route('library.read', { item: item.slug });
-const showUrl = (item) => route('library.show', { item: item.slug });
+const readUrl = (item) => route('provider.library.read', { item: item.slug });
+const showUrl = (item) => route('provider.library.show', { item: item.slug });
 const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug });
 </script>
 

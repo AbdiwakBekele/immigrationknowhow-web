@@ -271,7 +271,9 @@ const renderPdfPage = async () => {
 
         const baseViewport = page.getViewport({ scale: 1 });
         const availableWidth = Math.max(320, (canvasWrapRef.value?.clientWidth ?? 900) - 32);
-        const fitScale = Math.min(1.45, Math.max(0.55, availableWidth / baseViewport.width));
+        // Never start smaller than the PDF's native size (scale=1).
+        // If the container is narrower, we prefer scrolling over rendering a tiny canvas.
+        const fitScale = Math.max(1, Math.min(1.45, availableWidth / baseViewport.width));
         const viewport = page.getViewport({ scale: fitScale * zoom.value });
         const canvas = canvasRef.value;
         const context = canvas.getContext('2d');

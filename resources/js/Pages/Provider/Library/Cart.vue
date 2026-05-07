@@ -80,7 +80,7 @@ const checkoutData = { cart_portal: 'provider' };
                     >
                         <div class="flex min-w-0 gap-4">
                             <Link
-                                :href="route('library.show', item.slug)"
+                                :href="route('provider.library.show', item.slug)"
                                 class="relative h-24 w-20 shrink-0 overflow-hidden rounded-md bg-neutral-100"
                             >
                                 <img
@@ -95,7 +95,7 @@ const checkoutData = { cart_portal: 'provider' };
                             </Link>
                             <div class="min-w-0">
                                 <Link
-                                    :href="route('library.show', item.slug)"
+                                    :href="route('provider.library.show', item.slug)"
                                     class="font-semibold text-neutral-950 hover:text-blue-700"
                                 >
                                     {{ item.title }}
@@ -153,7 +153,7 @@ const checkoutData = { cart_portal: 'provider' };
 
                     <Link
                         v-else-if="singleItemManualPay"
-                        :href="route('library.pay', items[0].slug)"
+                        :href="route('library.pay', { item: items[0].slug, portal: 'provider' })"
                         class="mt-5 flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
                     >
                         Continue to payment

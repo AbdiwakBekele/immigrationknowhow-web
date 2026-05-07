@@ -203,6 +203,29 @@ const resolveAvatar = (person, fallback) => {
     return `/storage/${candidate}`;
 };
 
+const resolveReviewAvatarSrc = (person) => {
+    const candidate = String(person?.avatar_url || person?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) return candidate;
+    return `/storage/${candidate}`;
+};
+
+const reviewUserDisplayName = (person) => {
+    const first = String(person?.first_name || '').trim();
+    const last = String(person?.last_name || '').trim();
+    const full = [first, last].filter(Boolean).join(' ').trim();
+    return full || String(person?.full_name || '').trim() || 'Anonymous';
+};
+
+const reviewUserInitials = (person) => {
+    const name = reviewUserDisplayName(person);
+    if (!name || name === 'Anonymous') return 'A';
+    const parts = name.split(/\s+/).filter(Boolean);
+    const firstLetter = parts[0]?.[0] || '';
+    const lastLetter = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[1]) || '';
+    return `${firstLetter}${lastLetter}`.toUpperCase();
+};
+
 const socialLinks = computed(() => {
     const p = props.provider || {};
     const links = [
@@ -552,21 +575,33 @@ const socialLinks = computed(() => {
                             </div>
 
                             <!-- Reviews List -->
-                            <div v-if="reviews.length" class="space-y-6">
+                            <div v-if="reviews.length" class="grid gap-4 sm:grid-cols-2">
                                 <div 
                                     v-for="review in reviews" 
                                     :key="review.id"
-                                    class="border-b border-slate-100 pb-6 last:border-0 last:pb-0"
+                                    class="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-soft"
                                 >
                                     <div class="flex items-start justify-between">
                                         <div class="flex items-center gap-3">
-                                            <img 
-                                                :src="resolveAvatar(review.user, `https://ui-avatars.com/api/?name=${encodeURIComponent(review.user?.first_name || 'U')}&background=e2e8f0&color=64748b&size=40`)"
-                                                class="h-10 w-10 rounded-full bg-slate-100"
-                                            />
+                                            <template v-if="resolveReviewAvatarSrc(review.user)">
+                                                <img
+                                                    :src="resolveReviewAvatarSrc(review.user)"
+                                                    :alt="reviewUserDisplayName(review.user)"
+                                                    class="h-10 w-10 rounded-full object-cover bg-slate-100"
+                                                />
+                                            </template>
+                                            <template v-else>
+                                                <div
+                                                    class="h-10 w-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-semibold text-sm"
+                                                    :aria-label="reviewUserDisplayName(review.user)"
+                                                    role="img"
+                                                >
+                                                    {{ reviewUserInitials(review.user) }}
+                                                </div>
+                                            </template>
                                             <div>
                                                 <div class="font-medium text-slate-900">
-                                                    {{ review.user?.first_name }} {{ review.user?.last_name?.charAt(0) }}.
+                                                    {{ reviewUserDisplayName(review.user) }}
                                                 </div>
                                                 <div class="text-sm text-slate-500">{{ formatDate(review.created_at) }}</div>
                                             </div>
@@ -581,7 +616,7 @@ const socialLinks = computed(() => {
                                     <p class="mt-3 text-slate-600">{{ review.comment }}</p>
                                     
                                     <!-- Provider Response -->
-                                    <div v-if="review.provider_response" class="mt-4 ml-4 p-4 bg-slate-50 rounded-xl border-l-4 border-primary-500">
+                                    <div v-if="review.provider_response" class="mt-4 p-4 bg-slate-50 rounded-xl border-l-4 border-primary-500">
                                         <div class="text-sm font-medium text-slate-900 mb-1">Response from {{ provider.business_name }}</div>
                                         <p class="text-sm text-slate-600">{{ review.provider_response }}</p>
                                     </div>
