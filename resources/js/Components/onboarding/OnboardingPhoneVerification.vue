@@ -51,7 +51,7 @@ const otpInputs = ref([]);
 
 const flagClass = (iso2) => `fi fi-${String(iso2 || '').toLowerCase()}`;
 
-const normalizeLocalDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 10);
+const normalizeLocalDigits = (value) => String(value || '').replace(/\D/g, '').slice(0, 15);
 
 const formatUsPhone = (digits) => {
     const clean = normalizeLocalDigits(digits);
@@ -99,15 +99,20 @@ const selectedDial = computed(() => {
     return o ? String(o.dial) : '1';
 });
 
-const fullDigits = computed(() => {
+const fullE164 = computed(() => {
     const local = normalizeLocalDigits(phoneLocal.value);
-    return `${selectedDial.value}${local}`;
+    const dial = String(selectedDial.value || '').replace(/\D/g, '');
+    const localNormalized = countryIso.value === 'US'
+        ? local
+        : local.replace(/^0+/, ''); // common international trunk prefix
+
+    return `+${dial}${localNormalized}`;
 });
 
 const phoneLocalDisplay = computed(() => formatUsPhone(phoneLocal.value));
 
 const maskedPhone = computed(() => {
-    const typed = fullDigits.value.replace(/\D/g, '');
+    const typed = fullE164.value.replace(/\D/g, '');
     const digits = typed || String(props.phone || '').replace(/\D/g, '');
     if (digits.length < 4) {
         return 'your phone number';
@@ -228,15 +233,24 @@ const submitOtp = () => {
 
 const resendOtp = () => {
     const localDigits = normalizeLocalDigits(phoneLocal.value);
-    if (localDigits.length !== 10) {
-        resendForm.setError('phone', 'Enter a valid 10-digit phone number (123-456-7890).');
-        return;
+    if (countryIso.value === 'US') {
+        if (localDigits.length !== 10) {
+            resendForm.setError('phone', 'Enter a valid 10-digit phone number (123-456-7890).');
+            return;
+        }
+    } else {
+        // General international guardrails; Twilio Verify expects E.164 (+ + 8..15 digits total).
+        const e164Digits = fullE164.value.replace(/\D/g, '');
+        if (e164Digits.length < 8 || e164Digits.length > 15) {
+            resendForm.setError('phone', 'Enter a valid phone number for the selected country.');
+            return;
+        }
     }
     resendForm.clearErrors('phone');
 
-    resendForm.phone = fullDigits.value;
+    resendForm.phone = fullE164.value;
     console.log('[FLOW_DEBUG] Step 3 send/resend OTP', {
-        phoneLast4: fullDigits.value.slice(-4),
+        phoneLast4: fullE164.value.slice(-4),
         hasSentOtp: hasSentOtp.value,
     });
     resendForm.post(route(props.sendRouteName), {

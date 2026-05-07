@@ -55,6 +55,8 @@ let googleAutocompleteTimer = null;
 const googlePlaceOptions = ref([]);
 const googleDropdownOpen = ref(false);
 let googlePlacesTimer = null;
+const googlePlaceResolving = ref(false);
+const lastResolvedGooglePlace = ref('');
 const selectedLocationSummary = computed(() => {
     if (locationLabel.value) {
         return locationLabel.value;
@@ -129,11 +131,25 @@ const fetchGooglePlacesOptions = async () => {
 
         const payload = await response.json();
         const rawOptions = Array.isArray(payload?.data) ? payload.data : [];
-        // Don't over-filter results client-side; we already validate the selected place's state
-        // after resolving place details in selectGooglePlaceOption().
-        googlePlaceOptions.value = rawOptions;
-        googleDropdownOpen.value = rawOptions.length > 0;
-        if (!rawOptions.length) {
+
+        // Prefer showing only suggestions that match the currently-selected state.
+        // Places Autocomplete doesn't support state-only restriction reliably, so we filter by display text.
+        const selectedState = String(state.value || '').trim().toUpperCase();
+        const filteredOptions = selectedState && selectedState.length === 2
+            ? rawOptions.filter((opt) => {
+                const text = String(opt?.text || '').toUpperCase();
+                return (
+                    text.includes(`, ${selectedState},`)
+                    || text.includes(`, ${selectedState} `)
+                    || text.endsWith(`, ${selectedState}`)
+                    || text.includes(` ${selectedState},`)
+                );
+            })
+            : rawOptions;
+
+        googlePlaceOptions.value = filteredOptions;
+        googleDropdownOpen.value = filteredOptions.length > 0;
+        if (!filteredOptions.length) {
             googleAutocompleteStatus.value = 'No matching addresses found.';
         }
     } catch {
@@ -150,8 +166,16 @@ const selectGooglePlaceOption = async (option) => {
     const text = option?.text;
     if (!place) return;
 
+    // Optimistically commit the user's click so the UI reflects selection immediately,
+    // even if the place-details request is still in flight.
+    locationLabel.value = text || locationLabel.value || locationQuery.value;
+    locationQuery.value = locationLabel.value || locationQuery.value;
+    googleDropdownOpen.value = false;
+
     locationSearchLoading.value = true;
+    googlePlaceResolving.value = true;
     googleAutocompleteStatus.value = '';
+    lastResolvedGooglePlace.value = '';
 
     try {
         const response = await fetch(route('address-detail.place', { place }), {
@@ -176,6 +200,15 @@ const selectGooglePlaceOption = async (option) => {
         const resolvedState = String(parsed.state || '').toUpperCase();
         if (selectedState && resolvedState && selectedState !== resolvedState) {
             googleAutocompleteStatus.value = `That address is in ${resolvedState}. Please pick an address in ${selectedState}.`;
+            // Don't keep a "selected" summary if the selection is invalid.
+            // Force the user to pick a matching-state address.
+            city.value = '';
+            postalCode.value = '';
+            county.value = '';
+            locationLabel.value = '';
+            // Keep the user's text so they can quickly pick another option.
+            locationQuery.value = text || locationQuery.value;
+            googleDropdownOpen.value = true;
             return;
         }
 
@@ -189,10 +222,12 @@ const selectGooglePlaceOption = async (option) => {
         googlePlaceOptions.value = [];
         googleDropdownOpen.value = false;
         googleAutocompleteStatus.value = '';
+        lastResolvedGooglePlace.value = place;
     } catch {
         googleAutocompleteStatus.value = 'Street address lookup is unavailable right now.';
     } finally {
         locationSearchLoading.value = false;
+        googlePlaceResolving.value = false;
     }
 };
 
@@ -351,6 +386,12 @@ watch(
         }
     },
 );
+
+defineExpose({
+    isResolvingLocation: computed(() => locationSearchLoading.value || googlePlaceResolving.value),
+    hasResolvedGooglePlace: computed(() => Boolean(lastResolvedGooglePlace.value)),
+    statusMessage: computed(() => googleAutocompleteStatus.value || ''),
+});
 </script>
 
 <template>
@@ -470,7 +511,9 @@ watch(
                         :key="opt.place"
                         type="button"
                         class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-primary-50"
+                        @pointerdown.prevent="selectGooglePlaceOption(opt)"
                         @mousedown.prevent="selectGooglePlaceOption(opt)"
+                        @click.prevent="selectGooglePlaceOption(opt)"
                     >
                         <span class="min-w-0 flex-1">
                             <span class="block truncate font-medium text-neutral-900">{{ opt.text }}</span>

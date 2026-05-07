@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use libphonenumber\NumberParseException;
+use libphonenumber\PhoneNumberFormat;
+use libphonenumber\PhoneNumberUtil;
 
 class PhoneVerificationService
 {
@@ -14,9 +17,20 @@ class PhoneVerificationService
 
     private const MAX_ATTEMPTS = 5;
 
+    public function __construct(
+        protected TwilioService $twilio,
+    ) {}
+
     public function sendOtp(User $user, string $phone): string
     {
-        $normalized = $this->normalizePhone($phone);
+        $normalized = $this->normalizePhone($phone, $user);
+
+        if ($this->driver() === 'twilio') {
+            $this->twilio->sendVerificationOtp($normalized);
+            $user->update(['phone' => $normalized]);
+
+            return $normalized;
+        }
 
         $code = (string) random_int(100000, 999999);
 
@@ -39,6 +53,21 @@ class PhoneVerificationService
 
     public function verify(User $user, string $code): bool
     {
+        if ($this->driver() === 'twilio') {
+            $phone = (string) ($user->phone ?? '');
+            if ($phone === '') {
+                return false;
+            }
+
+            $approved = $this->twilio->checkVerificationOtp($phone, $code);
+
+            if ($approved) {
+                $user->update(['phone_verified_at' => now()]);
+            }
+
+            return $approved;
+        }
+
         $key = $this->cacheKey($user->id);
         $payload = Cache::get($key);
 
@@ -87,10 +116,35 @@ class PhoneVerificationService
         return self::CACHE_PREFIX.$userId;
     }
 
-    public function normalizePhone(string $phone): string
+    public function normalizePhone(string $phone, ?User $user = null): string
     {
-        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+        $raw = trim((string) $phone);
+        $raw = preg_replace('/\s+/', ' ', $raw) ?? '';
 
-        return $digits;
+        $country = $user?->country;
+        $defaultRegion = is_string($country) && $country !== '' ? strtoupper($country) : 'US';
+
+        try {
+            $util = PhoneNumberUtil::getInstance();
+            $parsed = $util->parse($raw, $defaultRegion);
+
+            if (! $util->isValidNumber($parsed)) {
+                throw new NumberParseException(NumberParseException::NOT_A_NUMBER, 'Invalid phone number.');
+            }
+
+            return $util->format($parsed, PhoneNumberFormat::E164);
+        } catch (NumberParseException $e) {
+            // Fallback: digits-only (legacy behavior)
+            $digits = preg_replace('/\D+/', '', $raw) ?? '';
+
+            return $digits;
+        }
+    }
+
+    private function driver(): string
+    {
+        $driver = (string) config('phone_verification.driver', 'cache');
+
+        return $driver !== '' ? $driver : 'cache';
     }
 }

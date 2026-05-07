@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\EmailTemplate;
+use App\Notifications\RoleAwareTransactionalEmailNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -118,6 +120,34 @@ class EmailTemplateController extends Controller
         ]);
 
         return back()->with('success', 'Email template updated.');
+    }
+
+    public function sendTest(Request $request, EmailTemplate $emailTemplate): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        $validated = $request->validate([
+            'to' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $to = $validated['to'] ?? ($request->user()?->email ?: config('mail.from.address'));
+
+        if (! $to) {
+            return back()->withErrors(['to' => 'No recipient email address available.']);
+        }
+
+        Notification::route('mail', $to)->notify(new RoleAwareTransactionalEmailNotification(
+            $emailTemplate->event_key,
+            $request->user(),
+            [
+                'role' => $emailTemplate->role,
+                'invite_link' => url('/'),
+                'activation_link' => url('/'),
+                'dashboard_link' => url('/'),
+            ],
+        ));
+
+        return back()->with('success', "Test email queued for delivery to {$to}.");
     }
 
     protected function roleLabel(?string $role): string
