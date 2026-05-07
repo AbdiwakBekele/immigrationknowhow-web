@@ -94,6 +94,8 @@ class ProfileController extends Controller
                 'license_number',
                 'license_state',
                 'license_expiry',
+                'state_license_document_path',
+                'state_license_document_name',
                 'certifications',
                 'health_certificates',
                 'years_experience',
@@ -220,6 +222,8 @@ class ProfileController extends Controller
                 'license_number',
                 'license_state',
                 'license_expiry',
+                'state_license_document_path',
+                'state_license_document_name',
                 'certifications',
                 'health_certificates',
                 'years_experience',
@@ -277,6 +281,8 @@ class ProfileController extends Controller
             'license_number' => ['nullable', 'string', 'max:100'],
             'license_state' => ['nullable', 'string', 'max:100'],
             'license_expiry' => ['nullable', 'date'],
+            'state_license_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'],
+            'remove_state_license_document' => ['boolean'],
             'certifications' => ['nullable', 'array'],
             'certifications.*.name' => ['required', 'string', 'max:255'],
             'certifications.*.issuer' => ['nullable', 'string', 'max:255'],
@@ -413,6 +419,25 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($path);
             }
         }
+
+        $removeStateLicense = (bool) ($validated['remove_state_license_document'] ?? false);
+        if ($removeStateLicense && is_string($provider->state_license_document_path) && $provider->state_license_document_path !== '') {
+            Storage::disk('public')->delete($provider->state_license_document_path);
+            $validated['state_license_document_path'] = null;
+            $validated['state_license_document_name'] = null;
+        }
+
+        if ($request->hasFile('state_license_document')) {
+            if (is_string($provider->state_license_document_path) && $provider->state_license_document_path !== '') {
+                Storage::disk('public')->delete($provider->state_license_document_path);
+            }
+
+            $stateLicenseFile = $request->file('state_license_document');
+            $validated['state_license_document_path'] = $stateLicenseFile->store('provider-state-licenses', 'public');
+            $validated['state_license_document_name'] = $stateLicenseFile->getClientOriginalName();
+        }
+
+        unset($validated['state_license_document'], $validated['remove_state_license_document']);
 
         $provider->update($validated);
 

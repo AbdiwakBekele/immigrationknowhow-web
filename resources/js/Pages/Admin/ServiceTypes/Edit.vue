@@ -14,6 +14,7 @@ const form = useForm({
     for_user: Boolean(props.serviceType.for_user),
     for_provider: Boolean(props.serviceType.for_provider),
     include_certificate: Boolean(props.serviceType.include_certificate),
+    requires_background_check: Boolean(props.serviceType.requires_background_check),
     is_active: Boolean(props.serviceType.is_active),
     sort_order: props.serviceType.sort_order ?? 0,
     monthly_subscription_rate: Number(props.serviceType.monthly_subscription_rate ?? 0),
@@ -93,6 +94,10 @@ const errorClass = 'mt-1 text-xs text-red-600';
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.include_certificate" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
                             <span class="text-sm text-slate-700">Include certificate upload for providers</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input v-model="form.requires_background_check" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                            <span class="text-sm text-slate-700">Requires background check</span>
                         </label>
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />

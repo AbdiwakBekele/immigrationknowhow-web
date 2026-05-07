@@ -23,6 +23,7 @@ import {
     SparklesIcon,
     UserPlusIcon,
     XMarkIcon,
+    DocumentTextIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -152,6 +153,13 @@ const healthCertificateFileUrl = (path) => {
     if (path.startsWith('http://') || path.startsWith('https://')) return path;
     return `/storage/${path}`;
 };
+
+const stateLicenseFileUrl = computed(() => {
+    const path = props.provider?.state_license_document_path || '';
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `/storage/${path}`;
+});
 
 const isImageCertificate = (value) => /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(String(value || ''));
 
@@ -704,6 +712,20 @@ const saveProfessionalDetails = () => {
                                                 <p><span class="font-semibold text-slate-900">License number:</span> {{ provider?.license_number || 'Not set' }}</p>
                                                 <p><span class="font-semibold text-slate-900">License state:</span> {{ provider?.license_state || 'Not set' }}</p>
                                                 <p><span class="font-semibold text-slate-900">License expiry:</span> {{ provider?.license_expiry || 'Not set' }}</p>
+                                                <p class="flex items-center gap-2">
+                                                    <span class="font-semibold text-slate-900">State license document:</span>
+                                                    <a
+                                                        v-if="stateLicenseFileUrl"
+                                                        :href="stateLicenseFileUrl"
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        class="inline-flex items-center gap-1 font-semibold text-blue-700 underline hover:text-blue-800"
+                                                    >
+                                                        <DocumentTextIcon class="h-4 w-4" />
+                                                        {{ provider?.state_license_document_name || 'View file' }}
+                                                    </a>
+                                                    <span v-else>Not uploaded</span>
+                                                </p>
                                             </div>
 
                                             <div>

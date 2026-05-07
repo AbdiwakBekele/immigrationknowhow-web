@@ -79,6 +79,7 @@ const toggleActive = (type) => {
                                 <th class="px-4 py-2.5">Users</th>
                                 <th class="px-4 py-2.5">Providers</th>
                                 <th class="px-4 py-2.5">Cert Upload</th>
+                                <th class="px-4 py-2.5">Bg Check</th>
                                 <th class="px-4 py-2.5">Status</th>
                                 <th class="px-4 py-2.5 text-right">Actions</th>
                             </tr>
@@ -111,6 +112,10 @@ const toggleActive = (type) => {
                                 </td>
                                 <td class="px-4 py-3">
                                     <CheckCircleIcon v-if="type.include_certificate" class="h-5 w-5 text-emerald-600" />
+                                    <XCircleIcon v-else class="h-5 w-5 text-slate-300" />
+                                </td>
+                                <td class="px-4 py-3">
+                                    <CheckCircleIcon v-if="type.requires_background_check" class="h-5 w-5 text-emerald-600" />
                                     <XCircleIcon v-else class="h-5 w-5 text-slate-300" />
                                 </td>
                                 <td class="px-4 py-3">

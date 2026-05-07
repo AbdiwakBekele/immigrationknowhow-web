@@ -28,7 +28,7 @@ class ServiceTypeOptions
                 $query->where('for_provider', true);
             }
 
-            $rows = $query->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate', 'monthly_subscription_rate']);
+            $rows = $query->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate', 'requires_background_check', 'monthly_subscription_rate']);
             if ($rows->isNotEmpty()) {
                 return $rows->map(fn ($row) => [
                     'value' => $row->value,
@@ -37,6 +37,7 @@ class ServiceTypeOptions
                     'for_user' => (bool) $row->for_user,
                     'for_provider' => (bool) $row->for_provider,
                     'include_certificate' => (bool) $row->include_certificate,
+                    'requires_background_check' => (bool) $row->requires_background_check,
                     'monthly_subscription_rate' => (float) $row->monthly_subscription_rate,
                 ])->toArray();
             }
@@ -70,7 +71,7 @@ class ServiceTypeOptions
                     ->active()
                     ->orderBy('sort_order')
                     ->orderBy('label')
-                    ->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate', 'monthly_subscription_rate']);
+                    ->get(['value', 'label', 'icon', 'for_user', 'for_provider', 'include_certificate', 'requires_background_check', 'monthly_subscription_rate']);
 
                 foreach ($rows as $row) {
                     $index[$row->value] = [
@@ -80,6 +81,7 @@ class ServiceTypeOptions
                         'for_user' => (bool) $row->for_user,
                         'for_provider' => (bool) $row->for_provider,
                         'include_certificate' => (bool) $row->include_certificate,
+                        'requires_background_check' => (bool) $row->requires_background_check,
                         'monthly_subscription_rate' => (float) $row->monthly_subscription_rate,
                     ];
                 }
@@ -115,6 +117,7 @@ class ServiceTypeOptions
                             'for_user' => true,
                             'for_provider' => true,
                             'include_certificate' => false,
+                            'requires_background_check' => false,
                             'monthly_subscription_rate' => 0.0,
                         ];
                     }

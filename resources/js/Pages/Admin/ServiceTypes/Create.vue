@@ -1,4 +1,5 @@
 <script setup>
+import { watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
@@ -14,6 +15,7 @@ const form = useForm({
     for_user: true,
     for_provider: true,
     include_certificate: false,
+    requires_background_check: false,
     is_active: true,
     sort_order: props.suggested_sort_order,
     monthly_subscription_rate: 0,
@@ -40,6 +42,32 @@ const fillValueFromLabel = () => {
         form.value = slug;
     }
 };
+
+const shouldDefaultBackgroundCheck = (value, label) => {
+    const normalize = (text) => String(text || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+
+    const normalizedValue = normalize(value);
+    const normalizedLabel = normalize(label);
+
+    return ['pet_sitter', 'babysitter', 'tutor'].includes(normalizedValue)
+        || normalizedLabel === 'pet_sitter'
+        || normalizedLabel === 'babysitter'
+        || normalizedLabel.includes('tutor');
+};
+
+watch(
+    () => [form.value, form.label],
+    ([value, label]) => {
+        if (shouldDefaultBackgroundCheck(value, label)) {
+            form.requires_background_check = true;
+        }
+    },
+    { immediate: true }
+);
 </script>
 
 <template>
@@ -134,6 +162,10 @@ const fillValueFromLabel = () => {
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.include_certificate" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
                             <span class="text-sm text-slate-700">Include certificate upload for providers using this service type</span>
+                        </label>
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input v-model="form.requires_background_check" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
+                            <span class="text-sm text-slate-700">Requires background check</span>
                         </label>
                         <label class="flex cursor-pointer items-center gap-2">
                             <input v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-sky-600" />
