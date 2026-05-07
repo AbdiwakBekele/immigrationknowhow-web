@@ -24,6 +24,7 @@ import {
     SparklesIcon,
     UserPlusIcon,
     LinkIcon,
+    DocumentTextIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { ref, computed, reactive } from 'vue';
@@ -171,6 +172,10 @@ const form = useForm({
     license_number: props.provider?.license_number || '',
     license_state: props.provider?.license_state || '',
     license_expiry: props.provider?.license_expiry || '',
+    state_license_document: null,
+    remove_state_license_document: false,
+    state_license_document_path: props.provider?.state_license_document_path || '',
+    state_license_document_name: props.provider?.state_license_document_name || '',
     certifications: props.provider?.certifications || [],
     health_certificates: (props.provider?.health_certificates || []).map((certificate) => ({
         name: certificate.name || '',
@@ -206,6 +211,7 @@ const avatarInitial = computed(() => {
 });
 
 const avatarInput = ref(null);
+const stateLicenseInput = ref(null);
 const newSpecialization = ref('');
 const serviceAreaPickError = ref('');
 
@@ -302,6 +308,32 @@ const updateProfile = () => {
         preserveScroll: true,
         forceFormData: true,
     });
+};
+
+const stateLicenseFileUrl = computed(() => {
+    const path = form.state_license_document_path;
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `/storage/${path}`;
+});
+
+const onStateLicenseFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    form.state_license_document = file;
+    form.state_license_document_name = file.name;
+    form.remove_state_license_document = false;
+};
+
+const removeStateLicenseDocument = () => {
+    form.state_license_document = null;
+    form.state_license_document_name = '';
+    form.state_license_document_path = '';
+    form.remove_state_license_document = true;
+    if (stateLicenseInput.value) {
+        stateLicenseInput.value.value = '';
+    }
 };
 
 const avatarUploading = ref(false);
@@ -980,6 +1012,55 @@ const formatFeedDate = (iso) => {
                                     class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                     placeholder="https://"
                                 />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- State License Document -->
+                    <div class="bg-white rounded-2xl shadow-soft p-6">
+                        <h2 class="text-lg font-display font-bold text-slate-900 mb-4">State License (Optional)</h2>
+                        <p class="text-sm text-slate-600 mb-4">
+                            Upload your professional state license document. This is optional for all provider service types.
+                        </p>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">License Document</label>
+                                <input
+                                    ref="stateLicenseInput"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                    @change="onStateLicenseFileChange"
+                                />
+                                <p class="mt-1 text-xs text-slate-500">PDF, JPG, PNG, or WebP up to 10MB.</p>
+                                <p v-if="form.errors.state_license_document" class="mt-1 text-sm text-red-600">{{ form.errors.state_license_document }}</p>
+                            </div>
+
+                            <div v-if="form.state_license_document_name || form.state_license_document_path" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="flex items-center gap-2 text-sm font-medium text-slate-800">
+                                            <DocumentTextIcon class="h-4 w-4 text-slate-500" />
+                                            <span class="truncate">{{ form.state_license_document_name || 'State license document' }}</span>
+                                        </p>
+                                        <a
+                                            v-if="stateLicenseFileUrl && !form.state_license_document"
+                                            :href="stateLicenseFileUrl"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="mt-1 inline-block text-xs font-semibold text-primary-700 underline hover:text-primary-800"
+                                        >
+                                            View current file
+                                        </a>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="text-sm font-medium text-red-600 hover:text-red-700"
+                                        @click="removeStateLicenseDocument"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -76,8 +76,11 @@ const verificationStatus = computed(() => {
     return { icon: ExclamationTriangleIcon, text: 'Not Verified', color: 'text-red-600 bg-red-50' };
 });
 
+const requiresBackgroundCheck = computed(() => Boolean(props.provider?.requires_background_check));
+
 const canStartBackgroundCheck = computed(() => {
-    return !['clear', 'invited', 'completed'].includes(props.provider.background_check_status);
+    return requiresBackgroundCheck.value
+        && !['clear', 'invited', 'completed'].includes(props.provider.background_check_status);
 });
 
 const statCards = computed(() => [
@@ -195,7 +198,7 @@ const reviewListHref = (review) => {
     <ProviderLayout>
         <div class="admin-page-container">
             <!-- Background Check Alert Banner -->
-            <div v-if="provider.background_check_status !== 'clear'" class="rounded-[1.75rem] border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 shadow-sm">
+            <div v-if="requiresBackgroundCheck && provider.background_check_status !== 'clear'" class="rounded-[1.75rem] border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 shadow-sm">
                 <div class="flex items-start gap-4">
                     <div class="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                         <ExclamationTriangleIcon class="w-6 h-6 text-amber-600" />
@@ -242,26 +245,29 @@ const reviewListHref = (review) => {
                         <h1 class="admin-title min-w-0">
                             Welcome back, {{ user.first_name }}
                         </h1>
-                        <Link
-                            :href="route('provider.profile.index')"
-                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:justify-start"
-                        >
-                            <EyeIcon class="h-5 w-5" />
-                            View Profile
-                        </Link>
+                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                            <Link
+                                :href="route('provider.profile.index')"
+                                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                            >
+                                <EyeIcon class="h-5 w-5" />
+                                View Profile
+                            </Link>
+                            <Link
+                                :href="route('provider.subscriptions.index')"
+                                class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
+                            >
+                                <CurrencyDollarIcon class="h-5 w-5" />
+                                Subscriptions
+                            </Link>
+                        </div>
                     </div>
                     <p class="admin-subtitle mt-3">
                         Track leads, profile visibility, reviews, and conversion performance in one place.
                     </p>
-                    <div class="mt-4 flex flex-wrap justify-end gap-3 sm:mt-3">
+                    <div class="mt-4 flex flex-wrap justify-start gap-3 sm:mt-3 sm:justify-end">
                         <Link
-                            :href="route('provider.subscriptions.index')"
-                            class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-                        >
-                            <CurrencyDollarIcon class="h-5 w-5" />
-                            Subscriptions
-                        </Link>
-                        <Link
+                            v-if="requiresBackgroundCheck"
                             :href="route('provider.background-check.index')"
                             :class="['inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium', verificationStatus.color]"
                         >
@@ -481,7 +487,7 @@ const reviewListHref = (review) => {
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link 
-                                v-if="provider.background_check_status !== 'clear'"
+                                v-if="requiresBackgroundCheck && provider.background_check_status !== 'clear'"
                                 :href="route('provider.background-check.index')"
                                 class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >

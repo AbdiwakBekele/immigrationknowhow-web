@@ -5,9 +5,11 @@ namespace App\Http\Middleware;
 use App\Models\Message;
 use App\Models\PlatformSetting;
 use App\Models\AiAssistantSubscription;
+use App\Models\ServiceTypeOption;
 use App\Models\User;
 use App\Support\ImpersonationActorId;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
@@ -139,6 +141,48 @@ class HandleInertiaRequests extends Middleware
                     'viewing_as_email' => $request->user()->email,
                 ];
             },
+            'provider_requires_background_check' => fn () => $this->providerRequiresBackgroundCheck($request),
         ];
+    }
+
+    private function providerRequiresBackgroundCheck(Request $request): bool
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasRole('provider')) {
+            return false;
+        }
+
+        $provider = $user->serviceProvider;
+        if (! $provider || ! is_array($provider->service_types) || $provider->service_types === []) {
+            return false;
+        }
+
+        $providerTypes = collect($provider->service_types)
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn ($value) => trim((string) $value))
+            ->values();
+
+        if ($providerTypes->isEmpty()) {
+            return false;
+        }
+
+        if (
+            Schema::hasTable('service_type_options')
+            && Schema::hasColumn('service_type_options', 'requires_background_check')
+        ) {
+            return ServiceTypeOption::query()
+                ->whereIn('value', $providerTypes->all())
+                ->where('requires_background_check', true)
+                ->exists();
+        }
+
+        return $this->includesDefaultBackgroundCheckTypes($providerTypes);
+    }
+
+    private function includesDefaultBackgroundCheckTypes(Collection $providerTypes): bool
+    {
+        return $providerTypes
+            ->intersect(['pet_sitter', 'babysitter', 'tutor'])
+            ->isNotEmpty();
     }
 }

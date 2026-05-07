@@ -43,6 +43,8 @@ class ServiceProvider extends Model
         'license_number',
         'license_state',
         'license_expiry',
+        'state_license_document_path',
+        'state_license_document_name',
         'certifications',
         'health_certificates',
         'years_experience',

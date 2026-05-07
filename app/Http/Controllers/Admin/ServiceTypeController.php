@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\ServiceTypeOption;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ServiceTypeController extends Controller
 {
+    private const DEFAULT_BACKGROUND_CHECK_KEYS = ['pet_sitter', 'babysitter', 'tutor'];
+
     public function index(): Response
     {
         return Inertia::render('Admin/ServiceTypes/Index', [
@@ -44,6 +47,7 @@ class ServiceTypeController extends Controller
             'for_user' => ['boolean'],
             'for_provider' => ['boolean'],
             'include_certificate' => ['boolean'],
+            'requires_background_check' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'monthly_subscription_rate' => ['required', 'numeric', 'min:0', 'max:999999.99'],
@@ -57,7 +61,12 @@ class ServiceTypeController extends Controller
             ? (int) $validated['sort_order']
             : (int) (ServiceTypeOption::max('sort_order') ?? 0) + 1;
 
-        ServiceTypeOption::create([
+        $requiresBackgroundCheck = (bool) ($validated['requires_background_check'] ?? false);
+        if ($this->shouldDefaultBackgroundCheck($validated['value'] ?? null, $validated['label'] ?? null)) {
+            $requiresBackgroundCheck = true;
+        }
+
+        $payload = [
             'label' => $validated['label'],
             'value' => $validated['value'],
             'icon' => $validated['icon'] ?? null,
@@ -67,7 +76,13 @@ class ServiceTypeController extends Controller
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => $sortOrder,
             'monthly_subscription_rate' => number_format((float) $validated['monthly_subscription_rate'], 2, '.', ''),
-        ]);
+        ];
+
+        if ($this->hasRequiresBackgroundCheckColumn()) {
+            $payload['requires_background_check'] = $requiresBackgroundCheck;
+        }
+
+        ServiceTypeOption::create($payload);
 
         return redirect()
             ->route('admin.service-types.index')
@@ -100,6 +115,7 @@ class ServiceTypeController extends Controller
             'for_user' => ['boolean'],
             'for_provider' => ['boolean'],
             'include_certificate' => ['boolean'],
+            'requires_background_check' => ['boolean'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
             'monthly_subscription_rate' => ['required', 'numeric', 'min:0', 'max:999999.99'],
@@ -109,7 +125,12 @@ class ServiceTypeController extends Controller
             return back()->withErrors(['audience' => 'Choose at least one audience: users and/or providers.']);
         }
 
-        $serviceType->update([
+        $requiresBackgroundCheck = (bool) ($validated['requires_background_check'] ?? false);
+        if ($this->shouldDefaultBackgroundCheck($validated['value'] ?? null, $validated['label'] ?? null)) {
+            $requiresBackgroundCheck = true;
+        }
+
+        $payload = [
             'label' => $validated['label'],
             'value' => $validated['value'],
             'icon' => $validated['icon'] ?? null,
@@ -119,7 +140,13 @@ class ServiceTypeController extends Controller
             'is_active' => (bool) ($validated['is_active'] ?? true),
             'sort_order' => array_key_exists('sort_order', $validated) ? $validated['sort_order'] : $serviceType->sort_order,
             'monthly_subscription_rate' => number_format((float) $validated['monthly_subscription_rate'], 2, '.', ''),
-        ]);
+        ];
+
+        if ($this->hasRequiresBackgroundCheckColumn()) {
+            $payload['requires_background_check'] = $requiresBackgroundCheck;
+        }
+
+        $serviceType->update($payload);
 
         return redirect()
             ->route('admin.service-types.index')
@@ -142,5 +169,39 @@ class ServiceTypeController extends Controller
         ]);
 
         return back()->with('success', 'Service type status updated.');
+    }
+
+    private function shouldDefaultBackgroundCheck(?string $value, ?string $label): bool
+    {
+        $normalizedValue = $this->normalizeServiceTypeKey($value);
+        if (in_array($normalizedValue, self::DEFAULT_BACKGROUND_CHECK_KEYS, true)) {
+            return true;
+        }
+
+        $normalizedLabel = $this->normalizeServiceTypeKey($label);
+        if ($normalizedLabel === 'pet_sitter'
+            || $normalizedLabel === 'babysitter'
+            || str_contains($normalizedLabel, 'tutor')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function normalizeServiceTypeKey(?string $text): string
+    {
+        if (! is_string($text)) {
+            return '';
+        }
+
+        $normalized = preg_replace('/[^a-z0-9]+/i', '_', strtolower(trim($text))) ?? '';
+
+        return trim($normalized, '_');
+    }
+
+    private function hasRequiresBackgroundCheckColumn(): bool
+    {
+        return Schema::hasTable('service_type_options')
+            && Schema::hasColumn('service_type_options', 'requires_background_check');
     }
 }

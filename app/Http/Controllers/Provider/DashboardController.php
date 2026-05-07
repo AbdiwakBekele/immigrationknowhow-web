@@ -6,9 +6,11 @@ use App\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Review;
+use App\Models\ServiceTypeOption;
 use App\Models\SubscriptionPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -79,8 +81,37 @@ class DashboardController extends Controller
                 'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                 'background_check_status', 'is_featured', 'profile_views',
                 'subscription_plan', 'subscription_expires_at', 'stripe_subscription_status',
-            ]),
+            ]) + [
+                'requires_background_check' => $this->providerRequiresBackgroundCheck($provider),
+            ],
         ]);
+    }
+
+    private function providerRequiresBackgroundCheck($provider): bool
+    {
+        $providerTypes = collect($provider->service_types ?? [])
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn ($value) => trim((string) $value))
+            ->values()
+            ->all();
+
+        if ($providerTypes === []) {
+            return false;
+        }
+
+        if (
+            Schema::hasTable('service_type_options')
+            && Schema::hasColumn('service_type_options', 'requires_background_check')
+        ) {
+            return ServiceTypeOption::query()
+                ->whereIn('value', $providerTypes)
+                ->where('requires_background_check', true)
+                ->exists();
+        }
+
+        return collect($providerTypes)
+            ->intersect(['pet_sitter', 'babysitter', 'tutor'])
+            ->isNotEmpty();
     }
 
     protected function calculateStats($provider): array

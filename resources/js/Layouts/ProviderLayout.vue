@@ -26,6 +26,7 @@ import {
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const dvLottery = computed(() => page.props.dvLottery ?? {});
+const providerRequiresBackgroundCheck = computed(() => Boolean(page.props.provider_requires_background_check));
 
 const providerLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
@@ -88,7 +89,9 @@ const navigation = computed(() => {
             }]
             : []),
         { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
-        { name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon },
+        ...(providerRequiresBackgroundCheck.value
+            ? [{ name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon }]
+            : []),
         { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
         { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
     ];
@@ -356,11 +359,12 @@ onUnmounted(() => {
                         </Link>
                         <Link
                             href="/"
-                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
+                            class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
                             title="View Site"
                             aria-label="View Site"
                         >
                             <HomeIcon class="h-5 w-5" />
+                            <span class="hidden text-sm font-medium md:inline">View Site</span>
                         </Link>
                         <Link
                             :href="route('provider.library.cart')"
