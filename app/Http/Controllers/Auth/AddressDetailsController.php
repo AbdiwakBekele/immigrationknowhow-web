@@ -13,6 +13,7 @@ use App\Support\UsStateOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -146,7 +147,21 @@ class AddressDetailsController extends Controller
             'includedPrimaryTypes' => ['street_address', 'premise', 'subpremise'],
         ];
 
-        $autocompleteResponse = $callAutocomplete($autocompleteBody);
+        try {
+            $autocompleteResponse = $callAutocomplete($autocompleteBody);
+        } catch (ConnectionException $e) {
+            Log::channel('single')->warning('AddressDetails autocomplete connection failure.', [
+                'user_id' => $user?->id,
+                'query' => $query,
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unable to reach Google Places right now.',
+            ], 502);
+        }
 
         if (! $autocompleteResponse->successful()) {
             Log::channel('single')->warning('AddressDetails autocomplete API call failed.', [
@@ -196,12 +211,27 @@ class AddressDetailsController extends Controller
             ]);
         }
 
-        $placeResponse = Http::timeout(10)
-            ->withHeaders([
-                'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
-            ])
-            ->get("https://places.googleapis.com/v1/{$placeResourceName}");
+        try {
+            $placeResponse = Http::timeout(12)
+                ->retry(2, 200)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => $apiKey,
+                    'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
+                ])
+                ->get("https://places.googleapis.com/v1/{$placeResourceName}");
+        } catch (ConnectionException $e) {
+            Log::channel('single')->warning('AddressDetails autocomplete place-details connection failure.', [
+                'user_id' => $user?->id,
+                'place' => $placeResourceName,
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unable to reach Google Places right now.',
+            ], 502);
+        }
 
         if (! $placeResponse->successful()) {
             Log::channel('single')->warning('AddressDetails place details call failed.', [
@@ -227,6 +257,19 @@ class AddressDetailsController extends Controller
         return response()->json([
             'ok' => true,
             'data' => $place,
+        ]);
+    }
+
+    public function keyStatus(Request $request): JsonResponse
+    {
+        $apiKey = (string) config('services.google.maps_api_key', env('GOOGLE_MAPS_API_KEY'));
+
+        return response()->json([
+            'ok' => true,
+            'google_maps_api_key_present' => filled($apiKey),
+            // Helpful when debugging prod vs local behavior (no secrets).
+            'app_env' => (string) config('app.env'),
+            'app_debug' => (bool) config('app.debug'),
         ]);
     }
 
@@ -260,19 +303,41 @@ class AddressDetailsController extends Controller
         }
 
         // Use Autocomplete so numeric-prefix inputs (e.g. "40350") still return street-address suggestions.
-        // We append the selected state abbreviation to bias results while keeping prefix behavior.
-        $input = $state ? "{$query} {$state}" : $query;
+        // Biasing by appending the selected state helps numeric-only inputs, but can *reduce* results
+        // for mixed inputs like "40350 F" (it becomes "40350 F MI"). Only append when query is digits-only.
+        $input = $query;
+        if ($state && preg_match('/^\d+$/', $query) === 1) {
+            $input = "{$query} {$state}";
+        }
 
-        $response = Http::timeout(10)
-            ->withHeaders([
-                'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'suggestions.placePrediction.place,suggestions.placePrediction.text',
-            ])
-            ->post('https://places.googleapis.com/v1/places:autocomplete', [
-                'input' => $input,
-                'includedRegionCodes' => ['US'],
-                'includedPrimaryTypes' => ['street_address', 'premise', 'subpremise'],
+        try {
+            $response = Http::timeout(12)
+                ->retry(2, 200)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => $apiKey,
+                    'X-Goog-FieldMask' => 'suggestions.placePrediction.place,suggestions.placePrediction.text',
+                ])
+                ->post('https://places.googleapis.com/v1/places:autocomplete', [
+                    'input' => $input,
+                    'includedRegionCodes' => ['US'],
+                    // Include "route" so users can search by street name (e.g. "Five Mile")
+                    // and not only numeric + full street_address formats.
+                    'includedPrimaryTypes' => ['street_address', 'route', 'premise', 'subpremise'],
+                ]);
+        } catch (ConnectionException $e) {
+            Log::channel('single')->warning('AddressDetails places connection failure.', [
+                'user_id' => $user?->id,
+                'query' => $query,
+                'state' => $state,
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
             ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unable to reach Google Places right now.',
+            ], 502);
+        }
 
         if (! $response->successful()) {
             Log::channel('single')->warning('AddressDetails places API call failed.', [
@@ -339,12 +404,27 @@ class AddressDetailsController extends Controller
             ], 500);
         }
 
-        $placeResponse = Http::timeout(10)
-            ->withHeaders([
-                'X-Goog-Api-Key' => $apiKey,
-                'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
-            ])
-            ->get("https://places.googleapis.com/v1/{$placeResourceName}");
+        try {
+            $placeResponse = Http::timeout(12)
+                ->retry(2, 200)
+                ->withHeaders([
+                    'X-Goog-Api-Key' => $apiKey,
+                    'X-Goog-FieldMask' => 'formattedAddress,addressComponents',
+                ])
+                ->get("https://places.googleapis.com/v1/{$placeResourceName}");
+        } catch (ConnectionException $e) {
+            Log::channel('single')->warning('AddressDetails place connection failure.', [
+                'user_id' => $user?->id,
+                'place' => $placeResourceName,
+                'ip' => $request->ip(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Unable to reach Google Places right now.',
+            ], 502);
+        }
 
         if (! $placeResponse->successful()) {
             Log::channel('single')->warning('AddressDetails place details call failed.', [

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import Input from '@/Components/ui/Input.vue';
 import Select from '@/Components/ui/Select.vue';
 import { parsePlaceToAddressFields } from '@/utils/googlePlaceAddress';
@@ -57,6 +57,32 @@ const googleDropdownOpen = ref(false);
 let googlePlacesTimer = null;
 const googlePlaceResolving = ref(false);
 const lastResolvedGooglePlace = ref('');
+
+const logAddressDebug = (event, details = {}) => {
+    try {
+        // Never log secrets. This is frontend-only telemetry for debugging prod issues.
+        const base = {
+            event,
+            mode: props.locationMode,
+            country: country.value,
+            state: state.value,
+            query_len: String(locationQuery.value || '').length,
+            timestamp: new Date().toISOString(),
+        };
+        // eslint-disable-next-line no-console
+        console.log('[IKH][AddressLookup]', { ...base, ...details });
+    } catch {
+        // ignore logging failures
+    }
+};
+
+const safeParseJson = async (response) => {
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
 const selectedLocationSummary = computed(() => {
     if (locationLabel.value) {
         return locationLabel.value;
@@ -85,6 +111,43 @@ const resetSelectedLocation = () => {
 if (!country.value) {
     country.value = 'US';
 }
+
+onMounted(async () => {
+    if (!shouldUseGooglePlaces.value) return;
+
+    // Server-side key check (boolean only) to debug production 500s.
+    try {
+        const response = await fetch(route('address-detail.key-status'), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        const payload = await safeParseJson(response);
+        logAddressDebug('key_status', {
+            http_status: response.status,
+            ok: Boolean(payload?.ok),
+            google_maps_api_key_present: Boolean(payload?.google_maps_api_key_present),
+            app_env: payload?.app_env,
+            app_debug: payload?.app_debug,
+        });
+    } catch (error) {
+        logAddressDebug('key_status_failed', {
+            message: error instanceof Error ? error.message : String(error),
+        });
+    }
+
+    // Client env check (Vite). Boolean only; never print the value.
+    try {
+        const present = Boolean(import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY);
+        logAddressDebug('vite_env_check', {
+            VITE_GOOGLE_MAPS_API_KEY_present: present,
+            vite_mode: import.meta?.env?.MODE,
+        });
+    } catch {
+        // ignore
+    }
+});
 
 const loadStateOptions = async (countryCode) => {
     try {
@@ -118,7 +181,10 @@ const fetchGooglePlacesOptions = async () => {
     googleAutocompleteStatus.value = '';
 
     try {
-        const response = await fetch(route('address-detail.places', { query, state: state.value }), {
+        const endpoint = route('address-detail.places', { query, state: state.value });
+        logAddressDebug('places_request', { endpoint, query, state: state.value });
+
+        const response = await fetch(endpoint, {
             headers: {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -126,16 +192,23 @@ const fetchGooglePlacesOptions = async () => {
         });
 
         if (!response.ok) {
+            const payload = await safeParseJson(response);
+            logAddressDebug('places_response_error', {
+                endpoint,
+                http_status: response.status,
+                ok: Boolean(payload?.ok),
+                message: payload?.message,
+            });
             throw new Error(`Places list failed (${response.status})`);
         }
 
-        const payload = await response.json();
+        const payload = await safeParseJson(response);
         const rawOptions = Array.isArray(payload?.data) ? payload.data : [];
 
         // Prefer showing only suggestions that match the currently-selected state.
         // Places Autocomplete doesn't support state-only restriction reliably, so we filter by display text.
         const selectedState = String(state.value || '').trim().toUpperCase();
-        const filteredOptions = selectedState && selectedState.length === 2
+        let filteredOptions = selectedState && selectedState.length === 2
             ? rawOptions.filter((opt) => {
                 const text = String(opt?.text || '').toUpperCase();
                 return (
@@ -147,15 +220,31 @@ const fetchGooglePlacesOptions = async () => {
             })
             : rawOptions;
 
+        // Some numeric-prefix suggestions don't include ", MI," in the display text consistently.
+        // If our text-based filter hides everything, fall back to showing raw options so users
+        // can still select (we still validate state after resolving place details).
+        const fellBackToRaw = rawOptions.length > 0 && filteredOptions.length === 0;
+        if (fellBackToRaw) {
+            filteredOptions = rawOptions;
+        }
+
         googlePlaceOptions.value = filteredOptions;
         googleDropdownOpen.value = filteredOptions.length > 0;
         if (!filteredOptions.length) {
             googleAutocompleteStatus.value = 'No matching addresses found.';
         }
+        logAddressDebug('places_response_ok', {
+            endpoint,
+            http_status: response.status,
+            raw_count: rawOptions.length,
+            filtered_count: filteredOptions.length,
+            fell_back_to_raw: fellBackToRaw,
+        });
     } catch {
         googlePlaceOptions.value = [];
         googleDropdownOpen.value = false;
         googleAutocompleteStatus.value = 'Street address lookup is unavailable right now.';
+        logAddressDebug('places_exception', { message: googleAutocompleteStatus.value });
     } finally {
         locationSearchLoading.value = false;
     }
@@ -178,7 +267,10 @@ const selectGooglePlaceOption = async (option) => {
     lastResolvedGooglePlace.value = '';
 
     try {
-        const response = await fetch(route('address-detail.place', { place }), {
+        const endpoint = route('address-detail.place', { place });
+        logAddressDebug('place_details_request', { endpoint, place });
+
+        const response = await fetch(endpoint, {
             headers: {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -186,12 +278,20 @@ const selectGooglePlaceOption = async (option) => {
         });
 
         if (!response.ok) {
+            const payload = await safeParseJson(response);
+            logAddressDebug('place_details_response_error', {
+                endpoint,
+                http_status: response.status,
+                ok: Boolean(payload?.ok),
+                message: payload?.message,
+            });
             throw new Error(`Place details failed (${response.status})`);
         }
 
-        const payload = await response.json();
+        const payload = await safeParseJson(response);
         if (!payload?.ok || !payload?.data) {
             googleAutocompleteStatus.value = 'Unable to resolve that address.';
+            logAddressDebug('place_details_invalid_payload', { endpoint, ok: Boolean(payload?.ok) });
             return;
         }
 
@@ -209,6 +309,10 @@ const selectGooglePlaceOption = async (option) => {
             // Keep the user's text so they can quickly pick another option.
             locationQuery.value = text || locationQuery.value;
             googleDropdownOpen.value = true;
+            logAddressDebug('place_details_state_mismatch', {
+                selected_state: selectedState,
+                resolved_state: resolvedState,
+            });
             return;
         }
 
@@ -223,8 +327,14 @@ const selectGooglePlaceOption = async (option) => {
         googleDropdownOpen.value = false;
         googleAutocompleteStatus.value = '';
         lastResolvedGooglePlace.value = place;
+        logAddressDebug('place_details_resolved', {
+            resolved_state: parsed.state,
+            resolved_city: parsed.city,
+            resolved_postal_code_present: Boolean(parsed.postal_code),
+        });
     } catch {
         googleAutocompleteStatus.value = 'Street address lookup is unavailable right now.';
+        logAddressDebug('place_details_exception', { message: googleAutocompleteStatus.value });
     } finally {
         locationSearchLoading.value = false;
         googlePlaceResolving.value = false;

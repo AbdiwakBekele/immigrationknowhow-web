@@ -158,6 +158,7 @@ Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->group(functio
 Route::middleware(['auth'])->group(function () {
     Route::get('/address-detail', [Auth\AddressDetailsController::class, 'show'])->name('address-detail');
     Route::get('/address-detail/autocomplete', [Auth\AddressDetailsController::class, 'autocomplete'])->name('address-detail.autocomplete');
+    Route::get('/address-detail/key-status', [Auth\AddressDetailsController::class, 'keyStatus'])->name('address-detail.key-status');
     Route::get('/address-detail/places', [Auth\AddressDetailsController::class, 'places'])->name('address-detail.places');
     Route::get('/address-detail/place', [Auth\AddressDetailsController::class, 'place'])->name('address-detail.place');
     Route::post('/address-detail', [Auth\AddressDetailsController::class, 'sendOtp'])->name('address-detail.send');
