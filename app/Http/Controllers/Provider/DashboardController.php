@@ -80,9 +80,11 @@ class DashboardController extends Controller
             'provider' => $provider->only([
                 'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                 'background_check_status', 'is_featured', 'profile_views',
-                'subscription_plan', 'subscription_expires_at', 'stripe_subscription_status',
+                'subscription_plan', 'subscription_expires_at', 'stripe_subscription_status', 'health_certificates',
             ]) + [
                 'requires_background_check' => $this->providerRequiresBackgroundCheck($provider),
+                'requires_certificate_upload' => $this->providerRequiresCertificateUpload($provider),
+                'needs_certificate_upload' => $this->providerNeedsCertificateUpload($provider),
             ],
         ]);
     }
@@ -91,7 +93,9 @@ class DashboardController extends Controller
     {
         $providerTypes = collect($provider->service_types ?? [])
             ->filter(fn ($value) => is_string($value) && trim($value) !== '')
-            ->map(fn ($value) => trim((string) $value))
+            ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+            ->filter()
+            ->unique()
             ->values()
             ->all();
 
@@ -103,15 +107,100 @@ class DashboardController extends Controller
             Schema::hasTable('service_type_options')
             && Schema::hasColumn('service_type_options', 'requires_background_check')
         ) {
-            return ServiceTypeOption::query()
-                ->whereIn('value', $providerTypes)
+            $requiredTypes = ServiceTypeOption::query()
                 ->where('requires_background_check', true)
-                ->exists();
+                ->pluck('value')
+                ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+                ->filter()
+                ->unique();
+
+            return collect($providerTypes)->intersect($requiredTypes)->isNotEmpty();
         }
 
         return collect($providerTypes)
-            ->intersect(['pet_sitter', 'babysitter', 'tutor'])
+            ->intersect(['pet_sitter', 'petsitter', 'babysitter', 'baby_sitter', 'tutor'])
             ->isNotEmpty();
+    }
+
+    private function providerRequiresCertificateUpload($provider): bool
+    {
+        $providerTypes = collect($provider->service_types ?? [])
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($providerTypes === []) {
+            return false;
+        }
+
+        $defaultRequiredTypes = collect(['pet_sitter', 'babysitter', 'health_navigator']);
+
+        if (collect($providerTypes)->intersect($defaultRequiredTypes)->isNotEmpty()) {
+            return true;
+        }
+
+        if (
+            Schema::hasTable('service_type_options')
+            && Schema::hasColumn('service_type_options', 'include_certificate')
+        ) {
+            $requiredTypes = ServiceTypeOption::query()
+                ->where('include_certificate', true)
+                ->pluck('value')
+                ->map(fn ($value) => $this->canonicalServiceTypeValue((string) $value))
+                ->filter()
+                ->unique();
+
+            return collect($providerTypes)->intersect($requiredTypes)->isNotEmpty();
+        }
+
+        return collect($providerTypes)
+            ->intersect(['pet_sitter', 'petsitter', 'babysitter', 'baby_sitter', 'health_navigator', 'healthcare_navigator', 'healthnavigator'])
+            ->isNotEmpty();
+    }
+
+    private function providerNeedsCertificateUpload($provider): bool
+    {
+        if (! $this->providerRequiresCertificateUpload($provider)) {
+            return false;
+        }
+
+        $uploadedCertificates = collect($provider->health_certificates ?? [])
+            ->contains(fn ($certificate) => is_array($certificate)
+                && is_string($certificate['file_path'] ?? null)
+                && trim((string) $certificate['file_path']) !== '');
+
+        return ! $uploadedCertificates;
+    }
+
+    private function normalizeServiceTypeValue(string $value): string
+    {
+        return trim((string) preg_replace('/[^a-z0-9]+/i', '_', strtolower(trim($value))), '_');
+    }
+
+    private function canonicalServiceTypeValue(string $value): string
+    {
+        $normalized = $this->normalizeServiceTypeValue($value);
+
+        if (($normalized === 'pet_sitter' || str_contains($normalized, 'pet')) && str_contains($normalized, 'sitter')) {
+            return 'pet_sitter';
+        }
+
+        if (str_contains($normalized, 'babysitter') || (str_contains($normalized, 'baby') && str_contains($normalized, 'sitter'))) {
+            return 'babysitter';
+        }
+
+        if (str_contains($normalized, 'tutor')) {
+            return 'tutor';
+        }
+
+        if ((str_contains($normalized, 'health') || str_contains($normalized, 'healthcare')) && str_contains($normalized, 'navigator')) {
+            return 'health_navigator';
+        }
+
+        return $normalized;
     }
 
     protected function calculateStats($provider): array

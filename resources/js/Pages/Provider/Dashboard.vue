@@ -13,6 +13,7 @@ import {
     ExclamationTriangleIcon,
     ClockIcon,
     CurrencyDollarIcon,
+    DocumentArrowUpIcon,
     ArchiveBoxIcon,
     TrashIcon,
     UserGroupIcon as CommunityIcon,
@@ -77,6 +78,8 @@ const verificationStatus = computed(() => {
 });
 
 const requiresBackgroundCheck = computed(() => Boolean(props.provider?.requires_background_check));
+const requiresCertificateUpload = computed(() => Boolean(props.provider?.requires_certificate_upload));
+const needsCertificateUpload = computed(() => Boolean(props.provider?.needs_certificate_upload));
 
 const canStartBackgroundCheck = computed(() => {
     return requiresBackgroundCheck.value
@@ -245,27 +248,33 @@ const reviewListHref = (review) => {
                         <h1 class="admin-title min-w-0">
                             Welcome back, {{ user.first_name }}
                         </h1>
-                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                            <Link
-                                :href="route('provider.profile.index')"
-                                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                            >
-                                <EyeIcon class="h-5 w-5" />
-                                View Profile
-                            </Link>
-                            <Link
-                                :href="route('provider.subscriptions.index')"
-                                class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
-                            >
-                                <CurrencyDollarIcon class="h-5 w-5" />
-                                Subscriptions
-                            </Link>
-                        </div>
                     </div>
                     <p class="admin-subtitle mt-3">
                         Track leads, profile visibility, reviews, and conversion performance in one place.
                     </p>
                     <div class="mt-4 flex flex-wrap justify-start gap-3 sm:mt-3 sm:justify-end">
+                        <Link
+                            :href="route('provider.profile.index')"
+                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                        >
+                            <EyeIcon class="h-5 w-5" />
+                            View Profile
+                        </Link>
+                        <Link
+                            :href="route('provider.subscriptions.index')"
+                            class="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
+                        >
+                            <CurrencyDollarIcon class="h-5 w-5" />
+                            Subscriptions
+                        </Link>
+                        <Link
+                            v-if="requiresCertificateUpload"
+                            :href="`${route('provider.profile.edit')}#service-certificates`"
+                            class="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100"
+                        >
+                            <DocumentArrowUpIcon class="h-5 w-5" />
+                            {{ needsCertificateUpload ? 'Upload Certificate' : 'Certificates Uploaded' }}
+                        </Link>
                         <Link
                             v-if="requiresBackgroundCheck"
                             :href="route('provider.background-check.index')"
@@ -484,6 +493,14 @@ const reviewListHref = (review) => {
                                 class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-3 text-slate-700 transition hover:bg-slate-100"
                             >
                                 <span>Edit listing details</span>
+                                <ArrowRightIcon class="w-4 h-4" />
+                            </Link>
+                            <Link
+                                v-if="needsCertificateUpload && requiresCertificateUpload"
+                                :href="`${route('provider.profile.edit')}#service-certificates`"
+                                class="flex items-center justify-between rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-indigo-700 transition hover:bg-indigo-100"
+                            >
+                                <span>Upload certificate</span>
                                 <ArrowRightIcon class="w-4 h-4" />
                             </Link>
                             <Link 

@@ -1,7 +1,7 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { BookOpenIcon, HeartIcon, LockClosedIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline';
+import { BookOpenIcon, HeartIcon, LockClosedIcon, ShareIcon, ShoppingCartIcon } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/vue/24/solid';
 
 defineProps({
@@ -25,6 +25,32 @@ const userAccessRecord = (item) => {
 };
 
 const isFavorited = (item) => Boolean(userAccessRecord(item)?.is_favorite);
+
+const sharePurchaseLink = async (item) => {
+    const path = route('library.show', { item: item.slug });
+    const isAbsolute = /^https?:\/\//i.test(String(path));
+    const url = typeof window !== 'undefined' && !isAbsolute
+        ? `${window.location.origin}${path}`
+        : path;
+    const title = `"${item.title}" on IKH Library`;
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        try {
+            await navigator.share({ title, url });
+            return;
+        } catch {
+            // Fall back to clipboard below.
+        }
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        window.alert('Book link copied.');
+        return;
+    }
+
+    window.prompt('Copy this book link:', url);
+};
 </script>
 
 <template>
@@ -91,6 +117,14 @@ const isFavorited = (item) => Boolean(userAccessRecord(item)?.is_favorite);
                                 <HeartSolidIcon v-if="isFavorited(item)" class="h-4 w-4" />
                                 <HeartIcon v-else class="h-4 w-4" />
                             </Link>
+                            <button
+                                type="button"
+                                :title="`Share purchase link for ${item.title}`"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-sky-200 text-sky-700 hover:bg-sky-50"
+                                @click="sharePurchaseLink(item)"
+                            >
+                                <ShareIcon class="h-4 w-4" />
+                            </button>
                         </div>
                     </article>
                 </div>
