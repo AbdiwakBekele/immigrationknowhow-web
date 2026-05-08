@@ -27,6 +27,8 @@ const form = useForm({
     recurring_commission_enabled: props.plan?.recurring_commission_enabled ?? true,
     max_recurring_commission_cycles: props.plan?.max_recurring_commission_cycles ?? null,
     service_type_option_id: props.plan?.service_type_option_id != null ? String(props.plan.service_type_option_id) : '',
+    stripe_product_id: props.plan?.stripe_product_id ?? '',
+    stripe_price_id: props.plan?.stripe_price_id ?? '',
 });
 
 const isEdit = computed(() => !!props.plan);
@@ -167,6 +169,30 @@ const submit = () => {
                         <input v-model="form.recurring_commission_enabled" type="checkbox" class="rounded border-slate-300 text-sky-600" />
                         Recurring enabled
                     </label>
+                </div>
+
+                <div class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-900">Stripe configuration (optional)</p>
+                        <p class="mt-1 text-xs text-slate-600">
+                            Paid plan switching requires a persistent Stripe Price ID (<span class="font-mono">price_…</span>).
+                            If blank, the system may still create an inline price for checkout, but <span class="font-semibold">Switch Plan</span> won’t work.
+                        </p>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <Input
+                            v-model="form.stripe_product_id"
+                            label="Stripe Product ID"
+                            placeholder="prod_..."
+                            :error="form.errors.stripe_product_id"
+                        />
+                        <Input
+                            v-model="form.stripe_price_id"
+                            label="Stripe Price ID"
+                            placeholder="price_..."
+                            :error="form.errors.stripe_price_id"
+                        />
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-2">

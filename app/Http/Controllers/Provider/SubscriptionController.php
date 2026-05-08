@@ -11,6 +11,7 @@ use App\Support\StripeConfig;
 use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -121,11 +122,18 @@ class SubscriptionController extends Controller
                 'subscription_plan_id' => $plan->id,
             ]);
 
+            $periodStart = now();
+            $periodEnd = match ((string) $plan->billing_cycle) {
+                'yearly' => $periodStart->copy()->addYear(),
+                'quarterly' => $periodStart->copy()->addMonths(3),
+                default => $periodStart->copy()->addMonth(),
+            };
+
             $providerSubscription->fill([
                 'status' => 'active',
                 'started_at' => $providerSubscription->started_at ?? now(),
-                'current_period_start' => now(),
-                'current_period_end' => null,
+                'current_period_start' => $periodStart,
+                'current_period_end' => $periodEnd,
                 'cancel_at_period_end' => false,
                 'stripe_customer_id' => $provider->stripe_customer_id,
                 'stripe_subscription_id' => null,
@@ -138,7 +146,7 @@ class SubscriptionController extends Controller
 
             $provider->update([
                 'subscription_plan' => $plan->name,
-                'subscription_expires_at' => null,
+                'subscription_expires_at' => $periodEnd,
                 'stripe_subscription_status' => 'active',
             ]);
 
@@ -193,10 +201,37 @@ class SubscriptionController extends Controller
         return Inertia::location($checkoutUrl);
     }
 
-    public function changePlan(Request $request, ProviderSubscription $subscription, SubscriptionPlan $plan): RedirectResponse
+    public function changePlan(Request $request, ProviderSubscription $subscription, string $planUuid): RedirectResponse
     {
         $provider = $this->resolveProvider($request);
+        $plan = SubscriptionPlan::query()->where('uuid', $planUuid)->firstOrFail();
+        Log::channel(config('logging.default'))->info('ProviderSubscription changePlan request', [
+            'user_id' => $request->user()?->id,
+            'provider_id' => $provider->id,
+            'request_path' => $request->path(),
+            'request_full_url' => $request->fullUrl(),
+            'route_params' => [
+                'subscription_uuid' => $subscription->uuid ?? null,
+                'plan_uuid' => $planUuid,
+            ],
+            'subscription' => [
+                'id' => $subscription->id,
+                'service_provider_id' => $subscription->service_provider_id,
+                'status' => $subscription->status,
+                'stripe_subscription_id_present' => filled($subscription->stripe_subscription_id),
+            ],
+            'plan' => [
+                'id' => $plan->id,
+                'price_cents' => $plan->price_cents,
+                'stripe_price_id_present' => filled($plan->stripe_price_id),
+            ],
+        ]);
+
         if ((int) $subscription->service_provider_id !== (int) $provider->id) {
+            Log::channel(config('logging.default'))->warning('ProviderSubscription changePlan forbidden', [
+                'provider_id' => $provider->id,
+                'subscription_service_provider_id' => $subscription->service_provider_id,
+            ]);
             abort(403);
         }
 
@@ -221,6 +256,12 @@ class SubscriptionController extends Controller
             $stripeSub = StripeSubscription::retrieve($subscription->stripe_subscription_id);
             $itemId = $stripeSub->items->data[0]->id ?? null;
         } catch (\Throwable $e) {
+            Log::channel(config('logging.default'))->warning('ProviderSubscription changePlan failed retrieving stripe subscription', [
+                'provider_id' => $provider->id,
+                'subscription_id' => $subscription->id,
+                'stripe_subscription_id' => $subscription->stripe_subscription_id,
+                'message' => $e->getMessage(),
+            ]);
             return back()->with('error', config('app.debug')
                 ? 'Could not load subscription: '.$e->getMessage()
                 : 'Could not load subscription right now. Please try again.');
@@ -243,6 +284,14 @@ class SubscriptionController extends Controller
                 'proration_behavior' => 'create_prorations',
             ]);
         } catch (\Throwable $e) {
+            Log::channel(config('logging.default'))->warning('ProviderSubscription changePlan failed updating stripe subscription', [
+                'provider_id' => $provider->id,
+                'subscription_id' => $subscription->id,
+                'stripe_subscription_id' => $subscription->stripe_subscription_id,
+                'plan_id' => $plan->id,
+                'stripe_price_id' => $plan->stripe_price_id,
+                'message' => $e->getMessage(),
+            ]);
             return back()->with('error', config('app.debug')
                 ? 'Could not change plan: '.$e->getMessage()
                 : 'Could not change plan right now. Please try again.');
@@ -250,6 +299,12 @@ class SubscriptionController extends Controller
 
         $subscription->update([
             'subscription_plan_id' => $plan->id,
+        ]);
+
+        Log::channel(config('logging.default'))->info('ProviderSubscription changePlan success (local plan id updated)', [
+            'provider_id' => $provider->id,
+            'subscription_id' => $subscription->id,
+            'new_subscription_plan_id' => $plan->id,
         ]);
 
         return back()->with('success', 'Plan change scheduled successfully.');

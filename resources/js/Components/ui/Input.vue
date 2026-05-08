@@ -34,6 +34,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue']);
 const attrs = useAttrs();
+const isRequired = computed(() => Object.prototype.hasOwnProperty.call(attrs, 'required'));
 const forwardedAttrs = computed(() => {
     const { size, ...rest } = attrs;
     void size;
@@ -63,7 +64,7 @@ const updateValue = (event) => {
             class="mb-3 block text-base font-medium text-slate-700"
         >
             {{ label }}
-            <span v-if="$attrs.required" class="text-red-500">*</span>
+            <span v-if="isRequired" class="text-red-500">*</span>
         </label>
 
         <input
@@ -75,6 +76,7 @@ const updateValue = (event) => {
             :class="[
                 'w-full rounded-2xl border bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition duration-200',
                 'placeholder:text-slate-400',
+                'disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none disabled:placeholder:text-slate-400',
                 error
                     ? 'border-red-300 focus:border-red-400 focus:ring-4 focus:ring-red-100'
                     : 'border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100',

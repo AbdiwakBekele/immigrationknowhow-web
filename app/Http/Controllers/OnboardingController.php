@@ -454,7 +454,8 @@ class OnboardingController extends Controller
                 'mode' => 'subscription',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success',
+                // Include session_id so provider.subscriptions.index can verify + sync the Stripe subscription.
+                'success_url' => route('provider.subscriptions.index', [], true).'?checkout=success&session_id={CHECKOUT_SESSION_ID}',
                 'cancel_url' => route('provider.subscriptions.index', [], true).'?checkout=cancelled',
                 'line_items' => $lineItems,
                 'metadata' => [
@@ -488,6 +489,23 @@ class OnboardingController extends Controller
             ]);
 
             return null;
+        }
+
+        // If onboarding created an "incomplete" placeholder row, attach the Checkout Session id
+        // so support/debugging can trace a Stripe checkout back to a local subscription row.
+        try {
+            \App\Models\ProviderSubscription::query()
+                ->where('service_provider_id', $provider->id)
+                ->whereNull('stripe_subscription_id')
+                ->where('status', 'incomplete')
+                ->where('subscription_plan_id', $plan->id)
+                ->latest('id')
+                ->limit(1)
+                ->update([
+                    'stripe_checkout_session_id' => (string) $session->id,
+                ]);
+        } catch (\Throwable) {
+            // ignore
         }
 
         $checkoutUrl = $session->url;

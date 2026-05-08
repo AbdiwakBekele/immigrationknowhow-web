@@ -511,7 +511,10 @@ class AddressDetailsController extends Controller
                 ]);
 
                 $coverage = $user->onboarding_data['coverage_area'] ?? [];
-                if (empty($coverage['country']) || empty($coverage['state'])) {
+                if (
+                    empty($coverage['country'])
+                    || empty($coverage['state'] ?? null)
+                ) {
                     return redirect()
                         ->route('address-detail')
                         ->withErrors(['phone' => 'Please complete coverage area before adding your phone number.']);

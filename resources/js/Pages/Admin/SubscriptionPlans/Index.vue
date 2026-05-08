@@ -52,6 +52,7 @@ const destroyPlan = (uuid) => {
                             <th class="admin-table-th">Status</th>
                             <th class="admin-table-th">Service scope</th>
                             <th class="admin-table-th">Subscribers</th>
+                            <th class="admin-table-th">Stripe price</th>
                             <th class="admin-table-th text-right">Actions</th>
                         </tr>
                     </thead>
@@ -68,6 +69,10 @@ const destroyPlan = (uuid) => {
                                 {{ plan.service_type_option?.label ?? 'All service types' }}
                             </td>
                             <td class="px-6 py-4">{{ plan.subscribers_count ?? 0 }}</td>
+                            <td class="px-6 py-4">
+                                <span v-if="plan.stripe_price_id" class="font-mono text-xs text-slate-700">{{ plan.stripe_price_id }}</span>
+                                <span v-else class="text-xs text-slate-400">—</span>
+                            </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="inline-flex items-center gap-2">
                                     <Link :href="route('admin.subscription-plans.edit', plan.uuid)" class="text-sky-600 hover:text-sky-700">Edit</Link>
@@ -76,7 +81,7 @@ const destroyPlan = (uuid) => {
                             </td>
                         </tr>
                         <tr v-if="plans.length === 0">
-                            <td colspan="7" class="px-6 py-12 text-center text-sm text-slate-500">No plans yet.</td>
+                            <td colspan="8" class="px-6 py-12 text-center text-sm text-slate-500">No plans yet.</td>
                         </tr>
                     </tbody>
                 </table>

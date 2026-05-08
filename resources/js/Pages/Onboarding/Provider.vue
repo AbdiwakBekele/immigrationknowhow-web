@@ -54,7 +54,37 @@ const providerServiceLocationOptions = [
     { value: 'canada', label: 'Canada' },
     { value: 'other', label: 'Other' },
 ];
-const serviceLocationWithStates = ['usa', 'canada', 'uk'];
+const serviceLocationWithStates = ['usa'];
+const coverageCountryToIso = {
+    usa: 'US',
+    canada: 'CA',
+    uk: 'GB',
+};
+const coverageStateOptions = ref([...(props.stateOptions || [])]);
+
+const loadCoverageStateOptions = async (coverageCountry) => {
+    const iso = coverageCountryToIso[String(coverageCountry || '').toLowerCase()] || null;
+    if (!iso) {
+        coverageStateOptions.value = [];
+        return;
+    }
+
+    try {
+        const response = await fetch(route('locations.states', { country: iso }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`State lookup failed (${response.status})`);
+        }
+        const payload = await response.json();
+        coverageStateOptions.value = Array.isArray(payload.states) ? payload.states : [];
+    } catch {
+        coverageStateOptions.value = [];
+    }
+};
 
 const coverageForm = ref({
     serve_client_in_location: props.existingData?.['service-area']?.serve_client_in_location ?? false,
@@ -98,9 +128,21 @@ const saveDraft = () => {
 
 onMounted(() => {
     loadDraft();
+    void loadCoverageStateOptions(coverageForm.value.coverage_country);
 });
 
 watch(coverageForm, () => saveDraft(), { deep: true });
+
+watch(
+    () => coverageForm.value.coverage_country,
+    async (next, prev) => {
+        if (next === prev) return;
+        // Reset state/city input when switching regions so we don't keep mismatched values.
+        coverageForm.value.coverage_state = '';
+        coverageForm.value.coverage_postal_code = '';
+        await loadCoverageStateOptions(next);
+    },
+);
 
 // Provider OTP verification posts use preserveState; keep step synced with server redirects.
 watch(
@@ -279,6 +321,56 @@ const providerPricingForm = ref({
     hourly_rate: props.existingData?.pricing?.hourly_rate ?? null,
     consultation_fee: props.existingData?.pricing?.consultation_fee ?? null,
     free_consultation: Boolean(props.existingData?.pricing?.free_consultation ?? false),
+    notes: props.existingData?.pricing?.notes ?? '',
+});
+
+watch(
+    () => providerPricingForm.value.free_consultation,
+    (next) => {
+        if (next) {
+            providerPricingForm.value.consultation_fee = null;
+        }
+    },
+);
+
+const pricingFeeValue = computed({
+    get: () => {
+        if (providerPricingForm.value.model === 'hourly' || providerPricingForm.value.model === 'flat_rate') {
+            return providerPricingForm.value.hourly_rate;
+        }
+        return null;
+    },
+    set: (value) => {
+        if (providerPricingForm.value.model === 'hourly' || providerPricingForm.value.model === 'flat_rate') {
+            providerPricingForm.value.hourly_rate = value;
+        }
+    },
+});
+
+const pricingFeeLabel = computed(() => {
+    switch (providerPricingForm.value.model) {
+        case 'hourly':
+            return 'Hourly rate (USD)';
+        case 'flat_rate':
+            return 'Flat fee (USD)';
+        case 'consultation':
+            return 'Consultation fee (USD)';
+        default:
+            return 'Fee (USD)';
+    }
+});
+
+const pricingFeePlaceholder = computed(() => {
+    switch (providerPricingForm.value.model) {
+        case 'hourly':
+            return '150';
+        case 'flat_rate':
+            return 'e.g. 500';
+        case 'consultation':
+            return 'Optional';
+        default:
+            return '';
+    }
 });
 
 const submittingProviderPricing = ref(false);
@@ -287,10 +379,23 @@ const providerPricingError = ref('');
 const submitProviderPricingStep = () => {
     providerPricingError.value = '';
 
-    // Light validation: if hourly model, hourly rate should be present.
-    if (providerPricingForm.value.model === 'hourly' && !String(providerPricingForm.value.hourly_rate ?? '').trim()) {
+    const feeText = String(pricingFeeValue.value ?? '').trim();
+    const feeIsMissing = feeText === '';
+
+    if (providerPricingForm.value.model === 'hourly' && feeIsMissing) {
         providerPricingError.value = 'Please enter your hourly rate to continue.';
         return;
+    }
+    if (providerPricingForm.value.model === 'flat_rate' && feeIsMissing) {
+        providerPricingError.value = 'Please enter your flat fee to continue.';
+        return;
+    }
+    if (providerPricingForm.value.model === 'custom') {
+        providerPricingForm.value.hourly_rate = null;
+    }
+
+    if (providerPricingForm.value.free_consultation) {
+        providerPricingForm.value.consultation_fee = null;
     }
 
     submittingProviderPricing.value = true;
@@ -304,6 +409,7 @@ const submitProviderPricingStep = () => {
                 hourly_rate: providerPricingForm.value.hourly_rate,
                 consultation_fee: providerPricingForm.value.consultation_fee,
                 free_consultation: Boolean(providerPricingForm.value.free_consultation),
+                notes: providerPricingForm.value.notes,
             },
         },
         {
@@ -387,6 +493,17 @@ const continuePhoneVerificationStep = () => {
     phoneVerificationRef.value?.continueFlow?.();
 };
 
+const syncProviderStepInUrl = (step) => {
+    // Keep UI step and URL query (?step=) in sync.
+    // Without this, "Back" can change the UI step while the URL still points to the old step,
+    // so "Continue" may appear to do nothing (it navigates to the same URL).
+    router.visit(route('onboarding.provider', { step }), {
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+    });
+};
+
 const goBack = () => {
     if (isPhoneStep.value) {
         if (phoneStepHasSentOtp.value) {
@@ -394,23 +511,29 @@ const goBack = () => {
             return;
         }
         currentStep.value = 2;
+        syncProviderStepInUrl(2);
         return;
     }
 
     if (currentStep.value === 4) {
-        currentStep.value = props.requiresPhoneVerification ? 3 : 2;
+        const next = props.requiresPhoneVerification ? 3 : 2;
+        currentStep.value = next;
+        syncProviderStepInUrl(next);
         return;
     }
     if (currentStep.value === 5) {
         currentStep.value = 4;
+        syncProviderStepInUrl(4);
         return;
     }
     if (currentStep.value === 6) {
         currentStep.value = 5;
+        syncProviderStepInUrl(5);
         return;
     }
     if (currentStep.value === 7) {
         currentStep.value = 6;
+        syncProviderStepInUrl(6);
         return;
     }
 
@@ -475,9 +598,9 @@ const goBack = () => {
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <Select
-                            v-if="serviceLocationWithStates.includes(coverageForm.coverage_country) && stateOptions.length > 0"
+                            v-if="serviceLocationWithStates.includes(coverageForm.coverage_country) && coverageStateOptions.length > 0"
                             v-model="coverageForm.coverage_state"
-                            :options="stateOptions"
+                            :options="coverageStateOptions"
                             label="State"
                             placeholder="Select state"
                             size="auth"
@@ -489,13 +612,13 @@ const goBack = () => {
                             label="State / region"
                             placeholder="Enter state or region"
                             size="compact"
-                            required
+                            :required="true"
                         />
 
                         <Input
                             v-model="coverageForm.coverage_postal_code"
-                            label="City / ZIP code"
-                            placeholder="Enter city or ZIP code"
+                            :label="coverageForm.coverage_country === 'usa' ? 'City / ZIP code' : 'City (optional)'"
+                            :placeholder="coverageForm.coverage_country === 'usa' ? 'Enter city or ZIP code' : 'Enter city'"
                             size="compact"
                             :required="coverageForm.coverage_country === 'usa'"
                         />
@@ -682,7 +805,7 @@ const goBack = () => {
                         <label class="text-sm font-medium text-neutral-700">Pricing model</label>
                         <select
                             v-model="providerPricingForm.model"
-                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                            class="w-full rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:shadow-none"
                         >
                             <option v-for="m in pricingModels" :key="m.value" :value="m.value">
                                 {{ m.label }}
@@ -692,12 +815,12 @@ const goBack = () => {
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <Input
-                            v-if="providerPricingForm.model === 'hourly'"
-                            v-model="providerPricingForm.hourly_rate"
+                            v-if="providerPricingForm.model === 'hourly' || providerPricingForm.model === 'flat_rate'"
+                            v-model="pricingFeeValue"
                             type="number"
                             min="0"
-                            label="Hourly rate (USD)"
-                            placeholder="150"
+                            :label="pricingFeeLabel"
+                            :placeholder="pricingFeePlaceholder"
                             size="compact"
                         />
                         <Input
@@ -707,6 +830,20 @@ const goBack = () => {
                             label="Consultation fee (USD)"
                             placeholder="Optional"
                             size="compact"
+                            :disabled="providerPricingForm.free_consultation"
+                        />
+                    </div>
+
+                    <div v-if="providerPricingForm.model === 'custom'" class="space-y-1.5">
+                        <label class="text-sm font-medium text-neutral-700">
+                            Custom pricing notes
+                            <span class="ml-0.5 text-slate-400">(optional)</span>
+                        </label>
+                        <textarea
+                            v-model="providerPricingForm.notes"
+                            rows="4"
+                            placeholder="Describe how you price your services (e.g. depends on case complexity, package pricing, etc.)"
+                            class="w-full rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-base text-slate-900 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                         />
                     </div>
 
@@ -732,28 +869,58 @@ const goBack = () => {
                         No plans are available right now. Please contact support.
                     </div>
 
-                    <div v-else class="grid grid-cols-1 gap-3">
+                    <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <label
                             v-for="plan in selectablePlans"
                             :key="plan.uuid"
-                            class="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border p-4 transition"
-                            :class="providerSubscriptionForm.plan_uuid === plan.uuid ? 'border-sky-400 bg-sky-50/40 ring-2 ring-sky-300/40' : 'border-slate-200 bg-white hover:border-sky-200'"
+                            class="group w-full cursor-pointer rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md"
+                            :class="providerSubscriptionForm.plan_uuid === plan.uuid ? 'border-sky-400 ring-2 ring-sky-300/40' : 'border-slate-200 hover:border-sky-200'"
                         >
-                            <span class="space-y-1">
-                                <span class="block text-sm font-semibold text-slate-900">{{ plan.name }}</span>
-                                <span v-if="plan.description" class="block text-sm text-slate-600">{{ plan.description }}</span>
-                                <span class="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                    <span v-if="(plan.price_cents ?? 0) <= 0">Free</span>
-                                    <span v-else>\${{ ((plan.price_cents ?? 0) / 100).toFixed(0) }} / {{ plan.billing_cycle }}</span>
-                                </span>
-                            </span>
-                            <input
-                                v-model="providerSubscriptionForm.plan_uuid"
-                                type="radio"
-                                name="provider-plan"
-                                :value="plan.uuid"
-                                class="mt-1 h-4 w-4 border-slate-300 text-primary-600"
-                            />
+                            <div class="flex items-start gap-4">
+                                <input
+                                    v-model="providerSubscriptionForm.plan_uuid"
+                                    type="radio"
+                                    name="provider-plan"
+                                    :value="plan.uuid"
+                                    class="mt-1.5 h-4 w-4 border-slate-300 text-primary-600"
+                                />
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <p class="text-base font-semibold text-slate-900">{{ plan.name }}</p>
+                                            <p v-if="plan.description" class="mt-1 text-sm text-slate-600">
+                                                {{ plan.description }}
+                                            </p>
+                                        </div>
+                                        <div class="shrink-0">
+                                            <span
+                                                class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                                            >
+                                                <span v-if="(plan.price_cents ?? 0) <= 0">Free</span>
+                                                <span v-else>${{ ((plan.price_cents ?? 0) / 100).toFixed(0) }} / {{ plan.billing_cycle }}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <ul v-if="Array.isArray(plan.features) && plan.features.length" class="mt-4 space-y-2 text-sm text-slate-700">
+                                        <li
+                                            v-for="(feature, index) in plan.features"
+                                            :key="`${plan.uuid}-feature-${index}`"
+                                            class="flex items-start gap-2"
+                                        >
+                                            <span class="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-50 text-sky-700">
+                                                <svg viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.3a1 1 0 0 1-1.42.005L3.29 9.26a1 1 0 1 1 1.414-1.414l3.04 3.04 6.543-6.59a1 1 0 0 1 1.417-.006Z" clip-rule="evenodd" />
+                                                </svg>
+                                            </span>
+                                            <span class="flex-1">{{ feature }}</span>
+                                        </li>
+                                    </ul>
+                                    <p v-else class="mt-4 text-sm text-slate-500">
+                                        All core provider features included.
+                                    </p>
+                                </div>
+                            </div>
                         </label>
                     </div>
 

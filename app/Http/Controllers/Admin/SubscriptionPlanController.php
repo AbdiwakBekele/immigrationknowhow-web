@@ -150,6 +150,9 @@ class SubscriptionPlanController extends Controller
             'recurring_commission_enabled' => ['nullable', 'boolean'],
             'max_recurring_commission_cycles' => ['nullable', 'integer', 'min:1'],
             'service_type_option_id' => ['nullable', 'integer', 'exists:service_type_options,id'],
+            // Optional manual Stripe configuration (needed for Switch Plan; must be a persistent Stripe Price ID).
+            'stripe_product_id' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'stripe_price_id' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $validated['price_cents'] = (int) round(((float) $validated['price']) * 100);

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, watch, onMounted } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import GuestLayout from '@/Components/layout/GuestLayout.vue';
 import AuthFlowProgress from '@/Components/auth/AuthFlowProgress.vue';
@@ -18,7 +18,13 @@ const providerServiceLocationOptions = [
     { value: 'canada', label: 'Canada' },
     { value: 'other', label: 'Other' },
 ];
-const serviceLocationWithStates = ['usa', 'canada', 'uk'];
+const serviceLocationWithStates = ['usa'];
+const coverageCountryToIso = {
+    usa: 'US',
+    canada: 'CA',
+    uk: 'GB',
+};
+const coverageStateOptions = ref([]);
 
 const props = defineProps({
     isProvider: { type: Boolean, default: false },
@@ -76,6 +82,45 @@ const phoneForm = useForm({
 
 const autocompleteStatus = ref('');
 let autocompleteDebounce = null;
+
+const loadCoverageStateOptions = async (coverageCountry) => {
+    const iso = coverageCountryToIso[String(coverageCountry || '').toLowerCase()] || null;
+    if (!iso) {
+        coverageStateOptions.value = [];
+        return;
+    }
+
+    try {
+        const response = await fetch(route('locations.states', { country: iso }), {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`State lookup failed (${response.status})`);
+        }
+        const payload = await response.json();
+        coverageStateOptions.value = Array.isArray(payload.states) ? payload.states : [];
+    } catch {
+        coverageStateOptions.value = [];
+    }
+};
+
+onMounted(() => {
+    coverageStateOptions.value = [...(props.stateOptions || [])];
+    void loadCoverageStateOptions(phoneForm.coverage_country);
+});
+
+watch(
+    () => phoneForm.coverage_country,
+    async (next, prev) => {
+        if (next === prev) return;
+        phoneForm.coverage_state = '';
+        phoneForm.coverage_postal_code = '';
+        await loadCoverageStateOptions(next);
+    },
+);
 
 const runStreetAutocomplete = async () => {
     const query = String(phoneForm.address || '').trim();
@@ -206,9 +251,9 @@ const goBack = () => {
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Select
-                        v-if="serviceLocationWithStates.includes(phoneForm.coverage_country) && stateOptions.length > 0"
+                        v-if="serviceLocationWithStates.includes(phoneForm.coverage_country) && coverageStateOptions.length > 0"
                         v-model="phoneForm.coverage_state"
-                        :options="stateOptions"
+                        :options="coverageStateOptions"
                         label="State"
                         placeholder="Select state"
                         size="auth"
@@ -220,13 +265,13 @@ const goBack = () => {
                         label="State / region"
                         placeholder="Enter state or region"
                         size="compact"
-                        required
+                        :required="true"
                     />
 
                     <Input
                         v-model="phoneForm.coverage_postal_code"
-                        label="City / ZIP code"
-                        placeholder="Enter city or ZIP code"
+                        :label="phoneForm.coverage_country === 'usa' ? 'City / ZIP code' : 'City (optional)'"
+                        :placeholder="phoneForm.coverage_country === 'usa' ? 'Enter city or ZIP code' : 'Enter city'"
                         size="compact"
                         :required="phoneForm.coverage_country === 'usa'"
                     />
