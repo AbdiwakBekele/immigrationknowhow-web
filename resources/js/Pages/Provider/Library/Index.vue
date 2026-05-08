@@ -214,20 +214,22 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
                 <div v-if="purchasedItems.links && purchasedItems.last_page > 1" class="mt-8 flex justify-center">
                     <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <Link
-                            v-for="link in purchasedItems.links"
-                            :key="link.label"
-                            :href="link.url"
-                            :class="[
-                                'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
-                                link.active
-                                    ? 'bg-blue-600 text-white'
-                                    : link.url
-                                      ? 'text-neutral-600 hover:bg-neutral-100'
-                                      : 'cursor-not-allowed text-neutral-300',
-                            ]"
-                            v-html="link.label"
-                        />
+                        <template v-for="link in purchasedItems.links" :key="`purchased-${link.label}`">
+                            <Link
+                                v-if="link.url"
+                                :href="link.url"
+                                :class="[
+                                    'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
+                                    link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
+                                ]"
+                                v-html="link.label"
+                            />
+                            <span
+                                v-else
+                                class="min-w-9 cursor-not-allowed rounded-lg px-3 py-2 text-sm font-semibold text-neutral-300"
+                                v-html="link.label"
+                            />
+                        </template>
                     </nav>
                 </div>
             </section>
@@ -340,20 +342,22 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
                 <div v-if="availableItems.links && availableItems.last_page > 1" class="mt-8 flex justify-center">
                     <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <Link
-                            v-for="link in availableItems.links"
-                            :key="link.label"
-                            :href="link.url"
-                            :class="[
-                                'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
-                                link.active
-                                    ? 'bg-blue-600 text-white'
-                                    : link.url
-                                      ? 'text-neutral-600 hover:bg-neutral-100'
-                                      : 'cursor-not-allowed text-neutral-300',
-                            ]"
-                            v-html="link.label"
-                        />
+                        <template v-for="link in availableItems.links" :key="`available-${link.label}`">
+                            <Link
+                                v-if="link.url"
+                                :href="link.url"
+                                :class="[
+                                    'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
+                                    link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
+                                ]"
+                                v-html="link.label"
+                            />
+                            <span
+                                v-else
+                                class="min-w-9 cursor-not-allowed rounded-lg px-3 py-2 text-sm font-semibold text-neutral-300"
+                                v-html="link.label"
+                            />
+                        </template>
                     </nav>
                 </div>
             </section>
