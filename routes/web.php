@@ -347,7 +347,8 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         Route::post('/subscriptions/checkout/{plan:uuid}', [Provider\SubscriptionController::class, 'checkout'])->name('subscriptions.checkout');
         Route::post('/subscriptions/{subscription:uuid}/cancel', [Provider\SubscriptionController::class, 'cancel'])->name('subscriptions.cancel');
         Route::post('/subscriptions/{subscription:uuid}/resume', [Provider\SubscriptionController::class, 'resume'])->name('subscriptions.resume');
-        Route::post('/subscriptions/{subscription:uuid}/change-plan/{plan:uuid}', [Provider\SubscriptionController::class, 'changePlan'])->name('subscriptions.change-plan');
+        // Use raw UUID param (not scoped model binding) so switching to a different plan doesn't 404.
+        Route::post('/subscriptions/{subscription:uuid}/change-plan/{planUuid}', [Provider\SubscriptionController::class, 'changePlan'])->name('subscriptions.change-plan');
 
         Route::get('/notifications', [Provider\NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/read-all', [Provider\NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');

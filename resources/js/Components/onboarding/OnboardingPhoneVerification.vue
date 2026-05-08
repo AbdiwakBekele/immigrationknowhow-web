@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, watch, onBeforeUnmount } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/vue';
 import { ArrowLeftIcon, ChevronDownIcon } from '@heroicons/vue/20/solid';
@@ -48,6 +48,35 @@ const countryIso = ref('US');
 const phoneLocal = ref('');
 const hasSentOtp = ref(false);
 const otpInputs = ref([]);
+const isSendingOtp = ref(false);
+const isVerifyingOtp = ref(false);
+const resendCooldownSeconds = ref(0);
+let resendCooldownInterval = null;
+
+const startResendCooldown = (seconds = 30) => {
+    if (resendCooldownInterval) {
+        clearInterval(resendCooldownInterval);
+        resendCooldownInterval = null;
+    }
+
+    resendCooldownSeconds.value = Math.max(0, Number(seconds) || 0);
+    if (resendCooldownSeconds.value <= 0) return;
+
+    resendCooldownInterval = setInterval(() => {
+        resendCooldownSeconds.value = Math.max(0, resendCooldownSeconds.value - 1);
+        if (resendCooldownSeconds.value <= 0 && resendCooldownInterval) {
+            clearInterval(resendCooldownInterval);
+            resendCooldownInterval = null;
+        }
+    }, 1000);
+};
+
+onBeforeUnmount(() => {
+    if (resendCooldownInterval) {
+        clearInterval(resendCooldownInterval);
+        resendCooldownInterval = null;
+    }
+});
 
 const flagClass = (iso2) => `fi fi-${String(iso2 || '').toLowerCase()}`;
 
@@ -212,6 +241,8 @@ const handleOtpPaste = (event) => {
 };
 
 const submitOtp = () => {
+    if (otpForm.processing || isVerifyingOtp.value) return;
+    isVerifyingOtp.value = true;
     console.log('[FLOW_DEBUG] Step 3 verify attempt -> expecting Step 4 on success', {
         codeLength: String(otpForm.code || '').length,
     });
@@ -228,10 +259,15 @@ const submitOtp = () => {
         onError: (errors) => {
             console.log('[FLOW_DEBUG] Step 3 verify validation/errors', errors);
         },
+        onFinish: () => {
+            isVerifyingOtp.value = false;
+        },
     });
 };
 
 const resendOtp = () => {
+    if (resendForm.processing || isSendingOtp.value) return;
+    if (hasSentOtp.value && resendCooldownSeconds.value > 0) return;
     const localDigits = normalizeLocalDigits(phoneLocal.value);
     if (countryIso.value === 'US') {
         if (localDigits.length !== 10) {
@@ -249,6 +285,7 @@ const resendOtp = () => {
     resendForm.clearErrors('phone');
 
     resendForm.phone = fullE164.value;
+    isSendingOtp.value = true;
     console.log('[FLOW_DEBUG] Step 3 send/resend OTP', {
         phoneLast4: fullE164.value.slice(-4),
         hasSentOtp: hasSentOtp.value,
@@ -258,10 +295,16 @@ const resendOtp = () => {
         preserveScroll: true,
         onSuccess: () => {
             hasSentOtp.value = true;
+            if (hasSentOtp.value) {
+                startResendCooldown(30);
+            }
             console.log('[FLOW_DEBUG] Step 3 send/resend OTP success');
         },
         onError: (errors) => {
             console.log('[FLOW_DEBUG] Step 3 send/resend OTP errors', errors);
+        },
+        onFinish: () => {
+            isSendingOtp.value = false;
         },
     });
 };
@@ -293,6 +336,7 @@ const goBack = () => {
 };
 
 const continueFlow = () => {
+    if (isContinuing.value) return;
     if (hasSentOtp.value) {
         submitOtp();
         return;
@@ -310,7 +354,13 @@ const backFlow = () => {
     goBack();
 };
 
-const isContinuing = computed(() => (hasSentOtp.value ? otpForm.processing : resendForm.processing));
+const isContinuing = computed(() =>
+    hasSentOtp.value
+        ? (otpForm.processing || isVerifyingOtp.value)
+        : (resendForm.processing || isSendingOtp.value),
+);
+
+const canResend = computed(() => !(resendForm.processing || isSendingOtp.value || resendCooldownSeconds.value > 0));
 
 defineExpose({
     continueFlow,
@@ -400,7 +450,14 @@ defineExpose({
                     <ArrowLeftIcon class="h-3.5 w-3.5" />
                     Back
                 </Button>
-                <Button type="submit" variant="primary" size="sm" class="min-w-[10rem] !py-1.5 !text-xs !rounded-md" :loading="resendForm.processing">
+                <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    class="min-w-[10rem] !py-1.5 !text-xs !rounded-md"
+                    :loading="resendForm.processing || isSendingOtp"
+                    :disabled="resendForm.processing || isSendingOtp"
+                >
                     Continue
                 </Button>
             </div>
@@ -435,10 +492,15 @@ defineExpose({
                 <button
                     type="button"
                     class="text-sm font-medium text-primary-600 hover:text-primary-500 disabled:opacity-50"
-                    :disabled="resendForm.processing"
+                    :disabled="!canResend"
                     @click="resendOtp"
                 >
-                    Resend code
+                    <span v-if="resendCooldownSeconds > 0">
+                        Resend in {{ resendCooldownSeconds }}s
+                    </span>
+                    <span v-else>
+                        Resend code
+                    </span>
                 </button>
             </div>
             <div v-if="!useExternalActions" class="flex items-center justify-between gap-3 pt-2">
@@ -452,7 +514,14 @@ defineExpose({
                     <ArrowLeftIcon class="h-3.5 w-3.5" />
                     Back
                 </Button>
-                <Button type="submit" variant="primary" size="sm" class="min-w-[10rem] !py-1.5 !text-xs !rounded-md" :loading="otpForm.processing">
+                <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    class="min-w-[10rem] !py-1.5 !text-xs !rounded-md"
+                    :loading="otpForm.processing || isVerifyingOtp"
+                    :disabled="otpForm.processing || isVerifyingOtp"
+                >
                     Verify & Continue
                 </Button>
             </div>

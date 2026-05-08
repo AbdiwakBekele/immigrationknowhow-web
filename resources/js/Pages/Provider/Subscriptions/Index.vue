@@ -13,6 +13,40 @@ const props = defineProps({
 
 const currentPlanId = computed(() => props.currentSubscription?.subscription_plan_id ?? null);
 
+const formatDate = (value) => {
+    if (!value) return '—';
+    try {
+        return new Date(value).toLocaleDateString();
+    } catch {
+        return '—';
+    }
+};
+
+const computePeriodEnd = (row) => {
+    if (row?.current_period_end) return formatDate(row.current_period_end);
+    const start = row?.current_period_start || row?.started_at;
+    const cycle = String(row?.plan?.billing_cycle || '').toLowerCase();
+    if (!start || !cycle) return '—';
+    const d = new Date(start);
+    if (Number.isNaN(d.getTime())) return '—';
+    if (cycle === 'monthly') d.setMonth(d.getMonth() + 1);
+    else if (cycle === 'yearly' || cycle === 'annual') d.setFullYear(d.getFullYear() + 1);
+    else if (cycle === 'quarterly') d.setMonth(d.getMonth() + 3);
+    else return '—';
+    return d.toLocaleDateString();
+};
+
+const paidPaymentsCount = (row) => (row?.payments || []).filter((p) => p?.status === 'paid').length;
+
+const totalPaidLabel = (row) => {
+    const payments = Array.isArray(row?.payments) ? row.payments : [];
+    const totalCents = payments.reduce((sum, p) => sum + Number(p?.amount_paid_cents || 0), 0);
+    if (!totalCents) return '—';
+    const currency = String(payments[0]?.currency || row?.plan?.currency || 'USD').toUpperCase();
+    const amount = (totalCents / 100).toFixed(2);
+    return `${amount} ${currency}`;
+};
+
 const freePlans = computed(() =>
     (props.plans || []).filter((plan) => Number(plan?.price_cents || 0) <= 0),
 );
@@ -31,6 +65,9 @@ const paidPlanCheckoutBlocked = (plan) => {
     }
     if (!props.stripeBillingConfigured) {
         return 'stripe';
+    }
+    if (!plan.stripe_price_id) {
+        return 'missing_price_id';
     }
     return null;
 };
@@ -59,8 +96,67 @@ const resumeSubscription = () => {
 
 const changePlan = (planUuid) => {
     const id = props.currentSubscription?.uuid;
-    if (!id) return;
-    router.post(route('provider.subscriptions.change-plan', { subscription: id, plan: planUuid }));
+    if (!id) {
+        // eslint-disable-next-line no-console
+        console.log('[Subscriptions][changePlan] blocked: missing currentSubscription.uuid', {
+            currentSubscription: props.currentSubscription,
+            planUuid,
+        });
+        return;
+    }
+    // Inertia expects a path ("/provider/..."), not a fully-qualified URL.
+    // If we pass "http://...", it may prefix it again (http://app/http://app/...).
+    const rawUrl = String(route('provider.subscriptions.change-plan', [id, planUuid]) || '');
+    let path = rawUrl;
+    try {
+        // If rawUrl is absolute, strip origin → path+query.
+        if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+            const parsed = new URL(rawUrl);
+            path = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+    } catch {
+        // ignore parse failures; fall back to rawUrl
+        path = rawUrl;
+    }
+    if (!path.startsWith('/')) {
+        path = `/${path}`;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('[Subscriptions][changePlan] posting', {
+        subscriptionUuid: id,
+        planUuid,
+        rawUrl,
+        computedPath: path,
+        windowOrigin: window.location.origin,
+        windowHref: window.location.href,
+    });
+
+    router.post(path, {}, {
+        preserveScroll: true,
+        onStart: () => {
+            // eslint-disable-next-line no-console
+            console.log('[Subscriptions][changePlan] request start', { path });
+        },
+        onSuccess: (page) => {
+            // eslint-disable-next-line no-console
+            console.log('[Subscriptions][changePlan] request success', {
+                path,
+                nextUrl: page?.url,
+            });
+        },
+        onError: (errors) => {
+            // eslint-disable-next-line no-console
+            console.log('[Subscriptions][changePlan] request error', {
+                path,
+                errors,
+            });
+        },
+        onFinish: () => {
+            // eslint-disable-next-line no-console
+            console.log('[Subscriptions][changePlan] request finish', { path });
+        },
+    });
 };
 </script>
 
@@ -125,10 +221,17 @@ const changePlan = (planUuid) => {
                                 <button
                                     type="button"
                                     class="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
-                                    @click="changePlan(plan.uuid)"
+                                    :disabled="Boolean(paidPlanCheckoutBlocked(plan))"
+                                    @click="!paidPlanCheckoutBlocked(plan) ? changePlan(plan.uuid) : null"
                                 >
                                     Switch Plan
                                 </button>
+                                <p
+                                    v-if="paidPlanCheckoutBlocked(plan) === 'missing_price_id'"
+                                    class="text-xs text-amber-700"
+                                >
+                                    This plan isn’t fully configured for Stripe yet.
+                                </p>
                             </template>
                         </div>
                     </div>
@@ -194,6 +297,12 @@ const changePlan = (planUuid) => {
                                 >
                                     Switch Plan
                                 </button>
+                                <p
+                                    v-if="paidPlanCheckoutBlocked(plan) === 'missing_price_id'"
+                                    class="text-xs text-amber-700"
+                                >
+                                    This plan isn’t fully configured for Stripe yet.
+                                </p>
                             </template>
                         </div>
                     </div>
@@ -231,19 +340,23 @@ const changePlan = (planUuid) => {
                         <tr>
                             <th class="px-4 py-2 font-medium">Plan</th>
                             <th class="px-4 py-2 font-medium">Status</th>
+                            <th class="px-4 py-2 font-medium">Started</th>
                             <th class="px-4 py-2 font-medium">Period End</th>
                             <th class="px-4 py-2 font-medium">Payments</th>
+                            <th class="px-4 py-2 font-medium">Paid</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <tr v-for="row in subscriptionHistory" :key="row.uuid">
                             <td class="px-4 py-2">{{ row.plan?.name ?? 'Unknown Plan' }}</td>
                             <td class="px-4 py-2 capitalize">{{ row.status }}</td>
-                            <td class="px-4 py-2">{{ row.current_period_end ? new Date(row.current_period_end).toLocaleDateString() : '—' }}</td>
-                            <td class="px-4 py-2">{{ row.payments?.length ?? 0 }}</td>
+                            <td class="px-4 py-2">{{ formatDate(row.current_period_start || row.started_at || row.created_at) }}</td>
+                            <td class="px-4 py-2">{{ computePeriodEnd(row) }}</td>
+                            <td class="px-4 py-2">{{ paidPaymentsCount(row) }}</td>
+                            <td class="px-4 py-2">{{ totalPaidLabel(row) }}</td>
                         </tr>
                         <tr v-if="subscriptionHistory.length === 0">
-                            <td colspan="4" class="px-4 py-6 text-center text-slate-500">No subscriptions yet.</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-500">No subscriptions yet.</td>
                         </tr>
                     </tbody>
                 </table>
