@@ -19,7 +19,6 @@ import {
     NewspaperIcon,
     ScaleIcon,
     ShareIcon,
-    SparklesIcon,
     UserGroupIcon,
 } from '@heroicons/vue/24/outline';
 
@@ -457,24 +456,6 @@ onMounted(() => {
     <component :is="layoutComponent">
         <section class="min-h-screen bg-slate-50 py-4 md:py-6">
             <div class="mx-auto max-w-[1380px] px-3 sm:px-4 lg:px-6">
-                <div class="mb-3 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 p-4 text-white shadow-lg md:mb-4 md:p-5">
-                    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                        <div>
-                            <p class="inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
-                                Global Community
-                            </p>
-                            <h1 class="mt-2 text-2xl font-extrabold tracking-tight md:text-3xl">Connect, ask, and grow together</h1>
-                            <p class="mt-1.5 max-w-2xl text-sm text-blue-100">
-                                Find trusted immigration insights, practical life tips, and the latest updates in one modern community hub.
-                            </p>
-                        </div>
-                        <div class="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-blue-50 backdrop-blur">
-                            <SparklesIcon class="h-4 w-4" />
-                            {{ filteredPosts.length }} active posts
-                        </div>
-                    </div>
-                </div>
-
                 <div class="flex w-auto flex-col gap-3 md:flex-row md:gap-4">
                 <aside class="w-full rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:sticky md:top-6 md:w-72 md:h-fit md:shrink-0">
                     <h1 class="text-[1.65rem] font-black tracking-tight text-slate-900">Community Feed</h1>

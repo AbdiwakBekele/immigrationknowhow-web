@@ -25,6 +25,20 @@ import {
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+/** Spatie roles; advertisers are not necessarily `role:user`, so `/dashboard` etc. would 403. */
+const roleNames = computed(() => {
+    const roles = user.value?.roles;
+    return Array.isArray(roles) ? roles : [];
+});
+const hasSeekerPortal = computed(() => roleNames.value.includes('user'));
+const hasAdvertiserRole = computed(
+    () => Boolean(user.value?.is_advertiser) || roleNames.value.includes('advertiser'),
+);
+/** Advertiser-only accounts: point nav at `advertiser.*` routes, not seeker middleware. */
+const useAdvertiserNav = computed(() => hasAdvertiserRole.value && !hasSeekerPortal.value);
+const primaryHomeHref = computed(() =>
+    useAdvertiserNav.value ? route('advertiser.dashboard') : route('dashboard'),
+);
 const dvLottery = computed(() => page.props.dvLottery ?? {});
 /** Live override so the sidebar badge can update without a full navigation (same count as server share). */
 const liveUnreadOverride = ref(null);
@@ -88,20 +102,39 @@ const navigation = computed(() => [
         : []),
 ]);
 
-const userNavigation = computed(() => [
-    { name: 'Dashboard', href: route('dashboard'), icon: HomeIcon },
+const seekerUserNavigation = computed(() => {
+    const items = [
+        { name: 'Dashboard', href: route('dashboard'), icon: HomeIcon },
+        { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
+        { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
+        { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
+        { name: 'My Ads', href: route('user.ads.index'), icon: MegaphoneIcon },
+        { name: 'Ad Analytics', href: route('user.ads.analytics'), icon: ChartBarIcon },
+        { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
+        { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
+        { name: 'Reviews', href: route('reviews.index'), icon: StarIcon },
+        { name: 'AI Assistant', href: route('user.ai-assistant.index'), icon: SparklesIcon },
+    ];
+    if (dvLottery.value.show_in_menu) {
+        items.push({ name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon });
+    }
+    items.push({ name: 'Community', href: '/community', icon: UserGroupIcon });
+    return items;
+});
+
+const advertiserUserNavigation = computed(() => [
+    { name: 'Dashboard', href: route('advertiser.dashboard'), icon: HomeIcon },
     { name: 'Find Providers', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
-    { name: 'Contracts', href: '/contracts', icon: ClipboardDocumentListIcon },
-    { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
-    { name: 'My Ads', href: '/ads', icon: MegaphoneIcon },
-    { name: 'Ad Analytics', href: '/ads/analytics', icon: ChartBarIcon },
-    { name: 'Library', href: '/library', icon: BookOpenIcon },
-    { name: 'Videos', href: '/videos', icon: VideoCameraIcon },
-    { name: 'Reviews', href: '/reviews', icon: StarIcon },
-    { name: 'AI Assistant', href: route('user.ai-assistant.index'), icon: SparklesIcon },
-    { name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon },
+    { name: 'My Ads', href: route('advertiser.ads.index'), icon: MegaphoneIcon },
+    { name: 'Ad Analytics', href: route('advertiser.analytics'), icon: ChartBarIcon },
+    { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
+    { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
     { name: 'Community', href: '/community', icon: UserGroupIcon },
 ]);
+
+const userNavigation = computed(() =>
+    useAdvertiserNav.value ? advertiserUserNavigation.value : seekerUserNavigation.value,
+);
 
 
 const readXsrfCookie = () => {
@@ -144,13 +177,15 @@ onMounted(() => {
         scrolled.value = window.scrollY > 20;
     });
 
-    pollUnreadMessages();
-    unreadPollTimer = window.setInterval(() => {
-        if (document.visibilityState === 'visible') {
-            pollUnreadMessages();
-        }
-    }, 12000);
-    document.addEventListener('visibilitychange', onVisibilityForUnread);
+    if (hasSeekerPortal.value) {
+        pollUnreadMessages();
+        unreadPollTimer = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                pollUnreadMessages();
+            }
+        }, 12000);
+        document.addEventListener('visibilitychange', onVisibilityForUnread);
+    }
 });
 
 onUnmounted(() => {
@@ -219,10 +254,7 @@ const userAvatarSrc = computed(() => {
 });
 
 const hasUserAvatar = computed(() => Boolean(userAvatarSrc.value));
-const isServiceNeeder = computed(() => {
-    const roles = user.value?.roles || [];
-    return Array.isArray(roles) && roles.includes('user');
-});
+const isServiceNeeder = computed(() => hasSeekerPortal.value);
 const showEmailVerificationBanner = computed(() => {
     return Boolean(user.value) && isServiceNeeder.value && !user.value?.email_verified_at;
 });
@@ -281,7 +313,7 @@ const userAvatarInitial = computed(() => {
                 >
                     <XMarkIcon class="h-5 w-5" />
                 </button>
-                <Link href="/dashboard" class="block w-full pr-8 lg:pr-0" @click="sidebarOpen = false">
+                <Link :href="primaryHomeHref" class="block w-full pr-8 lg:pr-0" @click="sidebarOpen = false">
                     <BrandLogo
                         context="site"
                         :mark-src="userLogoSrc"
@@ -363,9 +395,9 @@ const userAvatarInitial = computed(() => {
 
             <div class="shrink-0 border-t border-slate-200/80 p-3">
                 <Link
-                    href="/profile"
+                    :href="hasSeekerPortal ? '/profile' : primaryHomeHref"
                     class="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50"
-                    aria-label="Profile"
+                    :aria-label="hasSeekerPortal ? 'Profile' : 'Account'"
                     @click="sidebarOpen = false"
                 >
                     <img
@@ -385,7 +417,9 @@ const userAvatarInitial = computed(() => {
                         <p class="truncate font-semibold text-slate-900">
                             {{ user?.first_name?.trim() || 'Profile' }}
                         </p>
-                        <p class="truncate text-xs text-slate-500">Account</p>
+                        <p class="truncate text-xs text-slate-500">
+                            {{ hasSeekerPortal ? 'Account' : 'Advertiser account' }}
+                        </p>
                     </div>
                 </Link>
             </div>
@@ -406,7 +440,7 @@ const userAvatarInitial = computed(() => {
 
                         <div class="hidden sm:block">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                User portal
+                                {{ useAdvertiserNav ? 'Advertiser portal' : 'User portal' }}
                             </p>
                             <h1 class="text-lg font-semibold text-slate-900">
                                 Welcome back
@@ -416,6 +450,7 @@ const userAvatarInitial = computed(() => {
 
                     <div class="flex items-center gap-2 sm:gap-3">
                         <Link
+                            v-if="hasSeekerPortal"
                             href="/messages"
                             class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
                             title="Messages"
@@ -460,7 +495,7 @@ const userAvatarInitial = computed(() => {
                             <HomeIcon class="h-6 w-6" />
                         </Link>
                         <Link
-                            v-if="dvLottery.show_in_menu"
+                            v-if="dvLottery.show_in_menu && hasSeekerPortal"
                             :href="route('user.dv-lottery.index')"
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >
