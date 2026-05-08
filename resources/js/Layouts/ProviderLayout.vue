@@ -27,6 +27,10 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const dvLottery = computed(() => page.props.dvLottery ?? {});
 const providerRequiresBackgroundCheck = computed(() => Boolean(page.props.provider_requires_background_check));
+const showProviderEmailVerificationBanner = computed(() => {
+    return Boolean(user.value) && !providerRequiresBackgroundCheck.value && !user.value?.email_verified_at;
+});
+const sendingVerificationEmail = ref(false);
 
 const providerLogoSrc = computed(() => {
     const u = page.props.branding?.site_logo_url;
@@ -110,6 +114,20 @@ const navigation = computed(() => {
 
 const logout = () => {
     router.post('/logout');
+};
+
+const sendVerificationEmail = () => {
+    if (sendingVerificationEmail.value) {
+        return;
+    }
+
+    sendingVerificationEmail.value = true;
+    router.post(route('verification.send'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            sendingVerificationEmail.value = false;
+        },
+    });
 };
 
 const isActive = (href) => {
@@ -410,6 +428,22 @@ onUnmounted(() => {
 
             <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
+                <div
+                    v-if="showProviderEmailVerificationBanner"
+                    class="mb-3 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p class="text-sm font-medium">
+                        Your provider account email is not verified yet. Please verify it to secure your account.
+                    </p>
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-md border border-amber-400 bg-amber-200 px-3 py-1.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                        :disabled="sendingVerificationEmail"
+                        @click="sendVerificationEmail"
+                    >
+                        {{ sendingVerificationEmail ? 'Sending...' : 'Verify account' }}
+                    </button>
+                </div>
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />
                 </div>
