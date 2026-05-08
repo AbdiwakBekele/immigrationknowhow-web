@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Controllers\Affiliate\Auth;
+namespace App\Http\Controllers\Auth;
 
-use App\Enums\AffiliateStatus;
 use App\Http\Controllers\Controller;
 use App\Models\EmailLog;
 use App\Models\EmailTemplate;
@@ -23,7 +22,7 @@ class EmailVerificationNotificationController extends Controller
         }
 
         if ($user->hasVerifiedEmail()) {
-            return redirect()->route('affiliate.dashboard');
+            return back()->with('success', 'Your email is already verified.');
         }
 
         $verificationLog = null;
@@ -31,7 +30,7 @@ class EmailVerificationNotificationController extends Controller
             $verificationLog = EmailLog::query()->create([
                 'direction' => 'outgoing',
                 'status' => 'queued',
-                'subject' => 'Affiliate email verification requested',
+                'subject' => 'Email verification requested',
                 'from_email' => config('mail.from.address'),
                 'to_email' => $user->email,
                 'provider' => config('mail.default'),
@@ -41,8 +40,8 @@ class EmailVerificationNotificationController extends Controller
                     : null,
                 'payload' => [
                     'event_key' => EmailTemplate::EVENT_ACCOUNT_ACTIVATION,
-                    'flow' => 'affiliate_verification',
-                    'trigger' => 'affiliate_resend_button',
+                    'flow' => 'service_needer_verification',
+                    'trigger' => 'banner_verify_button',
                     'route' => $request->path(),
                     'request_ip' => $request->ip(),
                     'user_agent' => (string) $request->userAgent(),
@@ -51,7 +50,7 @@ class EmailVerificationNotificationController extends Controller
             ]);
         }
 
-        Log::channel('single')->info('Affiliate email verification requested.', [
+        Log::channel('single')->info('User email verification requested.', [
             'user_id' => $user->id,
             'email' => $user->email,
             'route' => $request->path(),
@@ -65,9 +64,6 @@ class EmailVerificationNotificationController extends Controller
 
         try {
             $user->sendEmailVerificationNotification();
-            $user->affiliateProfile?->update([
-                'status' => AffiliateStatus::EMAIL_SENT,
-            ]);
 
             if ($verificationLog) {
                 $verificationLog->update([
@@ -80,7 +76,7 @@ class EmailVerificationNotificationController extends Controller
                 ]);
             }
         } catch (Throwable $exception) {
-            Log::channel('single')->error('Affiliate email verification send failed.', [
+            Log::channel('single')->error('User email verification send failed.', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'route' => $request->path(),
@@ -107,6 +103,6 @@ class EmailVerificationNotificationController extends Controller
             return back()->with('error', 'We could not send the verification email. Please try again.');
         }
 
-        return back()->with('success', 'A fresh verification email has been sent.');
+        return back()->with('success', 'Verification email sent. Please check your inbox.');
     }
 }

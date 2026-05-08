@@ -35,7 +35,7 @@ class RegistrationController extends Controller
         Auth::login($user);
 
         return redirect()
-            ->route('verification.notice')
+            ->route('affiliate.verification.notice')
             ->with('success', 'Your affiliate account has been created. Please verify your email to continue.');
     }
 }

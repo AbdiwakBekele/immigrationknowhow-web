@@ -58,7 +58,7 @@ final class UserHomeUrl
         }
 
         if ($user->isAffiliate() && ! $user->hasVerifiedEmail()) {
-            return route('verification.notice');
+            return route('affiliate.verification.notice');
         }
 
         if ($user->isAffiliate()) {

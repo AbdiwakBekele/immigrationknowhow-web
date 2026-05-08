@@ -8,7 +8,7 @@ defineProps({
 });
 
 const form = useForm({});
-const resend = () => form.post(route('verification.send'));
+const resend = () => form.post(route('affiliate.verification.send'));
 </script>
 
 <template>
