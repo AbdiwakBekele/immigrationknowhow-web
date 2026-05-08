@@ -5,6 +5,7 @@ import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import { 
     ChatBubbleLeftRightIcon,
     ArchiveBoxIcon,
+    TrashIcon,
     MagnifyingGlassIcon,
     EllipsisVerticalIcon,
     CheckCircleIcon,
@@ -61,13 +62,26 @@ const conversationHref = (conversation) =>
         : (props.isProvider ? route('provider.messages.index') : route('messages.index'));
 
 const archiveConversation = (uuid) => {
-    router.post(`/messages/${uuid}/archive`, {}, {
+    const archiveRoute = props.isProvider ? route('provider.messages.archive', uuid) : route('messages.archive', uuid);
+    router.post(archiveRoute, {}, {
         preserveScroll: true,
     });
 };
 
 const markAsRead = (uuid) => {
-    router.post(`/messages/${uuid}/read`, {}, {
+    const readRoute = props.isProvider ? route('provider.messages.read', uuid) : route('messages.read', uuid);
+    router.post(readRoute, {}, {
+        preserveScroll: true,
+    });
+};
+
+const deleteConversation = (uuid) => {
+    if (!window.confirm('Delete this conversation permanently?')) {
+        return;
+    }
+
+    const destroyRoute = props.isProvider ? route('provider.messages.destroy', uuid) : route('messages.destroy', uuid);
+    router.delete(destroyRoute, {
         preserveScroll: true,
     });
 };
@@ -82,28 +96,29 @@ const getInitial = (name) => {
     <Head title="Messages" />
 
     <component :is="layoutComponent">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <!-- Header -->
-            <div class="flex items-center justify-between mb-6">
+        <div class="mx-auto max-w-5xl space-y-6 pb-10">
+            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-display font-bold text-gray-900">Messages</h1>
-                    <p class="text-gray-500 mt-1">
+                    <h1 class="text-2xl font-semibold text-slate-900">Messages</h1>
+                    <p class="mt-1 text-sm text-slate-600">
                         {{ totalUnread > 0 ? `${totalUnread} unread message${totalUnread > 1 ? 's' : ''}` : 'All caught up!' }}
                     </p>
-                    <p class="text-sm text-gray-500 mt-2 max-w-xl">
+                    <p class="mt-2 max-w-xl text-sm text-slate-500">
                         Private in-app messaging tied to your service inquiries only. There is no public community board.
                     </p>
                 </div>
-                <Link :href="archivedHref" class="btn-secondary btn-sm">
+                <Link :href="archivedHref" class="inline-flex items-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                     <ArchiveBoxIcon class="h-4 w-4 mr-2" />
                     Archived
                 </Link>
-            </div>
+                </div>
+            </section>
 
             <!-- Search -->
-            <div class="mb-6">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="relative">
-                    <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                     <input 
                         v-model="searchQuery"
                         type="text"
@@ -114,7 +129,7 @@ const getInitial = (name) => {
             </div>
 
             <!-- Conversations List -->
-            <div v-if="filteredConversations.length" class="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-100">
+            <div v-if="filteredConversations.length" class="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <Link 
                     v-for="conversation in filteredConversations" 
                     :key="conversation.id"
@@ -209,24 +224,35 @@ const getInitial = (name) => {
                                     Archive
                                 </button>
                             </MenuItem>
+                            <MenuItem v-slot="{ active }">
+                                <button
+                                    type="button"
+                                    @click="deleteConversation(conversation.uuid)"
+                                    class="flex items-center gap-2 w-full px-4 py-2 text-sm text-left text-red-600"
+                                    :class="active ? 'bg-gray-50' : ''"
+                                >
+                                    <TrashIcon class="h-4 w-4" />
+                                    Delete
+                                </button>
+                            </MenuItem>
                         </MenuItems>
                     </Menu>
                 </Link>
             </div>
 
             <!-- Empty State -->
-            <div v-else class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-                <InboxIcon class="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <h3 class="text-lg font-medium text-gray-900 mb-2">
+            <div v-else class="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                <InboxIcon class="mx-auto mb-4 h-12 w-12 text-slate-300" />
+                <h3 class="mb-2 text-lg font-medium text-slate-900">
                     {{ searchQuery ? 'No conversations found' : 'No messages yet' }}
                 </h3>
-                <p class="text-gray-500 mb-6">
+                <p class="mb-6 text-slate-500">
                     {{ searchQuery 
                         ? 'Try a different search term' 
                         : 'Start a conversation by contacting a service provider' 
                     }}
                 </p>
-                <Link v-if="!searchQuery" href="/marketplace" class="btn-primary">
+                <Link v-if="!searchQuery" :href="route('marketplace.index')" class="btn-primary">
                     Browse Providers
                 </Link>
             </div>
