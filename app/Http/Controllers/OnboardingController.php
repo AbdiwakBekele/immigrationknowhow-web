@@ -139,8 +139,8 @@ class OnboardingController extends Controller
         } elseif ($mode === 'provider') {
             $initialStep = $needsPhone ? 3 : max(4, min(7, $requestedStep));
         } else {
-            // advertiser
-            $initialStep = $needsPhone ? 3 : max(2, min(3, $requestedStep));
+            // advertiser: same step 2→3 sequencing as users (address before OTP); clamp only signup steps here
+            $initialStep = max(2, min(3, $requestedStep));
         }
 
         Log::channel('single')->info('FLOW_DEBUG onboarding.index resolved step', [

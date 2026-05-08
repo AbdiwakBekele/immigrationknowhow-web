@@ -90,6 +90,42 @@ const getInitial = (name) => {
     const first = (name || '').trim();
     return first ? first.charAt(0).toUpperCase() : '?';
 };
+
+const getConversationPerson = (conversation) =>
+    conversation.service_provider?.user || conversation.user || null;
+
+const getAvatarSrc = (conversation) => {
+    const person = getConversationPerson(conversation);
+    if (!person) {
+        return null;
+    }
+
+    const fromUrl = String(person.avatar_url ?? '').trim();
+    if (fromUrl) {
+        return fromUrl;
+    }
+
+    const raw = String(person.avatar ?? '').trim();
+    if (!raw) {
+        return null;
+    }
+
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+
+    return `/storage/${raw}`;
+};
+
+const getAvatarInitial = (conversation) => {
+    const person = getConversationPerson(conversation);
+    const firstName = (person?.first_name || '').trim();
+    if (firstName) {
+        return firstName.charAt(0).toUpperCase();
+    }
+
+    return getInitial(person?.full_name || '');
+};
 </script>
 
 <template>
@@ -139,15 +175,15 @@ const getInitial = (name) => {
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
                         <img
-                            v-if="conversation.service_provider?.user?.avatar || conversation.user?.avatar"
-                            :src="conversation.service_provider?.user?.avatar || conversation.user?.avatar"
-                            class="h-12 w-12 rounded-full object-cover"
+                            v-if="getAvatarSrc(conversation)"
+                            :src="getAvatarSrc(conversation)"
+                            class="h-12 w-12 rounded-full object-cover ring-1 ring-slate-200"
                         />
                         <div
                             v-else
                             class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"
                         >
-                            {{ getInitial(conversation.service_provider?.user?.first_name || conversation.user?.first_name || conversation.user?.full_name) }}
+                            {{ getAvatarInitial(conversation) }}
                         </div>
                         <div 
                             v-if="conversation.unread_count > 0"
