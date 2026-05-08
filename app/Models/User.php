@@ -305,7 +305,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function defaultAuthenticatedHomeUrl(): string
     {
         if ($this->isAffiliate() && ! $this->hasVerifiedEmail()) {
-            return route('verification.notice');
+            return route('affiliate.verification.notice');
         }
 
         if ($this->isAffiliate()) {

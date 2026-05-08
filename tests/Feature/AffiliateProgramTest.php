@@ -50,7 +50,7 @@ class AffiliateProgramTest extends TestCase
             'company_name' => 'Ava Media',
         ]);
 
-        $response->assertRedirect(route('verification.notice'));
+        $response->assertRedirect(route('affiliate.verification.notice'));
         $this->assertAuthenticated();
 
         $user = User::where('email', 'ava@example.com')->firstOrFail();

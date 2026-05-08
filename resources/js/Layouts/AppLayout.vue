@@ -219,6 +219,28 @@ const userAvatarSrc = computed(() => {
 });
 
 const hasUserAvatar = computed(() => Boolean(userAvatarSrc.value));
+const isServiceNeeder = computed(() => {
+    const roles = user.value?.roles || [];
+    return Array.isArray(roles) && roles.includes('user');
+});
+const showEmailVerificationBanner = computed(() => {
+    return Boolean(user.value) && isServiceNeeder.value && !user.value?.email_verified_at;
+});
+
+const sendingVerificationEmail = ref(false);
+const sendVerificationEmail = () => {
+    if (sendingVerificationEmail.value) {
+        return;
+    }
+
+    sendingVerificationEmail.value = true;
+    router.post(route('verification.send'), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            sendingVerificationEmail.value = false;
+        },
+    });
+};
 const userAvatarInitial = computed(() => {
     const first = (user.value?.first_name || '').trim();
     const last = (user.value?.last_name || '').trim();
@@ -459,6 +481,22 @@ const userAvatarInitial = computed(() => {
 
             <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
+                <div
+                    v-if="showEmailVerificationBanner"
+                    class="mb-3 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p class="text-sm font-medium">
+                        Your account is not verified yet. Verify your email to secure your account and unlock full access.
+                    </p>
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-md border border-amber-400 bg-amber-200 px-3 py-1.5 text-sm font-semibold text-amber-900 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+                        :disabled="sendingVerificationEmail"
+                        @click="sendVerificationEmail"
+                    >
+                        {{ sendingVerificationEmail ? 'Sending...' : 'Verify account' }}
+                    </button>
+                </div>
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />
                 </div>

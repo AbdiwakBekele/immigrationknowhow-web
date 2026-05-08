@@ -125,24 +125,14 @@ Route::post('/impersonation/leave', [Admin\UserController::class, 'stopImpersona
     ->middleware('auth')
     ->name('impersonation.leave');
 
-Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->prefix('affiliate')->name('affiliate.')->group(function () {
-    Route::get('/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');
-    Route::post('/email/verification-notification', AffiliateAuth\EmailVerificationNotificationController::class)
-        ->middleware('throttle:6,1')
-        ->name('verification.send');
-    Route::get('/email/verify/{id}/{hash}', AffiliateAuth\EmailVerificationController::class)
-        ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
-});
-
 Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->group(function () {
-    Route::get('/affiliate/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('verification.notice');
+    Route::get('/affiliate/email/verify', AffiliateAuth\EmailVerificationPromptController::class)->name('affiliate.verification.notice');
     Route::post('/affiliate/email/verification-notification', AffiliateAuth\EmailVerificationNotificationController::class)
         ->middleware('throttle:6,1')
-        ->name('verification.send');
+        ->name('affiliate.verification.send');
     Route::get('/affiliate/email/verify/{id}/{hash}', AffiliateAuth\EmailVerificationController::class)
         ->middleware(['signed', 'throttle:6,1'])
-        ->name('verification.verify');
+        ->name('affiliate.verification.verify');
 
     Route::get('/affiliate/profile', [AffiliatePortal\ProfileController::class, 'edit'])->name('affiliate.profile.edit');
     Route::patch('/affiliate/profile', [AffiliatePortal\ProfileController::class, 'update'])->name('affiliate.profile.update');
@@ -156,6 +146,14 @@ Route::middleware(['auth', 'role:affiliate', 'affiliate.access'])->group(functio
 
 // Phone verification after registration (before onboarding)
 Route::middleware(['auth'])->group(function () {
+    Route::get('/email/verify', Auth\EmailVerificationPromptController::class)->name('verification.notice');
+    Route::post('/email/verification-notification', Auth\EmailVerificationNotificationController::class)
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+    Route::get('/email/verify/{id}/{hash}', Auth\EmailVerificationController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
     Route::get('/address-detail', [Auth\AddressDetailsController::class, 'show'])->name('address-detail');
     Route::get('/address-detail/autocomplete', [Auth\AddressDetailsController::class, 'autocomplete'])->name('address-detail.autocomplete');
     Route::get('/address-detail/key-status', [Auth\AddressDetailsController::class, 'keyStatus'])->name('address-detail.key-status');
