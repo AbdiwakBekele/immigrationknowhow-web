@@ -395,6 +395,8 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
         // Provider library (separate from service-seeker /library/my page)
         Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
         Route::get('/library/cart', [Provider\LibraryController::class, 'cart'])->name('library.cart');
+        Route::get('/library/{item:slug}', [Provider\LibraryController::class, 'show'])->name('library.show');
+        Route::get('/library/{item:slug}/read', [Provider\LibraryController::class, 'read'])->name('library.read');
 
         // Background Check (replaces old Identity Verification)
         // Redirect old verification URL for backward compatibility

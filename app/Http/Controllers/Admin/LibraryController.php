@@ -926,13 +926,63 @@ class LibraryController extends Controller
             return null;
         }
 
+        $queueDriver = (string) config('queue.default', '');
+        $openAiConfigured = trim((string) config('services.openai.api_key', '')) !== '';
+        Log::info('Admin ebook summary: dispatch decision', [
+            'library_item_id' => $fresh->id,
+            'queue_driver' => $queueDriver,
+            'openai_configured' => $openAiConfigured,
+            'environment' => app()->environment(),
+        ]);
+
+        if (! $openAiConfigured) {
+            $fresh->forceFill([
+                'ai_summary_status' => 'failed',
+                'ai_summary_attempted_at' => now(),
+                'ai_summary_last_error' => 'OPENAI_API_KEY is missing. Add it to .env and run php artisan config:clear.',
+            ])->save();
+
+            Log::warning('Admin ebook summary: skipped (OpenAI not configured)', [
+                'library_item_id' => $fresh->id,
+                'queue_driver' => $queueDriver,
+            ]);
+
+            return 'Book saved, but AI summary generation is not configured (missing OPENAI_API_KEY).';
+        }
+
         $fresh->forceFill([
             'ai_summary_status' => 'queued',
             'ai_summary_attempted_at' => now(),
             'ai_summary_last_error' => null,
         ])->save();
 
-        GenerateLibraryEbookSummary::dispatch($fresh->id);
+        try {
+            // If you're using the database queue, run synchronously so summary generation
+            // always happens immediately after upload (no worker required).
+            if ($queueDriver === 'database') {
+                Log::info('Admin ebook summary: running synchronously (database queue)', [
+                    'library_item_id' => $fresh->id,
+                    'environment' => app()->environment(),
+                ]);
+                GenerateLibraryEbookSummary::dispatchSync($fresh->id);
+            } else {
+                GenerateLibraryEbookSummary::dispatch($fresh->id);
+            }
+        } catch (Throwable $e) {
+            $fresh->forceFill([
+                'ai_summary_status' => 'failed',
+                'ai_summary_last_error' => 'Dispatch failed: '.$e->getMessage(),
+            ])->save();
+
+            Log::error('Admin ebook summary: dispatch failed', [
+                'library_item_id' => $fresh->id,
+                'queue_driver' => $queueDriver,
+                'error' => $e->getMessage(),
+                'class' => $e::class,
+            ]);
+
+            return 'Book saved, but summary job could not be dispatched: '.$e->getMessage();
+        }
 
         Log::info('Admin ebook summary: queued after upload/update', [
             'library_item_id' => $fresh->id,

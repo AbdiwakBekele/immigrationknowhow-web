@@ -311,17 +311,20 @@ class LibraryController extends Controller
 
         $itemIdsString = $items->pluck('id')->implode(',');
 
+        $portal = $request->input('cart_portal') === 'provider' ? 'provider' : 'user';
+
         try {
             $session = StripeCheckoutSession::create([
                 'mode' => 'payment',
                 'customer_email' => auth()->user()->email,
                 'client_reference_id' => (string) auth()->id(),
-                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}&portal='.$portal,
                 'cancel_url' => route($cartRouteName, [], true),
                 'metadata' => [
                     'app' => 'library',
                     'library_item_ids' => $itemIdsString,
                     'user_id' => (string) auth()->id(),
+                    'portal' => $portal,
                 ],
                 'line_items' => $lineItems,
                 'custom_text' => [
@@ -669,7 +672,7 @@ class LibraryController extends Controller
     /**
      * Stripe hosted Checkout or manual instructions (Library/ManualPayment.vue).
      */
-    public function pay(LibraryItem $item): Response|RedirectResponse|SymfonyResponse
+    public function pay(Request $request, LibraryItem $item): Response|RedirectResponse|SymfonyResponse
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
@@ -725,17 +728,20 @@ class LibraryController extends Controller
             $description = 'Digital library item';
         }
 
+        $portal = $request->query('portal') === 'provider' ? 'provider' : 'user';
+
         try {
             $session = StripeCheckoutSession::create([
                 'mode' => 'payment',
                 'customer_email' => auth()->user()->email,
                 'client_reference_id' => (string) auth()->id(),
-                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}&portal='.$portal,
                 'cancel_url' => route('library.purchase.cancel', $item, true),
                 'metadata' => [
                     'app' => 'library',
                     'library_item_id' => (string) $item->id,
                     'user_id' => (string) auth()->id(),
+                    'portal' => $portal,
                 ],
                 'line_items' => [[
                     'price_data' => [
@@ -853,6 +859,8 @@ class LibraryController extends Controller
                 ->with('error', 'Missing payment confirmation.');
         }
 
+        $portal = $request->query('portal') === 'provider' ? 'provider' : null;
+
         $secret = config('services.stripe.secret');
         if (! is_string($secret) || $secret === '') {
             return redirect()
@@ -902,7 +910,7 @@ class LibraryController extends Controller
 
         if (count($purchasedIds) > 1) {
             return redirect()
-                ->route('library.index')
+                ->route($portal === 'provider' ? 'provider.library.index' : 'library.index')
                 ->with('success', 'Payment successful. Your titles are ready in your library.');
         }
 
@@ -911,12 +919,12 @@ class LibraryController extends Controller
 
         if ($item) {
             return redirect()
-                ->route('library.show', $item)
+                ->route($portal === 'provider' ? 'provider.library.show' : 'library.show', $item)
                 ->with('success', 'Payment successful. You can read or listen now.');
         }
 
         return redirect()
-            ->route('library.index')
+            ->route($portal === 'provider' ? 'provider.library.index' : 'library.index')
             ->with('success', 'Payment successful.');
     }
 

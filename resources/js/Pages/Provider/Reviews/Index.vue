@@ -9,7 +9,7 @@ import {
     ChevronDownIcon
 } from '@heroicons/vue/24/solid';
 import { StarIcon as StarOutline, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/vue/24/outline';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
 const props = defineProps({
@@ -21,6 +21,41 @@ const props = defineProps({
 const showResponseModal = ref(false);
 const selectedReview = ref(null);
 const showReportModal = ref(false);
+
+const sortValue = ref('newest');
+watch(
+    () => props.filters?.sort,
+    (v) => {
+        sortValue.value = v || 'newest';
+    },
+    { immediate: true }
+);
+
+const resolveUserAvatarSrc = (user) => {
+    const candidate = String(user?.avatar_url || user?.avatar || '').trim();
+    if (!candidate) return '';
+    if (candidate.startsWith('http://') || candidate.startsWith('https://') || candidate.startsWith('/')) return candidate;
+    return `/storage/${candidate}`;
+};
+
+const userDisplayName = (user) => {
+    const full = String(user?.full_name || '').trim();
+    if (full) return full;
+    const first = String(user?.first_name || '').trim();
+    const last = String(user?.last_name || '').trim();
+    return [first, last].filter(Boolean).join(' ') || 'Anonymous';
+};
+
+const userInitials = (user) => {
+    const first = String(user?.first_name || '').trim();
+    const last = String(user?.last_name || '').trim();
+    const name = (first || last) ? `${first} ${last}`.trim() : String(user?.full_name || '').trim();
+    if (!name) return 'A';
+    const parts = name.split(/\s+/).filter(Boolean);
+    const firstLetter = parts[0]?.[0] || '';
+    const lastLetter = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[1]) || '';
+    return `${firstLetter}${lastLetter}`.toUpperCase();
+};
 
 const responseForm = useForm({
     response: '',
@@ -94,8 +129,10 @@ const cleanQuery = (params) => {
 const reviewsFilteredHref = (params = {}) => route('provider.reviews.index', cleanQuery(params));
 
 const applyFilter = (key, value) => {
+    const currentSort = props.filters?.sort || 'newest';
     router.get(route('provider.reviews.index'), cleanQuery({
         ...props.filters,
+        sort: currentSort,
         [key]: value || undefined,
     }), {
         preserveState: true,
@@ -201,52 +238,76 @@ const ratingDistribution = computed(() => {
                 <div class="lg:col-span-2">
                     <!-- Filters -->
                     <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-                        <div class="flex flex-wrap gap-3">
-                            <select 
-                                :value="filters.rating || ''"
-                                @change="applyFilter('rating', $event.target.value)"
-                                class="input text-sm"
-                            >
-                                <option value="">All Ratings</option>
-                                <option v-for="i in 5" :key="i" :value="6 - i">{{ 6 - i }} Stars</option>
-                            </select>
-                            <select 
-                                :value="filters.responded || ''"
-                                @change="applyFilter('responded', $event.target.value)"
-                                class="input text-sm"
-                            >
-                                <option value="">All Reviews</option>
-                                <option value="no">Awaiting Response</option>
-                                <option value="yes">Responded</option>
-                            </select>
-                            <select 
-                                :value="filters.sort || 'newest'"
-                                @change="applyFilter('sort', $event.target.value)"
-                                class="input text-sm"
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="oldest">Oldest First</option>
-                                <option value="highest">Highest Rated</option>
-                                <option value="lowest">Lowest Rated</option>
-                            </select>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="text-sm font-semibold text-gray-900">Filters</div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <label class="flex items-center gap-2 text-sm">
+                                    <span class="font-medium text-gray-700">Rating</span>
+                                    <select
+                                        :value="filters.rating || ''"
+                                        @change="applyFilter('rating', $event.target.value)"
+                                        class="input text-sm min-w-[180px]"
+                                    >
+                                        <option value="">All</option>
+                                        <option v-for="i in 5" :key="i" :value="6 - i">{{ 6 - i }} Stars</option>
+                                    </select>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <span class="font-medium text-gray-700">Response</span>
+                                    <select
+                                        :value="filters.responded || ''"
+                                        @change="applyFilter('responded', $event.target.value)"
+                                        class="input text-sm min-w-[180px]"
+                                    >
+                                        <option value="">All</option>
+                                        <option value="no">Awaiting</option>
+                                        <option value="yes">Responded</option>
+                                    </select>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm">
+                                    <span class="font-medium text-gray-700">Sort</span>
+                                    <select
+                                        v-model="sortValue"
+                                        @change="applyFilter('sort', sortValue)"
+                                        class="input text-sm min-w-[180px]"
+                                    >
+                                        <option value="newest">Newest</option>
+                                        <option value="oldest">Oldest</option>
+                                        <option value="highest">Highest</option>
+                                        <option value="lowest">Lowest</option>
+                                    </select>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Reviews -->
-                    <div v-if="reviews.data?.length" class="space-y-4">
+                    <div v-if="reviews.data?.length" class="grid gap-4 sm:grid-cols-2">
                         <div 
                             v-for="review in reviews.data" 
                             :key="review.id"
-                            class="bg-white rounded-xl border border-gray-100 p-6"
+                            class="bg-white rounded-xl border border-gray-100 p-6 flex flex-col"
                         >
                             <div class="flex items-start justify-between mb-4">
                                 <div class="flex items-center gap-3">
-                                    <img 
-                                        :src="review.user?.avatar || '/images/default-avatar.png'" 
-                                        class="h-10 w-10 rounded-full"
-                                    />
+                                    <template v-if="resolveUserAvatarSrc(review.user)">
+                                        <img
+                                            :src="resolveUserAvatarSrc(review.user)"
+                                            :alt="userDisplayName(review.user)"
+                                            class="h-10 w-10 rounded-full object-cover bg-gray-100"
+                                        />
+                                    </template>
+                                    <template v-else>
+                                        <div
+                                            class="h-10 w-10 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center font-semibold text-sm"
+                                            :aria-label="userDisplayName(review.user)"
+                                            role="img"
+                                        >
+                                            {{ userInitials(review.user) }}
+                                        </div>
+                                    </template>
                                     <div>
-                                        <div class="font-medium text-gray-900">{{ review.user?.full_name || 'Anonymous' }}</div>
+                                        <div class="font-medium text-gray-900">{{ userDisplayName(review.user) }}</div>
                                         <div class="text-sm text-gray-500">{{ formatDate(review.created_at) }}</div>
                                     </div>
                                 </div>
@@ -285,7 +346,7 @@ const ratingDistribution = computed(() => {
                             </div>
 
                             <!-- Actions -->
-                            <div class="flex items-center gap-2 pt-4 border-t border-gray-100">
+                            <div class="mt-auto flex items-center gap-2 pt-4 border-t border-gray-100">
                                 <button 
                                     @click="openResponseModal(review)"
                                     class="btn-secondary btn-sm"
