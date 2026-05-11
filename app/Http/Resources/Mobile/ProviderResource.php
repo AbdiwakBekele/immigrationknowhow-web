@@ -33,6 +33,7 @@ class ProviderResource extends JsonResource
             'average_rating' => $p->average_rating,
             'total_reviews' => $p->total_reviews,
             'is_featured' => (bool) $p->is_featured,
+            'is_favorited' => (bool) ($p->is_favorited ?? false),
             'accepting_clients' => (bool) $p->accepting_clients,
             'location_display' => $p->location_display,
             'user' => $p->relationLoaded('user') ? [

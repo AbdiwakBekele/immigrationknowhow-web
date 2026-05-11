@@ -23,6 +23,11 @@ class ConversationResource extends JsonResource
                 'uuid' => $c->lead->uuid,
                 'service_type' => $c->lead->service_type,
                 'status' => $c->lead->status?->value ?? $c->lead->status,
+                'urgency' => $c->lead->urgency,
+                'created_at' => optional($c->lead->created_at)->toIso8601String(),
+                'contract_sent_at' => optional($c->lead->contract_sent_at)->toIso8601String(),
+                'contract_accepted_at' => optional($c->lead->contract_accepted_at)->toIso8601String(),
+                'contract_uuid' => $c->lead->relationLoaded('contract') ? $c->lead->contract?->uuid : null,
             ] : null,
             'user' => $c->relationLoaded('user') ? [
                 'first_name' => $c->user?->first_name,

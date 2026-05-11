@@ -11,12 +11,18 @@ use App\Models\Message;
 use App\Models\ServiceProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class SeekerDashboardController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
         $user = $request->user();
+        $favoritesEnabled = Schema::hasTable('provider_favorites');
+        $favoriteProviderIds = $favoritesEnabled
+            ? $user->favoriteServiceProviders()->pluck('service_providers.id')->all()
+            : [];
+        $favoriteSet = array_flip($favoriteProviderIds);
 
         $stats = [
             'totalLeads' => Lead::where('user_id', $user->id)->count(),
@@ -54,7 +60,29 @@ class SeekerDashboardController extends Controller
                 ];
             });
 
-        $recommendedProviders = $this->getRecommendedProviders($user);
+        $recommendedProviders = $this->getRecommendedProviders($user)
+            ->map(function (ServiceProvider $provider) use ($favoriteSet) {
+                $provider->setAttribute('is_favorited', isset($favoriteSet[$provider->id]));
+
+                return $provider;
+            });
+
+        $savedProviders = collect();
+        if ($favoritesEnabled) {
+            $savedProviders = $user->favoriteServiceProviders()
+                ->with(['user:id,first_name,last_name,avatar,city,state,country'])
+                ->active()
+                ->acceptingClients()
+                ->whereUserCountry($user->country)
+                ->limit(6)
+                ->get()
+                ->map(function (ServiceProvider $provider) {
+                    $provider->setAttribute('is_favorited', true);
+
+                    return $provider;
+                })
+                ->values();
+        }
 
         $libraryItems = LibraryItem::active()
             ->featured()
@@ -114,6 +142,7 @@ class SeekerDashboardController extends Controller
                 'recent_leads' => $recentLeads,
                 'recent_messages' => $recentMessages,
                 'recommended_providers' => ProviderResource::collection($recommendedProviders)->resolve(),
+                'saved_providers' => ProviderResource::collection($savedProviders)->resolve(),
                 'library_items' => $libraryItems,
                 'purchased_items' => $purchasedItems,
             ],

@@ -23,6 +23,14 @@ class SeekerLeadsController extends Controller
         $this->authorize('create', Lead::class);
 
         $sender = $request->user();
+        $incomingServiceType = trim((string) $request->input('service_type', ''));
+        $incomingMessage = trim((string) $request->input('message', ''));
+
+        if ($incomingServiceType !== '' && $incomingMessage === '') {
+            $request->merge([
+                'message' => "Hi, I need help with {$incomingServiceType}.",
+            ]);
+        }
 
         $allowedServiceTypes = ! empty($provider->service_types)
             ? $provider->service_types
@@ -77,7 +85,8 @@ class SeekerLeadsController extends Controller
             'user:id,first_name,last_name,avatar',
             'serviceProvider.user:id,first_name,last_name,avatar',
             'latestMessage',
-            'lead:id,uuid,service_type,status',
+            'lead:id,uuid,service_type,status,urgency,created_at,contract_sent_at,contract_accepted_at',
+            'lead.contract:id,uuid,lead_id',
         ])->first();
 
         return response()->json([
@@ -87,6 +96,7 @@ class SeekerLeadsController extends Controller
                 : 'Your inquiry has been sent! The provider will respond soon.',
             'data' => [
                 'lead_uuid' => $lead->uuid,
+                'contract_uuid' => $lead->contract?->uuid,
                 'conversation' => $conversation ? (new ConversationResource($conversation))->resolve() : null,
             ],
         ]);

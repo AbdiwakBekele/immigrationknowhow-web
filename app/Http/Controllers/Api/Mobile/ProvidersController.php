@@ -8,19 +8,38 @@ use App\Models\ServiceProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class ProvidersController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $viewerCountryRaw = $request->user()?->country;
+        $viewer = Auth::guard('sanctum')->user();
+        $viewerCountryRaw = $viewer?->country;
         $viewerCountry = is_string($viewerCountryRaw) ? trim($viewerCountryRaw) : '';
+        $favoritesEnabled = Schema::hasTable('provider_favorites');
+        $favoriteProviderIds = [];
+
+        if ($favoritesEnabled && $viewer?->hasRole('user')) {
+            $favoriteProviderIds = $viewer
+                ->favoriteServiceProviders()
+                ->pluck('service_providers.id')
+                ->all();
+        }
 
         $query = ServiceProvider::query()
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
             ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
+
+        if ($request->boolean('favorites')) {
+            if ($favoritesEnabled && $viewer?->hasRole('user')) {
+                $query->whereIn('service_providers.id', $favoriteProviderIds);
+            } else {
+                $query->whereRaw('0 = 1');
+            }
+        }
 
         if ($request->filled('service_type')) {
             $query->byServiceType((string) $request->input('service_type'));
@@ -62,6 +81,15 @@ class ProvidersController extends Controller
 
         $perPage = max(1, min(50, (int) $request->integer('per_page', 20)));
         $providers = $query->paginate($perPage)->withQueryString();
+        $favoriteSet = array_flip($favoriteProviderIds);
+
+        $providers->setCollection(
+            $providers->getCollection()->map(function (ServiceProvider $provider) use ($favoriteSet) {
+                $provider->setAttribute('is_favorited', isset($favoriteSet[$provider->id]));
+
+                return $provider;
+            })
+        );
 
         return $this->success('OK', [
             'providers' => ProviderResource::collection($providers)->response()->getData(true),
@@ -70,7 +98,7 @@ class ProvidersController extends Controller
 
     public function show(Request $request, ServiceProvider $provider): JsonResponse
     {
-        $viewer = $request->user();
+        $viewer = Auth::guard('sanctum')->user();
         $isOwner = $viewer && $viewer->serviceProvider && (int) $viewer->serviceProvider->getKey() === (int) $provider->getKey();
 
         abort_unless($provider->is_active || $isOwner, 404);
@@ -96,12 +124,20 @@ class ProvidersController extends Controller
             $provider->incrementProfileViews();
         }
 
-        $canContact = auth()->check() && ! auth()->user()->isProvider();
+        $canContact = $viewer && ! $viewer->isProvider();
+        $favoritesEnabled = Schema::hasTable('provider_favorites');
+        $canFavorite = $favoritesEnabled && $viewer && $viewer->hasRole('user') && ! $isOwner;
+        $isFavorited = $canFavorite
+            && $viewer->favoriteServiceProviders()->whereKey($provider->getKey())->exists();
+
+        $provider->setAttribute('is_favorited', $isFavorited);
 
         return $this->success('OK', [
             'provider' => (new ProviderResource($provider))->resolve(),
             'canContactProvider' => $canContact,
             'isOwnListingPreview' => $isOwner,
+            'canFavoriteProvider' => $canFavorite,
+            'isFavorited' => $isFavorited,
         ]);
     }
 
