@@ -30,11 +30,13 @@ class ConversationResource extends JsonResource
                 'contract_uuid' => $c->lead->relationLoaded('contract') ? $c->lead->contract?->uuid : null,
             ] : null,
             'user' => $c->relationLoaded('user') ? [
+                'id' => $c->user?->id,
                 'first_name' => $c->user?->first_name,
                 'last_name' => $c->user?->last_name,
                 'avatar_url' => $c->user?->avatar_url,
             ] : null,
             'provider_user' => $c->relationLoaded('serviceProvider') && $c->serviceProvider?->relationLoaded('user') ? [
+                'id' => $c->serviceProvider->user?->id,
                 'first_name' => $c->serviceProvider->user?->first_name,
                 'last_name' => $c->serviceProvider->user?->last_name,
                 'avatar_url' => $c->serviceProvider->user?->avatar_url,

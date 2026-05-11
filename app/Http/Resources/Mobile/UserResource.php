@@ -28,6 +28,9 @@ class UserResource extends JsonResource
             'country' => $user->country,
             'state' => $user->state,
             'city' => $user->city,
+            'postal_code' => $user->postal_code,
+            'preferred_language' => $user->preferred_language,
+            'avatar_url' => $user->avatar_url,
             'onboarding_completed' => (bool) $user->onboarding_completed,
             'roles' => method_exists($user, 'getRoleNames')
                 ? $user->getRoleNames()->values()->all()

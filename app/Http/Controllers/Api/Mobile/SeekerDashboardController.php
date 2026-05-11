@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Mobile\ConversationResource;
 use App\Http\Resources\Mobile\ProviderResource;
+use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
@@ -43,22 +45,18 @@ class SeekerDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $recentMessages = Message::whereHas('conversation', function ($q) use ($user) {
-            $q->forUser($user)->forServiceInquiries();
-        })
-            ->with(['sender:id,first_name,last_name,avatar', 'conversation:id,uuid'])
-            ->latest()
+        $recentMessages = Conversation::query()
+            ->forUser($user)
+            ->forServiceInquiries()
+            ->with([
+                'user:id,first_name,last_name,avatar',
+                'serviceProvider.user:id,first_name,last_name,avatar',
+                'latestMessage',
+                'lead:id,uuid,service_type,status',
+            ])
+            ->orderByDesc('last_message_at')
             ->limit(5)
-            ->get()
-            ->map(function (Message $message) {
-                return [
-                    'uuid' => $message->uuid,
-                    'conversation_uuid' => $message->conversation?->uuid,
-                    'sender' => $message->sender,
-                    'body' => $message->body,
-                    'created_at' => optional($message->created_at)->toIso8601String(),
-                ];
-            });
+            ->get();
 
         $recommendedProviders = $this->getRecommendedProviders($user)
             ->map(function (ServiceProvider $provider) use ($favoriteSet) {
@@ -140,7 +138,7 @@ class SeekerDashboardController extends Controller
             'data' => [
                 'stats' => $stats,
                 'recent_leads' => $recentLeads,
-                'recent_messages' => $recentMessages,
+                'recent_messages' => ConversationResource::collection($recentMessages)->resolve(),
                 'recommended_providers' => ProviderResource::collection($recommendedProviders)->resolve(),
                 'saved_providers' => ProviderResource::collection($savedProviders)->resolve(),
                 'library_items' => $libraryItems,
