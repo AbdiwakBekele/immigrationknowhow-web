@@ -84,6 +84,24 @@ class AuthController extends Controller
         ]);
     }
 
+    public function sendVerificationEmail(): JsonResponse
+    {
+        /** @var User $user */
+        $user = request()->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return $this->success('Email already verified.', [
+                'already_verified' => true,
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return $this->success('Verification email sent.', [
+            'already_verified' => false,
+        ]);
+    }
+
     public function logout(): JsonResponse
     {
         /** @var User $user */
