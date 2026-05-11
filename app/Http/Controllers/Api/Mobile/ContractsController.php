@@ -69,7 +69,9 @@ class ContractsController extends Controller
         abort_unless($lead->user_id === $request->user()->id, 403);
 
         if ($lead->contract_sent_at !== null) {
-            return $this->success('Contract has already been sent.', []);
+            return $this->success('Contract has already been sent.', [
+                'contract_uuid' => $lead->contract?->uuid,
+            ]);
         }
 
         if (! in_array($lead->status, [LeadStatus::NEW, LeadStatus::CONTACTED], true)) {
@@ -80,9 +82,15 @@ class ContractsController extends Controller
             'offered_rate' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
         ]);
 
-        $this->lifecycle->offer($lead, $request->user(), isset($validated['offered_rate']) ? (float) $validated['offered_rate'] : null);
+        $contract = $this->lifecycle->offer(
+            $lead,
+            $request->user(),
+            isset($validated['offered_rate']) ? (float) $validated['offered_rate'] : null
+        );
 
-        return $this->success('Contract sent to provider. Waiting for provider acceptance.', []);
+        return $this->success('Contract sent to provider. Waiting for provider acceptance.', [
+            'contract_uuid' => $contract->uuid,
+        ]);
     }
 
     public function withdraw(Request $request, Lead $lead): JsonResponse

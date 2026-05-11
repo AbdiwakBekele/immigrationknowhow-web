@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Mobile\ProviderLeadsController;
 use App\Http\Controllers\Api\Mobile\ProviderBackgroundChecksController;
 use App\Http\Controllers\Api\Mobile\ProviderAnalyticsController;
 use App\Http\Controllers\Api\Mobile\MobileProviderReviewsController;
+use App\Http\Controllers\Api\Mobile\ProviderFavoritesController;
 use App\Http\Controllers\Api\Mobile\ProviderNotificationsController;
 use App\Http\Controllers\Api\Mobile\ProvidersController;
 use App\Http\Controllers\Api\Mobile\ProviderSubscriptionsController;
@@ -57,6 +58,10 @@ Route::prefix('mobile')->group(function () {
     // Seeker actions
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/providers/{provider:slug}/leads', [SeekerLeadsController::class, 'store']);
+    });
+
+    Route::middleware(['auth:sanctum', 'role:user'])->group(function () {
+        Route::post('/providers/{provider:slug}/favorite', [ProviderFavoritesController::class, 'toggle']);
     });
 
     Route::middleware(['auth:sanctum', 'role:user'])->get('/seeker/dashboard', SeekerDashboardController::class);
