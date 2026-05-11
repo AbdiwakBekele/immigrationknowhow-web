@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Mobile\AuthController;
 use App\Http\Controllers\Api\Mobile\ContractsController;
 use App\Http\Controllers\Api\Mobile\DvLotteryController;
 use App\Http\Controllers\Api\Mobile\MessagesController;
+use App\Http\Controllers\Api\Mobile\MobileProfileController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryStreamController;
@@ -62,6 +63,12 @@ Route::prefix('mobile')->group(function () {
 
     Route::middleware(['auth:sanctum', 'role:user'])->group(function () {
         Route::post('/providers/{provider:slug}/favorite', [ProviderFavoritesController::class, 'toggle']);
+        Route::patch('/profile', [MobileProfileController::class, 'update']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+        Route::post('/avatar', [MobileProfileController::class, 'updateAvatar']);
+        Route::delete('/avatar', [MobileProfileController::class, 'deleteAvatar']);
     });
 
     Route::middleware(['auth:sanctum', 'role:user'])->get('/seeker/dashboard', SeekerDashboardController::class);
