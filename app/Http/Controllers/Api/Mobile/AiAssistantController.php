@@ -48,6 +48,22 @@ class AiAssistantController extends Controller
                 ->first()
             : null;
 
+        $chatMessages = Schema::hasTable('ai_assistant_messages')
+            ? AiAssistantMessage::query()
+                ->where('user_id', $user->id)
+                ->where('context', 'mobile')
+                ->orderBy('id')
+                ->limit(60)
+                ->get(['id', 'role', 'content', 'created_at'])
+                ->map(fn ($m) => [
+                    'id' => (string) $m->id,
+                    'role' => $m->role,
+                    'text' => $m->content,
+                    'ts' => optional($m->created_at)->toISOString(),
+                ])
+                ->values()
+            : collect();
+
         return response()->json([
             'success' => true,
             'message' => 'OK',
@@ -56,6 +72,7 @@ class AiAssistantController extends Controller
                 'is_addon_active' => $subscription?->isActive() ?? false,
                 'monthly_price' => '4.99',
                 'currency' => 'USD',
+                'chat_messages' => $chatMessages,
             ],
         ]);
     }

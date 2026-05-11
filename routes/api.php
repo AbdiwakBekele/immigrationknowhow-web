@@ -37,6 +37,8 @@ Route::prefix('mobile')->group(function () {
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/me', [AuthController::class, 'me']);
+            Route::post('/send-verification-email', [AuthController::class, 'sendVerificationEmail'])
+                ->middleware('throttle:6,1');
         });
     });
 
@@ -61,7 +63,7 @@ Route::prefix('mobile')->group(function () {
 
     Route::middleware('auth:sanctum')->get('/dv-lottery', DvLotteryController::class);
 
-    Route::middleware(['auth:sanctum', 'role:user'])->prefix('ai-assistant')->group(function () {
+    Route::middleware(['auth:sanctum', 'role:user|provider'])->prefix('ai-assistant')->group(function () {
         Route::get('/', [AiAssistantController::class, 'show']);
         Route::post('/checkout', [AiAssistantController::class, 'checkout']);
         Route::post('/ask', [AiAssistantController::class, 'ask']);
