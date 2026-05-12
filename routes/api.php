@@ -67,6 +67,7 @@ Route::prefix('mobile')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {
+        Route::get('/', [MobileProfileController::class, 'show']);
         Route::post('/avatar', [MobileProfileController::class, 'updateAvatar']);
         Route::delete('/avatar', [MobileProfileController::class, 'deleteAvatar']);
     });
@@ -133,6 +134,7 @@ Route::prefix('mobile')->group(function () {
 
     Route::middleware(['auth:sanctum', 'role:provider'])->prefix('provider')->group(function () {
         Route::get('/dashboard', ProviderDashboardController::class);
+        Route::patch('/profile', [MobileProfileController::class, 'updateProvider']);
         Route::get('/subscriptions', [ProviderSubscriptionsController::class, 'index']);
         Route::post('/subscriptions/checkout/{plan:uuid}', [ProviderSubscriptionsController::class, 'checkout']);
         Route::post('/subscriptions/{subscription:uuid}/cancel', [ProviderSubscriptionsController::class, 'cancel']);

@@ -3,14 +3,32 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Mobile\ProviderResource;
 use App\Http\Resources\Mobile\UserResource;
+use App\Models\ServiceProvider;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class MobileProfileController extends Controller
 {
+    public function show(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $provider = $user->serviceProvider?->loadMissing('user');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data' => [
+                'user' => (new UserResource($user))->resolve(),
+                'provider' => $provider ? (new ProviderResource($provider))->resolve() : null,
+            ],
+        ]);
+    }
+
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -59,6 +77,89 @@ class MobileProfileController extends Controller
             'message' => 'Profile updated successfully.',
             'data' => [
                 'user' => (new UserResource($user))->resolve(),
+            ],
+        ]);
+    }
+
+    public function updateProvider(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $provider = $user->serviceProvider;
+
+        if (! $provider) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Provider profile not found. Complete onboarding.',
+                'errors' => (object) [],
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'business_name' => ['required', 'string', 'max:255'],
+            'tagline' => ['nullable', 'string', 'max:100'],
+            'bio' => ['nullable', 'string', 'max:2000'],
+            'website' => ['nullable', 'url', 'max:255'],
+            'years_experience' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'hourly_rate' => ['nullable', 'numeric', 'min:0'],
+            'specializations' => ['nullable', 'array'],
+            'specializations.*' => ['string', 'max:255'],
+            'service_areas' => ['nullable', 'array'],
+            'service_areas.*' => ['string', 'max:255'],
+        ]);
+
+        if ($validated['business_name'] !== $provider->business_name) {
+            $validated['slug'] = Str::slug($validated['business_name']);
+
+            $baseSlug = $validated['slug'];
+            $counter = 1;
+            while (ServiceProvider::where('slug', $validated['slug'])->where('id', '!=', $provider->id)->exists()) {
+                $validated['slug'] = $baseSlug.'-'.$counter++;
+            }
+        }
+
+        $provider->update([
+            'business_name' => $validated['business_name'],
+            'slug' => $validated['slug'] ?? $provider->slug,
+            'tagline' => $validated['tagline'] ?? null,
+            'bio' => $validated['bio'] ?? null,
+            'website' => $validated['website'] ?? null,
+            'years_experience' => $validated['years_experience'] ?? null,
+            'hourly_rate' => $validated['hourly_rate'] ?? null,
+            'specializations' => array_values($validated['specializations'] ?? []),
+            'service_areas' => array_values($validated['service_areas'] ?? []),
+        ]);
+
+        $onboardingData = $user->onboarding_data ?? [];
+        $onboardingData['business'] = array_merge($onboardingData['business'] ?? [], [
+            'business_name' => $provider->business_name,
+            'tagline' => $provider->tagline,
+            'bio' => $provider->bio,
+            'website' => $provider->website,
+            'years_experience' => $provider->years_experience,
+        ]);
+        $onboardingData['pricing'] = array_merge($onboardingData['pricing'] ?? [], [
+            'hourly_rate' => $provider->hourly_rate !== null ? (float) $provider->hourly_rate : null,
+        ]);
+        $onboardingData['services'] = array_merge($onboardingData['services'] ?? [], [
+            'specializations' => $provider->specializations ?? [],
+        ]);
+        $onboardingData['service-area'] = array_merge($onboardingData['service-area'] ?? [], [
+            'areas' => $provider->service_areas ?? [],
+        ]);
+
+        $user->update([
+            'onboarding_data' => $onboardingData,
+        ]);
+
+        $user->refresh();
+        $provider->refresh()->loadMissing('user');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Provider profile updated successfully.',
+            'data' => [
+                'user' => (new UserResource($user))->resolve(),
+                'provider' => (new ProviderResource($provider))->resolve(),
             ],
         ]);
     }
