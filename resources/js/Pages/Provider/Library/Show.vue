@@ -171,7 +171,7 @@ const addAccessLabel = computed(() => {
     return props.item.type === 'ebook' ? 'Add to library & read' : 'Add to library & listen';
 });
 
-const canShowSummaryTab = computed(() => props.item.type === 'ebook');
+const canShowSummaryTab = computed(() => props.item.type === 'ebook' && props.hasAccess);
 const canRequestSummary = computed(() => (
     props.hasAccess
     && Boolean(props.summaryUrl)

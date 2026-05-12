@@ -88,6 +88,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/items/{item:slug}', [MobileLibraryController::class, 'show']);
         Route::post('/items/{item:slug}/favorite', [MobileLibraryController::class, 'toggleFavorite']);
         Route::post('/items/{item:slug}/checkout', [MobileLibraryController::class, 'stripeCheckout']);
+        Route::post('/items/{item:slug}/confirm-checkout', [MobileLibraryController::class, 'confirmCheckout']);
         Route::post('/items/{item:slug}/grant-free', [MobileLibraryController::class, 'grantFree']);
         Route::post('/items/{item:slug}/progress', [MobileLibraryController::class, 'updateProgress']);
         Route::get('/items/{item:slug}/summary', [MobileLibraryController::class, 'summary']);

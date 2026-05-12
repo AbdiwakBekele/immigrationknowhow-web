@@ -24,19 +24,16 @@ return [
         |--------------------------------------------------------------------------
         |
         | Not web-accessible — reads/listens only through LibraryController after
-        | access checks. Set LIBRARY_MEDIA_DRIVER=s3 to store these binaries in
-        | a private S3 bucket. Covers stay on the `public` disk.
+        | access checks. All library binaries are stored on S3.
         |
         */
         'library_media' => [
-            'driver' => env('LIBRARY_MEDIA_DRIVER', 's3'),
-            'root' => env('LIBRARY_MEDIA_DRIVER', 's3') === 's3'
-                ? env('LIBRARY_MEDIA_PREFIX', 'library-media')
-                : storage_path('app/library-media'),
+            'driver' => 's3',
+            'root' => 'library-media',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_PRIVATE_BUCKET', env('AWS_BUCKET')),
+            'bucket' => env('AWS_BUCKET'),
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),

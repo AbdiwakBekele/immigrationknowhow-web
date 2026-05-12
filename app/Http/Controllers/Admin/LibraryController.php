@@ -544,7 +544,7 @@ class LibraryController extends Controller
             $summaryWarning = $this->generateEbookSummaryIfMissing($library->fresh());
         }
 
-        $redirect = back()->with('success', 'Library item updated successfully.');
+        $redirect = redirect()->route('admin.library.index')->with('success', 'Library item updated successfully.');
         if ($summaryWarning) {
             $redirect->with('warning', $summaryWarning);
         }
@@ -636,7 +636,37 @@ class LibraryController extends Controller
             array_merge($context, ['cover_visibility_target' => $visibility])
         );
 
-        Storage::disk($disk)->setVisibility($path, $visibility);
+        if (! $path || $path === '' || $path === '0') {
+            if ($disk !== 'public') {
+                Log::warning('Library cover upload failed on configured disk, falling back to public.', array_merge($context, [
+                    'failed_disk' => $disk,
+                ]));
+                $disk = 'public';
+                $path = $this->storeFileWithDetailedLog(
+                    $file,
+                    $directory,
+                    $disk,
+                    array_merge($context, ['cover_visibility_target' => $visibility, 'fallback_disk' => true])
+                );
+            }
+
+            if (! $path || $path === '' || $path === '0') {
+                Log::error('Library cover upload failed on all disks.', $context);
+
+                return '';
+            }
+        }
+
+        try {
+            Storage::disk($disk)->setVisibility($path, $visibility);
+        } catch (Throwable $e) {
+            Log::warning('Library cover setVisibility failed.', array_merge($context, [
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]));
+        }
+
         Log::info('Library upload visibility updated.', array_merge($context, [
             'path' => $path,
             'disk' => $disk,
@@ -682,6 +712,16 @@ class LibraryController extends Controller
 
         try {
             $path = $file->store(trim($directory, '/'), $disk);
+
+            if ($path === false || $path === null || $path === '') {
+                Log::warning('Library upload store returned falsy path.', array_merge($uploadContext, [
+                    'path' => $path,
+                    'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                ]));
+
+                return '';
+            }
+
             $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
             $diskInstance = Storage::disk($disk);
 

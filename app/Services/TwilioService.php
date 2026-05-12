@@ -135,7 +135,12 @@ class TwilioService
                 'more_info' => method_exists($e, 'getMoreInfo') ? $e->getMoreInfo() : null,
             ]);
 
-            throw new Exception('Failed to send verification code. Please check the phone number and try again.');
+            $twilioMsg = $e->getMessage();
+            $hint = str_contains($twilioMsg, 'is not a valid phone number')
+                ? 'The phone number format is invalid. Please check the country code and number.'
+                : 'Failed to send verification code. Please check the phone number and try again.';
+
+            throw new Exception($hint);
         }
     }
 
