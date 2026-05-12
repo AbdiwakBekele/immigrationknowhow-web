@@ -589,17 +589,14 @@ class AddressDetailsController extends Controller
                 'service_area' => $onboardingData['service-area'],
             ]);
 
-            $nextProviderStep = $user->hasCompletedSignupPhoneStep() ? 4 : 3;
             Log::channel('single')->info('FLOW_DEBUG step transition', [
                 'from_step' => 2,
-                'to_step' => $nextProviderStep,
-                'reason' => $nextProviderStep === 4
-                    ? 'provider_coverage_saved_phone_already_verified_redirect_to_step_4'
-                    : 'provider_coverage_saved_redirect_to_phone_verification',
+                'to_step' => 3,
+                'reason' => 'provider_coverage_saved_redirect_to_phone_step',
                 'user_id' => $user->id,
             ]);
 
-            return redirect()->route('onboarding.provider', ['step' => $nextProviderStep]);
+            return redirect()->route('onboarding.provider', ['step' => 3]);
         }
 
         $validated = $request->validate([

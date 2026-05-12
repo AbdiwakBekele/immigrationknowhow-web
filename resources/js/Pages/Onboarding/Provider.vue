@@ -14,6 +14,7 @@ const props = defineProps({
     user: { type: Object, required: true },
     initialStep: { type: Number, default: 2 },
     requiresPhoneVerification: { type: Boolean, default: false },
+    phoneAlreadyVerified: { type: Boolean, default: false },
     phoneVerification: { type: Object, default: null },
     isProvider: { type: Boolean, default: true },
     stateOptions: { type: Array, default: () => [] },
@@ -32,17 +33,20 @@ const normalizeStep = (value, fallback) => {
     return Number.isFinite(numeric) ? numeric : fallback;
 };
 
-const currentStep = ref(normalizeStep(props.initialStep, props.requiresPhoneVerification ? 3 : 4));
+const currentStep = ref(normalizeStep(props.initialStep, 3));
 const totalSteps = computed(() => SIGNUP_FLOW_STEPS_PROVIDER);
 const pageTitle = computed(() => (
-    props.requiresPhoneVerification && currentStep.value === 3
+    currentStep.value === 3
         ? 'Phone verification'
         : 'Provider onboarding'
 ));
 
 const isCoverageStep = computed(() => currentStep.value === 2);
-const isPhoneStep = computed(() => props.requiresPhoneVerification && currentStep.value === 3);
+const isPhoneStep = computed(() => currentStep.value === 3);
 const isProviderLocationStep = computed(() => currentStep.value === 4);
+
+const phoneIsVerified = ref(props.phoneAlreadyVerified);
+const changingPhone = ref(false);
 const isProviderBusinessStep = computed(() => currentStep.value === 5);
 const isProviderPricingStep = computed(() => currentStep.value === 6);
 const isProviderSubscriptionStep = computed(() => currentStep.value === 7);
@@ -144,12 +148,12 @@ watch(
     },
 );
 
-// Provider OTP verification posts use preserveState; keep step synced with server redirects.
 watch(
-    () => [props.initialStep, props.requiresPhoneVerification],
-    ([nextInitialStep, nextRequiresPhone]) => {
-        const next = normalizeStep(nextInitialStep, nextRequiresPhone ? 3 : 4);
+    () => [props.initialStep, props.phoneAlreadyVerified],
+    ([nextInitialStep, nextPhoneVerified]) => {
+        const next = normalizeStep(nextInitialStep, 3);
         currentStep.value = next;
+        phoneIsVerified.value = nextPhoneVerified;
     },
     { immediate: true },
 );
@@ -170,6 +174,8 @@ const submitCoverageStep = () => {
             } catch {
                 // ignore
             }
+            currentStep.value = 3;
+            syncProviderStepInUrl(3);
         },
         onError: () => {
             coverageError.value = 'Please review your coverage area and try again.';
@@ -488,9 +494,28 @@ const submitProviderSubscriptionStep = () => {
 const phoneVerificationRef = ref(null);
 const phoneStepContinuing = computed(() => phoneVerificationRef.value?.isContinuing ?? false);
 const phoneStepHasSentOtp = computed(() => phoneVerificationRef.value?.hasSentOtp ?? false);
+const showPhoneVerificationForm = computed(
+    () => !phoneIsVerified.value || changingPhone.value,
+);
 
 const continuePhoneVerificationStep = () => {
+    if (phoneIsVerified.value && !changingPhone.value) {
+        currentStep.value = 4;
+        syncProviderStepInUrl(4);
+        return;
+    }
     phoneVerificationRef.value?.continueFlow?.();
+};
+
+const startChangePhone = () => {
+    changingPhone.value = true;
+};
+
+const onPhoneVerified = () => {
+    phoneIsVerified.value = true;
+    changingPhone.value = false;
+    currentStep.value = 4;
+    syncProviderStepInUrl(4);
 };
 
 const syncProviderStepInUrl = (step) => {
@@ -506,7 +531,11 @@ const syncProviderStepInUrl = (step) => {
 
 const goBack = () => {
     if (isPhoneStep.value) {
-        if (phoneStepHasSentOtp.value) {
+        if (changingPhone.value) {
+            changingPhone.value = false;
+            return;
+        }
+        if (showPhoneVerificationForm.value && phoneStepHasSentOtp.value) {
             phoneVerificationRef.value?.backFlow?.();
             return;
         }
@@ -516,9 +545,8 @@ const goBack = () => {
     }
 
     if (currentStep.value === 4) {
-        const next = props.requiresPhoneVerification ? 3 : 2;
-        currentStep.value = next;
-        syncProviderStepInUrl(next);
+        currentStep.value = 3;
+        syncProviderStepInUrl(3);
         return;
     }
     if (currentStep.value === 5) {
@@ -563,15 +591,40 @@ const goBack = () => {
         </template>
 
         <div class="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
-            <div v-if="props.requiresPhoneVerification && props.phoneVerification" v-show="currentStep === 3">
+            <div v-if="isPhoneStep && phoneIsVerified && !changingPhone" class="space-y-5">
+                <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Phone verification</p>
+                <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                        <svg viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5 text-emerald-600" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.25 7.3a1 1 0 0 1-1.42.005L3.29 9.26a1 1 0 1 1 1.414-1.414l3.04 3.04 6.543-6.59a1 1 0 0 1 1.417-.006Z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-emerald-800">Phone number verified</p>
+                        <p class="mt-0.5 text-sm text-emerald-700">
+                            Your phone number ending in <span class="font-medium">{{ (props.phoneVerification?.phone ?? '').slice(-4) || '****' }}</span> has been verified.
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    class="text-sm font-medium text-primary-600 underline underline-offset-2 hover:text-primary-500"
+                    @click="startChangePhone"
+                >
+                    Change phone number
+                </button>
+            </div>
+
+            <div v-if="props.phoneVerification" v-show="isPhoneStep && showPhoneVerificationForm">
                 <ProviderPhoneVerification
                     ref="phoneVerificationRef"
                     :phone="props.phoneVerification?.phone ?? ''"
                     :phone-dial-options="props.phoneVerification?.phoneDialOptions ?? []"
+                    @verified="onPhoneVerified"
                 />
             </div>
 
-            <div v-show="!(props.requiresPhoneVerification && props.phoneVerification && currentStep === 3)">
+            <div v-show="!isPhoneStep">
                 <div v-if="isCoverageStep" class="space-y-5">
                     <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Coverage area</p>
                     <p class="text-sm text-neutral-600">
@@ -927,12 +980,6 @@ const goBack = () => {
                     <p v-if="providerSubscriptionError" class="text-sm font-medium text-red-600">{{ providerSubscriptionError }}</p>
                 </div>
 
-                <div v-else class="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-                    <h2 class="text-base font-semibold text-emerald-800">Continue setup</h2>
-                    <p class="text-sm text-emerald-700">
-                        Provider steps 5–7 will appear here (Business, Pricing, Subscription, Review).
-                    </p>
-                </div>
             </div>
 
             <div class="mt-7 flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -948,7 +995,18 @@ const goBack = () => {
                 </Button>
 
                 <Button
-                    v-if="isPhoneStep"
+                    v-if="isPhoneStep && phoneIsVerified && !changingPhone"
+                    variant="primary"
+                    size="lg"
+                    class="min-w-[11rem]"
+                    @click="continuePhoneVerificationStep"
+                >
+                    Continue
+                    <ArrowRightIcon class="h-4 w-4" />
+                </Button>
+
+                <Button
+                    v-else-if="isPhoneStep"
                     variant="primary"
                     size="lg"
                     class="min-w-[11rem]"

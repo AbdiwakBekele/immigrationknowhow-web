@@ -137,7 +137,13 @@ class OnboardingController extends Controller
         if ($mode === 'user') {
             $initialStep = $needsPhone ? max(2, min(3, $requestedStep)) : 4;
         } elseif ($mode === 'provider') {
-            $initialStep = $needsPhone ? 3 : max(4, min(7, $requestedStep));
+            if ($request->filled('step') && $requestedStep >= 2 && $requestedStep <= 7) {
+                $initialStep = $requestedStep;
+            } elseif ($needsPhone) {
+                $initialStep = 3;
+            } else {
+                $initialStep = 4;
+            }
         } else {
             // advertiser: same step 2→3 sequencing as users (address before OTP); clamp only signup steps here
             $initialStep = max(2, min(3, $requestedStep));
@@ -183,7 +189,8 @@ class OnboardingController extends Controller
             'user' => $user->only(['id', 'first_name', 'last_name', 'email', 'address', 'city', 'state', 'postal_code', 'country', 'preferred_language']),
             'initialStep' => $initialStep,
             'requiresPhoneVerification' => $needsPhone,
-            'phoneVerification' => $needsPhone
+            'phoneAlreadyVerified' => ! $needsPhone && filled($user->phone),
+            'phoneVerification' => $isProvider || $needsPhone
                 ? [
                     'phone' => $user->phone ?? '',
                     'phoneDialOptions' => PhoneDialOptions::selectOptions(),

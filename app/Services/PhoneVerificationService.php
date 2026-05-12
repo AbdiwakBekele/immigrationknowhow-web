@@ -124,21 +124,34 @@ class PhoneVerificationService
         $country = $user?->country;
         $defaultRegion = is_string($country) && $country !== '' ? strtoupper($country) : 'US';
 
+        $util = PhoneNumberUtil::getInstance();
+
+        // Try parsing as-is first (handles numbers with + prefix).
         try {
-            $util = PhoneNumberUtil::getInstance();
             $parsed = $util->parse($raw, $defaultRegion);
-
-            if (! $util->isValidNumber($parsed)) {
-                throw new NumberParseException(NumberParseException::NOT_A_NUMBER, 'Invalid phone number.');
+            if ($util->isValidNumber($parsed)) {
+                return $util->format($parsed, PhoneNumberFormat::E164);
             }
-
-            return $util->format($parsed, PhoneNumberFormat::E164);
-        } catch (NumberParseException $e) {
-            // Fallback: digits-only (legacy behavior)
-            $digits = preg_replace('/\D+/', '', $raw) ?? '';
-
-            return $digits;
+        } catch (NumberParseException) {
+            // Fall through to retry with + prefix.
         }
+
+        // Retry with + prefix for numbers that look international but lack it.
+        if (! str_starts_with($raw, '+')) {
+            try {
+                $parsed = $util->parse('+' . preg_replace('/\D+/', '', $raw), null);
+                if ($util->isValidNumber($parsed)) {
+                    return $util->format($parsed, PhoneNumberFormat::E164);
+                }
+            } catch (NumberParseException) {
+                // Fall through to fallback.
+            }
+        }
+
+        // Fallback: ensure + prefix so Twilio receives E164-like format.
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+
+        return '+' . $digits;
     }
 
     private function driver(): string
