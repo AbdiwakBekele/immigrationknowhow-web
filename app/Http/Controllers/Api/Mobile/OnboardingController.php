@@ -102,7 +102,7 @@ class OnboardingController extends Controller
             'countryOptions' => CountryOptions::selectOptions(),
             'stateOptions' => UsStateOptions::selectOptions($countryForStates),
             'languageOptions' => LanguageOptions::selectOptions(),
-            'existingData' => $user->onboarding_data ?? [],
+            'existingData' => $this->mergedExistingData($user),
             'steps' => match (true) {
                 $isProvider => $this->providerSteps(),
                 $isAdvertiser => $this->advertiserSteps(),
@@ -621,6 +621,70 @@ class OnboardingController extends Controller
             ['key' => 'subscription', 'title' => 'Subscription', 'description' => 'Pick your provider plan'],
             ['key' => 'complete', 'title' => 'Review', 'description' => 'Finish setup'],
         ];
+    }
+
+    /**
+     * Merge onboarding_data with existing User + ServiceProvider fields so
+     * admin-created accounts see their pre-populated data in the forms.
+     *
+     * @return array<string, mixed>
+     */
+    private function mergedExistingData(\App\Models\User $user): array
+    {
+        $onboarding = $user->onboarding_data ?? [];
+
+        $location = $onboarding['location'] ?? [];
+        if (empty($location['city']) && filled($user->city)) {
+            $location['city'] = $user->city;
+        }
+        if (empty($location['state']) && filled($user->state)) {
+            $location['state'] = $user->state;
+        }
+        if (empty($location['country']) && filled($user->country)) {
+            $location['country'] = $user->country;
+        }
+        if (empty($location['postal_code']) && filled($user->postal_code)) {
+            $location['postal_code'] = $user->postal_code;
+        }
+        if (empty($location['street']) && filled($user->address)) {
+            $location['street'] = $user->address;
+        }
+        if ($location !== ($onboarding['location'] ?? [])) {
+            $onboarding['location'] = $location;
+        }
+
+        $provider = $user->serviceProvider;
+        if ($provider) {
+            $services = $onboarding['services'] ?? [];
+            if (empty($services['types']) && is_array($provider->service_types) && $provider->service_types !== []) {
+                $services['types'] = $provider->service_types;
+            }
+            if ($services !== ($onboarding['services'] ?? [])) {
+                $onboarding['services'] = $services;
+            }
+
+            $business = $onboarding['business'] ?? [];
+            if (empty($business['business_name']) && filled($provider->business_name)) {
+                $business['business_name'] = $provider->business_name;
+            }
+            if (empty($business['tagline']) && filled($provider->tagline)) {
+                $business['tagline'] = $provider->tagline;
+            }
+            if (empty($business['bio']) && filled($provider->bio)) {
+                $business['bio'] = $provider->bio;
+            }
+            if (empty($business['license_number']) && filled($provider->license_number)) {
+                $business['license_number'] = $provider->license_number;
+            }
+            if (! isset($business['years_experience']) && $provider->years_experience !== null) {
+                $business['years_experience'] = $provider->years_experience;
+            }
+            if ($business !== ($onboarding['business'] ?? [])) {
+                $onboarding['business'] = $business;
+            }
+        }
+
+        return $onboarding;
     }
 
     /**

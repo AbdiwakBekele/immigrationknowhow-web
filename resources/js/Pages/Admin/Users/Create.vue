@@ -1,11 +1,12 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     roles: { type: Array, default: () => [] },
+    serviceTypes: { type: Array, default: () => [] },
 });
 
 const form = useForm({
@@ -15,7 +16,19 @@ const form = useForm({
     password: '',
     role: props.roles[0]?.value || 'user',
     email_verified: false,
+
+    primary_service_type: props.serviceTypes[0]?.value || '',
+    business_name: '',
+    tagline: '',
+    bio: '',
+    business_email: '',
+    business_phone: '',
+    website: '',
+    years_experience: '',
+    license_number: '',
 });
+
+const isProvider = computed(() => form.role === 'provider');
 
 const submit = () => {
     if (emailTaken.value) {
@@ -163,6 +176,72 @@ watch(
                             {{ form.errors.role }}
                         </p>
                     </div>
+
+                    <!-- Provider-specific fields -->
+                    <template v-if="isProvider">
+                        <div class="border-t border-slate-200 pt-4">
+                            <h2 class="mb-3 text-sm font-semibold text-slate-900">Service Provider Details</h2>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Service Type</label>
+                                    <select v-model="form.primary_service_type" class="input w-full">
+                                        <option v-for="t in serviceTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
+                                    </select>
+                                    <p v-if="form.errors.primary_service_type" class="mt-1 text-xs text-red-600">{{ form.errors.primary_service_type }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Business Name</label>
+                                    <input v-model="form.business_name" type="text" class="input w-full" placeholder="Practice or company name" />
+                                    <p v-if="form.errors.business_name" class="mt-1 text-xs text-red-600">{{ form.errors.business_name }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Tagline</label>
+                                    <input v-model="form.tagline" type="text" class="input w-full" placeholder="Short line that appears in search" />
+                                    <p v-if="form.errors.tagline" class="mt-1 text-xs text-red-600">{{ form.errors.tagline }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Bio</label>
+                                    <textarea v-model="form.bio" class="input min-h-24 w-full" placeholder="Experience, credentials, and how they help clients..." />
+                                    <p v-if="form.errors.bio" class="mt-1 text-xs text-red-600">{{ form.errors.bio }}</p>
+                                </div>
+
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Business Email</label>
+                                        <input v-model="form.business_email" type="email" class="input w-full" placeholder="Optional" />
+                                        <p v-if="form.errors.business_email" class="mt-1 text-xs text-red-600">{{ form.errors.business_email }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Business Phone</label>
+                                        <input v-model="form.business_phone" type="text" class="input w-full" placeholder="Optional" />
+                                        <p v-if="form.errors.business_phone" class="mt-1 text-xs text-red-600">{{ form.errors.business_phone }}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Website</label>
+                                    <input v-model="form.website" type="text" class="input w-full" placeholder="https://..." />
+                                    <p v-if="form.errors.website" class="mt-1 text-xs text-red-600">{{ form.errors.website }}</p>
+                                </div>
+
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Years of Experience</label>
+                                        <input v-model="form.years_experience" type="number" min="0" max="80" class="input w-full" placeholder="e.g. 5" />
+                                        <p v-if="form.errors.years_experience" class="mt-1 text-xs text-red-600">{{ form.errors.years_experience }}</p>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">License Number</label>
+                                        <input v-model="form.license_number" type="text" class="input w-full" placeholder="Optional" />
+                                        <p v-if="form.errors.license_number" class="mt-1 text-xs text-red-600">{{ form.errors.license_number }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
 
                     <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
                         <input v-model="form.email_verified" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />

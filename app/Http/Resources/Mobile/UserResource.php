@@ -31,7 +31,9 @@ class UserResource extends JsonResource
             'postal_code' => $user->postal_code,
             'preferred_language' => $user->preferred_language,
             'avatar_url' => $user->avatar_url,
-            'onboarding_completed' => (bool) $user->onboarding_completed,
+            'onboarding_completed' => (bool) $user->onboarding_completed
+                && $user->hasCompletedSignupAddressStep()
+                && ($user->hasCompletedSignupPhoneStep() || $user->isAdmin()),
             'roles' => method_exists($user, 'getRoleNames')
                 ? $user->getRoleNames()->values()->all()
                 : [],

@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\BackgroundCheckStatus;
 use App\Enums\UserRole;
+use App\Enums\VerificationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\ServiceProvider;
 use App\Models\User;
 use App\Models\EmailTemplate;
 use App\Notifications\RoleAwareTransactionalEmailNotification;
 use App\Support\ImpersonationActorId;
+use App\Support\ServiceTypeOptions;
 use App\Support\UserHomeUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Support\Facades\Storage;
@@ -159,12 +163,15 @@ class UserController extends Controller
                 'value' => $r->value,
                 'label' => $r->label(),
             ]),
+            'serviceTypes' => ServiceTypeOptions::selectOptions(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        $isProvider = $request->input('role') === UserRole::PROVIDER->value;
+
+        $rules = [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -180,31 +187,69 @@ class UserController extends Controller
             'role' => ['required', Rule::enum(UserRole::class)],
             'email_verified' => ['boolean'],
             'is_active' => ['boolean'],
-        ]);
+        ];
 
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'city' => $validated['city'] ?? null,
-            'state' => $validated['state'] ?? null,
-            'postal_code' => $validated['postal_code'] ?? null,
-            'country' => $validated['country'] ?? null,
-            'preferred_language' => $validated['preferred_language'] ?? 'en',
-            'timezone' => $validated['timezone'] ?? 'America/New_York',
-            'email_verified_at' => ($validated['email_verified'] ?? false) ? now() : null,
-            'is_active' => $validated['is_active'] ?? true,
-        ]);
+        if ($isProvider) {
+            $rules['primary_service_type'] = ['required', Rule::in(ServiceTypeOptions::values())];
+            $rules['business_name'] = ['nullable', 'string', 'max:255'];
+            $rules['tagline'] = ['nullable', 'string', 'max:255'];
+            $rules['bio'] = ['nullable', 'string', 'max:2000'];
+            $rules['business_email'] = ['nullable', 'email', 'max:255'];
+            $rules['business_phone'] = ['nullable', 'string', 'max:50'];
+            $rules['website'] = ['nullable', 'string', 'max:500'];
+            $rules['years_experience'] = ['nullable', 'integer', 'min:0', 'max:80'];
+            $rules['license_number'] = ['nullable', 'string', 'max:100'];
+        }
 
-        $user->assignRole($validated['role']);
-        $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_INVITE, $user, [
-            'role' => $validated['role'],
-            'dashboard_link' => route('login'),
-            'activation_link' => route('login'),
-        ]));
+        $validated = $request->validate($rules);
+
+        DB::transaction(function () use ($validated, $isProvider) {
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'state' => $validated['state'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
+                'country' => $validated['country'] ?? null,
+                'preferred_language' => $validated['preferred_language'] ?? 'en',
+                'timezone' => $validated['timezone'] ?? 'America/New_York',
+                'email_verified_at' => ($validated['email_verified'] ?? false) ? now() : null,
+                'is_active' => $validated['is_active'] ?? true,
+                'onboarding_completed' => false,
+                'onboarding_completed_at' => null,
+            ]);
+
+            $user->assignRole($validated['role']);
+
+            if ($isProvider) {
+                ServiceProvider::create([
+                    'user_id' => $user->id,
+                    'business_name' => $validated['business_name'] ?: $user->full_name,
+                    'bio' => $validated['bio'] ?? null,
+                    'tagline' => $validated['tagline'] ?? null,
+                    'business_email' => $validated['business_email'] ?? $validated['email'],
+                    'business_phone' => $validated['business_phone'] ?? $validated['phone'] ?? null,
+                    'website' => $validated['website'] ?? null,
+                    'service_types' => [$validated['primary_service_type']],
+                    'languages_offered' => ['en'],
+                    'years_experience' => $validated['years_experience'] ?? null,
+                    'license_number' => $validated['license_number'] ?? null,
+                    'is_active' => true,
+                    'accepting_clients' => true,
+                    'verification_status' => VerificationStatus::PENDING,
+                ]);
+            }
+
+            $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_INVITE, $user, [
+                'role' => $validated['role'],
+                'dashboard_link' => route('login'),
+                'activation_link' => route('login'),
+            ]));
+        });
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User created successfully.');
