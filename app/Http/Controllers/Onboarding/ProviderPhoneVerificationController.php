@@ -23,10 +23,19 @@ class ProviderPhoneVerificationController extends Controller
         }
 
         $validated = $request->validate([
-            'phone' => ['required', 'string', 'min:10', 'max:32'],
+            'phone' => ['required', 'string', 'min:8', 'max:32'],
         ]);
 
-        $this->phoneVerification->sendOtp($user, $validated['phone']);
+        try {
+            $this->phoneVerification->sendOtp($user, $validated['phone']);
+        } catch (\Exception $e) {
+            Log::channel('single')->warning('ProviderOnboarding phone OTP send failed.', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['phone' => $e->getMessage()]);
+        }
 
         Log::channel('single')->info('ProviderOnboarding phone OTP sent.', [
             'user_id' => $user->id,

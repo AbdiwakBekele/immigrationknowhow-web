@@ -183,7 +183,7 @@ class OnboardingController extends Controller
             }
 
             $validated = $request->validate([
-                'phone' => ['required', 'string', 'min:10', 'max:32'],
+                'phone' => ['required', 'string', 'min:8', 'max:32'],
             ]);
 
             $coverage = $user->onboarding_data['coverage_area'] ?? [];
@@ -198,7 +198,13 @@ class OnboardingController extends Controller
                 ], 422);
             }
 
-            $this->phoneVerification->sendOtp($user, $validated['phone']);
+            try {
+                $this->phoneVerification->sendOtp($user, $validated['phone']);
+            } catch (\Exception $e) {
+                return $this->error($e->getMessage(), [
+                    'phone' => [$e->getMessage()],
+                ], 422);
+            }
 
             return $this->success('OTP sent', [
                 'nextStep' => 3,
@@ -217,7 +223,7 @@ class OnboardingController extends Controller
             'county' => ['sometimes', 'nullable', 'string', 'max:120'],
             'location_label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferred_language' => ['sometimes', 'required', 'string', Rule::in(array_keys(LanguageOptions::labels()))],
-            'phone' => ['sometimes', 'required', 'string', 'min:10', 'max:32'],
+            'phone' => ['sometimes', 'required', 'string', 'min:8', 'max:32'],
             'services_needed' => ['sometimes', 'nullable', 'array', 'max:8'],
             'services_needed.*' => ['string', Rule::in($userServiceTypeValues)],
             'number_of_children' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
@@ -291,7 +297,13 @@ class OnboardingController extends Controller
 
         $phone = $validated['phone'] ?? null;
         if ($phone) {
-            $this->phoneVerification->sendOtp($user, $phone);
+            try {
+                $this->phoneVerification->sendOtp($user, $phone);
+            } catch (\Exception $e) {
+                return $this->error($e->getMessage(), [
+                    'phone' => [$e->getMessage()],
+                ], 422);
+            }
         }
 
         return $this->success($phone ? 'OTP sent' : 'Address saved', [

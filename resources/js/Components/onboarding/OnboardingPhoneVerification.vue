@@ -3,7 +3,10 @@ import { ref, computed, nextTick, onMounted, watch, onBeforeUnmount } from 'vue'
 import { router, useForm } from '@inertiajs/vue3';
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from '@headlessui/vue';
 import { ArrowLeftIcon, ChevronDownIcon } from '@heroicons/vue/20/solid';
+import { useToast } from 'vue-toastification';
 import Button from '@/Components/ui/Button.vue';
+
+const toast = useToast();
 
 const props = defineProps({
     phone: {
@@ -90,11 +93,26 @@ const formatUsPhone = (digits) => {
 };
 
 function initFromStored(digits) {
-    countryIso.value = 'US';
     if (!digits) {
+        countryIso.value = 'US';
         phoneLocal.value = '';
         return;
     }
+
+    const sorted = [...props.phoneDialOptions]
+        .filter((o) => o.dial)
+        .sort((a, b) => String(b.dial).length - String(a.dial).length);
+
+    for (const opt of sorted) {
+        const dial = String(opt.dial).replace(/\D/g, '');
+        if (dial && digits.startsWith(dial)) {
+            countryIso.value = opt.value;
+            phoneLocal.value = normalizeLocalDigits(digits.slice(dial.length));
+            return;
+        }
+    }
+
+    countryIso.value = 'US';
     phoneLocal.value = normalizeLocalDigits(digits.startsWith('1') ? digits.slice(1) : digits);
 }
 
@@ -128,17 +146,24 @@ const selectedDial = computed(() => {
     return o ? String(o.dial) : '1';
 });
 
+const isNanp = computed(() => {
+    const u = countryIso.value.toUpperCase();
+    return u === 'US' || u === 'CA';
+});
+
 const fullE164 = computed(() => {
     const local = normalizeLocalDigits(phoneLocal.value);
     const dial = String(selectedDial.value || '').replace(/\D/g, '');
-    const localNormalized = countryIso.value === 'US'
+    const localNormalized = isNanp.value
         ? local
-        : local.replace(/^0+/, ''); // common international trunk prefix
+        : local.replace(/^0+/, '');
 
     return `+${dial}${localNormalized}`;
 });
 
-const phoneLocalDisplay = computed(() => formatUsPhone(phoneLocal.value));
+const phoneLocalDisplay = computed(() =>
+    isNanp.value ? formatUsPhone(phoneLocal.value) : normalizeLocalDigits(phoneLocal.value),
+);
 
 const maskedPhone = computed(() => {
     const typed = fullE164.value.replace(/\D/g, '');
@@ -243,22 +268,14 @@ const handleOtpPaste = (event) => {
 const submitOtp = () => {
     if (otpForm.processing || isVerifyingOtp.value) return;
     isVerifyingOtp.value = true;
-    console.log('[FLOW_DEBUG] Step 3 verify attempt -> expecting Step 4 on success', {
-        codeLength: String(otpForm.code || '').length,
-    });
 
     otpForm.post(route(props.verifyRouteName), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
-            console.log('[FLOW_DEBUG] Step 3 verify success', {
-                expectedStep: 4,
-            });
             emit('verified');
         },
-        onError: (errors) => {
-            console.log('[FLOW_DEBUG] Step 3 verify validation/errors', errors);
-        },
+        onError: () => {},
         onFinish: () => {
             isVerifyingOtp.value = false;
         },
@@ -268,42 +285,49 @@ const submitOtp = () => {
 const resendOtp = () => {
     if (resendForm.processing || isSendingOtp.value) return;
     if (hasSentOtp.value && resendCooldownSeconds.value > 0) return;
-    const localDigits = normalizeLocalDigits(phoneLocal.value);
-    if (countryIso.value === 'US') {
-        if (localDigits.length !== 10) {
-            resendForm.setError('phone', 'Enter a valid 10-digit phone number (123-456-7890).');
-            return;
-        }
-    } else {
-        // General international guardrails; Twilio Verify expects E.164 (+ + 8..15 digits total).
-        const e164Digits = fullE164.value.replace(/\D/g, '');
-        if (e164Digits.length < 8 || e164Digits.length > 15) {
-            resendForm.setError('phone', 'Enter a valid phone number for the selected country.');
-            return;
+
+    if (!hasSentOtp.value) {
+        const localDigits = normalizeLocalDigits(phoneLocal.value);
+        if (isNanp.value) {
+            if (localDigits.length !== 10) {
+                resendForm.setError('phone', 'Enter a valid 10-digit phone number (123-456-7890).');
+                return;
+            }
+        } else {
+            const e164Digits = fullE164.value.replace(/\D/g, '');
+            if (e164Digits.length < 8 || e164Digits.length > 15) {
+                resendForm.setError('phone', 'Enter a valid phone number for the selected country.');
+                return;
+            }
         }
     }
     resendForm.clearErrors('phone');
 
     resendForm.phone = fullE164.value;
     isSendingOtp.value = true;
-    console.log('[FLOW_DEBUG] Step 3 send/resend OTP', {
-        phoneLast4: fullE164.value.slice(-4),
-        hasSentOtp: hasSentOtp.value,
-    });
+    const wasResend = hasSentOtp.value;
+
+    const safetyTimer = setTimeout(() => {
+        isSendingOtp.value = false;
+    }, 15000);
+
     resendForm.post(route(props.sendRouteName), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => {
             hasSentOtp.value = true;
-            if (hasSentOtp.value) {
-                startResendCooldown(30);
+            startResendCooldown(30);
+            if (wasResend) {
+                toast.success('Verification OTP is sent');
             }
-            console.log('[FLOW_DEBUG] Step 3 send/resend OTP success');
         },
         onError: (errors) => {
-            console.log('[FLOW_DEBUG] Step 3 send/resend OTP errors', errors);
+            if (errors.phone) {
+                resendForm.setError('phone', errors.phone);
+            }
         },
         onFinish: () => {
+            clearTimeout(safetyTimer);
             isSendingOtp.value = false;
         },
     });
@@ -428,9 +452,9 @@ defineExpose({
                         type="tel"
                         inputmode="tel"
                         autocomplete="tel-national"
-                        placeholder="123-456-7890"
+                        :placeholder="isNanp ? '123-456-7890' : 'Mobile number'"
                         required
-                        maxlength="12"
+                        :maxlength="isNanp ? 12 : 15"
                         class="min-w-0 flex-1 rounded-r-2xl border-0 bg-transparent px-5 py-4 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         :aria-invalid="!!resendForm.errors.phone"
                         @input="handlePhoneInput"

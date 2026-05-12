@@ -160,6 +160,17 @@ class MobileLibraryController extends Controller
                     'currency' => $item->currency,
                     'category' => $item->category ? ['name' => $item->category->name, 'slug' => $item->category->slug] : null,
                     'author' => $item->author,
+                    'publisher' => $item->publisher,
+                    'published_at' => $item->published_at?->toDateString(),
+                    'publication_year' => $item->publication_year,
+                    'isbn' => $item->isbn,
+                    'page_count' => $item->page_count,
+                    'language' => $item->language,
+                    'duration_seconds' => $item->duration_seconds,
+                    'estimated_reading_minutes' => $item->estimated_reading_minutes,
+                    'has_audio_companion' => (bool) $item->has_audio_companion,
+                    'file_size' => $item->file_size,
+                    'view_count' => $item->view_count,
                     'ai_summary' => $item->type === 'ebook' ? $item->ai_summary : null,
                     'ai_summary_status' => $item->type === 'ebook' ? $item->ai_summary_status : null,
                 ],
@@ -337,8 +348,8 @@ class MobileLibraryController extends Controller
                 'mode' => 'payment',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => route('library.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('library.purchase.cancel', $item, true),
+                'success_url' => url('/?checkout=success&session_id={CHECKOUT_SESSION_ID}'),
+                'cancel_url' => url('/?checkout=cancelled'),
                 'metadata' => [
                     'app' => 'library',
                     'library_item_id' => (string) $item->id,
@@ -378,6 +389,58 @@ class MobileLibraryController extends Controller
             'message' => 'OK',
             'data' => [
                 'checkout_url' => $checkoutUrl,
+            ],
+        ]);
+    }
+
+    public function confirmCheckout(Request $request, LibraryItem $item): JsonResponse
+    {
+        $sessionId = $request->input('session_id');
+        if (! is_string($sessionId) || trim($sessionId) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing session ID.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $secret = config('services.stripe.secret');
+        if (! is_string($secret) || $secret === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payments are not configured.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        try {
+            Stripe::setApiKey($secret);
+            $session = StripeCheckoutSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not verify payment.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
+        if ($metadataUserId !== (int) $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session does not belong to this user.',
+                'errors' => (object) [],
+            ], 403);
+        }
+
+        $fulfill = app(\App\Actions\Library\FulfillLibraryStripeCheckout::class);
+        $fulfilled = $fulfill($session);
+
+        return response()->json([
+            'success' => true,
+            'message' => $fulfilled ? 'Purchase confirmed.' : 'Payment is still processing.',
+            'data' => [
+                'fulfilled' => $fulfilled,
             ],
         ]);
     }
@@ -481,7 +544,7 @@ class MobileLibraryController extends Controller
             'item_id' => $item->id,
         ], now()->addMinutes(20));
 
-        $base = rtrim((string) config('app.url'), '/').'/api/mobile/library/stream/'.$token;
+        $base = rtrim($request->getSchemeAndHttpHost(), '/').'/api/mobile/library/stream/'.$token;
 
         $urls = [];
         if ($item->type === 'ebook') {

@@ -507,7 +507,7 @@ class AddressDetailsController extends Controller
 
             if (! $isCoverageStep) {
                 $validated = $request->validate([
-                    'phone' => ['required', 'string', 'min:10', 'max:32'],
+                    'phone' => ['required', 'string', 'min:8', 'max:32'],
                 ]);
 
                 $coverage = $user->onboarding_data['coverage_area'] ?? [];
@@ -525,7 +525,16 @@ class AddressDetailsController extends Controller
                         ->withErrors(['phone' => 'Please add a city or ZIP code for your coverage area (USA).']);
                 }
 
-                $this->phoneVerification->sendOtp($user, $validated['phone']);
+                try {
+                    $this->phoneVerification->sendOtp($user, $validated['phone']);
+                } catch (\Exception $e) {
+                    Log::channel('single')->warning('AddressDetails sendOtp provider phone failed.', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return back()->withErrors(['phone' => $e->getMessage()]);
+                }
 
                 Log::channel('single')->info('AddressDetails sendOtp provider phone-only OTP sent.', [
                     'user_id' => $user->id,
@@ -608,7 +617,7 @@ class AddressDetailsController extends Controller
             'county' => ['sometimes', 'nullable', 'string', 'max:120'],
             'location_label' => ['sometimes', 'nullable', 'string', 'max:255'],
             'preferred_language' => ['sometimes', 'required', 'string', Rule::in(array_keys(LanguageOptions::labels()))],
-            'phone' => ['sometimes', 'required', 'string', 'min:10', 'max:32'],
+            'phone' => ['sometimes', 'required', 'string', 'min:8', 'max:32'],
             'number_of_children' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
             'children_ages_text' => ['sometimes', 'nullable', 'string', 'max:255'],
             'dogs_count' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
@@ -717,7 +726,16 @@ class AddressDetailsController extends Controller
             return redirect()->route('onboarding.user', ['step' => 3]);
         }
 
-        $this->phoneVerification->sendOtp($user, $phone);
+        try {
+            $this->phoneVerification->sendOtp($user, $phone);
+        } catch (\Exception $e) {
+            Log::channel('single')->warning('AddressDetails sendOtp failed.', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['phone' => $e->getMessage()]);
+        }
 
         Log::channel('single')->info('AddressDetails sendOtp OTP sent successfully.', [
             'user_id' => $user->id,

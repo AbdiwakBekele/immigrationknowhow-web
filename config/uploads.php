@@ -13,8 +13,8 @@ return [
         ))),
     ],
     'library_covers' => [
-        'disk' => env('LIBRARY_COVER_DISK', env('AWS_UPLOAD_DISK', 's3')),
-        'directory' => trim((string) env('LIBRARY_COVER_DIRECTORY', 'library/covers'), '/'),
-        'visibility' => env('LIBRARY_COVER_VISIBILITY', 'public'),
+        'disk' => 's3',
+        'directory' => 'library/covers',
+        'visibility' => 'public',
     ],
 ];

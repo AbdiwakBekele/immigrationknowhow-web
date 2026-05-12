@@ -12,12 +12,14 @@ import {
     ShoppingCartIcon,
 } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/vue/24/solid';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 defineProps({
     purchasedItems: { type: Object, required: true },
     availableItems: { type: Object, required: true },
 });
+
+const activeTab = ref('available');
 
 const page = usePage();
 const cartCount = computed(() => Number(page.props.library_cart_count ?? 0) || 0);
@@ -84,13 +86,14 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
     <Head title="Provider Library" />
 
     <ProviderLayout>
-        <div class="mx-auto max-w-7xl space-y-8 pb-10 text-neutral-950">
+        <div class="mx-auto max-w-7xl space-y-6 pb-10 text-neutral-950">
+            <!-- Header -->
             <section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold text-neutral-950">My Library</h1>
                         <p class="mt-1 text-sm text-neutral-600">
-                            Purchased titles and the catalog — same cart and checkout as the member library.
+                            Browse available titles and access your purchased content.
                         </p>
                     </div>
                     <Link
@@ -109,6 +112,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
             </section>
 
+            <!-- Flash messages -->
             <div
                 v-if="page.props.flash?.success || page.props.flash?.info || page.props.flash?.error"
                 class="rounded-lg border px-4 py-3 text-sm"
@@ -117,21 +121,70 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 {{ page.props.flash?.error || page.props.flash?.success || page.props.flash?.info }}
             </div>
 
-            <section>
-                <div class="mb-4 flex items-center gap-2">
-                    <BookOpenIcon class="h-5 w-5 text-emerald-600" />
-                    <h2 class="text-lg font-semibold text-neutral-900">Purchased and available now</h2>
-                </div>
+            <!-- Tabs -->
+            <div class="border-b border-neutral-200">
+                <nav class="-mb-px flex gap-6" aria-label="Library tabs">
+                    <button
+                        type="button"
+                        class="relative whitespace-nowrap pb-3 text-sm font-semibold transition"
+                        :class="activeTab === 'available'
+                            ? 'text-blue-600'
+                            : 'text-neutral-500 hover:text-neutral-700'"
+                        @click="activeTab = 'available'"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <ShoppingCartIcon class="h-4 w-4" />
+                            Available
+                            <span
+                                v-if="availableItems?.data?.length"
+                                class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                            >
+                                {{ availableItems.total ?? availableItems.data.length }}
+                            </span>
+                        </span>
+                        <span
+                            v-if="activeTab === 'available'"
+                            class="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-blue-600"
+                        />
+                    </button>
+                    <button
+                        type="button"
+                        class="relative whitespace-nowrap pb-3 text-sm font-semibold transition"
+                        :class="activeTab === 'purchased'
+                            ? 'text-blue-600'
+                            : 'text-neutral-500 hover:text-neutral-700'"
+                        @click="activeTab = 'purchased'"
+                    >
+                        <span class="inline-flex items-center gap-2">
+                            <BookOpenIcon class="h-4 w-4" />
+                            Purchased
+                            <span
+                                v-if="purchasedItems?.data?.length"
+                                class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+                            >
+                                {{ purchasedItems.total ?? purchasedItems.data.length }}
+                            </span>
+                        </span>
+                        <span
+                            v-if="activeTab === 'purchased'"
+                            class="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-blue-600"
+                        />
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Available tab -->
+            <section v-if="activeTab === 'available'">
                 <div
-                    v-if="purchasedItems?.data?.length"
-                    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    v-if="availableItems?.data?.length"
+                    class="grid grid-cols-2 gap-4"
                 >
                     <article
-                        v-for="item in purchasedItems.data"
+                        v-for="item in availableItems.data"
                         :key="item.uuid"
-                        class="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                        class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="readUrl(item)" class="relative block h-40 overflow-hidden bg-neutral-100">
+                        <Link :href="showUrl(item)" class="relative block aspect-[3/4] overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
@@ -142,79 +195,64 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 v-else
                                 class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
                             >
-                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-12 w-12 text-white/90" />
-                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-12 w-12 text-white/90" />
-                                <DocumentTextIcon v-else class="h-12 w-12 text-white/90" />
+                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-14 w-14 text-white/90" />
+                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-14 w-14 text-white/90" />
+                                <DocumentTextIcon v-else class="h-14 w-14 text-white/90" />
                             </div>
-                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
+                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
                                 {{ itemCategory(item) }}
                             </span>
                         </Link>
-                        <div class="flex flex-1 flex-col p-4">
-                            <div class="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-neutral-500">
-                                <span>{{ itemFormat(item) }}</span>
-                                <button
-                                    type="button"
-                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 text-neutral-400 transition hover:border-blue-200 hover:text-blue-700"
-                                    aria-label="Save for later"
-                                >
-                                    <BookmarkIcon class="h-4 w-4" />
-                                </button>
-                            </div>
-                            <Link :href="readUrl(item)" class="block">
-                                <h3 class="line-clamp-2 text-base font-semibold leading-6 text-neutral-950 transition group-hover:text-blue-700">
+                        <div class="flex flex-1 flex-col p-3">
+                            <Link :href="showUrl(item)" class="block">
+                                <h3 class="line-clamp-2 text-sm font-semibold leading-5 text-neutral-950 transition group-hover:text-blue-700">
                                     {{ item.title }}
                                 </h3>
                             </Link>
-                            <p class="mt-1 text-sm text-neutral-500">by {{ itemCreator(item) }}</p>
-                            <p class="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
-                                {{ itemDescription(item) }}
-                            </p>
-                            <div class="mt-4 flex items-center gap-5 text-xs text-neutral-500">
-                                <span class="inline-flex items-center gap-1.5">
-                                    <DocumentTextIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemMeta(item) }}
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <CalendarDaysIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemYear(item) }}
-                                </span>
+                            <p class="mt-1 text-xs text-neutral-500">{{ itemCreator(item) }}</p>
+                            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-neutral-400">
+                                <span>{{ itemFormat(item) }}</span>
+                                <span>{{ itemYear(item) }}</span>
                             </div>
-                            <div class="mt-5 flex flex-wrap items-center gap-2">
+                            <div class="mt-auto flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+                                <span class="text-sm font-bold" :class="requiresPayment(item) ? 'text-neutral-900' : 'text-emerald-600'">
+                                    {{ formatPrice(item) }}
+                                </span>
                                 <Link
-                                    :href="readUrl(item)"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                                >
-                                    <BookOpenIcon class="h-4 w-4" />
-                                    {{ item.type === 'audiobook' ? 'Continue listening' : 'Continue reading' }}
-                                </Link>
-                                <Link
-                                    :href="route('library.favorite', item.slug)"
+                                    v-if="!requiresPayment(item)"
+                                    :href="freePurchaseUrl(item)"
                                     method="post"
                                     as="button"
-                                    preserve-scroll
-                                    :title="isFavorited(item) ? 'Favorited' : 'Mark as favorite'"
-                                    class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-200 text-rose-700 transition hover:bg-rose-50"
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                                 >
-                                    <HeartSolidIcon v-if="isFavorited(item)" class="h-4 w-4" />
-                                    <HeartIcon v-else class="h-4 w-4" />
+                                    <BookOpenIcon class="h-3.5 w-3.5" />
+                                    Read
                                 </Link>
                                 <Link
-                                    :href="showUrl(item)"
-                                    class="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-200 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                    v-else
+                                    :href="route('library.cart.add', { item: item.slug })"
+                                    method="post"
+                                    as="button"
+                                    type="button"
+                                    :data="cartPortal"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                                 >
-                                    Details
+                                    <ShoppingCartIcon class="h-3.5 w-3.5" />
+                                    Add to cart
                                 </Link>
                             </div>
                         </div>
                     </article>
                 </div>
-                <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-sm text-neutral-600">
-                    No purchased titles yet.
+                <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center">
+                    <ShoppingCartIcon class="mx-auto h-10 w-10 text-neutral-300" />
+                    <p class="mt-3 text-sm font-medium text-neutral-600">No additional titles available right now.</p>
+                    <p class="mt-1 text-xs text-neutral-400">Check back soon for new content.</p>
                 </div>
-                <div v-if="purchasedItems.links && purchasedItems.last_page > 1" class="mt-8 flex justify-center">
+                <div v-if="availableItems.links && availableItems.last_page > 1" class="mt-8 flex justify-center">
                     <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <template v-for="link in purchasedItems.links" :key="`purchased-${link.label}`">
+                        <template v-for="link in availableItems.links" :key="`available-${link.label}`">
                             <Link
                                 v-if="link.url"
                                 :href="link.url"
@@ -234,21 +272,18 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
             </section>
 
-            <section>
-                <div class="mb-4 flex items-center gap-2">
-                    <ShoppingCartIcon class="h-5 w-5 text-blue-600" />
-                    <h2 class="text-lg font-semibold text-neutral-900">Available to purchase</h2>
-                </div>
+            <!-- Purchased tab -->
+            <section v-if="activeTab === 'purchased'">
                 <div
-                    v-if="availableItems?.data?.length"
-                    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    v-if="purchasedItems?.data?.length"
+                    class="grid grid-cols-2 gap-4"
                 >
                     <article
-                        v-for="item in availableItems.data"
+                        v-for="item in purchasedItems.data"
                         :key="item.uuid"
-                        class="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                        class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="showUrl(item)" class="relative block h-40 overflow-hidden bg-neutral-100">
+                        <Link :href="readUrl(item)" class="relative block aspect-[3/4] overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
@@ -259,90 +294,64 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 v-else
                                 class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
                             >
-                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-12 w-12 text-white/90" />
-                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-12 w-12 text-white/90" />
-                                <DocumentTextIcon v-else class="h-12 w-12 text-white/90" />
+                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-14 w-14 text-white/90" />
+                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-14 w-14 text-white/90" />
+                                <DocumentTextIcon v-else class="h-14 w-14 text-white/90" />
                             </div>
-                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
+                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
                                 {{ itemCategory(item) }}
                             </span>
-                            <span
-                                v-if="requiresPayment(item)"
-                                class="absolute bottom-2 left-2 rounded bg-white px-2 py-1 text-xs font-semibold text-neutral-800 shadow-sm"
-                            >
-                                {{ formatPrice(item) }}
-                            </span>
                         </Link>
-                        <div class="flex flex-1 flex-col p-4">
-                            <div class="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-neutral-500">
-                                <span>{{ itemFormat(item) }}</span>
-                                <button
-                                    type="button"
-                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 text-neutral-400 transition hover:border-blue-200 hover:text-blue-700"
-                                    aria-label="Save for later"
-                                >
-                                    <BookmarkIcon class="h-4 w-4" />
-                                </button>
-                            </div>
-                            <Link :href="showUrl(item)" class="block">
-                                <h3 class="line-clamp-2 text-base font-semibold leading-6 text-neutral-950 transition group-hover:text-blue-700">
+                        <div class="flex flex-1 flex-col p-3">
+                            <Link :href="readUrl(item)" class="block">
+                                <h3 class="line-clamp-2 text-sm font-semibold leading-5 text-neutral-950 transition group-hover:text-blue-700">
                                     {{ item.title }}
                                 </h3>
                             </Link>
-                            <p class="mt-1 text-sm text-neutral-500">by {{ itemCreator(item) }}</p>
-                            <p class="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
-                                {{ itemDescription(item) }}
-                            </p>
-                            <div class="mt-4 flex items-center gap-5 text-xs text-neutral-500">
-                                <span class="inline-flex items-center gap-1.5">
-                                    <DocumentTextIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemMeta(item) }}
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <CalendarDaysIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemYear(item) }}
-                                </span>
+                            <p class="mt-1 text-xs text-neutral-500">{{ itemCreator(item) }}</p>
+                            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-neutral-400">
+                                <span>{{ itemFormat(item) }}</span>
+                                <span>{{ itemYear(item) }}</span>
                             </div>
-                            <div class="mt-5 flex items-center gap-2">
+                            <div class="mt-auto flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
                                 <Link
-                                    v-if="!requiresPayment(item)"
-                                    :href="freePurchaseUrl(item)"
-                                    method="post"
-                                    as="button"
-                                    type="button"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    :href="readUrl(item)"
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                                 >
-                                    <BookOpenIcon class="h-4 w-4" />
-                                    Read now
+                                    <BookOpenIcon class="h-3.5 w-3.5" />
+                                    {{ item.type === 'audiobook' ? 'Listen' : 'Read' }}
                                 </Link>
                                 <Link
-                                    v-else
-                                    :href="route('library.cart.add', { item: item.slug })"
+                                    :href="route('library.favorite', item.slug)"
                                     method="post"
                                     as="button"
-                                    type="button"
-                                    :data="cartPortal"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    preserve-scroll
+                                    :title="isFavorited(item) ? 'Favorited' : 'Mark as favorite'"
+                                    class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200 text-rose-600 transition hover:bg-rose-50"
                                 >
-                                    <ShoppingCartIcon class="h-4 w-4" />
-                                    Add to cart
-                                </Link>
-                                <Link
-                                    :href="showUrl(item)"
-                                    class="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-200 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
-                                >
-                                    Details
+                                    <HeartSolidIcon v-if="isFavorited(item)" class="h-3.5 w-3.5" />
+                                    <HeartIcon v-else class="h-3.5 w-3.5" />
                                 </Link>
                             </div>
                         </div>
                     </article>
                 </div>
-                <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-sm text-neutral-600">
-                    No additional titles available right now.
+                <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center">
+                    <BookOpenIcon class="mx-auto h-10 w-10 text-neutral-300" />
+                    <p class="mt-3 text-sm font-medium text-neutral-600">No purchased titles yet.</p>
+                    <p class="mt-1 text-xs text-neutral-400">Browse the Available tab to find titles to add to your library.</p>
+                    <button
+                        type="button"
+                        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                        @click="activeTab = 'available'"
+                    >
+                        <ShoppingCartIcon class="h-4 w-4" />
+                        Browse available titles
+                    </button>
                 </div>
-                <div v-if="availableItems.links && availableItems.last_page > 1" class="mt-8 flex justify-center">
+                <div v-if="purchasedItems.links && purchasedItems.last_page > 1" class="mt-8 flex justify-center">
                     <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <template v-for="link in availableItems.links" :key="`available-${link.label}`">
+                        <template v-for="link in purchasedItems.links" :key="`purchased-${link.label}`">
                             <Link
                                 v-if="link.url"
                                 :href="link.url"
