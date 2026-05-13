@@ -88,7 +88,6 @@ class BackgroundCheckController extends Controller
                 'phone' => $backgroundCheck->phone,
                 'zipcode' => $backgroundCheck->zipcode,
                 'dob' => $backgroundCheck->dob?->format('M d, Y'),
-                'masked_ssn' => $backgroundCheck->masked_ssn,
                 'package' => $backgroundCheck->package,
                 'adjudication' => $backgroundCheck->adjudication,
                 'checkr_candidate_id' => $backgroundCheck->checkr_candidate_id,

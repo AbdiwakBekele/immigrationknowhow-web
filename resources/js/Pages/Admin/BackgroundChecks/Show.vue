@@ -131,13 +131,6 @@ const getStatusClasses = (status) => {
                                     <p class="font-medium text-gray-900">{{ backgroundCheck.dob || '—' }}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <ShieldCheckIcon class="w-5 h-5 text-gray-400" />
-                                <div>
-                                    <p class="text-sm text-gray-500">SSN (Last 4)</p>
-                                    <p class="font-medium text-gray-900">{{ backgroundCheck.masked_ssn || '—' }}</p>
-                                </div>
-                            </div>
                         </div>
                     </div>
 

@@ -13,7 +13,6 @@ import {
     DocumentTextIcon,
     ArrowPathIcon,
     InformationCircleIcon,
-    LockClosedIcon,
 } from '@heroicons/vue/24/outline';
 import { CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
 import { ref, computed } from 'vue';
@@ -36,19 +35,8 @@ const form = useForm({
     phone: props.user.phone || '',
     zipcode: '',
     dob: '',
-    ssn: '',
-    driver_license_number: '',
-    driver_license_state: '',
     consent: false,
 });
-
-const states = [
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
-];
 
 const statusIcons = {
     pending: ClockIcon,
@@ -70,19 +58,6 @@ const submit = () => {
             form.reset();
         },
     });
-};
-
-const formatSSN = (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 9) value = value.slice(0, 9);
-    
-    if (value.length > 5) {
-        value = value.slice(0, 3) + '-' + value.slice(3, 5) + '-' + value.slice(5);
-    } else if (value.length > 3) {
-        value = value.slice(0, 3) + '-' + value.slice(3);
-    }
-    
-    form.ssn = value;
 };
 
 const maxDob = computed(() => {
@@ -326,56 +301,6 @@ const maxDob = computed(() => {
                                 required
                             />
                             <p v-if="form.errors.zipcode" class="error-text">{{ form.errors.zipcode }}</p>
-                        </div>
-                    </div>
-
-                    <!-- SSN -->
-                    <div>
-                        <label class="label">
-                            Social Security Number <span class="text-red-500">*</span>
-                        </label>
-                        <div class="relative">
-                            <input 
-                                :value="form.ssn"
-                                type="text"
-                                placeholder="XXX-XX-XXXX"
-                                maxlength="11"
-                                class="input pr-11"
-                                required
-                                @input="formatSSN"
-                            />
-                            <LockClosedIcon class="pointer-events-none absolute right-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                        </div>
-                        <p class="helper-text">Your SSN is encrypted and only used for identity verification.</p>
-                        <p v-if="form.errors.ssn" class="error-text">{{ form.errors.ssn }}</p>
-                    </div>
-
-                    <!-- Driver's License (Optional) -->
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="label">
-                                Driver's license number <span class="font-normal text-slate-400">(optional)</span>
-                            </label>
-                            <input 
-                                v-model="form.driver_license_number"
-                                type="text"
-                                class="input"
-                            />
-                            <p v-if="form.errors.driver_license_number" class="error-text">{{ form.errors.driver_license_number }}</p>
-                        </div>
-                        <div>
-                            <label class="label">
-                                License state
-                            </label>
-                            <select 
-                                v-model="form.driver_license_state"
-                                class="input"
-                                :disabled="!form.driver_license_number"
-                            >
-                                <option value="">Select State</option>
-                                <option v-for="state in states" :key="state" :value="state">{{ state }}</option>
-                            </select>
-                            <p v-if="form.errors.driver_license_state" class="mt-1 text-sm text-red-600">{{ form.errors.driver_license_state }}</p>
                         </div>
                     </div>
 
