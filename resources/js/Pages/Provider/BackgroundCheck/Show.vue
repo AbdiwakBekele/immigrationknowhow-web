@@ -15,7 +15,6 @@ import {
     ArrowPathIcon,
     UserIcon,
     EnvelopeOpenIcon,
-    IdentificationIcon,
     CalendarIcon,
 } from '@heroicons/vue/24/outline';
 import { CheckBadgeIcon as CheckBadgeSolid } from '@heroicons/vue/24/solid';
@@ -106,15 +105,6 @@ const statusColors = {
                                 </div>
                             </div>
 
-                            <div v-if="backgroundCheck.masked_ssn" class="flex items-center gap-3">
-                                <div class="p-2 bg-gray-100 rounded-lg">
-                                    <IdentificationIcon class="h-5 w-5 text-gray-600" />
-                                </div>
-                                <div>
-                                    <div class="text-sm text-gray-500">SSN</div>
-                                    <div class="font-medium text-gray-900 font-mono">{{ backgroundCheck.masked_ssn }}</div>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Check Info -->

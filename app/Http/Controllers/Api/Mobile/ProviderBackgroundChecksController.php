@@ -152,7 +152,7 @@ class ProviderBackgroundChecksController extends Controller
                     'status_display' => $backgroundCheck->status_display,
                     'full_name' => $backgroundCheck->full_name,
                     'email' => $backgroundCheck->email,
-                    'masked_ssn' => $backgroundCheck->masked_ssn,
+                    'masked_ssn' => null,
                     'initiated_at' => $backgroundCheck->created_at?->toIso8601String(),
                     'completed_at' => $backgroundCheck->completed_at?->toIso8601String(),
                     'expires_at' => $backgroundCheck->expires_at?->toIso8601String(),
@@ -186,7 +186,7 @@ class ProviderBackgroundChecksController extends Controller
                     'status' => $status,
                     'metadata' => array_merge($backgroundCheck->metadata ?? [], [
                         'last_refresh' => now()->toISOString(),
-                        'report_response' => $report,
+                        'report_response' => $this->checkrService->sanitizePersistedData($report),
                     ]),
                 ]);
             }

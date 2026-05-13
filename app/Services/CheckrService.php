@@ -173,9 +173,8 @@ class CheckrService
             'phone' => $candidateData['phone'] ?? null,
             'zipcode' => $candidateData['zipcode'] ?? null,
             'dob' => $candidateData['dob'] ?? null,
-            'ssn_last_four' => !empty($candidateData['ssn']) ? substr($candidateData['ssn'], -4) : null,
             'metadata' => [
-                'candidate_response' => $candidate,
+                'candidate_response' => $this->sanitizePersistedData($candidate),
             ],
         ]);
 
@@ -186,7 +185,7 @@ class CheckrService
             'checkr_invitation_id' => $invitation['id'],
             'status' => BackgroundCheckStatus::INVITED,
             'metadata' => array_merge($backgroundCheck->metadata ?? [], [
-                'invitation_response' => $invitation,
+                'invitation_response' => $this->sanitizePersistedData($invitation),
             ]),
         ]);
 
@@ -281,7 +280,7 @@ class CheckrService
         'adjudication' => $adjudication,
         'completed_at' => now(),
         'expires_at' => now()->addDays(config('checkr.expiration_days', 365)),
-        'report_summary' => $data,
+        'report_summary' => $this->sanitizePersistedData($data),
     ]);
 
     // Update provider's background check status
@@ -388,5 +387,32 @@ class CheckrService
         $expectedSignature = hash_hmac('sha256', $payload, $secret);
 
         return hash_equals($expectedSignature, $signature);
+    }
+
+    public function sanitizePersistedData(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $keysToRemove = [
+            'ssn',
+            'ssn_last_four',
+            'masked_ssn',
+            'driver_license_number',
+            'driver_license_state',
+        ];
+
+        $sanitized = [];
+
+        foreach ($value as $key => $item) {
+            if (in_array((string) $key, $keysToRemove, true)) {
+                continue;
+            }
+
+            $sanitized[$key] = $this->sanitizePersistedData($item);
+        }
+
+        return $sanitized;
     }
 }

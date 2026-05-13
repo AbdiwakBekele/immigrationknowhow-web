@@ -146,7 +146,6 @@ class BackgroundCheckController extends Controller
                 'status_display' => $backgroundCheck->status_display,
                 'full_name' => $backgroundCheck->full_name,
                 'email' => $backgroundCheck->email,
-                'masked_ssn' => $backgroundCheck->masked_ssn,
                 'initiated_at' => $backgroundCheck->created_at->format('M d, Y \a\t g:i A'),
                 'completed_at' => $backgroundCheck->completed_at?->format('M d, Y \a\t g:i A'),
                 'expires_at' => $backgroundCheck->expires_at?->format('M d, Y'),
@@ -184,7 +183,7 @@ class BackgroundCheckController extends Controller
                     'status' => $status,
                     'metadata' => array_merge($backgroundCheck->metadata ?? [], [
                         'last_refresh' => now()->toISOString(),
-                        'report_response' => $report,
+                        'report_response' => $this->checkrService->sanitizePersistedData($report),
                     ]),
                 ]);
             }

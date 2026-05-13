@@ -29,7 +29,6 @@ class BackgroundCheck extends Model
         'phone',
         'zipcode',
         'dob',
-        'ssn_last_four',
         'completed_at',
         'expires_at',
         'report_summary',
@@ -80,11 +79,6 @@ class BackgroundCheck extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
-    }
-
-    public function getMaskedSsnAttribute(): ?string
-    {
-        return $this->ssn_last_four ? "XXX-XX-{$this->ssn_last_four}" : null;
     }
 
     public function getIsExpiredAttribute(): bool
