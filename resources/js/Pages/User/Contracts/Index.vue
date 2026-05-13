@@ -273,7 +273,7 @@ const hasLeads = computed(() => (props.leads?.data?.length || 0) > 0);
                 <template v-for="link in leads.links" :key="link.label">
                     <Link
                         v-if="link.url"
-                        :href="link.url"
+                        :href="link.url || '#'"
                         :class="[
                             'rounded-lg px-3 py-2 text-sm transition-colors',
                             link.active

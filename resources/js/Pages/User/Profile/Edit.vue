@@ -922,7 +922,7 @@ const initialFor = (...values) => {
                                                 :key="`${link.url}-${index}`"
                                                 class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2"
                                             >
-                                                <a :href="link.url" target="_blank" rel="noreferrer" class="min-w-0 truncate text-sm font-semibold text-blue-700">
+                                                <a :href="link.url || '#'" target="_blank" rel="noreferrer" class="min-w-0 truncate text-sm font-semibold text-blue-700">
                                                     {{ link.label || link.url }}
                                                 </a>
                                                 <button type="button" class="text-xs font-semibold text-slate-500 hover:text-red-600" @click="removeSocialLink(index)">
@@ -1105,7 +1105,7 @@ const initialFor = (...values) => {
                                     <a
                                         v-for="(link, index) in profileForm.social_links"
                                         :key="`snapshot-social-${index}`"
-                                        :href="link.url"
+                                        :href="link.url || '#'"
                                         target="_blank"
                                         rel="noreferrer"
                                         class="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"

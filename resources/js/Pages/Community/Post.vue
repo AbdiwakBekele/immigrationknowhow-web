@@ -3,13 +3,12 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import CommunityShareButtons from '@/Components/community/CommunityShareButtons.vue';
 import { communityPostShareUrl, getCommunityGuestKey } from '@/utils/community';
 import {
     BookmarkIcon,
     ChatBubbleBottomCenterTextIcon,
-    EnvelopeIcon,
     HeartIcon,
-    LinkIcon,
     ShareIcon,
 } from '@heroicons/vue/24/outline';
 
@@ -217,25 +216,7 @@ async function handleSubmitComment() {
     }
 }
 
-function openShareTarget(type) {
-    if (!post.value) return;
-    const shareUrl = communityPostShareUrl(post.value.id);
-    const encodedUrl = encodeURIComponent(shareUrl);
-    const encodedTitle = encodeURIComponent(post.value.title);
-    const targets = {
-        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-        x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
-        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-        whatsapp: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
-        email: `mailto:?subject=${encodedTitle}&body=${encodedUrl}`,
-    };
-    window.open(targets[type], '_blank', 'noopener,noreferrer');
-    reactToPost('share').catch(() => undefined);
-}
-
-async function onCopyShareLink() {
-    if (!post.value) return;
-    await navigator.clipboard.writeText(communityPostShareUrl(post.value.id));
+function recordShareAction() {
     reactToPost('share').catch(() => undefined);
 }
 
@@ -321,17 +302,14 @@ onMounted(async () => {
                             <div id="share-this-post" class="mt-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 scroll-mt-24">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Share this post</p>
                                 <p class="mt-1 break-all text-xs text-slate-500">{{ communityPostShareUrl(post.id) }}</p>
-                                <div class="mt-3 grid max-w-sm grid-cols-3 gap-2 sm:grid-cols-6">
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#1d4ed8] hover:bg-blue-50" @click="openShareTarget('facebook')">f</button>
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#0f172a] hover:bg-slate-50" @click="openShareTarget('x')">X</button>
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#0a66c2] hover:bg-blue-50" @click="openShareTarget('linkedin')">in</button>
-                                    <button type="button" class="rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-[#16a34a] hover:bg-emerald-50" @click="openShareTarget('whatsapp')">wa</button>
-                                    <button type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 hover:bg-slate-50" @click="openShareTarget('email')">
-                                        <EnvelopeIcon class="h-4 w-4" />
-                                    </button>
-                                    <button type="button" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 hover:bg-slate-50" @click="onCopyShareLink">
-                                        <LinkIcon class="h-4 w-4" />
-                                    </button>
+                                <div class="mt-3 max-w-sm">
+                                    <CommunityShareButtons
+                                        v-if="post"
+                                        :post-id="post.id"
+                                        :post-title="post.title"
+                                        button-class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-2 py-2 text-xs text-slate-700 hover:bg-slate-50"
+                                        @shared="recordShareAction"
+                                    />
                                 </div>
                                 <div v-if="typeof navigator !== 'undefined' && navigator.share" class="mt-3 flex justify-end">
                                     <button type="button" class="rounded-full bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" @click="onNativeShare">

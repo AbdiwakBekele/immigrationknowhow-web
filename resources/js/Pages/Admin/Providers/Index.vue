@@ -398,7 +398,7 @@ const avatarUrl = (provider) => {
                     <Link
                         v-for="link in providers.links"
                         :key="`${link.label}-${link.url}`"
-                        :href="link.url"
+                        :href="link.url || '#'"
                         class="min-w-[2.25rem] rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                         :class="
                             link.active

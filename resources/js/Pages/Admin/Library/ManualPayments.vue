@@ -98,7 +98,7 @@ const formatDate = (value) => {
                         <Link
                             v-for="link in pending.links"
                             :key="link.label"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             class="rounded-lg px-2.5 py-1.5 text-xs"
                             :class="link.active ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
                             v-html="link.label"

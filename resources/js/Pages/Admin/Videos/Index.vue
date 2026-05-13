@@ -197,15 +197,28 @@ const destroyVideo = (slug) => {
 
                 <p v-if="!rows.length" class="py-8 text-center text-sm text-slate-500">No videos yet. Add one with a public video link.</p>
 
-                <nav v-if="videos.links?.length > 3" class="mt-4 flex flex-wrap justify-center gap-1 border-t border-slate-100 pt-4">
-                    <Link
-                        v-for="link in videos.links"
-                        :key="`${link.label}-${link.url}`"
-                        :href="link.url"
-                        class="rounded-md px-3 py-1.5 text-sm"
-                        :class="link.active ? 'bg-sky-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
-                        v-html="link.label"
-                    />
+                <nav
+                    v-if="videos.links?.length > 3"
+                    class="mt-4 flex flex-wrap justify-center gap-2 border-t border-slate-100 pt-4"
+                >
+                    <template v-for="(link, index) in videos.links" :key="`${link.label}-${index}`">
+                        <Link
+                            v-if="link.url"
+                            :href="link.url"
+                            class="inline-flex min-w-[2.5rem] items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium transition"
+                            :class="link.active
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                            preserve-scroll
+                        >
+                            <span v-html="link.label" />
+                        </Link>
+                        <span
+                            v-else
+                            class="inline-flex min-w-[2.5rem] cursor-not-allowed items-center justify-center rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-400"
+                            v-html="link.label"
+                        />
+                    </template>
                 </nav>
             </section>
         </div>

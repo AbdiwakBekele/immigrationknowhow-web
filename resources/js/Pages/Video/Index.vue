@@ -313,7 +313,7 @@ const formatDuration = (seconds) => {
                         <Link
                             v-for="link in items.links"
                             :key="link.label"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             :class="[
                                 'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                                 link.active 

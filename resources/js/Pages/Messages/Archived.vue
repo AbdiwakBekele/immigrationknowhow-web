@@ -160,7 +160,7 @@ const conversationHref = (uuid) => (uuid ? route('messages.show', uuid) : route(
                     <Link
                         v-for="link in conversations.links"
                         :key="link.label"
-                        :href="link.url"
+                        :href="link.url || '#'"
                         class="rounded-lg px-3 py-2 text-sm"
                         :class="link.active ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
                         v-html="link.label"

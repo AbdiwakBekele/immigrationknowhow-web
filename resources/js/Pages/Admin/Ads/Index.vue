@@ -240,7 +240,7 @@ const reject = (uuid) => {
                     <template v-for="(link, i) in ads.links" :key="i">
                         <Link
                             v-if="link.url"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             class="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
                             :class="{ 'bg-blue-600 font-semibold text-white hover:bg-blue-600': link.active }"
                             preserve-scroll
