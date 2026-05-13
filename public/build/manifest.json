@@ -18,8 +18,8 @@
     "file": "assets/utils-BWePKzUu.js",
     "name": "utils"
   },
-  "_vendor-BtV2c1lZ.js": {
-    "file": "assets/vendor-BtV2c1lZ.js",
+  "_vendor-DVs29foZ.js": {
+    "file": "assets/vendor-DVs29foZ.js",
     "name": "vendor",
     "imports": [
       "_framework-BTBNVTSV.js",
@@ -29,7 +29,6 @@
       "assets/vendor-cMYQg6fz.css"
     ],
     "assets": [
-      "assets/pdf.worker-BgryrOlp.mjs",
       "assets/xx-zm_JmrXl.svg",
       "assets/xx-DHLZWhOc.svg",
       "assets/ad-B18i8NGa.svg",
@@ -2746,12 +2745,8 @@
     "file": "assets/zw-U0m7oJ5e.svg",
     "src": "node_modules/flag-icons/flags/4x3/zw.svg"
   },
-  "node_modules/pdfjs-dist/build/pdf.worker.mjs": {
-    "file": "assets/pdf.worker-BgryrOlp.mjs",
-    "src": "node_modules/pdfjs-dist/build/pdf.worker.mjs"
-  },
   "resources/js/app.js": {
-    "file": "assets/app-AbMAZ8Yy.js",
+    "file": "assets/app-DbJvfiKt.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -2759,11 +2754,11 @@
       "_rolldown-runtime-lhHHWwHU.js",
       "_framework-BTBNVTSV.js",
       "_charts-BAEm2xYT.js",
-      "_vendor-BtV2c1lZ.js",
+      "_vendor-DVs29foZ.js",
       "_utils-BWePKzUu.js"
     ],
     "css": [
-      "assets/app-Ckx69DPJ.css"
+      "assets/app-Cx0inIpt.css"
     ]
   }
 }

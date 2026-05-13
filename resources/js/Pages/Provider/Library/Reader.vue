@@ -13,10 +13,12 @@ import {
 } from '@heroicons/vue/24/outline';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import PdfJsWorker from 'pdfjs-dist/build/pdf.worker.mjs?worker&inline';
 import { renderSafeMarkdown } from '@/utils/markdown';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+if (!pdfjsLib.GlobalWorkerOptions.workerPort) {
+    pdfjsLib.GlobalWorkerOptions.workerPort = new PdfJsWorker();
+}
 
 const props = defineProps({
     item: { type: Object, required: true },
