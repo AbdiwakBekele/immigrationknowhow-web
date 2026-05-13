@@ -251,12 +251,12 @@ const actionHref = (item) => {
                 ></div>
                 <div class="absolute inset-0 bg-white/80" aria-hidden="true"></div>
 
-                <div class="relative mx-auto max-w-6xl px-4 py-14 text-center sm:px-6 lg:px-8">
+                <div class="relative mx-auto max-w-6xl px-4 py-9 text-center sm:px-6 lg:px-8">
                     <h1 class="font-display text-3xl font-bold text-neutral-950 sm:text-4xl">
                         {{ pageTitle }}
                     </h1>
 
-                    <form class="mx-auto mt-6 max-w-5xl" @submit.prevent="applyFilters">
+                    <form class="mx-auto mt-4 max-w-5xl" @submit.prevent="applyFilters">
                         <div class="mx-auto max-w-md">
                             <label for="library-search" class="sr-only">Search books</label>
                             <div class="relative">
@@ -274,7 +274,7 @@ const actionHref = (item) => {
                             </div>
                         </div>
 
-                        <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
                             <label class="sr-only" for="category-filter">Category</label>
                             <select
                                 id="category-filter"
@@ -371,7 +371,7 @@ const actionHref = (item) => {
                             </button>
                         </div>
 
-                        <div class="mt-5 flex justify-center">
+                        <div class="mt-4 flex justify-center">
                             <label class="group relative inline-flex items-center gap-2.5 rounded-2xl border border-neutral-200/90 bg-gradient-to-b from-white to-neutral-50/90 py-2.5 pl-3.5 pr-10 text-sm shadow-sm ring-1 ring-black/[0.03] transition hover:border-blue-200/80 hover:shadow-md">
                                 <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/80">
                                     <GlobeAltIcon class="h-4 w-4" aria-hidden="true" />
@@ -459,7 +459,7 @@ const actionHref = (item) => {
                     v-if="visibleItems.length"
                     :class="[
                         viewMode === 'grid'
-                            ? 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                            ? 'grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5'
                             : 'grid gap-4',
                     ]"
                 >
@@ -467,118 +467,197 @@ const actionHref = (item) => {
                         v-for="item in visibleItems"
                         :key="item.uuid"
                         :class="[
-                            'group overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+                            'group overflow-hidden border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md',
+                            viewMode === 'grid' ? 'flex flex-col rounded-xl' : 'rounded-lg',
                             viewMode === 'list' ? 'grid gap-4 p-4 sm:grid-cols-[10rem_1fr]' : '',
                         ]"
                     >
-                        <Link
-                            :href="item.has_access ? readUrl(item) : showUrl(item)"
-                            :class="[
-                                'relative block overflow-hidden bg-neutral-100',
-                                viewMode === 'list' ? 'h-40 rounded-lg sm:h-full sm:min-h-[10rem]' : 'h-40',
-                            ]"
-                        >
-                            <img
-                                v-if="item.cover_image_url"
-                                :src="item.cover_image_url"
-                                :alt="item.title"
-                                class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
-                            />
-                            <div v-else class="flex h-full w-full items-center justify-center bg-neutral-100">
-                                <DocumentTextIcon class="h-16 w-16 text-neutral-300" />
-                            </div>
-
-                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
-                                {{ itemCategory(item) }}
-                            </span>
-
-                            <span
-                                v-if="requiresPayment(item)"
-                                class="absolute bottom-2 left-2 rounded bg-white px-2 py-1 text-xs font-semibold text-neutral-800 shadow-sm"
+                        <template v-if="viewMode === 'grid'">
+                            <Link
+                                :href="item.has_access ? readUrl(item) : showUrl(item)"
+                                class="relative block aspect-square overflow-hidden bg-neutral-100"
                             >
-                                {{ formatPrice(item) }}
-                            </span>
-                        </Link>
-
-                        <div :class="viewMode === 'list' ? 'flex min-w-0 flex-col' : 'p-4'">
-                            <div class="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-neutral-500">
-                                <span>{{ itemFormat(item) }}</span>
-                                <button
-                                    type="button"
-                                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 text-neutral-400 transition hover:border-blue-200 hover:text-blue-700"
-                                    aria-label="Save for later"
+                                <img
+                                    v-if="item.cover_image_url"
+                                    :src="item.cover_image_url"
+                                    :alt="item.title"
+                                    class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+                                />
+                                <div
+                                    v-else
+                                    class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
                                 >
-                                    <BookmarkIcon class="h-4 w-4" />
-                                </button>
-                            </div>
-
-                            <Link :href="item.has_access ? readUrl(item) : showUrl(item)" class="block">
-                                <h2 class="line-clamp-2 text-base font-semibold leading-6 text-neutral-950 transition group-hover:text-blue-700">
-                                    {{ item.title }}
-                                </h2>
+                                    <BookOpenIcon v-if="item.type === 'ebook'" class="h-14 w-14 text-white/90" />
+                                    <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-14 w-14 text-white/90" />
+                                    <DocumentTextIcon v-else class="h-14 w-14 text-white/90" />
+                                </div>
+                                <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                                    {{ itemCategory(item) }}
+                                </span>
                             </Link>
 
-                            <p class="mt-1 text-sm text-neutral-500">
-                                by {{ itemCreator(item) }}
-                            </p>
+                            <div class="flex flex-1 flex-col p-3">
+                                <Link :href="item.has_access ? readUrl(item) : showUrl(item)" class="block">
+                                    <h2 class="line-clamp-2 text-sm font-semibold leading-5 text-neutral-950 transition group-hover:text-blue-700">
+                                        {{ item.title }}
+                                    </h2>
+                                </Link>
+                                <p class="mt-1 text-xs text-neutral-500">
+                                    {{ itemCreator(item) }}
+                                </p>
+                                <div class="mt-1.5 flex items-center gap-3 text-[11px] text-neutral-400">
+                                    <span>{{ itemFormat(item) }}</span>
+                                    <span>{{ itemYear(item) }}</span>
+                                </div>
 
-                            <p class="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
-                                {{ itemDescription(item) }}
-                            </p>
+                                <div class="mt-auto flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+                                    <span class="text-sm font-bold" :class="requiresPayment(item) ? 'text-neutral-900' : 'text-emerald-600'">
+                                        {{ formatPrice(item) }}
+                                    </span>
 
-                            <div class="mt-5 flex items-center gap-5 text-xs text-neutral-500">
-                                <span class="inline-flex items-center gap-1.5">
-                                    <DocumentTextIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemMeta(item) }}
-                                </span>
-                                <span class="inline-flex items-center gap-1.5">
-                                    <CalendarDaysIcon class="h-4 w-4 text-neutral-400" />
-                                    {{ itemYear(item) }}
-                                </span>
+                                    <Link
+                                        v-if="isAuthenticated && !item.has_access && !requiresPayment(item)"
+                                        :href="freePurchaseUrl(item)"
+                                        method="post"
+                                        as="button"
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <BookOpenIcon class="h-3.5 w-3.5" />
+                                        {{ actionLabel(item) }}
+                                    </Link>
+                                    <Link
+                                        v-else-if="isAuthenticated && !item.has_access && requiresPayment(item)"
+                                        :href="route('library.cart.add', { item: item.slug })"
+                                        method="post"
+                                        as="button"
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <ShoppingCartIcon class="h-3.5 w-3.5" />
+                                        Add to cart
+                                    </Link>
+                                    <a
+                                        v-else
+                                        :href="actionHref(item)"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <ShoppingCartIcon v-if="requiresPayment(item) && !item.has_access" class="h-3.5 w-3.5" />
+                                        <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-3.5 w-3.5" />
+                                        <BookOpenIcon v-else class="h-3.5 w-3.5" />
+                                        {{ item.has_access ? (item.type === 'audiobook' ? 'Listen' : 'Read') : actionLabel(item) }}
+                                    </a>
+                                </div>
                             </div>
+                        </template>
 
-                            <div class="mt-5 flex items-center gap-3">
-                                <Link
-                                    v-if="isAuthenticated && !item.has_access && !requiresPayment(item)"
-                                    :href="freePurchaseUrl(item)"
-                                    method="post"
-                                    as="button"
-                                    type="button"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                                >
-                                    <BookOpenIcon class="h-4 w-4" />
-                                    {{ actionLabel(item) }}
-                                </Link>
-                                <Link
-                                    v-else-if="isAuthenticated && !item.has_access && requiresPayment(item)"
-                                    :href="route('library.cart.add', { item: item.slug })"
-                                    method="post"
-                                    as="button"
-                                    type="button"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                                >
-                                    <ShoppingCartIcon class="h-4 w-4" />
-                                    {{ actionLabel(item) }}
-                                </Link>
-                                <a
-                                    v-else
-                                    :href="actionHref(item)"
-                                    class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-                                >
-                                    <ShoppingCartIcon v-if="requiresPayment(item) && !item.has_access" class="h-4 w-4" />
-                                    <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-4 w-4" />
-                                    <BookOpenIcon v-else class="h-4 w-4" />
-                                    {{ actionLabel(item) }}
-                                </a>
+                        <template v-else>
+                            <Link
+                                :href="item.has_access ? readUrl(item) : showUrl(item)"
+                                class="relative block h-40 overflow-hidden rounded-lg bg-neutral-100 sm:h-full sm:min-h-[10rem]"
+                            >
+                                <img
+                                    v-if="item.cover_image_url"
+                                    :src="item.cover_image_url"
+                                    :alt="item.title"
+                                    class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+                                />
+                                <div v-else class="flex h-full w-full items-center justify-center bg-neutral-100">
+                                    <DocumentTextIcon class="h-16 w-16 text-neutral-300" />
+                                </div>
 
-                                <Link
-                                    :href="showUrl(item)"
-                                    class="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-200 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-1 text-xs font-semibold text-white">
+                                    {{ itemCategory(item) }}
+                                </span>
+
+                                <span
+                                    v-if="requiresPayment(item)"
+                                    class="absolute bottom-2 left-2 rounded bg-white px-2 py-1 text-xs font-semibold text-neutral-800 shadow-sm"
                                 >
-                                    Details
+                                    {{ formatPrice(item) }}
+                                </span>
+                            </Link>
+
+                            <div class="flex min-w-0 flex-col">
+                                <div class="mb-2 flex items-center justify-between gap-3 text-xs font-medium text-neutral-500">
+                                    <span>{{ itemFormat(item) }}</span>
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 text-neutral-400 transition hover:border-blue-200 hover:text-blue-700"
+                                        aria-label="Save for later"
+                                    >
+                                        <BookmarkIcon class="h-4 w-4" />
+                                    </button>
+                                </div>
+
+                                <Link :href="item.has_access ? readUrl(item) : showUrl(item)" class="block">
+                                    <h2 class="line-clamp-2 text-base font-semibold leading-6 text-neutral-950 transition group-hover:text-blue-700">
+                                        {{ item.title }}
+                                    </h2>
                                 </Link>
+
+                                <p class="mt-1 text-sm text-neutral-500">
+                                    by {{ itemCreator(item) }}
+                                </p>
+
+                                <p class="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
+                                    {{ itemDescription(item) }}
+                                </p>
+
+                                <div class="mt-5 flex items-center gap-5 text-xs text-neutral-500">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <DocumentTextIcon class="h-4 w-4 text-neutral-400" />
+                                        {{ itemMeta(item) }}
+                                    </span>
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <CalendarDaysIcon class="h-4 w-4 text-neutral-400" />
+                                        {{ itemYear(item) }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-5 flex items-center gap-3">
+                                    <Link
+                                        v-if="isAuthenticated && !item.has_access && !requiresPayment(item)"
+                                        :href="freePurchaseUrl(item)"
+                                        method="post"
+                                        as="button"
+                                        type="button"
+                                        class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <BookOpenIcon class="h-4 w-4" />
+                                        {{ actionLabel(item) }}
+                                    </Link>
+                                    <Link
+                                        v-else-if="isAuthenticated && !item.has_access && requiresPayment(item)"
+                                        :href="route('library.cart.add', { item: item.slug })"
+                                        method="post"
+                                        as="button"
+                                        type="button"
+                                        class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <ShoppingCartIcon class="h-4 w-4" />
+                                        {{ actionLabel(item) }}
+                                    </Link>
+                                    <a
+                                        v-else
+                                        :href="actionHref(item)"
+                                        class="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                                    >
+                                        <ShoppingCartIcon v-if="requiresPayment(item) && !item.has_access" class="h-4 w-4" />
+                                        <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-4 w-4" />
+                                        <BookOpenIcon v-else class="h-4 w-4" />
+                                        {{ actionLabel(item) }}
+                                    </a>
+
+                                    <Link
+                                        :href="showUrl(item)"
+                                        class="inline-flex min-h-10 items-center justify-center rounded-lg border border-neutral-200 px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                    >
+                                        Details
+                                    </Link>
+                                </div>
                             </div>
-                        </div>
+                        </template>
                     </article>
                 </div>
 

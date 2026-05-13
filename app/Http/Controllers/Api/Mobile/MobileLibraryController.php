@@ -544,7 +544,15 @@ class MobileLibraryController extends Controller
             'item_id' => $item->id,
         ], now()->addMinutes(20));
 
-        $base = rtrim($request->getSchemeAndHttpHost(), '/').'/api/mobile/library/stream/'.$token;
+        $forwardedProto = strtolower(trim(explode(',', (string) $request->header('X-Forwarded-Proto'))[0] ?? ''));
+        $forwardedSsl = strtolower((string) $request->header('X-Forwarded-Ssl'));
+        $configuredScheme = strtolower((string) parse_url((string) config('app.url'), PHP_URL_SCHEME));
+        $scheme = $request->getScheme();
+        if ($forwardedProto === 'https' || $forwardedSsl === 'on' || $configuredScheme === 'https') {
+            $scheme = 'https';
+        }
+
+        $base = $scheme.'://'.$request->getHttpHost().'/api/mobile/library/stream/'.$token;
 
         $urls = [];
         if ($item->type === 'ebook') {

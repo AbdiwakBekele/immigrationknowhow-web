@@ -177,14 +177,14 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
             <section v-if="activeTab === 'available'">
                 <div
                     v-if="availableItems?.data?.length"
-                    class="grid grid-cols-2 gap-4"
+                    class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
                 >
                     <article
                         v-for="item in availableItems.data"
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="showUrl(item)" class="relative block aspect-[3/4] overflow-hidden bg-neutral-100">
+                        <Link :href="showUrl(item)" class="relative block aspect-square overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
@@ -276,14 +276,14 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
             <section v-if="activeTab === 'purchased'">
                 <div
                     v-if="purchasedItems?.data?.length"
-                    class="grid grid-cols-2 gap-4"
+                    class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
                 >
                     <article
                         v-for="item in purchasedItems.data"
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="readUrl(item)" class="relative block aspect-[3/4] overflow-hidden bg-neutral-100">
+                        <Link :href="readUrl(item)" class="relative block aspect-square overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
