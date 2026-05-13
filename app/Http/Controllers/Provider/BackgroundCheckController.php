@@ -104,18 +104,11 @@ class BackgroundCheckController extends Controller
             'phone' => ['required', 'string', 'max:20'],
             'zipcode' => ['required', 'string', 'max:10'],
             'dob' => ['required', 'date', 'before:' . now()->subYears(18)->toDateString()],
-            'ssn' => ['required', 'string', 'regex:/^\d{3}-?\d{2}-?\d{4}$/'],
-            'driver_license_number' => ['nullable', 'string', 'max:50'],
-            'driver_license_state' => ['nullable', 'required_with:driver_license_number', 'string', 'max:2'],
             'consent' => ['required', 'accepted'],
         ], [
             'dob.before' => 'You must be at least 18 years old.',
-            'ssn.regex' => 'Please enter a valid SSN (XXX-XX-XXXX or XXXXXXXXX).',
             'consent.accepted' => 'You must consent to the background check.',
         ]);
-
-        // Format SSN (remove dashes if present)
-        $validated['ssn'] = str_replace('-', '', $validated['ssn']);
 
         try {
             $backgroundCheck = $this->checkrService->initiateBackgroundCheck($provider, $validated);
