@@ -686,7 +686,7 @@ const actionHref = (item) => {
                         <Link
                             v-for="link in items.links"
                             :key="link.label"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             :class="[
                                 'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
                                 link.active

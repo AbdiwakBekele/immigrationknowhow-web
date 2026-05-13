@@ -357,7 +357,7 @@ watch(() => form.sort, () => {
                     <template v-for="link in providers.links" :key="link.label">
                         <Link
                             v-if="link.url"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             :class="[
                                 'rounded-xl px-4 py-2 text-sm transition-colors',
                                 link.active

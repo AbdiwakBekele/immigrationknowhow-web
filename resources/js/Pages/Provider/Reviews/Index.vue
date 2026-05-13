@@ -382,7 +382,7 @@ const ratingDistribution = computed(() => {
                             <Link 
                                 v-for="link in reviews.links" 
                                 :key="link.label"
-                                :href="link.url"
+                                :href="link.url || '#'"
                                 class="px-3 py-2 text-sm rounded-lg"
                                 :class="link.active ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'"
                                 v-html="link.label"

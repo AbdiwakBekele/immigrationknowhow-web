@@ -255,7 +255,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         <template v-for="link in availableItems.links" :key="`available-${link.label}`">
                             <Link
                                 v-if="link.url"
-                                :href="link.url"
+                                :href="link.url || '#'"
                                 :class="[
                                     'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
                                     link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
@@ -354,7 +354,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         <template v-for="link in purchasedItems.links" :key="`purchased-${link.label}`">
                             <Link
                                 v-if="link.url"
-                                :href="link.url"
+                                :href="link.url || '#'"
                                 :class="[
                                     'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
                                     link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',

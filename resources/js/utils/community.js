@@ -39,3 +39,43 @@ export function communityPostShareUrl(id) {
     }
     return `${window.location.origin}${communityPostPath(id)}`;
 }
+
+export async function copyTextToClipboard(text) {
+    const value = String(text ?? '');
+    if (!value) {
+        return false;
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch {
+            // Fall through to the legacy copy path.
+        }
+    }
+
+    if (typeof document === 'undefined') {
+        return false;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch {
+        copied = false;
+    }
+
+    document.body.removeChild(textarea);
+    return copied;
+}

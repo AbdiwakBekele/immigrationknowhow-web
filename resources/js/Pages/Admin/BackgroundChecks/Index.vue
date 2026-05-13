@@ -225,7 +225,7 @@ const getStatusClasses = (status) => {
                         <Link
                             v-for="link in backgroundChecks.links"
                             :key="link.label"
-                            :href="link.url"
+                            :href="link.url || '#'"
                             :class="[
                                 'rounded-lg px-3 py-1 text-sm',
                                 link.active ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200',

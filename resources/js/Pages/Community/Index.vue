@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import CommunityShareButtons from '@/Components/community/CommunityShareButtons.vue';
 import { getCommunityGuestKey, communityPostPath, communityPostShareUrl } from '@/utils/community';
 import { debounce } from 'lodash-es';
 import {
@@ -12,7 +13,6 @@ import {
     BriefcaseIcon,
     ChatBubbleBottomCenterTextIcon,
     ChatBubbleLeftRightIcon,
-    GlobeAltIcon,
     HeartIcon,
     HomeIcon,
     MegaphoneIcon,
@@ -369,30 +369,8 @@ function onShare(post) {
     shareModalPost.value = post;
 }
 
-async function onCopyShareLink() {
+function recordShareAction() {
     if (!shareModalPost.value) return;
-    const shareUrl = communityPostShareUrl(shareModalPost.value.id);
-    await navigator.clipboard.writeText(shareUrl);
-    try {
-        await reactToPost(shareModalPost.value.id, 'share');
-    } catch {
-        // ignore
-    }
-}
-
-function openShareTarget(type) {
-    if (!shareModalPost.value) return;
-    const shareUrl = communityPostShareUrl(shareModalPost.value.id);
-    const encodedUrl = encodeURIComponent(shareUrl);
-    const encodedTitle = encodeURIComponent(shareModalPost.value.title);
-    const targets = {
-        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-        x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
-        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-        whatsapp: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
-        email: `mailto:?subject=${encodedTitle}&body=${encodedUrl}`,
-    };
-    window.open(targets[type], '_blank', 'noopener,noreferrer');
     reactToPost(shareModalPost.value.id, 'share').catch(() => undefined);
 }
 
@@ -726,16 +704,12 @@ onMounted(() => {
                             Close
                         </button>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#1d4ed8] hover:bg-blue-50" @click="openShareTarget('facebook')">f</button>
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#0f172a] hover:bg-slate-50" @click="openShareTarget('x')">X</button>
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#0a66c2] hover:bg-blue-50" @click="openShareTarget('linkedin')">in</button>
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#16a34a] hover:bg-emerald-50" @click="openShareTarget('whatsapp')">wa</button>
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#334155] hover:bg-slate-50" @click="openShareTarget('email')">@</button>
-                        <button type="button" class="inline-flex items-center justify-center rounded-xl border border-[#d7e0ee] px-3 py-2 text-sm font-semibold text-[#334155] hover:bg-slate-50" @click="onCopyShareLink">
-                            <GlobeAltIcon class="h-4 w-4" />
-                        </button>
-                    </div>
+                    <CommunityShareButtons
+                        v-if="shareModalPost"
+                        :post-id="shareModalPost.id"
+                        :post-title="shareModalPost.title"
+                        @shared="recordShareAction"
+                    />
                     <div class="mt-3 flex justify-end">
                         <button type="button" class="rounded-full bg-[#1d4ed8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1e40af]" @click="onNativeShare">More Options</button>
                     </div>

@@ -57,7 +57,7 @@ const submit = () => {
 
             <div class="mt-3 flex flex-wrap items-center gap-3">
                 <Link
-                    :href="authenticatedUser.continueUrl"
+                    :href="authenticatedUser.continueUrl || route('dashboard')"
                     class="inline-flex items-center rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700"
                 >
                     Continue to your account

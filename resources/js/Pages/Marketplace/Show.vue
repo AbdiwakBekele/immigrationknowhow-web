@@ -725,7 +725,7 @@ const socialLinks = computed(() => {
                                     <a
                                         v-for="link in socialLinks"
                                         :key="link.key"
-                                        :href="link.url"
+                                        :href="link.url || '#'"
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         class="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
