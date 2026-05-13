@@ -110,7 +110,7 @@ const seekerUserNavigation = computed(() => {
         { name: 'Messages', href: '/messages', icon: ChatBubbleLeftRightIcon },
         { name: 'My Ads', href: route('user.ads.index'), icon: MegaphoneIcon },
         { name: 'Ad Analytics', href: route('user.ads.analytics'), icon: ChartBarIcon },
-        { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
+        { name: 'My Library', href: route('library.my'), icon: BookOpenIcon },
         { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
         { name: 'Reviews', href: route('reviews.index'), icon: StarIcon },
         { name: 'AI Assistant', href: route('user.ai-assistant.index'), icon: SparklesIcon },
@@ -199,8 +199,7 @@ const logout = () => {
     router.post('/logout');
 };
 
-const isActive = (href) => {
-    const path = page.url.split('?')[0] ?? '';
+const normalizePathname = (href) => {
     let target = typeof href === 'string' ? href : '';
     if (target.startsWith('http://') || target.startsWith('https://')) {
         try {
@@ -209,6 +208,12 @@ const isActive = (href) => {
             /* keep target as-is */
         }
     }
+    return target;
+};
+
+const isActive = (href) => {
+    const path = page.url.split('?')[0] ?? '';
+    const target = normalizePathname(href);
     if (path === target) {
         return true;
     }
@@ -218,7 +223,7 @@ const isActive = (href) => {
     // If a more specific sidebar route matches, don't keep the parent highlighted.
     // Example: /ads should not stay active on /ads/analytics.
     const hasMoreSpecificMatch = userNavigation.value.some((item) => {
-        const candidate = typeof item.href === 'string' ? item.href : '';
+        const candidate = normalizePathname(item.href);
         if (!candidate || candidate === target) {
             return false;
         }
@@ -229,6 +234,9 @@ const isActive = (href) => {
     });
     if (hasMoreSpecificMatch) {
         return false;
+    }
+    if (target === '/library/my') {
+        return path === '/library/my' || /^\/library\/[^/]+(?:\/.*)?$/.test(path);
     }
     // "Library" links to /library but cart/checkout live under /library/cart, /library/purchase/… — don't highlight Library there.
     if (target === '/library') {
@@ -339,11 +347,11 @@ const userAvatarInitial = computed(() => {
                         :href="item.href"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition-all duration-150 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        class="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium text-slate-600 transition-all duration-150 hover:bg-slate-50 hover:text-slate-900"
                         @click="sidebarOpen = false"
                     >
-                        <span class="relative inline-flex rounded-lg bg-slate-100 p-1.5 text-slate-600 transition-colors group-hover:bg-sky-50 group-hover:text-sky-700">
-                            <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                        <span class="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600 transition-colors group-hover:bg-blue-50 group-hover:text-blue-700">
+                            <component :is="item.icon" class="h-5 w-5" />
                         </span>
                         <span class="min-w-0 flex-1 truncate">{{ item.name }}</span>
                     </a>
@@ -358,22 +366,22 @@ const userAvatarInitial = computed(() => {
                                   : item.name
                         "
                         :class="[
-                            'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                            'group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium transition-all duration-150',
                             isActive(item.href)
-                                ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/20'
-                                : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
+                                ? 'bg-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.65)]'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                         ]"
                         @click="sidebarOpen = false"
                     >
                         <span
                             :class="[
-                                'relative inline-flex rounded-lg p-1.5 transition-colors',
+                                'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-colors',
                                 isActive(item.href)
                                     ? 'bg-white/20 text-white'
-                                    : 'bg-slate-100 text-slate-600 group-hover:bg-sky-50 group-hover:text-sky-700',
+                                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-700',
                             ]"
                         >
-                            <component :is="item.icon" class="h-[18px] w-[18px] flex-shrink-0" />
+                            <component :is="item.icon" class="h-5 w-5" />
                             <span
                                 v-if="item.name === 'Messages' && unreadMessages > 0"
                                 class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
@@ -382,7 +390,7 @@ const userAvatarInitial = computed(() => {
                             </span>
                             <span
                                 v-if="item.name === 'Cart' && libraryCartCount > 0"
-                                class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
+                                class="absolute -right-1 -top-1 z-10 flex min-h-4 min-w-[1.1rem] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-bold leading-none text-white shadow-sm ring-2 ring-white tabular-nums"
                             >
                                 {{ cartCountLabel }}
                             </span>
@@ -479,10 +487,10 @@ const userAvatarInitial = computed(() => {
                             </span>
                         </Link>
                         <Link
-                            href="/library"
+                            :href="hasSeekerPortal ? route('library.my') : route('library.index')"
                             class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            title="Library"
-                            aria-label="Library"
+                            :title="hasSeekerPortal ? 'My Library' : 'Library'"
+                            :aria-label="hasSeekerPortal ? 'My Library' : 'Library'"
                         >
                             <BookOpenIcon class="h-6 w-6" />
                         </Link>
