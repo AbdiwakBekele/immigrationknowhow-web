@@ -3,19 +3,19 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import {
+    AdjustmentsHorizontalIcon,
     BookOpenIcon,
     BookmarkIcon,
     CalendarDaysIcon,
     DocumentTextIcon,
-    GlobeAltIcon,
-    ChevronDownIcon,
     ListBulletIcon,
     MagnifyingGlassIcon,
     MusicalNoteIcon,
     ShoppingCartIcon,
     Squares2X2Icon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     items: { type: Object, required: true },
@@ -30,6 +30,7 @@ const props = defineProps({
 
 const page = usePage();
 const viewMode = ref('grid');
+const showFilterModal = ref(false);
 
 const search = ref(props.filters?.search || '');
 const selectedCategory = ref(props.filters?.category || '');
@@ -37,19 +38,8 @@ const selectedRegion = ref(props.filters?.region || '');
 const selectedAuthor = ref(props.filters?.author || '');
 const selectedType = ref(props.filters?.type || '');
 const selectedAccess = ref(props.filters?.access || '');
+const favoritesOnly = ref(props.filters?.favorites === 'true');
 const selectedSort = ref(props.filters?.sort || 'newest');
-const localeOptions = [
-    { value: 'en', label: 'English' },
-    { value: 'fr', label: 'French' },
-    { value: 'es', label: 'Spanish' },
-];
-const localeCodes = localeOptions.map((option) => option.value);
-const normalizeLocale = (value) => {
-    const locale = typeof value === 'string' ? value.trim() : '';
-
-    return localeCodes.includes(locale) ? locale : 'en';
-};
-const locale = ref(normalizeLocale(page.props.locale));
 
 const user = computed(() => page.props.auth?.user ?? null);
 const isAuthenticated = computed(() => Boolean(user.value));
@@ -65,12 +55,6 @@ const storefrontRoute = computed(() => {
 
     return 'library.index';
 });
-
-const pageTitle = computed(() => (
-    props.forcedType === 'audiobook'
-        ? 'Explore Our Audio Collection'
-        : 'Explore Our Book Collection'
-));
 
 const visibleItems = computed(() => props.items?.data ?? []);
 const resultTotal = computed(() => Number(props.items?.total ?? visibleItems.value.length) || 0);
@@ -88,21 +72,20 @@ const hasActiveFilters = computed(() => Boolean(
     || selectedAuthor.value
     || selectedType.value
     || selectedAccess.value
+    || favoritesOnly.value
     || (selectedSort.value && selectedSort.value !== 'newest')
 ));
-
-watch(
-    () => page.props.locale,
-    (value) => {
-        locale.value = normalizeLocale(value);
-    },
-);
-
-const updateLocale = () => {
-    router.post(route('locale.update'), { locale: locale.value }, {
-        preserveScroll: true,
-    });
-};
+const activeModalFilterCount = computed(() => {
+    let count = 0;
+    if (selectedCategory.value) count += 1;
+    if (selectedRegion.value) count += 1;
+    if (selectedAuthor.value) count += 1;
+    if (!props.forcedType && selectedType.value) count += 1;
+    if (selectedAccess.value) count += 1;
+    if (favoritesOnly.value) count += 1;
+    if (selectedSort.value && selectedSort.value !== 'newest') count += 1;
+    return count;
+});
 
 const applyFilters = () => {
     router.get(route(storefrontRoute.value), {
@@ -112,11 +95,17 @@ const applyFilters = () => {
         author: selectedAuthor.value || undefined,
         type: props.forcedType ? undefined : (selectedType.value || undefined),
         access: selectedAccess.value || undefined,
+        favorites: favoritesOnly.value ? 'true' : undefined,
         sort: selectedSort.value || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+const submitFilters = () => {
+    showFilterModal.value = false;
+    applyFilters();
 };
 
 const resetFilters = () => {
@@ -126,12 +115,23 @@ const resetFilters = () => {
     selectedAuthor.value = '';
     selectedType.value = '';
     selectedAccess.value = '';
+    favoritesOnly.value = false;
     selectedSort.value = 'newest';
 
     router.get(route(storefrontRoute.value), {}, {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+const resetModalFilters = () => {
+    selectedCategory.value = '';
+    selectedRegion.value = '';
+    selectedAuthor.value = '';
+    selectedType.value = '';
+    selectedAccess.value = '';
+    favoritesOnly.value = false;
+    selectedSort.value = 'newest';
 };
 
 const requiresPayment = (item) => Boolean(item?.is_premium) || Number(item?.price || 0) > 0;
@@ -243,161 +243,239 @@ const actionHref = (item) => {
 
     <AppLayout>
         <div class="min-h-full space-y-6 text-neutral-950 lg:space-y-8">
-                    <section class="relative overflow-hidden rounded-xl border border-neutral-200 bg-neutral-100 sm:rounded-2xl">
-                <div
-                    class="absolute inset-0 bg-cover bg-center opacity-20"
-                    style="background-image: url('/images/airportcrowd.jpg')"
-                    aria-hidden="true"
-                ></div>
-                <div class="absolute inset-0 bg-white/80" aria-hidden="true"></div>
+            <section class="rounded-2xl border border-neutral-200 bg-white px-4 py-5 shadow-sm sm:px-6">
+                <div class="flex flex-col gap-4 border-b border-neutral-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Filters</p>
+                        <h1 class="mt-1 text-xl font-semibold text-neutral-950">
+                            {{ props.forcedType === 'audiobook' ? 'Audiobook Library' : props.forcedType === 'ebook' ? 'eBook Library' : 'Library' }}
+                        </h1>
+                        <p class="mt-1 text-sm text-neutral-600">
+                            Search and narrow titles by category, author, country, format, and access.
+                        </p>
+                    </div>
 
-                <div class="relative mx-auto max-w-6xl px-4 py-9 text-center sm:px-6 lg:px-8">
-                    <h1 class="font-display text-3xl font-bold text-neutral-950 sm:text-4xl">
-                        {{ pageTitle }}
-                    </h1>
-
-                    <form class="mx-auto mt-4 max-w-5xl" @submit.prevent="applyFilters">
-                        <div class="mx-auto max-w-md">
-                            <label for="library-search" class="sr-only">Search books</label>
-                            <div class="relative">
-                                <MagnifyingGlassIcon
-                                    class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
-                                    aria-hidden="true"
-                                />
-                                <input
-                                    id="library-search"
-                                    v-model="search"
-                                    type="search"
-                                    placeholder="Search by title, author, or keyword..."
-                                    class="h-10 w-full rounded-lg border border-neutral-200 bg-white pl-10 pr-3 text-sm text-neutral-900 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]">
-                            <label class="sr-only" for="category-filter">Category</label>
-                            <select
-                                id="category-filter"
-                                v-model="selectedCategory"
-                                class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            >
-                                <option value="">All Categories</option>
-                                <option v-for="category in categories" :key="category.slug" :value="category.slug">
-                                    {{ category.name }}
-                                </option>
-                            </select>
-
-                            <label class="sr-only" for="region-filter">Country</label>
-                            <select
-                                id="region-filter"
-                                v-model="selectedRegion"
-                                class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            >
-                                <option value="">All Countries</option>
-                                <option v-for="region in regions" :key="region.value" :value="region.value">
-                                    {{ region.label }}
-                                </option>
-                            </select>
-
-                            <label class="sr-only" for="author-filter">Author</label>
-                            <select
-                                id="author-filter"
-                                v-model="selectedAuthor"
-                                class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            >
-                                <option value="">All Authors</option>
-                                <option v-for="author in authors" :key="author.slug" :value="author.slug">
-                                    {{ author.name }}
-                                </option>
-                            </select>
-
-                            <template v-if="!props.forcedType">
-                                <label class="sr-only" for="type-filter">Format</label>
-                                <select
-                                    id="type-filter"
-                                    v-model="selectedType"
-                                    class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                >
-                                    <option value="">All Formats</option>
-                                    <option v-for="typeOption in types" :key="typeOption.value" :value="typeOption.value">
-                                        {{ typeOption.label }}
-                                    </option>
-                                </select>
-                            </template>
-                            <template v-else>
-                                <label class="sr-only" for="sort-filter">Sort</label>
-                                <select
-                                    id="sort-filter"
-                                    v-model="selectedSort"
-                                    class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                >
-                                    <option value="newest">Newest First</option>
-                                    <option value="featured">Featured</option>
-                                    <option value="popular">Popular</option>
-                                    <option value="best_sellers">Best Sellers</option>
-                                    <option value="title">Title</option>
-                                    <option value="price_low">Price: Low to High</option>
-                                    <option value="price_high">Price: High to Low</option>
-                                </select>
-                            </template>
-
-                            <select
-                                v-if="!props.forcedType"
-                                v-model="selectedSort"
-                                class="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                            >
-                                <option value="newest">Newest First</option>
-                                <option value="featured">Featured</option>
-                                <option value="popular">Popular</option>
-                                <option value="best_sellers">Best Sellers</option>
-                                <option value="title">Title</option>
-                                <option value="price_low">Price: Low to High</option>
-                                <option value="price_high">Price: High to Low</option>
-                            </select>
-
-                            <button
-                                type="submit"
-                                class="h-10 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                            >
-                                Apply Filters
-                            </button>
-
-                            <button
-                                type="button"
-                                class="h-10 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
-                                @click="resetFilters"
-                            >
-                                Reset
-                            </button>
-                        </div>
-
-                        <div class="mt-4 flex justify-center">
-                            <label class="group relative inline-flex items-center gap-2.5 rounded-2xl border border-neutral-200/90 bg-gradient-to-b from-white to-neutral-50/90 py-2.5 pl-3.5 pr-10 text-sm shadow-sm ring-1 ring-black/[0.03] transition hover:border-blue-200/80 hover:shadow-md">
-                                <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-100/80">
-                                    <GlobeAltIcon class="h-4 w-4" aria-hidden="true" />
-                                </span>
-                                <span class="flex min-w-0 flex-col text-left">
-                                    <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-400">Interface language</span>
-                                    <select
-                                        v-model="locale"
-                                        class="min-w-0 max-w-[14rem] cursor-pointer appearance-none border-0 bg-transparent py-0 pl-0 pr-1 text-sm font-semibold leading-tight text-neutral-900 outline-none focus:ring-0"
-                                        @change="updateLocale"
-                                    >
-                                        <option
-                                            v-for="option in localeOptions"
-                                            :key="option.value"
-                                            :value="option.value"
-                                        >
-                                            {{ option.value.toUpperCase() }} — {{ option.label }}
-                                        </option>
-                                    </select>
-                                </span>
-                                <ChevronDownIcon class="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
-                            </label>
-                        </div>
-                    </form>
                 </div>
+
+                <form class="mt-5" @submit.prevent="applyFilters">
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <div class="relative flex-1">
+                            <MagnifyingGlassIcon
+                                class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                                aria-hidden="true"
+                            />
+                            <input
+                                id="library-search"
+                                v-model="search"
+                                type="search"
+                                placeholder="Search by title, author, or keyword..."
+                                class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-900 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                            @click="showFilterModal = true"
+                        >
+                            <AdjustmentsHorizontalIcon class="h-4 w-4" />
+                            Filters
+                            <span
+                                v-if="activeModalFilterCount > 0"
+                                class="inline-flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[11px] font-bold text-white"
+                            >
+                                {{ activeModalFilterCount }}
+                            </span>
+                        </button>
+                    </div>
+
+                    <p v-if="activeModalFilterCount > 0" class="mt-3 text-xs font-medium text-neutral-500">
+                        {{ activeModalFilterCount }} filter{{ activeModalFilterCount === 1 ? '' : 's' }} selected.
+                    </p>
+                </form>
             </section>
+
+            <div
+                v-if="showFilterModal"
+                class="fixed inset-0 z-50 overflow-y-auto"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="min-h-full px-4 py-6 sm:px-6">
+                    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="showFilterModal = false"></div>
+
+                    <div class="relative mx-auto max-w-3xl">
+                        <div class="overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between border-b border-neutral-100 px-5 py-4 sm:px-6">
+                                <div>
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-400">Library Filters</p>
+                                    <h2 class="mt-1 text-xl font-semibold text-neutral-950">Refine your results</h2>
+                                    <p class="mt-1 text-sm text-neutral-600">
+                                        Choose filters, then apply them to update the library results.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    class="inline-flex h-10 w-10 items-center justify-center rounded-xl text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800"
+                                    aria-label="Close filters"
+                                    @click="showFilterModal = false"
+                                >
+                                    <XMarkIcon class="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <form class="space-y-5 px-5 py-5 sm:px-6" @submit.prevent="submitFilters">
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="space-y-1.5">
+                                        <label for="category-filter" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Category</label>
+                                        <select
+                                            id="category-filter"
+                                            v-model="selectedCategory"
+                                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <option value="">All Categories</option>
+                                            <option v-for="category in categories" :key="category.slug" :value="category.slug">
+                                                {{ category.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <label for="region-filter" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Country</label>
+                                        <select
+                                            id="region-filter"
+                                            v-model="selectedRegion"
+                                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <option value="">All Countries</option>
+                                            <option v-for="region in regions" :key="region.value" :value="region.value">
+                                                {{ region.label }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <label for="author-filter" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Author</label>
+                                        <select
+                                            id="author-filter"
+                                            v-model="selectedAuthor"
+                                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <option value="">All Authors</option>
+                                            <option v-for="author in authors" :key="author.slug" :value="author.slug">
+                                                {{ author.name }}
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <label :for="props.forcedType ? 'sort-filter' : 'type-filter'" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                            {{ props.forcedType ? 'Sort' : 'Format' }}
+                                        </label>
+                                        <template v-if="!props.forcedType">
+                                            <select
+                                                id="type-filter"
+                                                v-model="selectedType"
+                                                class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            >
+                                                <option value="">All Formats</option>
+                                                <option v-for="typeOption in types" :key="typeOption.value" :value="typeOption.value">
+                                                    {{ typeOption.label }}
+                                                </option>
+                                            </select>
+                                        </template>
+                                        <template v-else>
+                                            <select
+                                                id="sort-filter"
+                                                v-model="selectedSort"
+                                                class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                            >
+                                                <option value="newest">Newest First</option>
+                                                <option value="featured">Featured</option>
+                                                <option value="popular">Popular</option>
+                                                <option value="best_sellers">Best Sellers</option>
+                                                <option value="title">Title</option>
+                                                <option value="price_low">Price: Low to High</option>
+                                                <option value="price_high">Price: High to Low</option>
+                                            </select>
+                                        </template>
+                                    </div>
+
+                                    <div class="space-y-1.5">
+                                        <label for="access-filter" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Access</label>
+                                        <select
+                                            id="access-filter"
+                                            v-model="selectedAccess"
+                                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <option value="">All Items</option>
+                                            <option value="free">Free</option>
+                                            <option value="paid">Paid</option>
+                                        </select>
+                                    </div>
+
+                                    <div v-if="!props.forcedType" class="space-y-1.5">
+                                        <label for="sort-all-filter" class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Sort</label>
+                                        <select
+                                            id="sort-all-filter"
+                                            v-model="selectedSort"
+                                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-sm text-neutral-700 shadow-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                                        >
+                                            <option value="newest">Newest First</option>
+                                            <option value="featured">Featured</option>
+                                            <option value="popular">Popular</option>
+                                            <option value="best_sellers">Best Sellers</option>
+                                            <option value="title">Title</option>
+                                            <option value="price_low">Price: Low to High</option>
+                                            <option value="price_high">Price: High to Low</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div v-if="isAuthenticated" class="rounded-2xl border border-neutral-100 bg-neutral-50/80 p-4">
+                                    <button
+                                        type="button"
+                                        :class="[
+                                            'inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition',
+                                            favoritesOnly
+                                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
+                                        ]"
+                                        @click="favoritesOnly = !favoritesOnly"
+                                    >
+                                        <BookmarkIcon class="h-4 w-4" />
+                                        Favorites only
+                                    </button>
+                                </div>
+
+                                <div class="flex flex-col gap-3 border-t border-neutral-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-11 items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
+                                        @click="resetModalFilters"
+                                    >
+                                        Clear filters
+                                    </button>
+
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                        <p v-if="activeModalFilterCount > 0" class="text-xs font-medium text-neutral-500">
+                                            {{ activeModalFilterCount }} filter{{ activeModalFilterCount === 1 ? '' : 's' }} selected
+                                        </p>
+
+                                        <button
+                                            type="submit"
+                                            class="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        >
+                                            Apply Filters
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <section class="rounded-2xl border border-slate-200/80 bg-white px-4 py-8 shadow-sm sm:px-6 sm:py-10">
                 <div

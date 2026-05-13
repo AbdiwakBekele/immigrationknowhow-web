@@ -1021,7 +1021,7 @@ const initialFor = (...values) => {
                                         <h2 class="text-lg font-semibold text-slate-950">Digital Products</h2>
                                         <p class="mt-1 text-sm text-slate-500">Ebooks and audio products you purchased.</p>
                                     </div>
-                                    <Link :href="route('library.index')" class="text-sm font-semibold text-blue-700 hover:text-blue-800">
+                                    <Link :href="route('library.my')" class="text-sm font-semibold text-blue-700 hover:text-blue-800">
                                         Library
                                     </Link>
                                 </div>
@@ -1062,7 +1062,7 @@ const initialFor = (...values) => {
                                 <div v-else class="p-8 text-center">
                                     <BookOpenIcon class="mx-auto h-8 w-8 text-slate-300" />
                                     <p class="mt-3 text-sm font-medium text-slate-700">No purchased ebooks yet</p>
-                                    <Link :href="route('library.index')" class="mt-2 inline-flex text-sm font-semibold text-blue-700">
+                                    <Link :href="route('library.my')" class="mt-2 inline-flex text-sm font-semibold text-blue-700">
                                         Browse the library
                                     </Link>
                                 </div>

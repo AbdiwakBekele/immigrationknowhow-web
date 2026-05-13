@@ -25,8 +25,8 @@ const formatDate = (date) => {
     <Head title="My Reviews" />
 
     <AppLayout>
-        <div class="min-h-screen bg-slate-50">
-            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="min-h-full bg-slate-50">
+            <div class="w-full px-4 py-8 sm:px-6 lg:px-8">
                 <div class="mb-8">
                     <h1 class="text-2xl font-display font-bold text-slate-900">My Reviews</h1>
                     <p class="text-slate-500 mt-1">Reviews you have submitted to service providers.</p>
