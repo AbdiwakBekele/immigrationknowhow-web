@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import RoleAccountsPanel from '@/Components/Account/RoleAccountsPanel.vue';
 import ProviderProfileFeed from '@/Components/marketplace/ProviderProfileFeed.vue';
 import Button from '@/Components/ui/Button.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -461,6 +462,8 @@ const saveProfessionalDetails = () => {
                             </div>
                         </div>
                     </section>
+
+                    <RoleAccountsPanel />
 
                     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
                         <main class="space-y-6">
