@@ -2,7 +2,6 @@
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
-import RoleAccountsPanel from '@/Components/Account/RoleAccountsPanel.vue';
 import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
 import Button from '@/Components/ui/Button.vue';
 import {
@@ -716,8 +715,6 @@ const formatFeedDate = (iso) => {
                         >
                     </div>
                 </section>
-
-                <RoleAccountsPanel />
 
                 <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
                     <main class="space-y-6">
