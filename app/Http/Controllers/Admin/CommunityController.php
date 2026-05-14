@@ -15,7 +15,6 @@ use Inertia\Response;
 class CommunityController extends Controller
 {
     private const CATEGORIES = [
-        'feed',
         'ask-intro',
         'ask-announcement',
         'immigration-legal',
@@ -54,7 +53,7 @@ class CommunityController extends Controller
                 });
             }
 
-            if ($request->filled('category') && $request->string('category') !== 'feed') {
+            if ($request->filled('category')) {
                 $query->where('category', $request->string('category'));
             }
 
@@ -95,7 +94,7 @@ class CommunityController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:5000'],
             'tag' => ['nullable', 'string', 'max:120'],
-            'category' => ['nullable', Rule::in(self::CATEGORIES)],
+            'category' => ['required', Rule::in(self::CATEGORIES)],
             'image' => ['nullable', 'file', 'image', 'max:8192'],
             'video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/ogg,video/quicktime', 'max:102400'],
             'video_url' => ['nullable', 'url', 'max:2048'],
@@ -109,7 +108,7 @@ class CommunityController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'],
             'tag' => $validated['tag'] ?? '',
-            'category' => $validated['category'] ?? 'feed',
+            'category' => $validated['category'],
             'is_published' => $isPublished,
             'published_at' => $isPublished ? now() : null,
             'image_url' => $request->hasFile('image')
@@ -129,7 +128,7 @@ class CommunityController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:5000'],
             'tag' => ['nullable', 'string', 'max:120'],
-            'category' => ['nullable', Rule::in(self::CATEGORIES)],
+            'category' => ['required', Rule::in(self::CATEGORIES)],
             'image' => ['nullable', 'file', 'image', 'max:8192'],
             'video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/ogg,video/quicktime', 'max:102400'],
             'video_url' => ['nullable', 'url', 'max:2048'],
@@ -152,7 +151,7 @@ class CommunityController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'],
             'tag' => $validated['tag'] ?? '',
-            'category' => $validated['category'] ?? 'feed',
+            'category' => $validated['category'],
             'is_published' => $validated['is_published'],
             'published_at' => $validated['is_published']
                 ? ($communityPost->published_at ?? now())

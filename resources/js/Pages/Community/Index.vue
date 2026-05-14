@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import CommunityShareButtons from '@/Components/community/CommunityShareButtons.vue';
-import { getCommunityGuestKey, communityPostPath, communityPostShareUrl } from '@/utils/community';
+import { getCommunityGuestKey, communityPostPath, communityPostShareUrl, youtubeVideoIdFromUrl } from '@/utils/community';
 import { debounce } from 'lodash-es';
 import {
     ArrowTopRightOnSquareIcon,
@@ -138,10 +138,13 @@ async function loadPosts() {
     postsError.value = '';
     try {
         const params = new URLSearchParams({
-            category: activeSection.value === 'immigration-news' ? 'feed' : activeSection.value,
             search: search.value || '',
             guest_key: getCommunityGuestKey(),
         });
+        const sectionCategory = activeSection.value === 'immigration-news' ? 'feed' : activeSection.value;
+        if (sectionCategory !== 'feed') {
+            params.set('category', sectionCategory);
+        }
         const requestUrl = `/api/community/posts?${params.toString()}`;
         console.info('[community][ui] loadPosts:start', {
             activeSection: activeSection.value,
@@ -209,7 +212,6 @@ async function loadPosts() {
 async function loadRecentPosts() {
     try {
         const params = new URLSearchParams({
-            category: 'feed',
             search: '',
             guest_key: getCommunityGuestKey(),
         });
@@ -531,7 +533,7 @@ onMounted(() => {
                     <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
                         <div class="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <h2 class="text-2xl font-bold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
+                                <h2 class="text-base font-semibold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
                                 <input
                                     v-model="search"
                                     :placeholder="`Search in ${sectionLabels[activeSection]}...`"
@@ -590,6 +592,28 @@ onMounted(() => {
                                     <Link :href="communityPostPath(post.id)" class="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2">
                                         <div v-if="post.image_url" class="relative mb-2 h-40 overflow-hidden rounded-lg bg-[#e5e7eb]">
                                             <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]">
+                                        </div>
+                                        <a
+                                            v-if="post.video_url && !youtubeVideoIdFromUrl(post.video_url)"
+                                            :href="post.video_url"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            class="mb-2 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline"
+                                            @click.stop
+                                        >
+                                            Open video
+                                        </a>
+                                        <div
+                                            v-else-if="post.video_url && youtubeVideoIdFromUrl(post.video_url)"
+                                            class="relative mb-2 aspect-video w-full overflow-hidden rounded-lg bg-black"
+                                        >
+                                            <iframe
+                                                :src="`https://www.youtube.com/embed/${youtubeVideoIdFromUrl(post.video_url)}`"
+                                                title="Post video"
+                                                class="absolute inset-0 h-full w-full"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowfullscreen
+                                            />
                                         </div>
                                         <div class="mb-1.5 inline-block rounded-full bg-[#eef2ff] px-2 py-1 text-xs font-semibold text-[#3730a3]">{{ post.tag }}</div>
                                         <h3 class="text-xl font-bold text-[#111827] group-hover:underline">{{ post.title }}</h3>
