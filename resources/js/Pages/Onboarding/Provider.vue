@@ -24,6 +24,7 @@ const props = defineProps({
     stripeBillingReady: { type: Boolean, default: false },
     serviceTypes: { type: Array, default: () => [] },
     countryOptions: { type: Array, default: () => [] },
+    addingProviderAccount: { type: Boolean, default: false },
 });
 
 const draftStorageKey = computed(() => `ikh_onboarding_provider_draft:${props.user?.id ?? 'guest'}`);
@@ -724,6 +725,12 @@ const goBack = () => {
                     <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Business address</p>
                     <p class="text-sm text-neutral-600">
                         Enter your business address. This will be used on your profile and for matching clients.
+                    </p>
+                    <p
+                        v-if="props.addingProviderAccount"
+                        class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
+                    >
+                        Your service seeker profile already saved your contact and location details. Review what is prefilled below, then continue with the provider-specific steps.
                     </p>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">

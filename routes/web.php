@@ -325,6 +325,13 @@ Route::middleware(['auth', 'role:advertiser', 'onboarding.complete'])
         Route::post('/ads/{ad:uuid}/resubmit', [Advertiser\AdController::class, 'resubmit'])->name('ads.resubmit');
     });
 
+Route::middleware(['auth', 'onboarding.complete'])->prefix('account-roles')->name('account-roles.')->group(function () {
+    Route::post('/switch', [User\RoleAccountController::class, 'switch'])->name('switch');
+    Route::get('/seeker/create', [User\RoleAccountController::class, 'createSeeker'])->name('seeker.create');
+    Route::post('/seeker', [User\RoleAccountController::class, 'storeSeeker'])->name('seeker.store');
+    Route::post('/provider/start', [User\RoleAccountController::class, 'startProvider'])->name('provider.start');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Provider Routes

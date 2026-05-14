@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Mobile\ContractsController;
 use App\Http\Controllers\Api\Mobile\DvLotteryController;
 use App\Http\Controllers\Api\Mobile\MessagesController;
 use App\Http\Controllers\Api\Mobile\MobileProfileController;
+use App\Http\Controllers\Api\Mobile\MobileRoleController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryStreamController;
@@ -64,6 +65,12 @@ Route::prefix('mobile')->group(function () {
     Route::middleware(['auth:sanctum', 'role:user'])->group(function () {
         Route::post('/providers/{provider:slug}/favorite', [ProviderFavoritesController::class, 'toggle']);
         Route::patch('/profile', [MobileProfileController::class, 'update']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('roles')->group(function () {
+        Route::get('/meta', [MobileRoleController::class, 'meta']);
+        Route::post('/seeker', [MobileRoleController::class, 'enableSeeker']);
+        Route::post('/provider/start', [MobileRoleController::class, 'startProvider']);
     });
 
     Route::middleware('auth:sanctum')->prefix('profile')->group(function () {

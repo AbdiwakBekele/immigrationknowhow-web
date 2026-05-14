@@ -2,6 +2,7 @@
 import { Head, useForm, router, Link, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import RoleAccountsPanel from '@/Components/Account/RoleAccountsPanel.vue';
 import ProfileSharePanel from '@/Components/marketplace/ProfileSharePanel.vue';
 import Button from '@/Components/ui/Button.vue';
 import {
@@ -716,12 +717,28 @@ const formatFeedDate = (iso) => {
                     </div>
                 </section>
 
+                <RoleAccountsPanel />
+
                 <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_420px]">
-                    <div class="space-y-6">
-                        <form id="provider-profile-edit-form" class="space-y-6" @submit.prevent="updateProfile">
+                    <main class="space-y-6">
+                        <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="border-b border-slate-200 px-5 py-4">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <h2 class="text-lg font-semibold text-slate-950">Profile Details</h2>
+                                        <p class="mt-1 text-sm text-slate-500">Business listing details clients see on your profile.</p>
+                                    </div>
+                                    <Button size="sm" :loading="form.processing" @click="updateProfile">
+                                        <PencilSquareIcon class="h-4 w-4" />
+                                        Save profile
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <form id="provider-profile-edit-form" class="space-y-8 p-5" @submit.prevent="updateProfile">
                             <!-- Business Information -->
-                    <div class="bg-white rounded-2xl shadow-soft p-6">
-                        <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Business Information</h2>
+                    <div class="space-y-4">
+                        <h3 class="text-base font-semibold text-slate-950">Business Information</h3>
                         <div class="space-y-4">
                             <div class="grid sm:grid-cols-2 gap-4">
                                 <div class="sm:col-span-2">
@@ -1108,9 +1125,8 @@ const formatFeedDate = (iso) => {
                         </div>
                     </div>
 
-                    <!-- Availability -->
-                    <div class="bg-white rounded-2xl shadow-soft p-6">
-                        <h2 class="text-lg font-display font-bold text-slate-900 mb-4">Availability</h2>
+                    <div class="space-y-4 border-t border-slate-200 pt-8">
+                        <h3 class="text-base font-semibold text-slate-950">Availability</h3>
                         <div class="flex items-center gap-3">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input v-model="form.accepting_clients" type="checkbox" class="sr-only peer" />
@@ -1121,10 +1137,10 @@ const formatFeedDate = (iso) => {
                         <p class="mt-2 text-xs text-slate-500">Turn this off if you're not taking on new clients right now</p>
                     </div>
                 </form>
+                        </section>
 
-                <!-- Public profile feed (outside profile form — avoids nested forms; shown above Save) -->
-                <div id="public-profile-feed" class="bg-white rounded-2xl shadow-soft p-6 mt-6 scroll-mt-24">
-                    <h2 class="text-lg font-display font-bold text-slate-900 mb-1">Public profile feed</h2>
+                <section id="public-profile-feed" class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm scroll-mt-24">
+                    <h2 class="text-lg font-semibold text-slate-950">Public profile feed</h2>
                     <p class="text-sm text-slate-600 mb-4">
                         Share YouTube, TikTok, Vimeo, or Instagram videos/reels, plus article links. Newest posts appear on your public listing in a feed.
                     </p>
@@ -1284,25 +1300,9 @@ const formatFeedDate = (iso) => {
                             </template>
                         </li>
                     </ul>
-                </div>
+                </section>
 
-                        <div class="mt-6 flex justify-end gap-3 pb-8">
-                            <Link
-                                :href="route('provider.profile.index')"
-                                class="rounded-xl border border-slate-200 px-6 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                            >
-                                Cancel
-                            </Link>
-                            <button
-                                type="submit"
-                                form="provider-profile-edit-form"
-                                class="rounded-xl bg-primary-600 px-8 py-3 font-semibold text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
-                                :disabled="form.processing"
-                            >
-                                {{ form.processing ? 'Saving...' : 'Save Changes' }}
-                            </button>
-                        </div>
-                    </div>
+                    </main>
 
                     <aside class="space-y-6">
                         <section class="rounded-lg border border-slate-200 bg-white shadow-sm">

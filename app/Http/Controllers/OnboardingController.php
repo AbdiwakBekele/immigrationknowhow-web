@@ -12,6 +12,7 @@ use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
 use App\Support\StripeProviderSubscriptionCheckout;
+use App\Support\UserRoleAccounts;
 use App\Support\UsStateOptions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -106,7 +107,7 @@ class OnboardingController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->hasCompletedOnboarding()) {
+        if ($user->hasCompletedOnboarding() && ! UserRoleAccounts::isAddingProviderAccount($user)) {
             return $this->redirectToDashboard();
         }
 
@@ -201,7 +202,7 @@ class OnboardingController extends Controller
                 ? ServiceTypeOptions::selectOptions('provider')
                 : ($isAdvertiser ? [] : ServiceTypeOptions::selectOptions('user')),
             'countryOptions' => CountryOptions::selectOptions(),
-            'stateOptions' => UsStateOptions::selectOptions($user->country ?? 'US'),
+            'stateOptions' => \App\Support\UsStateOptions::selectOptions($user->country ?? 'US'),
             'languageOptions' => LanguageOptions::selectOptions(),
             'existingData' => $user->onboarding_data ?? [],
             'steps' => $isProvider
@@ -209,6 +210,7 @@ class OnboardingController extends Controller
                 : ($isAdvertiser ? $this->getAdvertiserSteps() : $this->getUserSteps()),
             'subscriptionPlans' => $subscriptionPlans,
             'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
+            'addingProviderAccount' => UserRoleAccounts::isAddingProviderAccount($user),
         ]);
     }
 
@@ -427,6 +429,8 @@ class OnboardingController extends Controller
                         $planForCheckout = $selectedPlan;
                     }
                 }
+
+                UserRoleAccounts::markProviderAccountComplete($user);
             }
         });
 
@@ -560,18 +564,6 @@ class OnboardingController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->isAdmin()) {
-            return redirect()->route('admin.dashboard');
-        }
-
-        if ($user->isProvider()) {
-            return redirect()->route('provider.dashboard');
-        }
-
-        if ($user->isAdvertiser()) {
-            return redirect()->route('advertiser.dashboard');
-        }
-
-        return redirect()->route('dashboard');
+        return redirect(UserRoleAccounts::dashboardRouteFor($user, session(UserRoleAccounts::SESSION_ACTIVE_PORTAL)));
     }
 }
