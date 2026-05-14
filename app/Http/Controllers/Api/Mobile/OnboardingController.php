@@ -13,7 +13,7 @@ use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
-use App\Support\StripeProviderSubscriptionCheckout;
+use App\Support\UserRoleAccounts;
 use App\Support\UsStateOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,8 +35,12 @@ class OnboardingController extends Controller
         $user = $request->user();
 
         $needsPhone = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
-        $isProvider = $user->followsProviderOnboarding();
-        $isAdvertiser = $user->isAdvertiser();
+        $intent = strtolower((string) $request->input('intent', ''));
+        $isAddProviderFlow = $intent === 'provider'
+            && $user->hasRole(UserRole::USER->value)
+            && ! $user->serviceProvider()->exists();
+        $isProvider = $user->followsProviderOnboarding() || $isAddProviderFlow;
+        $isAdvertiser = $user->isAdvertiser() && ! $isProvider;
 
         $requestedStepDefault = $isProvider ? 4 : 2;
         $requestedStep = (int) $request->integer('step', $requestedStepDefault);
@@ -534,6 +538,10 @@ class OnboardingController extends Controller
                         $providerForCheckout = $serviceProvider;
                         $planForCheckout = $selectedPlan;
                     }
+                }
+
+                if ($user->hasRole(UserRole::USER->value)) {
+                    UserRoleAccounts::markProviderAccountComplete($user);
                 }
             });
         } catch (ValidationException $e) {

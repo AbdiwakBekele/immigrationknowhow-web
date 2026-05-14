@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Session;
 
 final class UserHomeUrl
 {
@@ -81,14 +82,14 @@ final class UserHomeUrl
             return route('admin.dashboard');
         }
 
-        if ($user->isProvider()) {
-            return route('provider.dashboard');
+        if ($user->isAffiliate()) {
+            return route('affiliate.dashboard');
         }
 
-        if ($user->isAdvertiser()) {
+        if ($user->isAdvertiser() && ! $user->hasRole(\App\Enums\UserRole::USER->value)) {
             return route('advertiser.dashboard');
         }
 
-        return route('dashboard');
+        return UserRoleAccounts::dashboardRouteFor($user, Session::get(UserRoleAccounts::SESSION_ACTIVE_PORTAL));
     }
 }

@@ -8,6 +8,7 @@ use App\Models\AiAssistantSubscription;
 use App\Models\ServiceTypeOption;
 use App\Models\User;
 use App\Support\ImpersonationActorId;
+use App\Support\UserRoleAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -71,6 +72,15 @@ class HandleInertiaRequests extends Middleware
                             ->exists()
                         : false,
                 ] : null,
+                'active_portal' => fn () => $request->user()
+                    ? UserRoleAccounts::resolvedActivePortal(
+                        $request->user(),
+                        $request->session()->get(UserRoleAccounts::SESSION_ACTIVE_PORTAL)
+                    )
+                    : null,
+                'role_accounts' => fn () => $request->user()
+                    ? UserRoleAccounts::meta($request->user())
+                    : null,
             ],
             'branding' => fn () => PlatformSetting::branding(),
             'dvLottery' => fn () => PlatformSetting::current()->dvLotteryContent(),
@@ -112,7 +122,7 @@ class HandleInertiaRequests extends Middleware
                 return count(array_unique(array_filter(array_map('intval', $raw))));
             },
             'impersonation' => static function () use ($request) {
-                $impersonatorId = ImpersonationActorId::fromSession(
+                $impersonatorId = \App\Support\ImpersonationActorId::fromSession(
                     $request->session()->get('impersonating')
                 );
 
