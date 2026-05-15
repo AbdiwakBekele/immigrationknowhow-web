@@ -164,6 +164,43 @@ php artisan test
 php artisan optimize:clear
 ```
 
+## Community Importer CSV Headers
+
+Admin community imports expect four cleaned CSV files uploaded from the admin UI at `Admin > Community > Import`.
+
+`users_import.csv`
+```text
+old_wp_user_id,first_name,last_name,display_name,email,phone,avatar,city,state,postal_code,country,languages,preferred_language,timezone,role,bio,is_active,created_at
+```
+
+`community_posts_import.csv`
+```text
+old_wp_post_id,old_wp_author_id,contributor_old_wp_user_id,contributor_email,title,slug,description,tag,category,image_url,video_url,old_wp_space_id,is_published,published_at,created_at,updated_at
+```
+
+`community_comments_import.csv`
+```text
+old_wp_comment_id,old_wp_post_id,old_wp_user_id,parent_old_wp_comment_id,author_name,content,created_at,updated_at
+```
+
+`community_post_reactions_import.csv`
+```text
+old_wp_reaction_id,old_wp_post_id,old_wp_user_id,type,dedupe_key,created_at
+```
+
+Allowed community post categories:
+
+```text
+feed
+ask-intro
+ask-announcement
+immigration-legal
+career-finance
+health-wellness
+daily-living
+culture-community
+```
+
 ## Production Deployment
 
 ```bash

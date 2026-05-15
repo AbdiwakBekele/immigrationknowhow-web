@@ -39,10 +39,21 @@ class CommunityController extends Controller
         ]);
 
         try {
+            $perPage = min(max($request->integer('per_page', 50), 1), 100);
+            $page = max($request->integer('page', 1), 1);
+
             $query = CommunityPost::query()->latest();
 
             if (! $request->boolean('includeDrafts')) {
                 $query->published();
+            }
+
+            if ($request->filled('status')) {
+                match ($request->string('status')->toString()) {
+                    'published' => $query->where('is_published', true),
+                    'draft' => $query->where('is_published', false),
+                    default => null,
+                };
             }
 
             if ($request->filled('search')) {
@@ -54,15 +65,22 @@ class CommunityController extends Controller
                 });
             }
 
-            if ($request->filled('category') && $request->string('category') !== 'feed') {
-                $query->where('category', $request->string('category'));
+            $category = $request->filled('category') ? $request->string('category')->toString() : '';
+            if ($category !== '' && $category !== 'all' && $category !== 'feed') {
+                $query->where('category', $category);
             }
 
-            $posts = $query->paginate(20)->through(fn (CommunityPost $post) => $this->toPostResource($post));
+            $posts = $query
+                ->paginate($perPage, ['*'], 'page', $page)
+                ->withQueryString()
+                ->through(fn (CommunityPost $post) => $this->toPostResource($post));
 
             Log::info('admin.community.list.response', [
                 'total' => $posts->total(),
                 'count' => count($posts->items()),
+                'current_page' => $posts->currentPage(),
+                'last_page' => $posts->lastPage(),
+                'per_page' => $posts->perPage(),
             ]);
 
             return response()->json([

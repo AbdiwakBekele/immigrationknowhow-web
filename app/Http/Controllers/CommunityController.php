@@ -101,7 +101,10 @@ class CommunityController extends Controller
                 'requested_search' => $requestedSearch,
             ]);
 
-            $query = CommunityPost::query()->published()->latest();
+            $query = CommunityPost::query()
+                ->published()
+                ->with('contributor:id,first_name,last_name,email,country')
+                ->latest();
 
             if ($requestedCategory !== 'feed') {
                 $query->where('category', $requestedCategory);
@@ -145,21 +148,10 @@ class CommunityController extends Controller
                     ->toArray();
             }
 
-            $posts = $paginated->through(fn (CommunityPost $post) => [
-                'id' => $post->id,
-                'title' => $post->title,
-                'description' => $post->description,
-                'tag' => $post->tag,
-                'category' => $post->category,
-                'image_url' => $post->image_url,
-                'video_url' => $post->video_url,
-                'likes_count' => (int) $post->likes_count,
-                'comments_count' => (int) $post->comments_count,
-                'shares_count' => (int) $post->shares_count,
-                'bookmarks_count' => (int) $post->bookmarks_count,
-                'user_reactions' => $reactionMap[$post->id] ?? [],
-                'created_at' => optional($post->created_at)->toIso8601String(),
-            ]);
+            $posts = $paginated->through(fn (CommunityPost $post) => $this->formatCommunityPostPayload(
+                $post,
+                $reactionMap[$post->id] ?? [],
+            ));
 
             Log::info('community.posts.response', [
                 'total' => $posts->total(),
@@ -223,22 +215,10 @@ class CommunityController extends Controller
                 ->all();
         }
 
+        $communityPost->loadMissing('contributor:id,first_name,last_name,email,country');
+
         return response()->json([
-            'post' => [
-                'id' => $communityPost->id,
-                'title' => $communityPost->title,
-                'description' => $communityPost->description,
-                'tag' => $communityPost->tag,
-                'category' => $communityPost->category,
-                'image_url' => $communityPost->image_url,
-                'video_url' => $communityPost->video_url,
-                'likes_count' => (int) $communityPost->likes_count,
-                'comments_count' => (int) $communityPost->comments_count,
-                'shares_count' => (int) $communityPost->shares_count,
-                'bookmarks_count' => (int) $communityPost->bookmarks_count,
-                'user_reactions' => $userReactions,
-                'created_at' => optional($communityPost->created_at)->toIso8601String(),
-            ],
+            'post' => $this->formatCommunityPostPayload($communityPost, $userReactions),
         ]);
     }
 
@@ -596,5 +576,43 @@ class CommunityController extends Controller
     {
         return Schema::hasTable('community_post_reactions')
             && Schema::hasColumn('community_post_reactions', 'dedupe_key');
+    }
+
+    /**
+     * @param  array<int, string>  $userReactions
+     * @return array<string, mixed>
+     */
+    private function formatCommunityPostPayload(CommunityPost $post, array $userReactions = []): array
+    {
+        $importMeta = is_array($post->import_meta) ? $post->import_meta : [];
+        $contributor = $post->relationLoaded('contributor') ? $post->contributor : null;
+
+        $contributorName = $contributor?->full_name;
+        if (! filled($contributorName)) {
+            $fallbackEmail = trim((string) ($importMeta['contributor_email'] ?? ''));
+            $contributorName = $fallbackEmail !== '' ? $fallbackEmail : null;
+        }
+
+        $contributorCountry = filled($contributor?->country)
+            ? trim((string) $contributor->country)
+            : null;
+
+        return [
+            'id' => $post->id,
+            'title' => $post->title,
+            'description' => $post->description,
+            'tag' => $post->tag,
+            'category' => $post->category,
+            'contributor_name' => $contributorName,
+            'contributor_country' => $contributorCountry,
+            'image_url' => $post->image_url,
+            'video_url' => $post->video_url,
+            'likes_count' => (int) $post->likes_count,
+            'comments_count' => (int) $post->comments_count,
+            'shares_count' => (int) $post->shares_count,
+            'bookmarks_count' => (int) $post->bookmarks_count,
+            'user_reactions' => $userReactions,
+            'created_at' => optional($post->created_at)->toIso8601String(),
+        ];
     }
 }

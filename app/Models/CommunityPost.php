@@ -14,7 +14,12 @@ class CommunityPost extends Model
 
     protected $fillable = [
         'author_id',
+        'contributor_user_id',
+        'old_wp_post_id',
+        'old_wp_author_id',
+        'old_wp_space_id',
         'title',
+        'slug',
         'description',
         'tag',
         'category',
@@ -26,16 +31,29 @@ class CommunityPost extends Model
         'bookmarks_count',
         'is_published',
         'published_at',
+        'import_source',
+        'import_meta',
+        'imported_at',
     ];
 
     protected $casts = [
+        'old_wp_post_id' => 'integer',
+        'old_wp_author_id' => 'integer',
+        'old_wp_space_id' => 'integer',
         'is_published' => 'boolean',
         'published_at' => 'datetime',
+        'import_meta' => 'array',
+        'imported_at' => 'datetime',
     ];
 
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function contributor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'contributor_user_id');
     }
 
     public function comments(): HasMany

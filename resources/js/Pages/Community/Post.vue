@@ -4,12 +4,21 @@ import { computed, onMounted, ref } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import CommunityShareButtons from '@/Components/community/CommunityShareButtons.vue';
-import { communityPostShareUrl, getCommunityGuestKey } from '@/utils/community';
+import {
+    communityPostShareUrl,
+    getCommunityGuestKey,
+    hasPostCoverImage,
+    hasPostVideo,
+    isDirectVideoFileUrl,
+    youtubeVideoIdFromUrl,
+} from '@/utils/community';
+import { renderCommunityDescription } from '@/utils/communityContent';
 import {
     BookmarkIcon,
     ChatBubbleBottomCenterTextIcon,
     HeartIcon,
     ShareIcon,
+    UserCircleIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -43,6 +52,10 @@ const sectionLabel = {
 const post = ref(null);
 const loadError = ref('');
 const postLoading = ref(true);
+
+const renderedDescriptionHtml = computed(() => (
+    post.value?.description ? renderCommunityDescription(post.value.description) : ''
+));
 const comments = ref([]);
 const commentsLoading = ref(false);
 const newComment = ref('');
@@ -83,24 +96,17 @@ function commentInitials(comment) {
         .join('');
 }
 
-function youtubeVideoIdFromUrl(url) {
-    try {
-        const u = new URL(url);
-        if (u.hostname === 'youtu.be') {
-            return u.pathname.replace('/', '').slice(0, 32) || null;
-        }
-        if (u.hostname.includes('youtube.com')) {
-            if (u.pathname === '/watch') return u.searchParams.get('v');
-            const embed = u.pathname.match(/^\/embed\/([^/]+)/);
-            if (embed) return embed[1] || null;
-            const shorts = u.pathname.match(/^\/shorts\/([^/]+)/);
-            if (shorts) return shorts[1] || null;
-        }
-    } catch {
-        return null;
-    }
-    return null;
-}
+const postHasVideo = computed(() => hasPostVideo(post.value));
+const postHasCoverImage = computed(() => hasPostCoverImage(post.value));
+const youtubeVideoId = computed(() => (
+    post.value?.video_url ? youtubeVideoIdFromUrl(post.value.video_url) : null
+));
+const showDirectVideo = computed(() => (
+    postHasVideo.value && !youtubeVideoId.value && isDirectVideoFileUrl(post.value?.video_url)
+));
+const showExternalVideoLink = computed(() => (
+    postHasVideo.value && !youtubeVideoId.value && !showDirectVideo.value
+));
 
 async function loadPost() {
     postLoading.value = true;
@@ -254,8 +260,32 @@ onMounted(async () => {
                 <template v-else>
                     <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                         <div class="border-b border-slate-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-4 md:p-5">
-                            <div class="mb-2 inline-flex rounded-full border border-blue-200 bg-blue-100/70 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                {{ sectionLabel[post.category] || 'Community' }} · {{ post.tag }}
+                            <div class="mb-2 flex flex-wrap items-center gap-2">
+                                <span class="rounded-full border border-blue-200 bg-blue-100/70 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                    {{ sectionLabel[post.category] || 'Community' }}
+                                </span>
+                                <span
+                                    v-if="post.contributor_name"
+                                    class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 py-1 pl-1 pr-2.5 text-xs font-semibold text-indigo-800"
+                                >
+                                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                                        <UserCircleIcon class="h-4 w-4" aria-hidden="true" />
+                                    </span>
+                                    <span class="text-[10px] font-medium uppercase tracking-wide text-indigo-600">Contributor</span>
+                                    <span class="text-indigo-900">{{ post.contributor_name }}</span>
+                                </span>
+                                <span
+                                    v-if="post.contributor_country"
+                                    class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800"
+                                >
+                                    {{ post.contributor_country }}
+                                </span>
+                                <span
+                                    v-if="post.tag"
+                                    class="rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-semibold text-[#3730a3]"
+                                >
+                                    {{ post.tag }}
+                                </span>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">{{ post.title }}</h1>
                             <p v-if="post.created_at" class="mt-1 text-xs text-slate-500">
@@ -264,20 +294,48 @@ onMounted(async () => {
                         </div>
 
                         <div class="p-4 md:p-6">
+                            <div v-if="postHasVideo" class="space-y-4">
+                                <div v-if="youtubeVideoId" class="relative aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                                    <iframe
+                                        :src="`https://www.youtube.com/embed/${youtubeVideoId}`"
+                                        title="Post video"
+                                        class="absolute inset-0 h-full w-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowfullscreen
+                                    />
+                                </div>
 
-                            <div v-if="post.image_url" class="relative h-64 w-full overflow-hidden rounded-2xl bg-[#e5e7eb] md:h-[24rem]">
+                                <video
+                                    v-else-if="showDirectVideo"
+                                    :src="post.video_url"
+                                    class="max-h-[32rem] w-full rounded-2xl bg-black"
+                                    controls
+                                    playsinline
+                                />
+
+                                <a
+                                    v-else-if="showExternalVideoLink"
+                                    :href="post.video_url"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                                >
+                                    Open video
+                                </a>
+                            </div>
+
+                            <div
+                                v-else-if="postHasCoverImage"
+                                class="relative h-72 w-full overflow-hidden rounded-2xl bg-[#e5e7eb] md:h-[28rem]"
+                            >
                                 <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
                             </div>
 
-                            <a v-if="post.video_url && !youtubeVideoIdFromUrl(post.video_url)" :href="post.video_url" target="_blank" rel="noreferrer" class="mt-4 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline">
-                                Open video
-                            </a>
-
-                            <div v-if="post.video_url && youtubeVideoIdFromUrl(post.video_url)" class="relative mt-4 aspect-video w-full overflow-hidden rounded-2xl bg-black">
-                                <iframe :src="`https://www.youtube.com/embed/${youtubeVideoIdFromUrl(post.video_url)}`" title="Post video" class="absolute inset-0 h-full w-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
-                            </div>
-
-                            <p class="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-slate-700">{{ post.description }}</p>
+                            <div
+                                v-if="renderedDescriptionHtml"
+                                class="prose prose-slate prose-sm mt-4 max-w-none sm:prose-base prose-headings:font-bold prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
+                                v-html="renderedDescriptionHtml"
+                            />
 
                             <div class="mt-5 flex flex-wrap items-center gap-2">
                                 <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition" :class="engagement.liked ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'" @click="reactToPost('like').catch((e) => alert(e?.message || 'Error'))">
@@ -359,3 +417,6 @@ onMounted(async () => {
         </section>
     </component>
 </template>
+
+
+

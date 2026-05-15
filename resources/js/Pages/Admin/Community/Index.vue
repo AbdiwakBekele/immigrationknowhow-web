@@ -1,6 +1,7 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
+import { debounce } from 'lodash-es';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const categories = [
@@ -29,15 +30,38 @@ const loading = ref(false);
 const stats = ref({ total: 0, published: 0, drafts: 0 });
 const selectedCategory = ref('all');
 const selectedStatus = ref('all');
+const currentPage = ref(1);
+const perPage = ref(50);
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 50,
+    total: 0,
+    from: null,
+    to: null,
+});
 const editingId = ref(null);
 const showPostModal = ref(false);
 const imageFile = ref(null);
 const videoFile = ref(null);
 
 const submitLabel = computed(() => (editingId.value ? 'Update Post' : 'Create Post'));
-const visiblePosts = computed(() => {
-    if (selectedStatus.value === 'all') return posts.value;
-    return posts.value.filter((post) => (selectedStatus.value === 'published' ? post.is_published : !post.is_published));
+const paginationLabel = computed(() => {
+    if (!pagination.value.total) {
+        return 'No posts';
+    }
+
+    return `Showing ${pagination.value.from ?? 0}–${pagination.value.to ?? 0} of ${pagination.value.total}`;
+});
+const pageNumbers = computed(() => {
+    const last = pagination.value.last_page || 1;
+    const pages = [];
+
+    for (let page = 1; page <= last; page += 1) {
+        pages.push(page);
+    }
+
+    return pages;
 });
 
 function getCsrfToken() {
@@ -63,27 +87,61 @@ function getRequestHeaders() {
     };
 }
 
-async function loadPosts() {
+async function loadPosts(page = currentPage.value) {
     loading.value = true;
+    currentPage.value = page;
+
     try {
         const params = new URLSearchParams({
             includeDrafts: '1',
             search: search.value || '',
+            page: String(page),
+            per_page: String(perPage.value),
         });
         if (selectedCategory.value !== 'all') {
             params.set('category', selectedCategory.value);
         }
+        if (selectedStatus.value !== 'all') {
+            params.set('status', selectedStatus.value);
+        }
+
         const response = await fetch(`/admin/community/api/posts?${params.toString()}`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
         const data = await response.json();
-        posts.value = data?.posts?.data ?? [];
+        const postsPayload = data?.posts ?? {};
+
+        posts.value = postsPayload.data ?? [];
         stats.value = data?.stats ?? { total: 0, published: 0, drafts: 0 };
+        pagination.value = {
+            current_page: postsPayload.current_page ?? 1,
+            last_page: postsPayload.last_page ?? 1,
+            per_page: postsPayload.per_page ?? perPage.value,
+            total: postsPayload.total ?? 0,
+            from: postsPayload.from ?? null,
+            to: postsPayload.to ?? null,
+        };
     } finally {
         loading.value = false;
     }
 }
+
+function goToPage(page) {
+    if (page < 1 || page > pagination.value.last_page || page === pagination.value.current_page) {
+        return;
+    }
+
+    void loadPosts(page);
+}
+
+const debouncedSearch = debounce(() => {
+    void loadPosts(1);
+}, 300);
+
+watch(selectedStatus, () => {
+    void loadPosts(1);
+});
 
 async function submitPost() {
     const url = editingId.value
@@ -143,7 +201,7 @@ async function submitPost() {
 
     showPostModal.value = false;
     resetForm();
-    await loadPosts();
+    await loadPosts(currentPage.value);
 }
 
 function editPost(post) {
@@ -187,7 +245,7 @@ async function deletePost(postId) {
         headers: getRequestHeaders(),
         credentials: 'same-origin',
     });
-    await loadPosts();
+    await loadPosts(currentPage.value);
 }
 
 async function togglePublish(post) {
@@ -207,7 +265,7 @@ async function togglePublish(post) {
             is_published: !post.is_published,
         }),
     });
-    await loadPosts();
+    await loadPosts(currentPage.value);
 }
 
 onMounted(() => {
@@ -239,12 +297,12 @@ onMounted(() => {
                                 class="admin-input max-w-xs"
                                 type="search"
                                 placeholder="Search posts..."
-                                @input="loadPosts"
+                                @input="debouncedSearch"
                             >
                             <select
                                 v-model="selectedCategory"
                                 class="admin-select max-w-[220px]"
-                                @change="loadPosts"
+                                @change="loadPosts(1)"
                             >
                                 <option value="all">All categories</option>
                                 <option v-for="cat in categories" :key="cat.value" :value="cat.value">
@@ -261,6 +319,12 @@ onMounted(() => {
                             </select>
                         </div>
                         <div class="flex items-center gap-2">
+                            <Link
+                                :href="route('admin.community.import.index')"
+                                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                            >
+                                Import CSV
+                            </Link>
                             <button
                                 type="button"
                                 class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-md"
@@ -271,17 +335,24 @@ onMounted(() => {
                             <button
                                 type="button"
                                 class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                                @click="loadPosts"
+                                @click="loadPosts(currentPage)"
                             >
                                 Refresh
                             </button>
                         </div>
                     </div>
 
+                    <p v-if="!loading && pagination.total > 0" class="mb-3 text-sm text-slate-600">
+                        {{ paginationLabel }}
+                        <span v-if="pagination.last_page > 1" class="text-slate-400">
+                            · Page {{ pagination.current_page }} of {{ pagination.last_page }}
+                        </span>
+                    </p>
+
                     <div v-if="loading" class="text-sm text-slate-500">Loading posts...</div>
                     <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <article
-                            v-for="post in visiblePosts"
+                            v-for="post in posts"
                             :key="post.id"
                             class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                         >
@@ -359,7 +430,42 @@ onMounted(() => {
                             </div>
                         </article>
                     </div>
-                    <p v-if="!loading && visiblePosts.length === 0" class="mt-3 text-sm text-slate-500">No community posts found for current filters.</p>
+                    <p v-if="!loading && posts.length === 0" class="mt-3 text-sm text-slate-500">No community posts found for current filters.</p>
+
+                    <nav
+                        v-if="!loading && pagination.last_page > 1"
+                        class="mt-6 flex max-w-full flex-wrap items-center justify-center gap-1.5 border-t border-slate-100 pt-4"
+                        aria-label="Community posts pagination"
+                    >
+                        <button
+                            type="button"
+                            class="inline-flex min-w-[2.5rem] items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="pagination.current_page <= 1"
+                            @click="goToPage(pagination.current_page - 1)"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            v-for="page in pageNumbers"
+                            :key="page"
+                            type="button"
+                            class="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-xl px-2.5 text-sm font-medium transition"
+                            :class="page === pagination.current_page
+                                ? 'bg-blue-600 text-white shadow-sm'
+                                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+                            @click="goToPage(page)"
+                        >
+                            {{ page }}
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex min-w-[2.5rem] items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="pagination.current_page >= pagination.last_page"
+                            @click="goToPage(pagination.current_page + 1)"
+                        >
+                            Next
+                        </button>
+                    </nav>
                 </article>
             </section>
         </div>

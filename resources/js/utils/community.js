@@ -29,6 +29,54 @@ export function getCommunityGuestKey() {
     return value;
 }
 
+export function youtubeVideoIdFromUrl(url) {
+    const value = String(url ?? '').trim();
+    if (!value) {
+        return null;
+    }
+
+    try {
+        const parsed = new URL(value);
+        if (parsed.hostname === 'youtu.be') {
+            return parsed.pathname.replace('/', '').slice(0, 32) || null;
+        }
+        if (parsed.hostname.includes('youtube.com')) {
+            if (parsed.pathname === '/watch') {
+                return parsed.searchParams.get('v');
+            }
+            const embed = parsed.pathname.match(/^\/embed\/([^/]+)/);
+            if (embed) {
+                return embed[1] || null;
+            }
+            const shorts = parsed.pathname.match(/^\/shorts\/([^/]+)/);
+            if (shorts) {
+                return shorts[1] || null;
+            }
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
+export function isDirectVideoFileUrl(url) {
+    const value = String(url ?? '').trim();
+    if (!value) {
+        return false;
+    }
+
+    return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(value);
+}
+
+export function hasPostVideo(post) {
+    return Boolean(String(post?.video_url ?? '').trim());
+}
+
+export function hasPostCoverImage(post) {
+    return Boolean(String(post?.image_url ?? '').trim());
+}
+
 export function communityPostPath(id) {
     return `/community/${id}`;
 }
