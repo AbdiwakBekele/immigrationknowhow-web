@@ -161,7 +161,6 @@ async function loadPosts({ reset = true } = {}) {
 
     try {
         const params = new URLSearchParams({
-            category: activeSection.value === 'immigration-news' ? 'feed' : activeSection.value,
             search: search.value || '',
             guest_key: getCommunityGuestKey(),
             page: String(nextPage),
@@ -241,7 +240,6 @@ function setupLoadMoreObserver() {
 async function loadRecentPosts() {
     try {
         const params = new URLSearchParams({
-            category: 'feed',
             search: '',
             guest_key: getCommunityGuestKey(),
         });
@@ -578,7 +576,7 @@ onBeforeUnmount(() => {
                     <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
                         <div class="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <h2 class="text-2xl font-bold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
+                                <h2 class="text-base font-semibold text-[#111827]">{{ sectionLabels[activeSection] }}</h2>
                                 <input
                                     v-model="search"
                                     :placeholder="`Search in ${sectionLabels[activeSection]}...`"

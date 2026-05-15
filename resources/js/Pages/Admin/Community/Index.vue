@@ -5,7 +5,6 @@ import { debounce } from 'lodash-es';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const categories = [
-    { value: 'feed', label: 'Feed' },
     { value: 'ask-intro', label: 'Intro' },
     { value: 'ask-announcement', label: 'Announcement' },
     { value: 'immigration-legal', label: 'Immigration & Legal' },
@@ -15,11 +14,13 @@ const categories = [
     { value: 'culture-community', label: 'Culture & Community' },
 ];
 
+const defaultCategory = categories[0].value;
+
 const form = ref({
     title: '',
     description: '',
     tag: '',
-    category: 'feed',
+    category: defaultCategory,
     video_url: '',
     is_published: true,
 });
@@ -210,7 +211,7 @@ function editPost(post) {
         title: post.title,
         description: post.description,
         tag: post.tag,
-        category: post.category,
+        category: categories.some((cat) => cat.value === post.category) ? post.category : defaultCategory,
         video_url: post.video_url || '',
         is_published: post.is_published,
     };
@@ -225,7 +226,7 @@ function resetForm() {
         title: '',
         description: '',
         tag: '',
-        category: 'feed',
+        category: defaultCategory,
         video_url: '',
         is_published: true,
     };

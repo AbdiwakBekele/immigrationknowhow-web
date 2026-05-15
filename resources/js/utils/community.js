@@ -88,6 +88,36 @@ export function communityPostShareUrl(id) {
     return `${window.location.origin}${communityPostPath(id)}`;
 }
 
+export function youtubeVideoIdFromUrl(url) {
+    if (!url) {
+        return null;
+    }
+
+    try {
+        const parsed = new URL(url);
+        if (parsed.hostname === 'youtu.be') {
+            return parsed.pathname.replace('/', '').slice(0, 32) || null;
+        }
+        if (parsed.hostname.includes('youtube.com')) {
+            if (parsed.pathname === '/watch') {
+                return parsed.searchParams.get('v');
+            }
+            const embed = parsed.pathname.match(/^\/embed\/([^/]+)/);
+            if (embed) {
+                return embed[1] || null;
+            }
+            const shorts = parsed.pathname.match(/^\/shorts\/([^/]+)/);
+            if (shorts) {
+                return shorts[1] || null;
+            }
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
 export async function copyTextToClipboard(text) {
     const value = String(text ?? '');
     if (!value) {
