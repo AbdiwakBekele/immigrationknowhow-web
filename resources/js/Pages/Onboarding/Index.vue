@@ -33,6 +33,24 @@ const props = defineProps({
 const SELECT_SERVICE_LATER_VALUE = '__select_service_later__';
 const MAX_USER_SERVICE_SELECTIONS = 8;
 
+function userSelectedBabysitterService(servicesNeeded) {
+    const arr = Array.isArray(servicesNeeded) ? servicesNeeded : [];
+    return arr.some((v) => {
+        if (!v || v === SELECT_SERVICE_LATER_VALUE) return false;
+        const s = String(v).trim().toLowerCase();
+        return s === 'babysitter' || s === 'baby_sitter';
+    });
+}
+
+function userSelectedPetSitterService(servicesNeeded) {
+    const arr = Array.isArray(servicesNeeded) ? servicesNeeded : [];
+    return arr.some((v) => {
+        if (!v || v === SELECT_SERVICE_LATER_VALUE) return false;
+        const s = String(v).trim().toLowerCase();
+        return s === 'pet_sitter' || s === 'petsitter';
+    });
+}
+
 const currentStep = ref(props.initialStep ?? (props.requiresPhoneVerification ? 3 : 4));
 
 const pageTitle = computed(() => (
@@ -610,6 +628,19 @@ const submittingUserAddress = ref(false);
 const completeOnboarding = async () => {
     saving.value = true;
     const payload = JSON.parse(JSON.stringify(formData.value));
+    if (!props.isProvider) {
+        if (!userSelectedBabysitterService(payload.services_needed)) {
+            payload.profile.number_of_children = null;
+            payload.profile.children_ages_text = '';
+            payload.profile.children_ages = [];
+            payload.profile.has_children = false;
+        }
+        if (!userSelectedPetSitterService(payload.services_needed)) {
+            payload.profile.dogs_count = null;
+            payload.profile.has_pets = false;
+            payload.profile.pet_types = [];
+        }
+    }
     const childCount = Number(payload.profile.number_of_children);
     payload.profile.has_children = Number.isFinite(childCount) && childCount > 0;
     if (!payload.profile.has_children) {
@@ -731,6 +762,9 @@ const userServiceTypes = computed({
         userServicesLimitError.value = '';
     },
 });
+
+const showUserChildrenFields = computed(() => userSelectedBabysitterService(formData.value.services_needed));
+const showUserPetCountField = computed(() => userSelectedPetSitterService(formData.value.services_needed));
 
 const pricingModels = [
     { value: 'hourly', label: 'Hourly rate' },

@@ -55,6 +55,26 @@ const SELECT_LATER_SERVICE_OPTION = {
     label: 'I will select one later on',
 };
 
+function userSelectedBabysitterService(servicesNeeded) {
+    const skip = SELECT_LATER_SERVICE_OPTION.value;
+    const arr = Array.isArray(servicesNeeded) ? servicesNeeded : [];
+    return arr.some((v) => {
+        if (!v || v === skip) return false;
+        const s = String(v).trim().toLowerCase();
+        return s === 'babysitter' || s === 'baby_sitter';
+    });
+}
+
+function userSelectedPetSitterService(servicesNeeded) {
+    const skip = SELECT_LATER_SERVICE_OPTION.value;
+    const arr = Array.isArray(servicesNeeded) ? servicesNeeded : [];
+    return arr.some((v) => {
+        if (!v || v === skip) return false;
+        const s = String(v).trim().toLowerCase();
+        return s === 'pet_sitter' || s === 'petsitter';
+    });
+}
+
 const getOptionValue = (option) => (typeof option === 'object' ? option?.value : option);
 
 const userServiceTypeOptions = computed(() => {
@@ -161,6 +181,9 @@ const userServiceTypes = computed({
     },
 });
 
+const showUserChildrenFields = computed(() => userSelectedBabysitterService(formData.value.services_needed));
+const showUserPetCountField = computed(() => userSelectedPetSitterService(formData.value.services_needed));
+
 const phoneVerificationRef = ref(null);
 const phoneStepContinuing = computed(() => phoneVerificationRef.value?.isContinuing ?? false);
 const phoneStepHasSentOtp = computed(() => phoneVerificationRef.value?.hasSentOtp ?? false);
@@ -198,6 +221,16 @@ const submitUserAddressStep = () => {
 
     submittingUserAddress.value = true;
 
+    const toNullableInt = (v) => {
+        if (v === '' || v === null || v === undefined) {
+            return null;
+        }
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    };
+    const needBabysitter = userSelectedBabysitterService(formData.value.services_needed);
+    const needPetSitter = userSelectedPetSitterService(formData.value.services_needed);
+
     router.post(route('address-detail.send'), {
         address: null,
         city: formData.value.city,
@@ -207,9 +240,9 @@ const submitUserAddressStep = () => {
         county: formData.value.county,
         location_label: formData.value.location_label,
         preferred_language: formData.value.preferred_language,
-        number_of_children: formData.value.profile.number_of_children,
-        children_ages_text: formData.value.profile.children_ages_text,
-        dogs_count: formData.value.profile.dogs_count,
+        number_of_children: needBabysitter ? toNullableInt(formData.value.profile.number_of_children) : null,
+        children_ages_text: needBabysitter ? (formData.value.profile.children_ages_text || null) : null,
+        dogs_count: needPetSitter ? toNullableInt(formData.value.profile.dogs_count) : null,
         services_needed: formData.value.services_needed,
     }, {
         preserveScroll: true,
@@ -228,8 +261,19 @@ const submitUserAddressStep = () => {
 
 const completeOnboarding = async () => {
     saving.value = true;
+    const needBabysitter = userSelectedBabysitterService(formData.value.services_needed);
+    const needPetSitter = userSelectedPetSitterService(formData.value.services_needed);
+    const profile = { ...formData.value.profile };
+    if (!needBabysitter) {
+        profile.number_of_children = null;
+        profile.children_ages_text = '';
+    }
+    if (!needPetSitter) {
+        profile.dogs_count = null;
+    }
     router.post(route('onboarding.complete'), {
         ...formData.value,
+        profile,
         languages: [formData.value.preferred_language || 'en'],
     }, {
         onSuccess: () => {
@@ -331,7 +375,10 @@ const goBack = () => {
                         required
                     />
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div
+                        v-if="showUserChildrenFields"
+                        class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    >
                         <Input
                             v-model="formData.profile.number_of_children"
                             type="number"
@@ -349,12 +396,13 @@ const goBack = () => {
                         />
                     </div>
                     <Input
+                        v-if="showUserPetCountField"
                         v-model="formData.profile.dogs_count"
                         type="number"
                         min="0"
                         max="50"
-                        label="Dogs (pets)"
-                        placeholder="How many dogs in the household?"
+                        label="Number of pets"
+                        placeholder="How many pets in the household?"
                         size="compact"
                     />
                     <p v-if="userAddressError" class="text-sm font-medium text-red-600">{{ userAddressError }}</p>
