@@ -21,6 +21,7 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasApiTokens, HasFactory, HasRoles, MustVerifyEmailTrait, Notifiable, SoftDeletes;
 
     protected $fillable = [
+        'old_wp_user_id',
         'first_name',
         'last_name',
         'email',
@@ -46,6 +47,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'affiliate_referral_id',
         'is_active',
         'last_login_at',
+        'import_source',
+        'imported_at',
     ];
 
     protected $hidden = [
@@ -56,6 +59,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
+            'old_wp_user_id' => 'integer',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'languages' => 'array',
@@ -64,6 +68,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'onboarding_completed_at' => 'datetime',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
+            'imported_at' => 'datetime',
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
         ];
@@ -111,6 +116,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function affiliateProfile(): HasOne
     {
         return $this->hasOne(Affiliate::class);
+    }
+
+    public function communityImportBatches(): HasMany
+    {
+        return $this->hasMany(CommunityImportBatch::class, 'uploaded_by');
     }
 
     public function leads(): HasMany

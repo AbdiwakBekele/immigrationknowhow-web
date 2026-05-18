@@ -469,6 +469,11 @@ Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|supe
         Route::post('/community/api/posts', [Admin\CommunityController::class, 'store'])->name('community.api.posts.store');
         Route::patch('/community/api/posts/{communityPost}', [Admin\CommunityController::class, 'update'])->name('community.api.posts.update');
         Route::delete('/community/api/posts/{communityPost}', [Admin\CommunityController::class, 'destroy'])->name('community.api.posts.destroy');
+        Route::get('/community/import', [Admin\CommunityImportController::class, 'index'])->name('community.import.index');
+        Route::post('/community/import', [Admin\CommunityImportController::class, 'store'])->name('community.import.store');
+        Route::get('/community/import/{communityImportBatch}/preview', [Admin\CommunityImportController::class, 'preview'])->name('community.import.preview');
+        Route::post('/community/import/{communityImportBatch}/run', [Admin\CommunityImportController::class, 'run'])->name('community.import.run');
+        Route::get('/community/import/{communityImportBatch}', [Admin\CommunityImportController::class, 'show'])->name('community.import.show');
         Route::get('/profile', [Admin\ProfileController::class, 'index'])->name('profile.index');
         Route::patch('/profile', [Admin\ProfileController::class, 'update'])->name('profile.update');
         Route::patch('/profile/password', [Admin\ProfileController::class, 'updatePassword'])->name('profile.password');

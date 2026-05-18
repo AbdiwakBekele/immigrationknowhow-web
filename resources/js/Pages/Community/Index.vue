@@ -1,10 +1,11 @@
 <script setup>
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import CommunityShareButtons from '@/Components/community/CommunityShareButtons.vue';
-import { getCommunityGuestKey, communityPostPath, communityPostShareUrl, youtubeVideoIdFromUrl } from '@/utils/community';
+import { getCommunityGuestKey, communityPostPath, communityPostShareUrl, hasPostVideo } from '@/utils/community';
+import { communityDescriptionPlainText } from '@/utils/communityContent';
 import { debounce } from 'lodash-es';
 import {
     ArrowTopRightOnSquareIcon,
@@ -19,6 +20,7 @@ import {
     NewspaperIcon,
     ScaleIcon,
     ShareIcon,
+    UserCircleIcon,
     UserGroupIcon,
 } from '@heroicons/vue/24/outline';
 
@@ -63,7 +65,12 @@ const country = ref('US');
 const posts = ref([]);
 const recentPosts = ref([]);
 const postsLoading = ref(false);
+const loadingMore = ref(false);
 const postsError = ref('');
+const postsPage = ref(1);
+const postsLastPage = ref(1);
+const loadMoreSentinel = ref(null);
+let loadMoreObserver = null;
 
 const newsItems = ref([]);
 const newsLoading = ref(false);
@@ -78,14 +85,16 @@ const commentError = ref('');
 
 const engagement = ref({});
 
+const hasMorePosts = computed(() => postsPage.value < postsLastPage.value);
+
 const filteredPosts = computed(() => {
     const query = search.value.trim().toLowerCase();
     return posts.value.filter((post) => {
         const sectionMatch = activeSection.value === 'feed' ? true : post.category === activeSection.value;
         const queryMatch = !query
             || post.title.toLowerCase().includes(query)
-            || post.description.toLowerCase().includes(query)
-            || post.tag.toLowerCase().includes(query);
+            || communityDescriptionPlainText(post.description, 0).toLowerCase().includes(query)
+            || (post.tag ?? '').toLowerCase().includes(query);
         return sectionMatch && queryMatch;
     });
 });
@@ -133,27 +142,30 @@ function commentInitials(comment) {
         .join('');
 }
 
-async function loadPosts() {
-    postsLoading.value = true;
-    postsError.value = '';
+async function loadPosts({ reset = true } = {}) {
+    if (activeSection.value === 'immigration-news') {
+        return;
+    }
+
+    const nextPage = reset ? 1 : postsPage.value + 1;
+
+    if (!reset) {
+        if (loadingMore.value || postsLoading.value || !hasMorePosts.value) {
+            return;
+        }
+        loadingMore.value = true;
+    } else {
+        postsLoading.value = true;
+        postsError.value = '';
+    }
+
     try {
         const params = new URLSearchParams({
             search: search.value || '',
             guest_key: getCommunityGuestKey(),
+            page: String(nextPage),
         });
-        const sectionCategory = activeSection.value === 'immigration-news' ? 'feed' : activeSection.value;
-        if (sectionCategory !== 'feed') {
-            params.set('category', sectionCategory);
-        }
-        const requestUrl = `/api/community/posts?${params.toString()}`;
-        console.info('[community][ui] loadPosts:start', {
-            activeSection: activeSection.value,
-            effectiveCategory: params.get('category'),
-            search: search.value,
-            guestKeyPresent: Boolean(params.get('guest_key')),
-            requestUrl,
-        });
-        const response = await fetch(requestUrl, {
+        const response = await fetch(`/api/community/posts?${params.toString()}`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
@@ -161,52 +173,68 @@ async function loadPosts() {
         let data;
         try {
             data = JSON.parse(rawText);
-        } catch (parseError) {
-            console.error('[community][ui] loadPosts:non-json-response', {
-                status: response.status,
-                statusText: response.statusText,
-                bodyPreview: rawText.slice(0, 1000),
-                parseError,
-            });
+        } catch {
             throw new Error('Community posts endpoint returned non-JSON.');
         }
-        console.info('[community][ui] loadPosts:response', {
-            status: response.status,
-            ok: response.ok,
-            postsCount: data?.posts?.data?.length ?? 0,
-            total: data?.posts?.total ?? null,
-            currentPage: data?.posts?.current_page ?? null,
-            error: data?.error ?? null,
-        });
-        posts.value = data?.posts?.data ?? [];
+
+        const payload = data?.posts ?? {};
+        const incoming = payload.data ?? [];
+
+        postsPage.value = payload.current_page ?? nextPage;
+        postsLastPage.value = payload.last_page ?? postsPage.value;
+
+        if (reset) {
+            posts.value = incoming;
+        } else {
+            const existingIds = new Set(posts.value.map((post) => post.id));
+            posts.value = [
+                ...posts.value,
+                ...incoming.filter((post) => !existingIds.has(post.id)),
+            ];
+        }
+
         if (data?.error) {
             postsError.value = data.error;
-            console.warn('[community][ui] loadPosts:api-error', {
-                error: data.error,
-                activeSection: activeSection.value,
-                search: search.value,
-            });
         }
-        if (!posts.value.length) {
-            console.warn('[community][ui] loadPosts:empty-results', {
-                activeSection: activeSection.value,
-                effectiveCategory: params.get('category'),
-                search: search.value,
-                apiTotal: data?.posts?.total ?? null,
-            });
+    } catch {
+        if (reset) {
+            posts.value = [];
         }
-    } catch (error) {
-        posts.value = [];
         postsError.value = 'Unable to load community posts.';
-        console.error('[community][ui] loadPosts:failed', {
-            activeSection: activeSection.value,
-            search: search.value,
-            errorMessage: error?.message ?? String(error),
-            error,
-        });
     } finally {
         postsLoading.value = false;
+        loadingMore.value = false;
     }
+}
+
+function loadMorePosts() {
+    void loadPosts({ reset: false });
+}
+
+function disconnectLoadMoreObserver() {
+    if (loadMoreObserver) {
+        loadMoreObserver.disconnect();
+        loadMoreObserver = null;
+    }
+}
+
+function setupLoadMoreObserver() {
+    disconnectLoadMoreObserver();
+
+    if (!loadMoreSentinel.value || activeSection.value === 'immigration-news') {
+        return;
+    }
+
+    loadMoreObserver = new IntersectionObserver(
+        (entries) => {
+            if (entries.some((entry) => entry.isIntersecting)) {
+                loadMorePosts();
+            }
+        },
+        { root: null, rootMargin: '240px 0px', threshold: 0 },
+    );
+
+    loadMoreObserver.observe(loadMoreSentinel.value);
 }
 
 async function loadRecentPosts() {
@@ -385,11 +413,19 @@ async function onNativeShare() {
 
 const debouncedLoadPosts = debounce(() => {
     if (activeSection.value !== 'immigration-news') {
-        void loadPosts();
+        void loadPosts({ reset: true });
     }
 }, 200);
 
 watch([activeSection, search], debouncedLoadPosts);
+
+watch(loadMoreSentinel, () => {
+    void nextTick(() => setupLoadMoreObserver());
+});
+
+watch(activeSection, () => {
+    void nextTick(() => setupLoadMoreObserver());
+});
 
 watch(posts, (nextPosts) => {
     const next = {};
@@ -425,9 +461,16 @@ watch([posts, filteredPosts, activeSection, search], () => {
     });
 }, { deep: true });
 
-onMounted(() => {
-    void loadPosts();
+onMounted(async () => {
+    await loadPosts({ reset: true });
     void loadRecentPosts();
+    await nextTick();
+    setupLoadMoreObserver();
+});
+
+onBeforeUnmount(() => {
+    disconnectLoadMoreObserver();
+    debouncedLoadPosts.cancel();
 });
 </script>
 
@@ -590,34 +633,60 @@ onMounted(() => {
 
                                     <article v-for="post in filteredPosts" :key="post.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                                     <Link :href="communityPostPath(post.id)" class="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2">
-                                        <div v-if="post.image_url" class="relative mb-2 h-40 overflow-hidden rounded-lg bg-[#e5e7eb]">
-                                            <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]">
-                                        </div>
-                                        <a
-                                            v-if="post.video_url && !youtubeVideoIdFromUrl(post.video_url)"
-                                            :href="post.video_url"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            class="mb-2 inline-block text-sm font-semibold text-[#1d4ed8] hover:underline"
-                                            @click.stop
-                                        >
-                                            Open video
-                                        </a>
                                         <div
-                                            v-else-if="post.video_url && youtubeVideoIdFromUrl(post.video_url)"
-                                            class="relative mb-2 aspect-video w-full overflow-hidden rounded-lg bg-black"
+                                            v-if="post.image_url || hasPostVideo(post)"
+                                            class="relative mb-3 h-52 overflow-hidden rounded-xl bg-[#e5e7eb] sm:h-56 md:h-64"
                                         >
-                                            <iframe
-                                                :src="`https://www.youtube.com/embed/${youtubeVideoIdFromUrl(post.video_url)}`"
-                                                title="Post video"
-                                                class="absolute inset-0 h-full w-full"
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                allowfullscreen
-                                            />
+                                            <img
+                                                v-if="post.image_url"
+                                                :src="post.image_url"
+                                                :alt="post.title"
+                                                class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                            >
+                                            <div
+                                                v-else
+                                                class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500"
+                                            >
+                                                <span class="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                                    Video post
+                                                </span>
+                                            </div>
+                                            <span
+                                                v-if="hasPostVideo(post)"
+                                                class="absolute bottom-3 right-3 inline-flex items-center rounded-full bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm"
+                                            >
+                                                ▶ Video
+                                            </span>
                                         </div>
-                                        <div class="mb-1.5 inline-block rounded-full bg-[#eef2ff] px-2 py-1 text-xs font-semibold text-[#3730a3]">{{ post.tag }}</div>
+                                        <div class="mb-2 flex flex-wrap items-center gap-2">
+                                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                {{ sectionLabels[post.category] || post.category }}
+                                            </span>
+                                            <span
+                                                v-if="post.contributor_name"
+                                                class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 py-1 pl-1 pr-2.5 text-xs font-semibold text-indigo-800"
+                                            >
+                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                                                    <UserCircleIcon class="h-4 w-4" aria-hidden="true" />
+                                                </span>
+                                                <span class="text-[10px] font-medium uppercase tracking-wide text-indigo-600">Contributor</span>
+                                                <span class="text-indigo-900">{{ post.contributor_name }}</span>
+                                            </span>
+                                            <span
+                                                v-if="post.contributor_country"
+                                                class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800"
+                                            >
+                                                {{ post.contributor_country }}
+                                            </span>
+                                            <span
+                                                v-if="post.tag"
+                                                class="rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-semibold text-[#3730a3]"
+                                            >
+                                                {{ post.tag }}
+                                            </span>
+                                        </div>
                                         <h3 class="text-xl font-bold text-[#111827] group-hover:underline">{{ post.title }}</h3>
-                                        <p class="mt-1.5 line-clamp-3 text-[15px] text-[#4b5563]">{{ post.description }}</p>
+                                        <p class="mt-1.5 line-clamp-3 text-[15px] text-[#4b5563]">{{ communityDescriptionPlainText(post.description) }}</p>
                                     </Link>
 
                                     <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -647,6 +716,14 @@ onMounted(() => {
                                 <p v-if="!postsLoading && filteredPosts.length === 0" class="rounded-lg border border-dashed border-[#c9d5e6] p-4 text-center text-sm text-[#64748b]">
                                     No posts found for this section. Try another category or search.
                                 </p>
+
+                                <div
+                                    v-if="hasMorePosts || loadingMore"
+                                    ref="loadMoreSentinel"
+                                    class="flex min-h-[4rem] items-center justify-center py-4"
+                                >
+                                    <p v-if="loadingMore" class="text-sm text-[#64748b]">Loading more posts...</p>
+                                </div>
                             </div>
                         </div>
 
@@ -742,3 +819,8 @@ onMounted(() => {
         </section>
     </component>
 </template>
+
+
+
+
+
