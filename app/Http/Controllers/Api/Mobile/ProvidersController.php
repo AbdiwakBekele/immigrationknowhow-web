@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Mobile;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Mobile\ProviderResource;
 use App\Models\ServiceProvider;
+use App\Support\UserRoleAccounts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -124,7 +125,8 @@ class ProvidersController extends Controller
             $provider->incrementProfileViews();
         }
 
-        $canContact = $viewer && ! $viewer->isProvider();
+        $canContact = $viewer
+            && UserRoleAccounts::canContactServiceProviders($viewer, $request->header('X-Active-Portal'));
         $favoritesEnabled = Schema::hasTable('provider_favorites');
         $canFavorite = $favoritesEnabled && $viewer && $viewer->hasRole('user') && ! $isOwner;
         $isFavorited = $canFavorite
