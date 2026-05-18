@@ -13,6 +13,7 @@ use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
+use App\Support\StripeProviderSubscriptionCheckout;
 use App\Support\UserRoleAccounts;
 use App\Support\UsStateOptions;
 use Illuminate\Http\JsonResponse;
@@ -310,8 +311,10 @@ class OnboardingController extends Controller
             }
         }
 
+        $needsPhoneVerify = ! $user->hasCompletedSignupPhoneStep() && ! $user->isAdmin() && ! $user->isAffiliate();
+
         return $this->success($phone ? 'OTP sent' : 'Address saved', [
-            'nextStep' => 3,
+            'nextStep' => $phone ? 3 : ($needsPhoneVerify ? 3 : 4),
         ]);
     }
 
@@ -381,8 +384,11 @@ class OnboardingController extends Controller
             DB::transaction(function () use ($user, $request, $isProvider, &$providerForCheckout, &$planForCheckout) {
                 $data = $request->all();
 
+                $lineOne = $data['address_line_1'] ?? $data['address'] ?? null;
+
                 $onboardingData = array_merge($user->onboarding_data ?? [], [
                     'location' => array_merge($user->onboarding_data['location'] ?? [], [
+                        'street' => $lineOne ?? ($user->onboarding_data['location']['street'] ?? null),
                         'city' => $data['city'] ?? null,
                         'state' => $data['state'] ?? null,
                         'postal_code' => $data['postal_code'] ?? null,
@@ -401,8 +407,6 @@ class OnboardingController extends Controller
                     'subscription' => array_merge($user->onboarding_data['subscription'] ?? [], $data['subscription'] ?? []),
                     'profile' => array_merge($user->onboarding_data['profile'] ?? [], $data['profile'] ?? []),
                 ]);
-
-                $lineOne = $data['address_line_1'] ?? $data['address'] ?? null;
 
                 $user->update([
                     'address' => $lineOne ?? $user->address,
@@ -487,8 +491,9 @@ class OnboardingController extends Controller
 
                 $selectedTotalCents = $selectedPlan ? (int) $selectedPlan->price_cents : 0;
 
-                $serviceProvider = ServiceProvider::create([
-                    'user_id' => $user->id,
+                $serviceProvider = ServiceProvider::query()->updateOrCreate(
+                    ['user_id' => $user->id],
+                    [
                     'business_name' => $businessData['business_name'] ?? $user->full_name,
                     'bio' => $businessData['bio'] ?? null,
                     'tagline' => $businessData['tagline'] ?? null,
@@ -509,12 +514,11 @@ class OnboardingController extends Controller
                     'languages_offered' => $user->languages ?? ['en'],
                     'license_number' => $businessData['license_number'] ?? null,
                     'years_experience' => $businessData['years_experience'] ?? null,
-                ]);
+                    ]
+                );
 
                 if ($selectedPlan) {
-                    ProviderSubscription::query()->create([
-                        'service_provider_id' => $serviceProvider->id,
-                        'subscription_plan_id' => $selectedPlan->id,
+                    $subscriptionPayload = [
                         'status' => $selectedTotalCents <= 0 ? 'active' : 'incomplete',
                         'started_at' => $selectedTotalCents <= 0 ? now() : null,
                         'current_period_start' => $selectedTotalCents <= 0 ? now() : null,
@@ -526,7 +530,15 @@ class OnboardingController extends Controller
                             'plan_price_cents' => (int) $selectedPlan->price_cents,
                             'charged_amount_cents' => $selectedTotalCents,
                         ],
-                    ]);
+                    ];
+
+                    ProviderSubscription::query()->updateOrCreate(
+                        [
+                            'service_provider_id' => $serviceProvider->id,
+                            'subscription_plan_id' => $selectedPlan->id,
+                        ],
+                        $subscriptionPayload
+                    );
 
                     if ($selectedTotalCents <= 0) {
                         $serviceProvider->update([
@@ -546,19 +558,29 @@ class OnboardingController extends Controller
             });
         } catch (ValidationException $e) {
             return $this->error('Validation failed', $e->errors(), 422);
+        } catch (\Throwable $e) {
+            Log::error('Mobile onboarding complete failed', [
+                'user_id' => $user->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->error('Could not complete onboarding. Please try again.', [], 500);
         }
+
+        $user->refresh();
 
         if ($providerForCheckout instanceof ServiceProvider && $planForCheckout instanceof SubscriptionPlan) {
             $checkoutUrl = $this->createStripeCheckoutUrl($request, $providerForCheckout, $planForCheckout);
             if ($checkoutUrl) {
                 return $this->success('Checkout required', [
                     'checkout_url' => $checkoutUrl,
+                    'user' => (new UserResource($user))->resolve(),
                 ]);
             }
         }
 
         return $this->success('Onboarding complete', [
-            'user' => (new UserResource($user->refresh()))->resolve(),
+            'user' => (new UserResource($user))->resolve(),
         ]);
     }
 
