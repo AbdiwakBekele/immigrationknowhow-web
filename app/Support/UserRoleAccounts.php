@@ -56,6 +56,18 @@ class UserRoleAccounts
     return $meta['has_provider'] ? UserRole::PROVIDER->value : UserRole::USER->value;
   }
 
+  /**
+   * Whether the user may send marketplace inquiries while in the seeker portal.
+   */
+  public static function canContactServiceProviders(User $user, ?string $portal = null): bool
+  {
+    if (! $user->hasRole(UserRole::USER->value)) {
+      return false;
+    }
+
+    return self::resolvedActivePortal($user, $portal) === UserRole::USER->value;
+  }
+
   public static function isAddingProviderAccount(User $user): bool
   {
     return $user->hasRole(UserRole::USER->value)

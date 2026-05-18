@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Lead;
 use App\Models\User;
+use App\Support\UserRoleAccounts;
 
 class LeadPolicy
 {
@@ -54,8 +55,7 @@ class LeadPolicy
      */
     public function create(User $user): bool
     {
-        // Match marketplace: any onboarded non-provider may send an inquiry (not only Spatie role "user").
-        return ! $user->isProvider();
+        return UserRoleAccounts::canContactServiceProviders($user, request()->header('X-Active-Portal'));
     }
 
     /**

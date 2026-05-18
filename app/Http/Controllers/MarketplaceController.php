@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ServiceType;
 use App\Models\ServiceProvider;
 use App\Support\ProviderShareMeta;
+use App\Support\UserRoleAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
@@ -179,7 +180,10 @@ class MarketplaceController extends Controller
             'provider' => $provider,
             'profileFeed' => $profileFeed->all(),
             'similarProviders' => $similarProviders,
-            'canContactProvider' => auth()->check() && ! auth()->user()->isProvider(),
+            'canContactProvider' => auth()->check() && UserRoleAccounts::canContactServiceProviders(
+                auth()->user(),
+                $request->session()->get(UserRoleAccounts::SESSION_ACTIVE_PORTAL)
+            ),
             'isOwnListingPreview' => $isOwner,
             'canFavorite' => $canFavorite,
             'isFavorited' => $isFavorited,
