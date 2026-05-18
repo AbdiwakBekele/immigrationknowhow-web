@@ -502,8 +502,12 @@ Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|supe
         // Sponsored ads (all users — moderation & analytics)
         Route::get('/ads', [AdsController::class, 'index'])->name('ads.index');
         Route::get('/ads/analytics', AdsAnalyticsController::class)->name('ads.analytics');
+        Route::get('/ads/{ad:uuid}/preview', [AdsController::class, 'preview'])->name('ads.preview');
         Route::post('/ads/{ad:uuid}/approve', [AdsController::class, 'approve'])->name('ads.approve');
         Route::post('/ads/{ad:uuid}/reject', [AdsController::class, 'reject'])->name('ads.reject');
+        Route::post('/ads/{ad:uuid}/suspend', [AdsController::class, 'suspend'])->name('ads.suspend');
+        Route::post('/ads/{ad:uuid}/reinstate', [AdsController::class, 'reinstate'])->name('ads.reinstate');
+        Route::delete('/ads/{ad:uuid}', [AdsController::class, 'destroy'])->name('ads.destroy');
 
         // Library (manual payment queue before resource so "library-manual-payments" is not captured as {library})
         Route::get('/library-manual-payments', [Admin\LibraryManualPaymentController::class, 'index'])

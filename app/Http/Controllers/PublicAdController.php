@@ -13,7 +13,7 @@ class PublicAdController extends Controller
 {
     public function show(Request $request, Ad $ad): Response
     {
-        abort_unless($ad->status === 'published' && $ad->published_at !== null, 404);
+        abort_unless($ad->isPubliclyVisible(), 404);
 
         $this->recordEvent($request, $ad, 'view');
 
@@ -31,7 +31,7 @@ class PublicAdController extends Controller
 
     public function click(Request $request, Ad $ad): RedirectResponse
     {
-        abort_unless($ad->status === 'published' && $ad->published_at !== null, 404);
+        abort_unless($ad->isPubliclyVisible(), 404);
 
         $this->recordEvent($request, $ad, 'click');
 

@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import { computed, ref, watch } from 'vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { EyeIcon, MegaphoneIcon } from '@heroicons/vue/24/outline';
+import { EyeIcon, MegaphoneIcon, TrashIcon } from '@heroicons/vue/24/outline';
 import { formatAdStatus } from '@/utils/formatAdStatus';
 
 const props = defineProps({
@@ -39,7 +39,18 @@ const statusClass = (status) => {
     if (status === 'pending_approval') return 'bg-amber-100 text-amber-800';
     if (status === 'pending_payment') return 'bg-sky-100 text-sky-800';
     if (status === 'rejected') return 'bg-rose-100 text-rose-800';
+    if (status === 'suspended') return 'bg-violet-100 text-violet-800';
     return 'bg-slate-100 text-slate-700';
+};
+
+const canSuspend = (status) => status === 'published' || status === 'pending_approval';
+
+const statusBeforeSuspend = (ad) => {
+    const m = ad?.meta;
+    if (m && typeof m === 'object' && m.status_before_suspend) {
+        return String(m.status_before_suspend);
+    }
+    return 'published';
 };
 
 const resolvedImageSrc = (url) => {
@@ -60,6 +71,34 @@ const reject = (uuid) => {
     const reason = window.prompt('Optional note for the advertiser (leave blank for none):');
     if (reason === null) return;
     router.post(route('admin.ads.reject', uuid), { reason: reason || null }, { preserveScroll: true });
+};
+
+const suspend = (uuid) => {
+    if (!window.confirm('Suspend this ad? It will be hidden from the public site immediately.')) return;
+    router.post(route('admin.ads.suspend', uuid), {}, { preserveScroll: true });
+};
+
+const reinstate = (ad) => {
+    const wasPending = statusBeforeSuspend(ad) === 'pending_approval';
+    const message = wasPending
+        ? 'Return this ad to the approval queue? It will not be public until approved.'
+        : 'Publish this ad again? It will be visible on the public site immediately.';
+    if (!window.confirm(message)) return;
+    router.post(route('admin.ads.reinstate', ad.uuid), {}, { preserveScroll: true });
+};
+
+const approveSuspended = (uuid) => {
+    if (!window.confirm('Approve and publish this suspended ad? It will go live on the public site immediately.')) return;
+    router.post(route('admin.ads.approve', uuid), {}, { preserveScroll: true });
+};
+
+const destroyAd = (uuid, status) => {
+    const extra =
+        status === 'published'
+            ? ' This ad is currently live and will be removed immediately.'
+            : '';
+    if (!window.confirm(`Permanently delete this ad?${extra} This cannot be undone.`)) return;
+    router.delete(route('admin.ads.destroy', uuid), { preserveScroll: true });
 };
 </script>
 
@@ -114,6 +153,7 @@ const reject = (uuid) => {
                                 <option value="pending_payment">Pending payment</option>
                                 <option value="published">Published</option>
                                 <option value="rejected">Rejected</option>
+                                <option value="suspended">Suspended</option>
                                 <option value="draft">Draft</option>
                             </select>
                         </div>
@@ -133,7 +173,16 @@ const reject = (uuid) => {
             </section>
 
             <section class="admin-table-wrap overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                <table class="w-full table-fixed divide-y divide-slate-200 text-sm">
+                    <colgroup>
+                        <col class="w-[17rem]">
+                        <col class="w-[11rem]">
+                        <col class="w-[8.5rem]">
+                        <col class="w-[4.5rem]">
+                        <col class="w-[4.5rem]">
+                        <col class="w-[4.5rem]">
+                        <col class="w-[22rem]">
+                    </colgroup>
                     <thead class="admin-table-head">
                         <tr>
                             <th class="admin-table-th">Ad</th>
@@ -147,7 +196,7 @@ const reject = (uuid) => {
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white">
                         <tr v-for="ad in rows" :key="ad.uuid">
-                            <td class="px-4 py-3 align-top">
+                            <td class="max-w-0 px-4 py-3 align-middle">
                                 <div class="flex gap-3">
                                     <div class="h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                                         <img
@@ -160,15 +209,29 @@ const reject = (uuid) => {
                                             No image
                                         </div>
                                     </div>
-                                    <div class="min-w-0">
-                                        <p class="font-semibold text-slate-900 line-clamp-2">{{ ad.title }}</p>
-                                        <p class="mt-0.5 text-xs text-slate-500 line-clamp-2">{{ ad.description }}</p>
+                                    <div class="min-w-0 flex-1 overflow-hidden">
+                                        <p
+                                            class="truncate font-semibold text-slate-900"
+                                            :title="ad.title"
+                                        >
+                                            {{ ad.title }}
+                                        </p>
+                                        <p
+                                            class="mt-0.5 truncate text-xs text-slate-500"
+                                            :title="ad.description"
+                                        >
+                                            {{ ad.description || '—' }}
+                                        </p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700">
-                                <p class="font-medium">{{ ad.user?.first_name }} {{ ad.user?.last_name }}</p>
-                                <p class="text-xs text-slate-500">{{ ad.user?.email }}</p>
+                            <td class="max-w-0 px-4 py-3 align-middle text-slate-700">
+                                <p class="truncate font-medium" :title="`${ad.user?.first_name} ${ad.user?.last_name}`">
+                                    {{ ad.user?.first_name }} {{ ad.user?.last_name }}
+                                </p>
+                                <p class="truncate text-xs text-slate-500" :title="ad.user?.email">
+                                    {{ ad.user?.email }}
+                                </p>
                             </td>
                             <td class="px-4 py-3 align-top">
                                 <span
@@ -187,42 +250,77 @@ const reject = (uuid) => {
                                         : '0.00'
                                 }}%
                             </td>
-                            <td class="px-4 py-3 align-top text-right">
-                                <div class="flex flex-wrap items-center justify-end gap-2">
+                            <td class="px-4 py-3 align-middle text-right">
+                                <div class="inline-flex flex-nowrap items-center justify-end gap-1.5 whitespace-nowrap">
                                     <a
-                                        v-if="ad.status === 'published'"
-                                        :href="route('ads.public.show', { ad: ad.uuid })"
+                                        :href="route('admin.ads.preview', ad.uuid)"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                        class="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                        :title="ad.status === 'published' ? 'Preview live ad' : 'Admin preview (not public yet)'"
                                     >
-                                        <EyeIcon class="h-3.5 w-3.5" />
+                                        <EyeIcon class="h-3.5 w-3.5 shrink-0" />
                                         Preview
                                     </a>
-                                    <span
-                                        v-else
-                                        class="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-400"
-                                        title="Live preview after publish"
-                                    >
-                                        <EyeIcon class="h-3.5 w-3.5" />
-                                        Preview
-                                    </span>
                                     <template v-if="ad.status === 'pending_approval'">
                                         <button
                                             type="button"
-                                            class="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                                            class="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white hover:bg-emerald-700"
                                             @click="approve(ad.uuid)"
                                         >
                                             Approve
                                         </button>
                                         <button
                                             type="button"
-                                            class="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100"
+                                            class="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-rose-800 hover:bg-rose-100"
                                             @click="reject(ad.uuid)"
                                         >
                                             Reject
                                         </button>
                                     </template>
+                                    <template v-if="ad.status === 'suspended'">
+                                        <button
+                                            v-if="statusBeforeSuspend(ad) === 'pending_approval'"
+                                            type="button"
+                                            class="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white hover:bg-emerald-700"
+                                            @click="approveSuspended(ad.uuid)"
+                                        >
+                                            Approve & publish
+                                        </button>
+                                        <button
+                                            v-if="statusBeforeSuspend(ad) === 'pending_approval'"
+                                            type="button"
+                                            class="shrink-0 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-sky-800 hover:bg-sky-100"
+                                            @click="reinstate(ad)"
+                                        >
+                                            Return to queue
+                                        </button>
+                                        <button
+                                            v-else
+                                            type="button"
+                                            class="shrink-0 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white hover:bg-emerald-700"
+                                            @click="reinstate(ad)"
+                                        >
+                                            Publish again
+                                        </button>
+                                    </template>
+                                    <button
+                                        v-if="canSuspend(ad.status)"
+                                        type="button"
+                                        class="shrink-0 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-violet-800 hover:bg-violet-100"
+                                        @click="suspend(ad.uuid)"
+                                    >
+                                        Suspend
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex shrink-0 items-center justify-center rounded-lg border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50"
+                                        title="Delete ad"
+                                        aria-label="Delete ad"
+                                        @click="destroyAd(ad.uuid, ad.status)"
+                                    >
+                                        <TrashIcon class="h-4 w-4" />
+                                    </button>
                                 </div>
                             </td>
                         </tr>

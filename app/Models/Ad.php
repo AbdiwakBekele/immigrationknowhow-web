@@ -68,9 +68,26 @@ class Ad extends Model
         return $this->hasMany(AdAnalyticsEvent::class);
     }
 
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        return $this->status === 'published' && $this->published_at !== null;
+    }
+
     public function scopePublished($query)
     {
-        return $query->where('status', 'published')->whereNotNull('published_at');
+        return $query
+            ->where('status', 'published')
+            ->whereNotNull('published_at');
+    }
+
+    public function scopePubliclyVisible($query)
+    {
+        return $query->published();
     }
 }
 
