@@ -31,14 +31,26 @@ class UserResource extends JsonResource
             'postal_code' => $user->postal_code,
             'preferred_language' => $user->preferred_language,
             'avatar_url' => $user->avatar_url,
-            'onboarding_completed' => (bool) $user->onboarding_completed
-                && $user->hasCompletedSignupAddressStep()
-                && ($user->hasCompletedSignupPhoneStep() || $user->isAdmin()),
+            'onboarding_completed' => $this->resolveOnboardingCompletedForMobile($user),
             'roles' => method_exists($user, 'getRoleNames')
                 ? $user->getRoleNames()->values()->all()
                 : [],
             'requires_background_check' => $this->providerRequiresBackgroundCheck($user),
         ];
+    }
+
+    private function resolveOnboardingCompletedForMobile($user): bool
+    {
+        if (! $user->onboarding_completed) {
+            return false;
+        }
+
+        if ($user->onboarding_completed_at !== null) {
+            return true;
+        }
+
+        return $user->hasCompletedSignupAddressStep()
+            && ($user->hasCompletedSignupPhoneStep() || $user->isAdmin() || $user->isAffiliate());
     }
 
     private function providerRequiresBackgroundCheck($user): bool
