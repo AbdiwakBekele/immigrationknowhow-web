@@ -42,6 +42,19 @@ use Inertia\Inertia;
 Route::redirect('/', '/login')->name('home');
 Route::get('/favicon.ico', fn () => redirect('/favicon.svg', 301));
 
+/** Stripe Checkout return for mobile AI Assistant (no auth — WebView intercepts this URL). */
+Route::get('/mobile/ai-assistant/checkout-return', function () {
+    return response(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        .'<title>Payment complete</title></head><body style="font-family:system-ui,sans-serif;text-align:center;padding:2.5rem 1.5rem">'
+        .'<h1 style="font-size:1.25rem;color:#0f172a">Payment successful</h1>'
+        .'<p style="color:#475569;line-height:1.5">Your AI Assistant subscription is active. You can close this screen and return to the app.</p>'
+        .'</body></html>',
+        200,
+        ['Content-Type' => 'text/html; charset=UTF-8']
+    );
+})->name('mobile.ai-assistant.checkout-return');
+
 Route::post('/locale', function (Request $request) {
     $validated = $request->validate([
         'locale' => ['required', 'string', 'in:en,fr,es'],

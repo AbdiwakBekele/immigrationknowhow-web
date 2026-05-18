@@ -86,6 +86,7 @@ Route::prefix('mobile')->group(function () {
     Route::middleware(['auth:sanctum', 'role:user|provider'])->prefix('ai-assistant')->group(function () {
         Route::get('/', [AiAssistantController::class, 'show']);
         Route::post('/checkout', [AiAssistantController::class, 'checkout']);
+        Route::post('/confirm-checkout', [AiAssistantController::class, 'confirmCheckout']);
         Route::post('/ask', [AiAssistantController::class, 'ask']);
     });
 

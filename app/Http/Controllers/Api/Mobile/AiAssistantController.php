@@ -9,6 +9,7 @@ use App\Services\Ai\ServiceSeekerAssistantService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Stripe;
 use Stripe\Subscription;
@@ -28,7 +29,11 @@ class AiAssistantController extends Controller
                 : '';
 
             if ($sessionIdFromQuery !== '') {
-                $this->syncSubscriptionFromCheckoutSession($user->id, $sessionIdFromQuery);
+                try {
+                    $this->syncSubscriptionFromCheckoutSession($user->id, $sessionIdFromQuery);
+                } catch (RuntimeException) {
+                    // Best-effort when called via legacy query sync.
+                }
             } else {
                 $lastKnownSessionId = (string) (AiAssistantSubscription::query()
                     ->where('user_id', $user->id)
@@ -36,44 +41,19 @@ class AiAssistantController extends Controller
                     ->value('stripe_checkout_session_id') ?? '');
 
                 if ($lastKnownSessionId !== '') {
-                    $this->syncSubscriptionFromCheckoutSession($user->id, $lastKnownSessionId);
+                    try {
+                        $this->syncSubscriptionFromCheckoutSession($user->id, $lastKnownSessionId);
+                    } catch (RuntimeException) {
+                        // Best-effort.
+                    }
                 }
             }
         }
 
-        $subscription = Schema::hasTable('ai_assistant_subscriptions')
-            ? AiAssistantSubscription::query()
-                ->where('user_id', $user->id)
-                ->latest('id')
-                ->first()
-            : null;
-
-        $chatMessages = Schema::hasTable('ai_assistant_messages')
-            ? AiAssistantMessage::query()
-                ->where('user_id', $user->id)
-                ->where('context', 'mobile')
-                ->orderBy('id')
-                ->limit(60)
-                ->get(['id', 'role', 'content', 'created_at'])
-                ->map(fn ($m) => [
-                    'id' => (string) $m->id,
-                    'role' => $m->role,
-                    'text' => $m->content,
-                    'ts' => optional($m->created_at)->toISOString(),
-                ])
-                ->values()
-            : collect();
-
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data' => [
-                'subscription' => $subscription,
-                'is_addon_active' => $subscription?->isActive() ?? false,
-                'monthly_price' => '4.99',
-                'currency' => 'USD',
-                'chat_messages' => $chatMessages,
-            ],
+            'data' => $this->buildStatePayload($user->id),
         ]);
     }
 
@@ -118,8 +98,8 @@ class AiAssistantController extends Controller
             ];
 
         $user = $request->user();
-        $successUrl = route('user.ai-assistant.index', [], true).'?checkout=success&session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = route('user.ai-assistant.index', [], true).'?checkout=cancelled';
+        $successUrl = route('mobile.ai-assistant.checkout-return', [], true).'?session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = route('mobile.ai-assistant.checkout-return', [], true).'?checkout=cancelled';
 
         try {
             Stripe::setApiKey($stripeSecret);
@@ -181,7 +161,52 @@ class AiAssistantController extends Controller
             'message' => 'OK',
             'data' => [
                 'checkout_url' => $checkoutUrl,
+                'checkout_session_id' => (string) $session->id,
             ],
+        ]);
+    }
+
+    public function confirmCheckout(Request $request): JsonResponse
+    {
+        if (! Schema::hasTable('ai_assistant_subscriptions')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'AI add-on is not ready yet. Please run database migrations.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'session_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        $sessionId = trim((string) $validated['session_id']);
+        $userId = (int) $request->user()->id;
+
+        try {
+            $subscription = $this->syncSubscriptionFromCheckoutSession($userId, $sessionId);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        if (! $subscription->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment is still processing. Please wait a moment and try again.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $payload = $this->buildStatePayload($userId);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'AI Assistant subscription is active.',
+            'data' => $payload,
         ]);
     }
 
@@ -248,27 +273,161 @@ class AiAssistantController extends Controller
         ]);
     }
 
-    private function syncSubscriptionFromCheckoutSession(int $userId, string $sessionId): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildStatePayload(int $userId): array
+    {
+        $subscription = Schema::hasTable('ai_assistant_subscriptions')
+            ? AiAssistantSubscription::query()
+                ->where('user_id', $userId)
+                ->latest('id')
+                ->first()
+            : null;
+
+        $chatMessages = Schema::hasTable('ai_assistant_messages')
+            ? AiAssistantMessage::query()
+                ->where('user_id', $userId)
+                ->where('context', 'mobile')
+                ->orderBy('id')
+                ->limit(60)
+                ->get(['id', 'role', 'content', 'created_at'])
+                ->map(fn ($m) => [
+                    'id' => (string) $m->id,
+                    'role' => $m->role,
+                    'text' => $m->content,
+                    'ts' => optional($m->created_at)->toISOString(),
+                ])
+                ->values()
+            : collect();
+
+        return [
+            'subscription' => $subscription,
+            'is_addon_active' => $subscription?->isActive() ?? false,
+            'monthly_price' => '4.99',
+            'currency' => 'USD',
+            'chat_messages' => $chatMessages,
+        ];
+    }
+
+    private function syncSubscriptionFromCheckoutSession(int $userId, string $sessionId): AiAssistantSubscription
     {
         $stripeSecret = trim((string) config('services.stripe.secret', ''));
         if ($stripeSecret === '') {
-            return;
+            throw new RuntimeException('STRIPE_SECRET is not configured.');
         }
 
-        try {
-            Stripe::setApiKey($stripeSecret);
-            $session = StripeCheckoutSession::retrieve($sessionId);
-            $stripeSubscriptionId = is_string($session->subscription) ? $session->subscription : null;
-            if (! $stripeSubscriptionId) {
-                return;
+        Stripe::setApiKey($stripeSecret);
+
+        $session = null;
+        $stripeSubscription = null;
+        $stripeSubscriptionId = null;
+        $lastError = null;
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            try {
+                $session = StripeCheckoutSession::retrieve($sessionId, [
+                    'expand' => ['subscription'],
+                ]);
+            } catch (\Throwable $e) {
+                $lastError = $e;
+                if ($attempt < 9) {
+                    usleep(400_000);
+
+                    continue;
+                }
+
+                throw new RuntimeException(
+                    config('app.debug')
+                        ? 'Could not verify checkout session: '.$e->getMessage()
+                        : 'Could not verify checkout session.',
+                    0,
+                    $e
+                );
             }
 
-            $stripeSubscription = Subscription::retrieve($stripeSubscriptionId);
-        } catch (\Throwable) {
-            return;
+            $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
+            if ($metadataUserId > 0 && $metadataUserId !== $userId) {
+                throw new RuntimeException('Session does not belong to this user.');
+            }
+
+            $app = (string) ($session->metadata['app'] ?? '');
+            if ($app !== '' && $app !== 'ai_assistant') {
+                throw new RuntimeException('Invalid checkout session type.');
+            }
+
+            if ($session->status !== 'complete') {
+                if ($attempt < 9) {
+                    usleep(400_000);
+
+                    continue;
+                }
+
+                throw new RuntimeException('Checkout is not complete yet.');
+            }
+
+            if (is_string($session->subscription) && $session->subscription !== '') {
+                $stripeSubscriptionId = $session->subscription;
+            } elseif (is_object($session->subscription) && isset($session->subscription->id)) {
+                $stripeSubscriptionId = (string) $session->subscription->id;
+                $stripeSubscription = $session->subscription;
+            }
+
+            if (! $stripeSubscriptionId) {
+                if ($attempt < 9) {
+                    usleep(400_000);
+
+                    continue;
+                }
+
+                throw new RuntimeException('Subscription not found on checkout session.');
+            }
+
+            if (! $stripeSubscription) {
+                try {
+                    $stripeSubscription = Subscription::retrieve($stripeSubscriptionId);
+                } catch (\Throwable $e) {
+                    $lastError = $e;
+                    if ($attempt < 9) {
+                        usleep(400_000);
+
+                        continue;
+                    }
+
+                    throw new RuntimeException(
+                        config('app.debug')
+                            ? 'Could not load subscription: '.$e->getMessage()
+                            : 'Could not load subscription.',
+                        0,
+                        $e
+                    );
+                }
+            }
+
+            $status = (string) $stripeSubscription->status;
+            if (in_array($status, ['active', 'trialing', 'past_due'], true)) {
+                break;
+            }
+
+            if ($attempt < 9) {
+                usleep(400_000);
+                $stripeSubscription = null;
+
+                continue;
+            }
+
+            throw new RuntimeException('Subscription is not active yet (status: '.$status.').');
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
+        if (! $session instanceof StripeCheckoutSession || ! $stripeSubscriptionId || ! $stripeSubscription) {
+            throw new RuntimeException(
+                config('app.debug') && $lastError instanceof \Throwable
+                    ? 'Could not confirm subscription: '.$lastError->getMessage()
+                    : 'Could not confirm subscription.'
+            );
+        }
+
+        return AiAssistantSubscription::query()->updateOrCreate(
             ['user_id' => $userId],
             [
                 'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
@@ -285,7 +444,7 @@ class AiAssistantController extends Controller
                 'meta' => [
                     'session' => $session->toArray(),
                     'subscription' => $stripeSubscription->toArray(),
-                    'source' => 'success_return_sync_mobile',
+                    'source' => 'confirm_checkout_mobile',
                 ],
             ]
         );
