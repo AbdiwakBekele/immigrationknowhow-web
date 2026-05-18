@@ -26,7 +26,7 @@ final class FulfillAdvertiserStripeCheckout
         }
 
         $ad = Ad::query()->whereKey($adId)->where('user_id', $userId)->first();
-        if (! $ad) {
+        if (! $ad || $ad->isSuspended()) {
             return false;
         }
 

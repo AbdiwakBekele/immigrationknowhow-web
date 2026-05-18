@@ -129,6 +129,7 @@ Route::prefix('mobile')->group(function () {
         Route::patch('/{ad:uuid}', [MobileAdsController::class, 'update']);
         Route::delete('/{ad:uuid}', [MobileAdsController::class, 'destroy']);
         Route::post('/{ad:uuid}/checkout', [MobileAdsController::class, 'checkout']);
+        Route::post('/{ad:uuid}/confirm-checkout', [MobileAdsController::class, 'confirmCheckout']);
         Route::post('/{ad:uuid}/resubmit', [MobileAdsController::class, 'resubmit']);
     });
 

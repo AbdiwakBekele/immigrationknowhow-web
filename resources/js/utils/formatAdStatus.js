@@ -8,6 +8,7 @@ const LABELS = {
     pending_approval: 'Pending approval',
     published: 'Published',
     rejected: 'Rejected',
+    suspended: 'Suspended',
 };
 
 function sentenceCaseFromSnake(key) {

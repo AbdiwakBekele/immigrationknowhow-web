@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Actions\Advertiser\ApplyAdOwnerEditStatus;
+use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdAnalyticsEvent;
@@ -90,7 +92,7 @@ class MobileAdsController extends Controller
             'message' => 'OK',
             'data' => [
                 'ad' => $this->toAdPayload($ad),
-                'public_url' => url('/sponsored/'.$ad->uuid),
+                'public_url' => $ad->isPubliclyVisible() ? url('/sponsored/'.$ad->uuid) : null,
             ],
         ]);
     }
@@ -138,9 +140,10 @@ class MobileAdsController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, Ad $ad): JsonResponse
+    public function update(Request $request, Ad $ad, ApplyAdOwnerEditStatus $applyEditStatus): JsonResponse
     {
         $this->authorizeAd($request, $ad);
+        $previousStatus = (string) $ad->status;
         $validated = $this->validateAd($request, false);
         $imageUrl = $this->resolveImageUrl($request, $validated, $ad->image_url);
 
@@ -151,11 +154,17 @@ class MobileAdsController extends Controller
             'image_url' => $imageUrl,
         ]);
 
+        $ad = $applyEditStatus($ad->fresh(), $previousStatus);
+
+        $message = in_array($previousStatus, ['published', 'suspended'], true) && $ad->status === 'pending_approval'
+            ? 'Ad updated and submitted for administrator approval again.'
+            : 'Ad updated.';
+
         return response()->json([
             'success' => true,
-            'message' => 'Ad updated.',
+            'message' => $message,
             'data' => [
-                'ad' => $this->toAdPayload($ad->fresh()),
+                'ad' => $this->toAdPayload($ad),
             ],
         ]);
     }
@@ -197,6 +206,9 @@ class MobileAdsController extends Controller
     {
         $this->authorizeAd($request, $ad);
 
+        if ($ad->isSuspended()) {
+            return response()->json(['success' => false, 'message' => 'This ad was suspended by an administrator.', 'errors' => (object) []], 422);
+        }
         if ($ad->status === 'published') {
             return response()->json(['success' => false, 'message' => 'Already published.', 'errors' => (object) []], 422);
         }
@@ -276,6 +288,75 @@ class MobileAdsController extends Controller
         ]);
     }
 
+    public function confirmCheckout(Request $request, Ad $ad, FulfillAdvertiserStripeCheckout $fulfill): JsonResponse
+    {
+        $this->authorizeAd($request, $ad);
+
+        $sessionId = $request->input('session_id');
+        if (! is_string($sessionId) || trim($sessionId) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing session ID.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        if (! StripeConfig::checkoutConfigured()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Stripe not configured.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::retrieve($sessionId);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug') ? $e->getMessage() : 'Could not verify payment.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
+        if ($metadataUserId !== (int) $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session does not belong to this user.',
+                'errors' => (object) [],
+            ], 403);
+        }
+
+        $metadataAdId = (int) ($session->metadata['ad_id'] ?? 0);
+        if ($metadataAdId !== (int) $ad->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment session does not match this ad.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $fulfilled = $fulfill($session);
+        $ad->refresh();
+
+        $message = $fulfilled
+            ? ($ad->status === 'pending_approval'
+                ? 'Payment successful. Your ad is pending administrator approval.'
+                : 'Payment successful. Your ad is now published.')
+            : 'Payment is still processing. Pull to refresh in a moment.';
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => [
+                'fulfilled' => $fulfilled,
+                'ad' => $this->toAdPayload($ad),
+            ],
+        ]);
+    }
+
     private function validateAd(Request $request, bool $isCreate = true): array
     {
         $rules = [
@@ -284,6 +365,7 @@ class MobileAdsController extends Controller
             'cta_url' => ['required', 'url:http,https', 'max:2048'],
             'image_url' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'string', 'max:2048'],
             'image' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'image', 'max:5120'],
+            'clear_image' => ['sometimes', 'boolean'],
         ];
         $validated = $request->validate($rules);
 
@@ -299,6 +381,10 @@ class MobileAdsController extends Controller
 
     private function resolveImageUrl(Request $request, array $validated, ?string $fallback = null): ?string
     {
+        if ($request->boolean('clear_image')) {
+            return null;
+        }
+
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('ads', 'public');
             return '/storage/'.$path;
@@ -336,6 +422,7 @@ class MobileAdsController extends Controller
                 'ctr' => $viewCount > 0 ? round(($clickCount / $viewCount) * 100, 2) : 0.0,
             ],
             'meta' => $ad->meta ?? [],
+            'is_publicly_visible' => $ad->isPubliclyVisible(),
         ];
     }
 

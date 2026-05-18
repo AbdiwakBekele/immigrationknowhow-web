@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Advertiser;
 
+use App\Actions\Advertiser\ApplyAdOwnerEditStatus;
 use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
@@ -106,7 +107,7 @@ class AdController extends Controller
         return Inertia::render('Advertiser/Ads/Edit', [
             'ad' => $this->toAdPayload($ad),
             'adPostingPrice' => $this->adPricingPayload(),
-            'publicUrl' => URL::route('ads.public.show', ['ad' => $ad->uuid]),
+            'publicUrl' => $this->publicAdUrl($ad),
             'adsRouteNamePrefix' => $this->adsRouteNamePrefix($request),
             'adPortal' => $this->adPortalPayload($request),
         ]);
@@ -116,6 +117,10 @@ class AdController extends Controller
     {
         $this->authorizeAd($ad);
         $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
+
+        if ($ad->isSuspended()) {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad was suspended by an administrator and is not visible to the public.');
+        }
 
         if ($ad->status === 'published') {
             return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already published.');
@@ -136,24 +141,33 @@ class AdController extends Controller
         return Inertia::render('Advertiser/Ads/Pay', [
             'ad' => $this->toAdPayload($ad),
             'adPostingPrice' => $this->adPricingPayload(),
-            'publicUrl' => URL::route('ads.public.show', ['ad' => $ad->uuid]),
+            'publicUrl' => $this->publicAdUrl($ad),
             'adsRouteNamePrefix' => $adsRouteNamePrefix,
             'adPortal' => $this->adPortalPayload($request),
         ]);
     }
 
-    public function update(Request $request, Ad $ad): RedirectResponse
+    public function update(Request $request, Ad $ad, ApplyAdOwnerEditStatus $applyEditStatus): RedirectResponse
     {
         $this->authorizeAd($ad);
+        $previousStatus = (string) $ad->status;
         $validated = $this->validateAd($request);
         $imageUrl = $this->resolveImageUrl($request, $validated, $ad->image_url);
 
         $ad->update([
-            ...$validated,
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'cta_url' => $validated['cta_url'],
             'image_url' => $imageUrl,
         ]);
 
-        return back()->with('success', 'Ad updated.');
+        $ad = $applyEditStatus($ad->fresh(), $previousStatus);
+
+        $message = in_array($previousStatus, ['published', 'suspended'], true) && $ad->status === 'pending_approval'
+            ? 'Ad updated and submitted for administrator approval again.'
+            : 'Ad updated.';
+
+        return back()->with('success', $message);
     }
 
     public function destroy(Request $request, Ad $ad): RedirectResponse
@@ -184,6 +198,10 @@ class AdController extends Controller
     {
         $this->authorizeAd($ad);
         $adsRouteNamePrefix = $this->adsRouteNamePrefix($request);
+
+        if ($ad->isSuspended()) {
+            return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad was suspended and cannot be paid for until an administrator reviews it.');
+        }
 
         if ($ad->status === 'published') {
             return redirect()->route("{$adsRouteNamePrefix}.edit", $ad)->with('info', 'This ad is already published.');
@@ -384,7 +402,17 @@ class AdController extends Controller
                 'ctr' => $viewCount > 0 ? round(($clickCount / $viewCount) * 100, 2) : 0.0,
             ],
             'meta' => $ad->meta ?? [],
+            'is_publicly_visible' => $ad->isPubliclyVisible(),
         ];
+    }
+
+    private function publicAdUrl(Ad $ad): ?string
+    {
+        if (! $ad->isPubliclyVisible()) {
+            return null;
+        }
+
+        return URL::route('ads.public.show', ['ad' => $ad->uuid]);
     }
 
     private function authorizeAd(Ad $ad): void

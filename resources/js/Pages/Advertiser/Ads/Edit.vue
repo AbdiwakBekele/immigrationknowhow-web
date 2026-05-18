@@ -142,6 +142,18 @@ const resubmitForReview = () => {
             <div class="grid gap-6 lg:grid-cols-3">
                 <form class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2" @submit.prevent="submit">
                     <div
+                        v-if="ad.status === 'suspended'"
+                        class="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900"
+                    >
+                        This ad was <span class="font-semibold">suspended</span> by an administrator and is hidden from the public site. Saving changes will submit it for approval again.
+                    </div>
+                    <div
+                        v-if="ad.status === 'published'"
+                        class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+                    >
+                        This ad is <span class="font-semibold">live</span>. Saving changes will remove it from the public site until an administrator approves it again.
+                    </div>
+                    <div
                         v-if="ad.status === 'pending_approval'"
                         class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
                     >
@@ -232,11 +244,14 @@ const resubmitForReview = () => {
 
                     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                         <p class="text-sm text-slate-500">Public ad URL</p>
-                        <template v-if="ad.status === 'published'">
+                        <template v-if="ad.is_publicly_visible && publicUrl">
                             <a :href="publicUrl" target="_blank" rel="noopener noreferrer" class="mt-2 block break-all text-sm font-medium text-primary-700 hover:text-primary-800">
                                 {{ publicUrl }}
                             </a>
                         </template>
+                        <p v-else-if="ad.status === 'suspended'" class="mt-2 text-sm text-slate-500">
+                            Hidden while suspended. Contact support if you have questions.
+                        </p>
                         <p v-else class="mt-2 text-sm text-slate-500">
                             Available after your ad is published.
                         </p>

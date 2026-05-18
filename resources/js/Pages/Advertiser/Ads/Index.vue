@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { EyeIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { EyeIcon } from '@heroicons/vue/24/outline';
 import AdvertiserLayout from '@/Layouts/AdvertiserLayout.vue';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -41,8 +41,12 @@ const cardActionsJustifyClass = computed(() => {
     return 'justify-start';
 });
 
-const destroyAd = (uuid) => {
-    if (!window.confirm('Delete this ad?')) return;
+const destroyAd = (uuid, status) => {
+    const extra =
+        status === 'published'
+            ? ' This ad is currently live and will be removed immediately.'
+            : '';
+    if (!window.confirm(`Delete this ad?${extra}`)) return;
     router.delete(route(`${props.adsRouteNamePrefix}.destroy`, uuid));
 };
 
@@ -51,6 +55,7 @@ const statusClass = (status) => {
     if (status === 'pending_approval') return 'bg-amber-100 text-amber-800';
     if (status === 'pending_payment') return 'bg-sky-100 text-sky-800';
     if (status === 'rejected') return 'bg-rose-100 text-rose-800';
+    if (status === 'suspended') return 'bg-violet-100 text-violet-800';
     if (status === 'pending') return 'bg-amber-100 text-amber-700';
     return 'bg-slate-100 text-slate-700';
 };
@@ -164,6 +169,13 @@ const maxClicks = computed(() => {
                             </p>
                         </div>
 
+                        <p
+                            v-if="ad.status === 'suspended'"
+                            class="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-900"
+                        >
+                            This ad was <span class="font-semibold">suspended</span> by an administrator and is not visible to anyone on the public site.
+                        </p>
+
                         <dl class="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center">
                             <div>
                                 <dt class="text-xs text-slate-500">Views</dt>
@@ -181,7 +193,7 @@ const maxClicks = computed(() => {
 
                         <div :class="['flex flex-wrap items-center gap-3', cardActionsJustifyClass]">
                             <a
-                                v-if="ad.status === 'published'"
+                                v-if="ad.is_publicly_visible"
                                 :href="route('ads.public.show', { ad: ad.uuid })"
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -194,25 +206,27 @@ const maxClicks = computed(() => {
                             <span
                                 v-else
                                 class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-400"
-                                title="Preview is available after the ad is published"
+                                :title="ad.status === 'suspended'
+                                    ? 'This ad was suspended and is hidden from the public site'
+                                    : 'Preview is available after the ad is published'"
                             >
                                 <EyeIcon class="h-4 w-4" />
                                 Preview
                             </span>
                             <Link
                                 :href="route(`${adsRouteNamePrefix}.edit`, ad.uuid)"
-                                class="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50"
+                                class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-primary-700 shadow-sm hover:bg-primary-50"
                             >
-                                Manage
+                                Edit
                             </Link>
                             <button
                                 type="button"
-                                class="inline-flex items-center rounded-lg p-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
                                 aria-label="Delete ad"
                                 title="Delete ad"
-                                @click="destroyAd(ad.uuid)"
+                                @click="destroyAd(ad.uuid, ad.status)"
                             >
-                                <TrashIcon class="h-4 w-4" />
+                                Delete
                             </button>
                         </div>
                     </div>
