@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommunityPost;
+use App\Support\CountryDisplay;
+use App\Support\PhoneDialOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +28,9 @@ class CommunityController extends Controller
 
     public function index(): Response
     {
-        return Inertia::render('Admin/Community/Index');
+        return Inertia::render('Admin/Community/Index', [
+            'countryOptions' => PhoneDialOptions::selectOptions(),
+        ]);
     }
 
     public function list(Request $request): JsonResponse
@@ -41,7 +45,9 @@ class CommunityController extends Controller
             $perPage = min(max($request->integer('per_page', 50), 1), 100);
             $page = max($request->integer('page', 1), 1);
 
-            $query = CommunityPost::query()->latest();
+            $query = CommunityPost::query()
+                ->with('contributor:id,first_name,last_name,email,country')
+                ->latest();
 
             if (! $request->boolean('includeDrafts')) {
                 $query->published();
@@ -67,6 +73,19 @@ class CommunityController extends Controller
             $category = $request->filled('category') ? $request->string('category')->toString() : '';
             if ($category !== '' && $category !== 'all' && $category !== 'feed') {
                 $query->where('category', $category);
+            }
+
+            $country = $request->filled('country') ? $request->string('country')->toString() : '';
+            if ($country !== '' && $country !== 'all') {
+                $countryMatches = CountryDisplay::storageMatchValues($country);
+                if ($countryMatches !== []) {
+                    $query->where(function ($inner) use ($countryMatches): void {
+                        $inner->whereIn('contributor_country', $countryMatches)
+                            ->orWhereHas('contributor', function ($contributorQuery) use ($countryMatches): void {
+                                $contributorQuery->whereIn('country', $countryMatches);
+                            });
+                    });
+                }
             }
 
             $posts = $query
@@ -117,12 +136,15 @@ class CommunityController extends Controller
             'video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/ogg,video/quicktime', 'max:102400'],
             'video_url' => ['nullable', 'url', 'max:2048'],
             'is_published' => ['boolean'],
+            'contributor_country' => ['nullable', 'string', 'max:8', Rule::in(PhoneDialOptions::codes())],
         ]);
 
         $isPublished = (bool) ($validated['is_published'] ?? true);
 
         $post = CommunityPost::query()->create([
             'author_id' => $request->user()?->id,
+            'contributor_country' => CountryDisplay::normalizeForStorage($validated['contributor_country'] ?? null)
+                ?? $this->normalizeContributorCountry($validated['contributor_country'] ?? null),
             'title' => $validated['title'],
             'description' => $validated['description'],
             'tag' => $validated['tag'] ?? '',
@@ -151,6 +173,7 @@ class CommunityController extends Controller
             'video' => ['nullable', 'file', 'mimetypes:video/mp4,video/webm,video/ogg,video/quicktime', 'max:102400'],
             'video_url' => ['nullable', 'url', 'max:2048'],
             'is_published' => ['required', 'boolean'],
+            'contributor_country' => ['nullable', 'string', 'max:8', Rule::in(PhoneDialOptions::codes())],
         ]);
 
         $imageUrl = $communityPost->image_url;
@@ -165,7 +188,7 @@ class CommunityController extends Controller
             $videoUrl = $validated['video_url'] ?: null;
         }
 
-        $communityPost->update([
+        $updatePayload = [
             'title' => $validated['title'],
             'description' => $validated['description'],
             'tag' => $validated['tag'] ?? '',
@@ -176,7 +199,14 @@ class CommunityController extends Controller
                 : null,
             'image_url' => $imageUrl,
             'video_url' => $videoUrl,
-        ]);
+        ];
+
+        if (array_key_exists('contributor_country', $validated)) {
+            $updatePayload['contributor_country'] = CountryDisplay::normalizeForStorage($validated['contributor_country'])
+                ?? $this->normalizeContributorCountry($validated['contributor_country']);
+        }
+
+        $communityPost->update($updatePayload);
 
         return response()->json(['post' => $this->toPostResource($communityPost->fresh())]);
     }
@@ -190,12 +220,32 @@ class CommunityController extends Controller
 
     private function toPostResource(CommunityPost $post): array
     {
+        $importMeta = is_array($post->import_meta) ? $post->import_meta : [];
+        $contributor = $post->relationLoaded('contributor') ? $post->contributor : null;
+
+        $contributorName = $contributor?->full_name;
+        if (! filled($contributorName)) {
+            $fallbackEmail = trim((string) ($importMeta['contributor_email'] ?? ''));
+            $contributorName = $fallbackEmail !== '' ? $fallbackEmail : null;
+        }
+
+        $contributorCountrySource = filled($post->contributor_country)
+            ? (string) $post->contributor_country
+            : ($contributor?->country ?? null);
+
+        $contributorCountryCode = CountryDisplay::normalizeForStorage($contributorCountrySource);
+        $contributorCountryLabel = CountryDisplay::labelForDisplay($contributorCountrySource);
+
         return [
             'id' => $post->id,
             'title' => $post->title,
             'description' => $post->description,
             'tag' => $post->tag,
             'category' => $post->category,
+            'contributor_name' => $contributorName,
+            'contributor_country' => $contributorCountryLabel,
+            'contributor_country_code' => $contributorCountryCode,
+            'contributor_country_label' => $contributorCountryLabel,
             'image_url' => $post->image_url,
             'video_url' => $post->video_url,
             'likes_count' => (int) $post->likes_count,
@@ -206,5 +256,12 @@ class CommunityController extends Controller
             'published_at' => optional($post->published_at)->toIso8601String(),
             'created_at' => optional($post->created_at)->toIso8601String(),
         ];
+    }
+
+    private function normalizeContributorCountry(?string $value): string
+    {
+        $normalized = strtoupper(trim((string) $value));
+
+        return $normalized !== '' ? $normalized : 'US';
     }
 }

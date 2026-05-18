@@ -61,6 +61,33 @@ class PhoneDialOptions
         return $options;
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function codes(): array
+    {
+        return array_map(
+            static fn (array $option): string => $option['value'],
+            self::selectOptions(),
+        );
+    }
+
+    public static function labelForCode(?string $code): ?string
+    {
+        $code = is_string($code) ? strtoupper(trim($code)) : '';
+        if ($code === '') {
+            return null;
+        }
+
+        foreach (self::selectOptions() as $option) {
+            if ($option['value'] === $code) {
+                return $option['label'];
+            }
+        }
+
+        return $code;
+    }
+
     private static function regionLabel(string $regionCode): string
     {
         if (class_exists(Locale::class)) {
