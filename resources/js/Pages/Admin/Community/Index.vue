@@ -3,6 +3,16 @@ import { Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import { debounce } from 'lodash-es';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import CountrySearchSelect from '@/Components/forms/CountrySearchSelect.vue';
+import { communityDescriptionPlainText } from '@/utils/communityContent';
+import { ArrowPathIcon, UserCircleIcon } from '@heroicons/vue/24/outline';
+
+const props = defineProps({
+    countryOptions: {
+        type: Array,
+        default: () => [],
+    },
+});
 
 const categories = [
     { value: 'ask-intro', label: 'Intro' },
@@ -16,11 +26,14 @@ const categories = [
 
 const defaultCategory = categories[0].value;
 
+const sectionLabels = Object.fromEntries(categories.map((category) => [category.value, category.label]));
+
 const form = ref({
     title: '',
     description: '',
     tag: '',
     category: defaultCategory,
+    contributor_country: 'US',
     video_url: '',
     is_published: true,
 });
@@ -31,6 +44,7 @@ const loading = ref(false);
 const stats = ref({ total: 0, published: 0, drafts: 0 });
 const selectedCategory = ref('all');
 const selectedStatus = ref('all');
+const selectedCountry = ref('all');
 const currentPage = ref(1);
 const perPage = ref(50);
 const pagination = ref({
@@ -105,6 +119,9 @@ async function loadPosts(page = currentPage.value) {
         if (selectedStatus.value !== 'all') {
             params.set('status', selectedStatus.value);
         }
+        if (selectedCountry.value !== 'all') {
+            params.set('country', selectedCountry.value);
+        }
 
         const response = await fetch(`/admin/community/api/posts?${params.toString()}`, {
             headers: { Accept: 'application/json' },
@@ -144,6 +161,10 @@ watch(selectedStatus, () => {
     void loadPosts(1);
 });
 
+watch(selectedCountry, () => {
+    void loadPosts(1);
+});
+
 async function submitPost() {
     const url = editingId.value
         ? `/admin/community/api/posts/${editingId.value}`
@@ -154,6 +175,7 @@ async function submitPost() {
     payload.append('description', form.value.description || '');
     payload.append('tag', form.value.tag || '');
     payload.append('category', form.value.category || '');
+    payload.append('contributor_country', form.value.contributor_country || 'US');
     payload.append('video_url', form.value.video_url || '');
     payload.append('is_published', form.value.is_published ? '1' : '0');
     const csrfToken = getCsrfToken();
@@ -212,6 +234,7 @@ function editPost(post) {
         description: post.description,
         tag: post.tag,
         category: categories.some((cat) => cat.value === post.category) ? post.category : defaultCategory,
+        contributor_country: post.contributor_country_code || post.contributor_country || 'US',
         video_url: post.video_url || '',
         is_published: post.is_published,
     };
@@ -227,6 +250,7 @@ function resetForm() {
         description: '',
         tag: '',
         category: defaultCategory,
+        contributor_country: 'US',
         video_url: '',
         is_published: true,
     };
@@ -318,8 +342,28 @@ onMounted(() => {
                                 <option value="published">Published</option>
                                 <option value="draft">Draft</option>
                             </select>
+                            <select
+                                v-model="selectedCountry"
+                                class="admin-select max-w-[220px]"
+                            >
+                                <option value="all">All countries</option>
+                                <option
+                                    v-for="countryOption in props.countryOptions"
+                                    :key="countryOption.value"
+                                    :value="countryOption.value"
+                                >
+                                    {{ countryOption.label }}
+                                </option>
+                            </select>
                         </div>
                         <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-md"
+                                @click="openCreateModal"
+                            >
+                                Add Post
+                            </button>
                             <Link
                                 :href="route('admin.community.import.index')"
                                 class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -328,17 +372,13 @@ onMounted(() => {
                             </Link>
                             <button
                                 type="button"
-                                class="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-md"
-                                @click="openCreateModal"
-                            >
-                                Add Post
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                title="Refresh posts"
+                                :disabled="loading"
                                 @click="loadPosts(currentPage)"
                             >
-                                Refresh
+                                <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': loading }" aria-hidden="true" />
+                                <span class="sr-only">Refresh posts</span>
                             </button>
                         </div>
                     </div>
@@ -374,9 +414,38 @@ onMounted(() => {
                             </div>
                             <div class="p-3">
                                 <div class="flex items-start justify-between gap-3">
-                                    <div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="mb-2 flex flex-wrap items-center gap-2">
+                                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                {{ sectionLabels[post.category] || post.category }}
+                                            </span>
+                                            <span
+                                                v-if="post.contributor_name"
+                                                class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 py-1 pl-1 pr-2.5 text-xs font-semibold text-indigo-800"
+                                            >
+                                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+                                                    <UserCircleIcon class="h-4 w-4" aria-hidden="true" />
+                                                </span>
+                                                <span class="text-[10px] font-medium uppercase tracking-wide text-indigo-600">Contributor</span>
+                                                <span class="text-indigo-900">{{ post.contributor_name }}</span>
+                                            </span>
+                                            <span
+                                                v-if="post.contributor_country"
+                                                class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800"
+                                            >
+                                                {{ post.contributor_country }}
+                                            </span>
+                                            <span
+                                                v-if="post.tag"
+                                                class="rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-semibold text-[#3730a3]"
+                                            >
+                                                {{ post.tag }}
+                                            </span>
+                                        </div>
                                         <h3 class="font-semibold text-slate-900">{{ post.title }}</h3>
-                                        <p class="mt-1 line-clamp-4 text-sm text-slate-600">{{ post.description }}</p>
+                                        <p class="mt-1 line-clamp-3 text-sm text-slate-600">
+                                            {{ communityDescriptionPlainText(post.description) }}
+                                        </p>
                                     </div>
                                     <span
                                         class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
@@ -386,9 +455,7 @@ onMounted(() => {
                                     </span>
                                 </div>
 
-                                <div class="mt-2 flex flex-wrap gap-2 text-xs text-slate-700">
-                                    <span class="rounded-full bg-slate-100 px-2 py-1">{{ post.category }}</span>
-                                    <span class="rounded-full bg-slate-100 px-2 py-1">Tag: {{ post.tag || 'N/A' }}</span>
+                                <div class="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
                                     <span class="rounded-full bg-slate-100 px-2 py-1">Likes: {{ post.likes_count }}</span>
                                     <span class="rounded-full bg-slate-100 px-2 py-1">Comments: {{ post.comments_count }}</span>
                                 </div>
@@ -479,7 +546,6 @@ onMounted(() => {
             <article class="w-full max-w-2xl rounded-2xl bg-white p-4 shadow-2xl">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-slate-900">{{ submitLabel }}</h2>
-                    <p class="text-xs text-slate-500">Fields marked with <span class="text-rose-600">*</span> are required.</p>
                     <button
                         type="button"
                         class="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -508,6 +574,12 @@ onMounted(() => {
                             </select>
                         </div>
                     </div>
+                    <CountrySearchSelect
+                        v-model="form.contributor_country"
+                        :options="props.countryOptions"
+                        label="Country"
+                        required
+                    />
                     <div class="grid gap-2 sm:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Image Upload</label>

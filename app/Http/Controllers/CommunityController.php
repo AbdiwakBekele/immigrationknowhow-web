@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommunityComment;
 use App\Models\CommunityPost;
 use App\Models\CommunityPostReaction;
+use App\Support\CountryDisplay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -593,9 +594,11 @@ class CommunityController extends Controller
             $contributorName = $fallbackEmail !== '' ? $fallbackEmail : null;
         }
 
-        $contributorCountry = filled($contributor?->country)
-            ? trim((string) $contributor->country)
-            : null;
+        $contributorCountrySource = filled($post->contributor_country)
+            ? (string) $post->contributor_country
+            : ($contributor?->country ?? null);
+
+        $contributorCountry = CountryDisplay::labelForDisplay($contributorCountrySource);
 
         return [
             'id' => $post->id,

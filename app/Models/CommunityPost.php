@@ -15,6 +15,7 @@ class CommunityPost extends Model
     protected $fillable = [
         'author_id',
         'contributor_user_id',
+        'contributor_country',
         'old_wp_post_id',
         'old_wp_author_id',
         'old_wp_space_id',

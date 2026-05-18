@@ -8,6 +8,7 @@ use App\Models\CommunityImportError;
 use App\Models\CommunityPost;
 use App\Models\CommunityPostReaction;
 use App\Models\User;
+use App\Support\CountryDisplay;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -432,10 +433,13 @@ class CommunityImportService
             'summary' => $summary,
         ]);
 
+        $syncedCountries = $this->syncPostContributorCountries();
+
         $this->writeLog('info', 'community.import.batch.run.completed', [
             'batch_id' => $batch->id,
             'status' => $batch->fresh()->status,
             'stats' => $stats,
+            'contributor_countries_synced' => $syncedCountries,
             'errors_count' => $errorCount,
             'warnings_count' => $warningCount,
             'flash_recommendation' => $errorCount > 0 || array_sum([
@@ -554,6 +558,7 @@ class CommunityImportService
         $title = $this->resolvePostTitle($data);
         $slug = $this->resolveUniquePostSlug($data['slug'] ?? '', $title, $oldWpPostIdInt, $existing?->id);
         $contributorUserId = $this->resolveContributorUserId($data);
+        $contributorCountry = $this->resolvePostContributorCountry($contributorUserId);
 
         try {
             $post = CommunityPost::query()->updateOrCreate(
@@ -561,6 +566,7 @@ class CommunityImportService
                 [
                     'author_id' => $selectedOwner->id,
                     'contributor_user_id' => $contributorUserId,
+                    'contributor_country' => $contributorCountry,
                     'old_wp_author_id' => $this->nullableInteger($data['old_wp_author_id'] ?? null),
                     'old_wp_space_id' => $this->nullableInteger($data['old_wp_space_id'] ?? null),
                     'title' => $title,
@@ -992,7 +998,7 @@ class CommunityImportService
         $user->city = $this->nullIfBlank($data['city'] ?? null);
         $user->state = $this->nullIfBlank($data['state'] ?? null);
         $user->postal_code = $this->nullIfBlank($data['postal_code'] ?? null);
-        $user->country = $this->nullIfBlank($data['country'] ?? null);
+        $user->country = CountryDisplay::normalizeForStorage($this->nullIfBlank($data['country'] ?? null));
         $user->languages = $this->normalizeLanguages($data['languages'] ?? '');
         $user->preferred_language = $this->nullIfBlank($data['preferred_language'] ?? null) ?? 'en';
         $user->timezone = $this->nullIfBlank($data['timezone'] ?? null) ?? 'America/New_York';
@@ -1172,6 +1178,40 @@ class CommunityImportService
         }
 
         return null;
+    }
+
+    private function resolvePostContributorCountry(?int $contributorUserId): ?string
+    {
+        if (! $contributorUserId) {
+            return null;
+        }
+
+        $country = User::query()->whereKey($contributorUserId)->value('country');
+
+        return CountryDisplay::normalizeForStorage(is_string($country) ? $country : null);
+    }
+
+    public function syncPostContributorCountries(): int
+    {
+        $updated = 0;
+
+        CommunityPost::query()
+            ->whereNotNull('contributor_user_id')
+            ->with('contributor:id,country')
+            ->orderBy('id')
+            ->chunkById(100, function ($posts) use (&$updated): void {
+                foreach ($posts as $post) {
+                    $country = CountryDisplay::normalizeForStorage($post->contributor?->country);
+                    if ($country === null || $post->contributor_country === $country) {
+                        continue;
+                    }
+
+                    $post->forceFill(['contributor_country' => $country])->save();
+                    $updated++;
+                }
+            });
+
+        return $updated;
     }
 
     private function resolveCommentAuthorName(?int $userId, ?string $authorName): string

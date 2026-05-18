@@ -168,6 +168,11 @@ class MobileProfileController extends Controller
     {
         $request->validate([
             'avatar' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+        ], [
+            'avatar.required' => 'Please choose an image to upload.',
+            'avatar.file' => 'Uploaded image must be a valid file.',
+            'avatar.mimes' => 'Uploaded image must be a JPG or PNG file.',
+            'avatar.max' => 'Uploaded image must not be greater than 2 MB.',
         ]);
 
         $user = $request->user();
