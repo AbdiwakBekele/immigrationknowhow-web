@@ -177,16 +177,13 @@ class StripeLibraryWebhookController extends Controller
             return;
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
-                'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
-                'stripe_checkout_session_id' => (string) $session->id,
-                'status' => 'active',
-                'meta' => $session->toArray(),
-            ]
-        );
+        AiAssistantSubscription::upsertForUser($user->id, [
+            'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+            'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
+            'stripe_checkout_session_id' => (string) $session->id,
+            'status' => 'active',
+            'meta' => $session->toArray(),
+        ]);
     }
 
     private function syncAiAssistantSubscription(Subscription $subscription): void
@@ -201,21 +198,18 @@ class StripeLibraryWebhookController extends Controller
             return;
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'stripe_customer_id' => is_string($subscription->customer) ? $subscription->customer : null,
-                'stripe_subscription_id' => (string) $subscription->id,
-                'status' => (string) $subscription->status,
-                'cancel_at_period_end' => (bool) $subscription->cancel_at_period_end,
-                'current_period_end' => is_numeric($subscription->current_period_end)
-                    ? now()->setTimestamp((int) $subscription->current_period_end)
-                    : null,
-                'canceled_at' => is_numeric($subscription->canceled_at)
-                    ? now()->setTimestamp((int) $subscription->canceled_at)
-                    : null,
-                'meta' => $subscription->toArray(),
-            ]
-        );
+        AiAssistantSubscription::upsertForUser($user->id, [
+            'stripe_customer_id' => is_string($subscription->customer) ? $subscription->customer : null,
+            'stripe_subscription_id' => (string) $subscription->id,
+            'status' => (string) $subscription->status,
+            'cancel_at_period_end' => (bool) $subscription->cancel_at_period_end,
+            'current_period_end' => is_numeric($subscription->current_period_end)
+                ? now()->setTimestamp((int) $subscription->current_period_end)
+                : null,
+            'canceled_at' => is_numeric($subscription->canceled_at)
+                ? now()->setTimestamp((int) $subscription->canceled_at)
+                : null,
+            'meta' => $subscription->toArray(),
+        ]);
     }
 }

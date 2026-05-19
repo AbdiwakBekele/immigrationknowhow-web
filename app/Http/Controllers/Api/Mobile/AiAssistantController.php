@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api\Mobile;
 use App\Http\Controllers\Controller;
 use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
+use App\Services\Ai\AiAssistantAccountService;
 use App\Services\Ai\ServiceSeekerAssistantService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Stripe\Checkout\Session as StripeCheckoutSession;
@@ -16,6 +18,10 @@ use Stripe\Subscription;
 
 class AiAssistantController extends Controller
 {
+    public function __construct(
+        private readonly AiAssistantAccountService $aiAccount,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -35,10 +41,8 @@ class AiAssistantController extends Controller
                     // Best-effort when called via legacy query sync.
                 }
             } else {
-                $lastKnownSessionId = (string) (AiAssistantSubscription::query()
-                    ->where('user_id', $user->id)
-                    ->latest('id')
-                    ->value('stripe_checkout_session_id') ?? '');
+                $lastKnownSessionId = (string) (AiAssistantSubscription::forUser($user->id)
+                    ?->stripe_checkout_session_id ?? '');
 
                 if ($lastKnownSessionId !== '') {
                     try {
@@ -87,7 +91,7 @@ class AiAssistantController extends Controller
                     'currency' => 'usd',
                     'product_data' => [
                         'name' => 'AI Assistant Add-on',
-                        'description' => 'ChatGPT assistant access for service seekers',
+                        'description' => 'AI assistant for your account (service seeker and provider)',
                     ],
                     'unit_amount' => 499,
                     'recurring' => [
@@ -98,6 +102,27 @@ class AiAssistantController extends Controller
             ];
 
         $user = $request->user();
+
+        if ($this->aiAccount->isSubscribedUser($user)) {
+            $subscription = $this->aiAccount->subscriptionForUser($user->id);
+
+            Log::info('[mobile.ai-assistant] checkout skipped — already subscribed', [
+                'user_id' => $user->id,
+                'subscription_id' => $subscription?->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'AI Assistant is already active on your account (service seeker and provider).',
+                'data' => [
+                    'already_subscribed' => true,
+                    'checkout_url' => null,
+                    'checkout_session_id' => null,
+                    ...$this->buildStatePayload($user->id, $subscription),
+                ],
+            ]);
+        }
+
         $successUrl = route('mobile.ai-assistant.checkout-return', [], true).'?session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('mobile.ai-assistant.checkout-return', [], true).'?checkout=cancelled';
 
@@ -141,20 +166,22 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
-                'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
-                'stripe_checkout_session_id' => (string) $session->id,
-                'status' => 'checkout_pending',
-                'meta' => array_filter([
-                    'checkout_session' => $session->toArray(),
-                    'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
-                    'source' => 'checkout_created_mobile',
-                ]),
-            ]
-        );
+        AiAssistantSubscription::upsertForUser($user->id, [
+            'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+            'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
+            'stripe_checkout_session_id' => (string) $session->id,
+            'status' => 'checkout_pending',
+            'meta' => array_filter([
+                'checkout_session' => $session->toArray(),
+                'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
+                'source' => 'checkout_created_mobile',
+            ]),
+        ]);
+
+        Log::info('[mobile.ai-assistant] checkout created', [
+            'user_id' => $user->id,
+            'checkout_session_id' => (string) $session->id,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -183,9 +210,20 @@ class AiAssistantController extends Controller
         $sessionId = trim((string) $validated['session_id']);
         $userId = (int) $request->user()->id;
 
+        Log::info('[mobile.ai-assistant] confirm-checkout started', [
+            'user_id' => $userId,
+            'session_id' => $sessionId,
+        ]);
+
         try {
             $subscription = $this->syncSubscriptionFromCheckoutSession($userId, $sessionId);
         } catch (RuntimeException $e) {
+            Log::warning('[mobile.ai-assistant] confirm-checkout failed', [
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'error' => $e->getMessage(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -194,6 +232,13 @@ class AiAssistantController extends Controller
         }
 
         if (! $subscription->isActive()) {
+            Log::warning('[mobile.ai-assistant] confirm-checkout subscription not active', [
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'subscription_id' => $subscription->id,
+                'status' => $subscription->status,
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Payment is still processing. Please wait a moment and try again.',
@@ -201,7 +246,29 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        $payload = $this->buildStatePayload($userId);
+        $payload = $this->buildStatePayload($userId, $subscription);
+
+        if (! ($payload['is_addon_active'] ?? false)) {
+            Log::error('[mobile.ai-assistant] confirm-checkout payload mismatch', [
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'synced_subscription_id' => $subscription->id,
+                'synced_status' => $subscription->status,
+                'resolved_subscription_id' => AiAssistantSubscription::forUser($userId)?->id,
+                'resolved_status' => AiAssistantSubscription::forUser($userId)?->status,
+            ]);
+
+            $payload['subscription'] = $subscription->fresh();
+            $payload['is_addon_active'] = $subscription->isActive();
+        }
+
+        Log::info('[mobile.ai-assistant] confirm-checkout succeeded', [
+            'user_id' => $userId,
+            'session_id' => $sessionId,
+            'subscription_id' => $subscription->id,
+            'status' => $subscription->status,
+            'is_addon_active' => $payload['is_addon_active'],
+        ]);
 
         return response()->json([
             'success' => true,
@@ -225,12 +292,7 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        $subscription = AiAssistantSubscription::query()
-            ->where('user_id', $user->id)
-            ->latest('id')
-            ->first();
-
-        if (! $subscription?->isActive()) {
+        if (! $this->aiAccount->isSubscribedUser($user)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please subscribe to the AI add-on first.',
@@ -238,8 +300,45 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
-        $result = $assistant->ask($user, $validated['question']);
+        $portal = strtolower(trim((string) $request->header('X-Active-Portal', '')));
+        $audience = $portal === 'provider' && $user->isProvider() ? 'provider' : 'seeker';
+
+        $messageContext = $this->aiAccount->resolveMessageContext(
+            $user,
+            $request->header('X-Active-Portal')
+        );
+
+        Log::info('[mobile.ai-assistant] ask started', [
+            'user_id' => $user->id,
+            'audience' => $audience,
+            'question_length' => strlen($validated['question']),
+        ]);
+
+        try {
+            $result = $assistant->ask($user, $validated['question'], $audience);
+        } catch (\Throwable $e) {
+            Log::error('[mobile.ai-assistant] ask exception', [
+                'user_id' => $user->id,
+                'audience' => $audience,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug')
+                    ? 'AI request failed: '.$e->getMessage()
+                    : 'AI request failed. Please try again.',
+                'errors' => (object) [],
+            ], 500);
+        }
+
         if ($result['error']) {
+            Log::warning('[mobile.ai-assistant] ask upstream error', [
+                'user_id' => $user->id,
+                'error' => $result['error'],
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => $result['error'],
@@ -247,16 +346,21 @@ class AiAssistantController extends Controller
             ], 422);
         }
 
+        Log::info('[mobile.ai-assistant] ask succeeded', [
+            'user_id' => $user->id,
+            'answer_length' => strlen((string) ($result['answer'] ?? '')),
+        ]);
+
         if (Schema::hasTable('ai_assistant_messages')) {
             AiAssistantMessage::create([
                 'user_id' => $user->id,
-                'context' => 'mobile',
+                'context' => $messageContext,
                 'role' => 'user',
                 'content' => $validated['question'],
             ]);
             AiAssistantMessage::create([
                 'user_id' => $user->id,
-                'context' => 'mobile',
+                'context' => $messageContext,
                 'role' => 'assistant',
                 'content' => (string) ($result['answer'] ?? ''),
             ]);
@@ -276,37 +380,19 @@ class AiAssistantController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function buildStatePayload(int $userId): array
+    private function buildStatePayload(int $userId, ?AiAssistantSubscription $subscription = null): array
     {
-        $subscription = Schema::hasTable('ai_assistant_subscriptions')
-            ? AiAssistantSubscription::query()
-                ->where('user_id', $userId)
-                ->latest('id')
-                ->first()
-            : null;
-
-        $chatMessages = Schema::hasTable('ai_assistant_messages')
-            ? AiAssistantMessage::query()
-                ->where('user_id', $userId)
-                ->where('context', 'mobile')
-                ->orderBy('id')
-                ->limit(60)
-                ->get(['id', 'role', 'content', 'created_at'])
-                ->map(fn ($m) => [
-                    'id' => (string) $m->id,
-                    'role' => $m->role,
-                    'text' => $m->content,
-                    'ts' => optional($m->created_at)->toISOString(),
-                ])
-                ->values()
-            : collect();
+        if ($subscription === null && Schema::hasTable('ai_assistant_subscriptions')) {
+            $subscription = AiAssistantSubscription::forUser($userId);
+        }
 
         return [
             'subscription' => $subscription,
             'is_addon_active' => $subscription?->isActive() ?? false,
+            'subscription_shared_across_portals' => true,
             'monthly_price' => '4.99',
             'currency' => 'USD',
-            'chat_messages' => $chatMessages,
+            'chat_messages' => $this->aiAccount->chatMessagesForUser($userId),
         ];
     }
 
@@ -318,6 +404,11 @@ class AiAssistantController extends Controller
         }
 
         Stripe::setApiKey($stripeSecret);
+
+        Log::info('[mobile.ai-assistant] sync checkout session', [
+            'user_id' => $userId,
+            'session_id' => $sessionId,
+        ]);
 
         $session = null;
         $stripeSubscription = null;
@@ -357,6 +448,14 @@ class AiAssistantController extends Controller
             }
 
             if ($session->status !== 'complete') {
+                Log::debug('[mobile.ai-assistant] checkout session not complete', [
+                    'user_id' => $userId,
+                    'session_id' => $sessionId,
+                    'attempt' => $attempt,
+                    'session_status' => (string) $session->status,
+                    'payment_status' => (string) ($session->payment_status ?? ''),
+                ]);
+
                 if ($attempt < 9) {
                     usleep(400_000);
 
@@ -409,6 +508,14 @@ class AiAssistantController extends Controller
                 break;
             }
 
+            Log::debug('[mobile.ai-assistant] stripe subscription not active yet', [
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'attempt' => $attempt,
+                'stripe_subscription_id' => $stripeSubscriptionId,
+                'stripe_status' => $status,
+            ]);
+
             if ($attempt < 9) {
                 usleep(400_000);
                 $stripeSubscription = null;
@@ -427,26 +534,34 @@ class AiAssistantController extends Controller
             );
         }
 
-        return AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $userId],
-            [
-                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
-                'stripe_subscription_id' => $stripeSubscriptionId,
-                'stripe_checkout_session_id' => $sessionId,
-                'status' => (string) $stripeSubscription->status,
-                'cancel_at_period_end' => (bool) $stripeSubscription->cancel_at_period_end,
-                'current_period_end' => is_numeric($stripeSubscription->current_period_end)
-                    ? now()->setTimestamp((int) $stripeSubscription->current_period_end)
-                    : null,
-                'canceled_at' => is_numeric($stripeSubscription->canceled_at)
-                    ? now()->setTimestamp((int) $stripeSubscription->canceled_at)
-                    : null,
-                'meta' => [
-                    'session' => $session->toArray(),
-                    'subscription' => $stripeSubscription->toArray(),
-                    'source' => 'confirm_checkout_mobile',
-                ],
-            ]
-        );
+        $record = AiAssistantSubscription::upsertForUser($userId, [
+            'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+            'stripe_subscription_id' => $stripeSubscriptionId,
+            'stripe_checkout_session_id' => $sessionId,
+            'status' => (string) $stripeSubscription->status,
+            'cancel_at_period_end' => (bool) $stripeSubscription->cancel_at_period_end,
+            'current_period_end' => is_numeric($stripeSubscription->current_period_end)
+                ? now()->setTimestamp((int) $stripeSubscription->current_period_end)
+                : null,
+            'canceled_at' => is_numeric($stripeSubscription->canceled_at)
+                ? now()->setTimestamp((int) $stripeSubscription->canceled_at)
+                : null,
+            'meta' => [
+                'session' => $session->toArray(),
+                'subscription' => $stripeSubscription->toArray(),
+                'source' => 'confirm_checkout_mobile',
+            ],
+        ]);
+
+        Log::info('[mobile.ai-assistant] sync checkout session saved', [
+            'user_id' => $userId,
+            'session_id' => $sessionId,
+            'subscription_row_id' => $record->id,
+            'stripe_subscription_id' => $stripeSubscriptionId,
+            'status' => $record->status,
+            'is_active' => $record->isActive(),
+        ]);
+
+        return $record;
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Provider;
 use App\Http\Controllers\Controller;
 use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
+use App\Services\Ai\AiAssistantAccountService;
 use App\Services\Ai\ServiceSeekerAssistantService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ use Stripe\Stripe;
 
 class AiAssistantController extends Controller
 {
+    public function __construct(
+        private readonly AiAssistantAccountService $aiAccount,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -31,10 +36,8 @@ class AiAssistantController extends Controller
             if ($sessionIdFromQuery !== '') {
                 $this->syncSubscriptionFromCheckoutSession($user->id, $sessionIdFromQuery);
             } else {
-                $lastKnownSessionId = (string) (AiAssistantSubscription::query()
-                    ->where('user_id', $user->id)
-                    ->latest('id')
-                    ->value('stripe_checkout_session_id') ?? '');
+                $lastKnownSessionId = (string) (AiAssistantSubscription::forUser($user->id)
+                    ?->stripe_checkout_session_id ?? '');
 
                 if ($lastKnownSessionId !== '') {
                     $this->syncSubscriptionFromCheckoutSession($user->id, $lastKnownSessionId);
@@ -42,35 +45,15 @@ class AiAssistantController extends Controller
             }
         }
 
-        $subscription = Schema::hasTable('ai_assistant_subscriptions')
-            ? AiAssistantSubscription::query()
-                ->where('user_id', $user->id)
-                ->latest('id')
-                ->first()
-            : null;
-
-        $chatMessages = Schema::hasTable('ai_assistant_messages')
-            ? AiAssistantMessage::query()
-                ->where('user_id', $user->id)
-                ->where('context', 'provider')
-                ->orderBy('id')
-                ->limit(60)
-                ->get(['id', 'role', 'content', 'created_at'])
-                ->map(fn ($m) => [
-                    'id' => (string) $m->id,
-                    'role' => $m->role,
-                    'text' => $m->content,
-                    'ts' => optional($m->created_at)->toISOString(),
-                ])
-                ->values()
-            : collect();
+        $subscription = $this->aiAccount->subscriptionForUser($user->id);
 
         return Inertia::render('Provider/AiAssistant/Index', [
             'subscription' => $subscription,
-            'isAddonActive' => $subscription?->isActive() ?? false,
+            'isAddonActive' => $this->aiAccount->isSubscribedUser($user),
+            'subscriptionSharedAcrossPortals' => true,
             'monthlyPrice' => '4.99',
             'currency' => 'USD',
-            'chatMessages' => $chatMessages,
+            'chatMessages' => $this->aiAccount->chatMessagesForUser($user->id),
         ]);
     }
 
@@ -78,6 +61,13 @@ class AiAssistantController extends Controller
     {
         if (! Schema::hasTable('ai_assistant_subscriptions')) {
             return back()->with('error', 'AI add-on is not ready yet. Please run database migrations.');
+        }
+
+        $user = $request->user();
+        if ($this->aiAccount->isSubscribedUser($user)) {
+            return redirect()
+                ->route('provider.ai-assistant.index')
+                ->with('success', 'AI Assistant is already active on your account (including your service seeker profile).');
         }
 
         $stripeSecret = trim((string) config('services.stripe.secret', ''));
@@ -96,7 +86,7 @@ class AiAssistantController extends Controller
                     'currency' => 'usd',
                     'product_data' => [
                         'name' => 'AI Assistant Add-on',
-                        'description' => 'Monthly AI assistant access from your provider dashboard',
+                        'description' => 'AI assistant for your account (service seeker and provider)',
                     ],
                     'unit_amount' => 499,
                     'recurring' => [
@@ -105,8 +95,6 @@ class AiAssistantController extends Controller
                 ],
                 'quantity' => 1,
             ];
-
-        $user = $request->user();
 
         try {
             Stripe::setApiKey($stripeSecret);
@@ -141,21 +129,18 @@ class AiAssistantController extends Controller
             return back()->with('error', 'Could not create checkout session.');
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
-                'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
-                'stripe_checkout_session_id' => (string) $session->id,
-                'status' => 'checkout_pending',
-                'meta' => array_filter([
-                    'checkout_session' => $session->toArray(),
-                    'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
-                    'source' => 'checkout_created',
-                    'context' => 'provider',
-                ]),
-            ]
-        );
+        AiAssistantSubscription::upsertForUser($user->id, [
+            'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+            'stripe_subscription_id' => is_string($session->subscription) ? $session->subscription : null,
+            'stripe_checkout_session_id' => (string) $session->id,
+            'status' => 'checkout_pending',
+            'meta' => array_filter([
+                'checkout_session' => $session->toArray(),
+                'price_source' => $priceId !== '' ? 'price_id' : 'inline_price_data',
+                'source' => 'checkout_created',
+                'context' => 'provider',
+            ]),
+        ]);
 
         return Inertia::location($checkoutUrl);
     }
@@ -171,12 +156,7 @@ class AiAssistantController extends Controller
             return back()->with('error', 'AI add-on is not ready yet. Please run database migrations.');
         }
 
-        $subscription = AiAssistantSubscription::query()
-            ->where('user_id', $user->id)
-            ->latest('id')
-            ->first();
-
-        if (! $subscription?->isActive()) {
+        if (! $this->aiAccount->isSubscribedUser($user)) {
             return back()->with('error', 'Please subscribe to the AI add-on first.');
         }
 
@@ -232,26 +212,23 @@ class AiAssistantController extends Controller
             return;
         }
 
-        AiAssistantSubscription::query()->updateOrCreate(
-            ['user_id' => $userId],
-            [
-                'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
-                'stripe_subscription_id' => $stripeSubscriptionId,
-                'stripe_checkout_session_id' => $sessionId,
-                'status' => (string) $stripeSubscription->status,
-                'cancel_at_period_end' => (bool) $stripeSubscription->cancel_at_period_end,
-                'current_period_end' => is_numeric($stripeSubscription->current_period_end)
-                    ? now()->setTimestamp((int) $stripeSubscription->current_period_end)
-                    : null,
-                'canceled_at' => is_numeric($stripeSubscription->canceled_at)
-                    ? now()->setTimestamp((int) $stripeSubscription->canceled_at)
-                    : null,
-                'meta' => [
-                    'session' => $session->toArray(),
-                    'subscription' => $stripeSubscription->toArray(),
-                    'source' => 'success_return_sync',
-                ],
-            ]
-        );
+        AiAssistantSubscription::upsertForUser($userId, [
+            'stripe_customer_id' => is_string($session->customer) ? $session->customer : null,
+            'stripe_subscription_id' => $stripeSubscriptionId,
+            'stripe_checkout_session_id' => $sessionId,
+            'status' => (string) $stripeSubscription->status,
+            'cancel_at_period_end' => (bool) $stripeSubscription->cancel_at_period_end,
+            'current_period_end' => is_numeric($stripeSubscription->current_period_end)
+                ? now()->setTimestamp((int) $stripeSubscription->current_period_end)
+                : null,
+            'canceled_at' => is_numeric($stripeSubscription->canceled_at)
+                ? now()->setTimestamp((int) $stripeSubscription->canceled_at)
+                : null,
+            'meta' => [
+                'session' => $session->toArray(),
+                'subscription' => $stripeSubscription->toArray(),
+                'source' => 'success_return_sync',
+            ],
+        ]);
     }
 }

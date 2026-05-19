@@ -8,6 +8,7 @@ use App\Models\User;
 use GuzzleHttp\Client;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ServiceSeekerAssistantService
@@ -54,11 +55,20 @@ class ServiceSeekerAssistantService
                 ],
             ]);
         } catch (\Throwable $e) {
+            Log::warning('openai.ai_assistant.request_failed', [
+                'user_id' => $user->id,
+                'audience' => $audience,
+                'model' => $model,
+                'error' => $e->getMessage(),
+            ]);
+
             return [
                 'answer' => null,
                 'providers' => [],
                 'books' => [],
-                'error' => 'AI request failed. Please try again.',
+                'error' => config('app.debug')
+                    ? 'AI request failed: '.$e->getMessage()
+                    : 'AI request failed. Please try again.',
             ];
         }
 
