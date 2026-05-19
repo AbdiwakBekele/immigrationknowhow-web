@@ -71,6 +71,7 @@ class SeekerDashboardController extends Controller
                 ->with(['user:id,first_name,last_name,avatar,city,state,country'])
                 ->active()
                 ->acceptingClients()
+                ->exceptOwnListing($user)
                 ->whereUserCountry($user->country)
                 ->limit(6)
                 ->get()
@@ -191,6 +192,7 @@ class SeekerDashboardController extends Controller
             ->active()
             ->acceptingClients()
             ->verified()
+            ->exceptOwnListing($user)
             ->whereUserCountry($user->country);
 
         if (! empty($serviceTypes)) {
