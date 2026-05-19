@@ -579,6 +579,24 @@ class CommunityController extends Controller
             && Schema::hasColumn('community_post_reactions', 'dedupe_key');
     }
 
+    private function absoluteMediaUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '//')) {
+            return 'https:'.$url;
+        }
+
+        return url('/'.ltrim($url, '/'));
+    }
+
     /**
      * @param  array<int, string>  $userReactions
      * @return array<string, mixed>
@@ -600,6 +618,11 @@ class CommunityController extends Controller
 
         $contributorCountry = CountryDisplay::labelForDisplay($contributorCountrySource);
 
+        $imageUrl = trim((string) ($post->image_url ?? ''));
+        if ($imageUrl === '' && filled($post->description)) {
+            $imageUrl = $this->extractImageFromDescription((string) $post->description);
+        }
+
         return [
             'id' => $post->id,
             'title' => $post->title,
@@ -608,8 +631,8 @@ class CommunityController extends Controller
             'category' => $post->category,
             'contributor_name' => $contributorName,
             'contributor_country' => $contributorCountry,
-            'image_url' => $post->image_url,
-            'video_url' => $post->video_url,
+            'image_url' => $this->absoluteMediaUrl($imageUrl !== '' ? $imageUrl : null),
+            'video_url' => $this->absoluteMediaUrl($post->video_url),
             'likes_count' => (int) $post->likes_count,
             'comments_count' => (int) $post->comments_count,
             'shares_count' => (int) $post->shares_count,

@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use App\Models\Message;
 use App\Models\PlatformSetting;
-use App\Models\AiAssistantSubscription;
 use App\Models\ServiceTypeOption;
 use App\Models\User;
 use App\Support\ImpersonationActorId;
@@ -65,12 +64,8 @@ class HandleInertiaRequests extends Middleware
                     'onboarding_completed_at' => $request->user()->onboarding_completed_at,
                     'is_affiliate' => $request->user()->isAffiliate(),
                     'is_advertiser' => $request->user()->isAdvertiser(),
-                    'ai_assistant_addon_active' => Schema::hasTable('ai_assistant_subscriptions')
-                        ? AiAssistantSubscription::query()
-                            ->where('user_id', $request->user()->id)
-                            ->whereIn('status', ['active', 'trialing', 'past_due'])
-                            ->exists()
-                        : false,
+                    'ai_assistant_addon_active' => app(\App\Services\Ai\AiAssistantAccountService::class)
+                        ->isSubscribedUser($request->user()),
                 ] : null,
                 'active_portal' => fn () => $request->user()
                     ? UserRoleAccounts::resolvedActivePortal(
