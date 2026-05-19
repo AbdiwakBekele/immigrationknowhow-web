@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Review;
 use App\Models\SubscriptionPlan;
+use App\Support\ProviderVerification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -80,7 +81,11 @@ class ProviderDashboardController extends Controller
                     'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                     'background_check_status', 'is_featured', 'profile_views',
                     'subscription_plan', 'subscription_expires_at', 'stripe_subscription_status',
-                ]),
+                ]) + [
+                    'requires_background_check' => ProviderVerification::requiresBackgroundCheck($provider),
+                    'requires_certificate_upload' => ProviderVerification::requiresCertificateUpload($provider),
+                    'needs_certificate_upload' => ProviderVerification::needsCertificateUpload($provider),
+                ],
             ],
         ]);
     }
