@@ -159,22 +159,29 @@ class LibraryItem extends Model
      * Where the main library file currently lives (private disk first, then legacy public).
      */
     public function resolveLibraryFileDisk(): ?string
-    {
-        if (! $this->file_path) {
-            return null;
-        }
-        if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
-            return self::LIBRARY_MEDIA_DISK;
-        }
-        if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
-            return self::LEGACY_LIBRARY_MEDIA_DISK;
-        }
-        if (Storage::disk('public')->exists($this->file_path)) {
-            return 'public';
-        }
-
+{
+    if (! $this->file_path) {
         return null;
     }
+
+    if (Storage::disk('s3')->exists($this->file_path)) {
+        return 's3';
+    }
+
+    if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+        return self::LIBRARY_MEDIA_DISK;
+    }
+
+    if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+        return self::LEGACY_LIBRARY_MEDIA_DISK;
+    }
+
+    if (Storage::disk('public')->exists($this->file_path)) {
+        return 'public';
+    }
+
+    return null;
+}
 
     /**
      * Optional audiobook file bundled with an e-book (same purchase / access).
