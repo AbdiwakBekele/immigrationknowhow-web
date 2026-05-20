@@ -361,6 +361,7 @@ class ProfileController extends Controller
             ->active()
             ->acceptingClients()
             ->verified()
+            ->exceptOwnListing($user)
             ->whereUserCountry($user->country)
             ->when($user->state, function ($query) use ($user) {
                 $query->where(function ($locationQuery) use ($user) {

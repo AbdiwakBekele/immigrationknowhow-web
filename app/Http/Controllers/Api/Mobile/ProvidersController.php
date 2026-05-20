@@ -32,6 +32,7 @@ class ProvidersController extends Controller
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
+            ->exceptOwnListing($viewer)
             ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
 
         if ($request->boolean('favorites')) {
@@ -42,12 +43,36 @@ class ProvidersController extends Controller
             }
         }
 
-        if ($request->filled('service_type')) {
-            $query->byServiceType((string) $request->input('service_type'));
+        $serviceTypes = collect($request->input('service_types', []))
+            ->when($request->filled('service_type'), fn ($c) => $c->push((string) $request->input('service_type')))
+            ->filter(fn ($type) => is_string($type) && trim($type) !== '')
+            ->map(fn ($type) => trim((string) $type))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($serviceTypes !== []) {
+            $query->where(function ($q) use ($serviceTypes) {
+                foreach ($serviceTypes as $type) {
+                    $q->orWhereJsonContains('service_types', $type);
+                }
+            });
         }
 
-        if ($request->filled('language')) {
-            $query->byLanguage((string) $request->input('language'));
+        $languages = collect($request->input('languages', []))
+            ->when($request->filled('language'), fn ($c) => $c->push((string) $request->input('language')))
+            ->filter(fn ($language) => is_string($language) && trim($language) !== '')
+            ->map(fn ($language) => trim((string) $language))
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($languages !== []) {
+            $query->where(function ($q) use ($languages) {
+                foreach ($languages as $language) {
+                    $q->orWhereJsonContains('languages_offered', $language);
+                }
+            });
         }
 
         if ($request->filled('location')) {

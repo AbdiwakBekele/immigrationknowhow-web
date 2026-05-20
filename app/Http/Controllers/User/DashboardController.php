@@ -163,6 +163,7 @@ class DashboardController extends Controller
             ->active()
             ->acceptingClients()
             ->verified()
+            ->exceptOwnListing($user)
             ->whereUserCountry($user->country);
 
         // State-level discovery: show providers in the same state.

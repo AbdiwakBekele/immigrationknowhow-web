@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ServiceType;
 use App\Models\ServiceProvider;
+use App\Models\User;
 use App\Support\ProviderShareMeta;
 use App\Support\UserRoleAccounts;
 use Illuminate\Http\Request;
@@ -47,6 +48,7 @@ class MarketplaceController extends Controller
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
             ->active()
             ->acceptingClients()
+            ->exceptOwnListing($request->user())
             ->whereUserCountry($viewerCountry !== '' ? $viewerCountry : null);
 
         if ($request->boolean('favorites')) {
@@ -111,7 +113,7 @@ class MarketplaceController extends Controller
             })
         );
 
-        $featuredProviders = $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null);
+        $featuredProviders = $this->getFeaturedProviders($viewerCountry !== '' ? $viewerCountry : null, $request->user());
         if ($favoritesEnabled && $request->boolean('favorites') && $request->user()?->hasRole('user')) {
             $featuredProviders = $featuredProviders
                 ->filter(fn (ServiceProvider $p) => isset($favoriteSet[$p->id]))
@@ -159,7 +161,7 @@ class MarketplaceController extends Controller
         }
 
         // Get similar providers
-        $similarProviders = $this->getSimilarProviders($provider)->map(
+        $similarProviders = $this->getSimilarProviders($provider, $viewer)->map(
             fn (ServiceProvider $p) => $p->append('primary_service_type')
         );
 
@@ -194,7 +196,7 @@ class MarketplaceController extends Controller
         ]);
     }
 
-    protected function getFeaturedProviders(?string $viewerCountry = null)
+    protected function getFeaturedProviders(?string $viewerCountry = null, ?User $viewer = null)
     {
         return ServiceProvider::query()
             ->with(['user:id,first_name,last_name,avatar,city,state,country'])
@@ -202,13 +204,14 @@ class MarketplaceController extends Controller
             ->acceptingClients()
             ->verified()
             ->featured()
+            ->exceptOwnListing($viewer)
             ->whereUserCountry($viewerCountry)
             ->limit(6)
             ->get()
             ->map(fn (ServiceProvider $p) => $p->append('primary_service_type'));
     }
 
-    protected function getSimilarProviders(ServiceProvider $provider)
+    protected function getSimilarProviders(ServiceProvider $provider, ?User $viewer = null)
     {
         $provider->loadMissing('user:id,country');
 
@@ -217,6 +220,7 @@ class MarketplaceController extends Controller
             ->active()
             ->acceptingClients()
             ->verified()
+            ->exceptOwnListing($viewer)
             ->whereUserCountry($provider->user?->country)
             ->where('id', '!=', $provider->id)
             ->where(function ($q) use ($provider) {

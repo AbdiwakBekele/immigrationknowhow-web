@@ -253,6 +253,18 @@ class ServiceProvider extends Model
         return $query->whereHas('user', fn ($q) => $q->where('country', $country));
     }
 
+    /**
+     * Hide the viewer's own provider listing from seeker marketplace/browse results.
+     */
+    public function scopeExceptOwnListing($query, ?User $viewer)
+    {
+        if ($viewer) {
+            $query->where($query->getModel()->qualifyColumn('user_id'), '!=', $viewer->id);
+        }
+
+        return $query;
+    }
+
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
