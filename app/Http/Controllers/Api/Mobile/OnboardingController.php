@@ -236,14 +236,18 @@ class OnboardingController extends Controller
             'dogs_count' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
-        $address = $validated['address'] ?? $user->address;
-        $city = $validated['city'] ?? $user->city;
-        $state = $validated['state'] ?? $user->state;
-        $country = $validated['country'] ?? $user->country;
-        $postalCode = $validated['postal_code'] ?? $user->postal_code;
-        $county = $validated['county'] ?? data_get($user->onboarding_data, 'location.county');
-        $locationLabel = $validated['location_label'] ?? data_get($user->onboarding_data, 'location.label');
-        $preferred = $validated['preferred_language'] ?? $user->preferred_language;
+        $address = filled($validated['address'] ?? null) ? $validated['address'] : $user->address;
+        $city = filled($validated['city'] ?? null) ? $validated['city'] : $user->city;
+        $state = filled($validated['state'] ?? null) ? $validated['state'] : $user->state;
+        $country = filled($validated['country'] ?? null) ? $validated['country'] : $user->country;
+        $postalCode = filled($validated['postal_code'] ?? null) ? $validated['postal_code'] : $user->postal_code;
+        $county = filled($validated['county'] ?? null) ? $validated['county'] : data_get($user->onboarding_data, 'location.county');
+        $locationLabel = filled($validated['location_label'] ?? null)
+            ? $validated['location_label']
+            : data_get($user->onboarding_data, 'location.label');
+        $preferred = filled($validated['preferred_language'] ?? null)
+            ? $validated['preferred_language']
+            : $user->preferred_language;
 
         if (! $city || ! $state || ! $country || ! $preferred) {
             return $this->error('Please complete your address details first.', [
