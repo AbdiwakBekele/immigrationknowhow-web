@@ -133,6 +133,10 @@ Route::get('/api/community/news', [CommunityController::class, 'news'])->name('c
 Route::get('/api/public/library-items', [PublicLibraryApiController::class, 'index'])
     ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
     ->name('api.public.library-items');
+Route::get('/api/public/library-items/{slug}', [PublicLibraryApiController::class, 'show'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->where('slug', '[^/]+')
+    ->name('api.public.library-items.show');
 Route::get('/api/public/dv-lottery', [PublicDvLotteryApiController::class, 'show'])
     ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
     ->name('api.public.dv-lottery');
