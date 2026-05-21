@@ -19,6 +19,7 @@ use App\Http\Controllers\Contracts\ContractController as ContractsContractContro
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Onboarding\ProviderPhoneVerificationController;
 use App\Http\Controllers\Provider;
+use App\Http\Controllers\PublicDvLotteryApiController;
 use App\Http\Controllers\PublicLibraryApiController;
 use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\UploadController;
@@ -70,6 +71,7 @@ Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('library.ebook
 Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('library.audiobooks');
 Route::redirect('/library/ebooks', '/ebooks', 301);
 Route::redirect('/library/audiobooks', '/audiobooks', 301);
+Route::get('/library/{item:slug}', [LibraryController::class, 'show'])->name('library.show');
 
 // Purchasable video files (admin digital products — separate from Library)
 Route::get('/videos', [VideoProductController::class, 'index'])->name('videos.index');
@@ -96,6 +98,9 @@ Route::get('/api/community/news', [CommunityController::class, 'news'])->name('c
 Route::get('/api/public/library-items', [PublicLibraryApiController::class, 'index'])
     ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
     ->name('api.public.library-items');
+Route::get('/api/public/dv-lottery', [PublicDvLotteryApiController::class, 'show'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.dv-lottery');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
@@ -227,7 +232,6 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
     Route::post('/{item:slug}/summary', [LibraryController::class, 'summary'])
         ->middleware('throttle:10,1')
         ->name('summary');
-    Route::get('/{item:slug}', [LibraryController::class, 'show'])->name('show');
     Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
     Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
     Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
