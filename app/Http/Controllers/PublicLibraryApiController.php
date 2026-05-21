@@ -11,6 +11,61 @@ use Throwable;
 
 class PublicLibraryApiController extends Controller
 {
+    /**
+     * @return array<string, mixed>
+     */
+    private function publicItemPayload(LibraryItem $item, bool $fullDescription = false): array
+    {
+        $description = $item->description ? strip_tags($item->description) : null;
+        if ($description !== null && ! $fullDescription) {
+            $description = mb_strimwidth($description, 0, 220, '...');
+        }
+
+        return [
+            'title' => $item->title,
+            'slug' => $item->slug,
+            'type' => $item->type,
+            'description' => $description,
+            'author' => $item->author,
+            'category' => $item->category ? [
+                'name' => $item->category->name,
+                'slug' => $item->category->slug,
+            ] : null,
+            'cover_image_url' => $item->cover_image_url,
+            'is_premium' => (bool) $item->is_premium,
+            'price' => $item->price !== null ? (float) $item->price : null,
+            'currency' => $item->currency,
+            'page_count' => $item->page_count,
+            'publisher' => $item->publisher,
+            'publication_year' => $item->publication_year,
+            'published_at' => $item->published_at?->toIso8601String(),
+            'isbn' => $item->isbn,
+            'language' => $item->language,
+            'estimated_reading_minutes' => $item->estimated_reading_minutes,
+            'duration_seconds' => $item->duration_seconds,
+            'narrator' => $item->narrator,
+            'difficulty_level' => $item->difficulty_level,
+            'recommended_age_group' => $item->recommended_age_group,
+        ];
+    }
+
+    public function show(Request $request, string $slug): JsonResponse
+    {
+        $item = LibraryItem::query()
+            ->active()
+            ->where('slug', $slug)
+            ->with(['category:id,name,slug', 'libraryAuthor:id,name'])
+            ->first();
+
+        if (! $item) {
+            return response()->json(['message' => 'Library item not found.'], 404);
+        }
+
+        return response()->json([
+            'item' => $this->publicItemPayload($item, fullDescription: true),
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $startedAt = microtime(true);
@@ -38,6 +93,7 @@ class PublicLibraryApiController extends Controller
                 'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
                 'page' => ['nullable', 'integer', 'min:1'],
                 'search' => ['nullable', 'string', 'max:100'],
+                'slug' => ['nullable', 'string', 'max:255'],
                 'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
             ]);
 
@@ -63,31 +119,21 @@ class PublicLibraryApiController extends Controller
                 $query->search($validated['search']);
             }
 
+            if (! empty($validated['slug'])) {
+                $query->where('slug', $validated['slug']);
+            }
+
             if (! empty($validated['type'])) {
                 $query->where('type', $validated['type']);
             }
+
+            $fullDescription = ! empty($validated['slug']);
 
             $items = $query
                 ->orderByDesc('is_featured')
                 ->orderByDesc('created_at')
                 ->paginate((int) ($validated['per_page'] ?? 12))
-                ->through(function (LibraryItem $item): array {
-                    return [
-                        'title' => $item->title,
-                        'slug' => $item->slug,
-                        'type' => $item->type,
-                        'description' => $item->description ? mb_strimwidth(strip_tags($item->description), 0, 220, '...') : null,
-                        'author' => $item->author,
-                        'category' => $item->category ? [
-                            'name' => $item->category->name,
-                            'slug' => $item->category->slug,
-                        ] : null,
-                        'cover_image_url' => $item->cover_image_url,
-                        'is_premium' => (bool) $item->is_premium,
-                        'price' => $item->price !== null ? (float) $item->price : null,
-                        'currency' => $item->currency,
-                    ];
-                });
+                ->through(fn (LibraryItem $item): array => $this->publicItemPayload($item, $fullDescription));
 
             Log::info('PublicLibraryApi request completed', array_merge($context, [
                 'validated' => $validated,
