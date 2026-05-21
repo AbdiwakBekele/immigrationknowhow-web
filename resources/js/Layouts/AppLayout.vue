@@ -4,6 +4,7 @@ import { Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteSharePanel from '@/Components/layout/SiteSharePanel.vue';
 import { Transition } from 'vue';
 import {
     Bars3Icon,
@@ -494,6 +495,7 @@ const userAvatarInitial = computed(() => {
                         >
                             <BookOpenIcon class="h-6 w-6" />
                         </Link>
+                        <SiteSharePanel variant="icon" menu-align="right" />
                         <Link
                             href="/"
                             class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
@@ -548,7 +550,7 @@ const userAvatarInitial = computed(() => {
     </div>
 
     <!-- Guest: marketing-style top nav -->
-    <div v-else class="min-h-screen bg-slate-50">
+    <div v-else class="flex min-h-screen flex-col bg-slate-50">
         <nav
             :class="[
                 'fixed top-0 right-0 z-30 transition-all duration-300 left-0',
@@ -602,7 +604,9 @@ const userAvatarInitial = computed(() => {
                         </template>
                     </div>
 
-                    <div class="ml-auto flex items-center space-x-4">
+                    <div class="ml-auto flex items-center space-x-3 sm:space-x-4">
+                        <SiteSharePanel variant="outline" menu-align="right" class="hidden sm:inline-flex" />
+                        <SiteSharePanel variant="icon" menu-align="right" class="sm:hidden" />
                         <Link
                             href="/login"
                             class="hidden px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex"
@@ -620,8 +624,20 @@ const userAvatarInitial = computed(() => {
             </div>
         </nav>
 
-        <main class="pt-16">
+        <main class="flex-1 pt-16">
             <slot />
         </main>
+
+        <footer class="mt-auto border-t border-slate-800 bg-slate-900">
+            <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 sm:px-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+                <p class="text-sm text-slate-400">
+                    © {{ new Date().getFullYear() }} ImmigrationKnowHow. All rights reserved.
+                </p>
+                <div class="flex flex-wrap items-center gap-3">
+                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Share</span>
+                    <SiteSharePanel variant="footer" menu-align="right" />
+                </div>
+            </div>
+        </footer>
     </div>
 </template>

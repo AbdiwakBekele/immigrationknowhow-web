@@ -71,6 +71,41 @@ Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('library.ebook
 Route::get('/audiobooks', [LibraryController::class, 'audiobooks'])->name('library.audiobooks');
 Route::redirect('/library/ebooks', '/ebooks', 301);
 Route::redirect('/library/audiobooks', '/audiobooks', 301);
+
+// Register before /library/{item:slug} so paths like /library/my and /library/cart are not treated as book slugs.
+Route::middleware(['auth'])->prefix('library')->name('library.')->group(function () {
+    Route::get('/my', [LibraryController::class, 'myLibrary'])->name('my');
+    Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
+    Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
+    Route::get('/cart', [LibraryController::class, 'cart'])->name('cart');
+    Route::post('/cart/items/{item:slug}', [LibraryController::class, 'addToCart'])
+        ->middleware('throttle:60,1')
+        ->name('cart.add');
+    Route::delete('/cart/items/{item:slug}', [LibraryController::class, 'removeFromCart'])
+        ->middleware('throttle:60,1')
+        ->name('cart.remove');
+    Route::post('/cart/checkout', [LibraryController::class, 'checkoutCart'])
+        ->middleware('throttle:10,1')
+        ->name('cart.checkout');
+    Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
+        ->middleware('throttle:10,1')
+        ->name('pay');
+    Route::post('/{item:slug}/manual-payment', [LibraryController::class, 'storeManualPayment'])
+        ->middleware('throttle:10,1')
+        ->name('manual-payment');
+    Route::get('/{item:slug}/read', [LibraryController::class, 'read'])->name('read');
+    Route::get('/{item:slug}/media', [LibraryController::class, 'media'])->name('media');
+    Route::post('/{item:slug}/progress', [LibraryController::class, 'updateProgress'])
+        ->middleware('throttle:120,1')
+        ->name('progress');
+    Route::post('/{item:slug}/summary', [LibraryController::class, 'summary'])
+        ->middleware('throttle:10,1')
+        ->name('summary');
+    Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
+    Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
+    Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
+});
+
 Route::get('/library/{item:slug}', [LibraryController::class, 'show'])->name('library.show');
 
 // Purchasable video files (admin digital products — separate from Library)
@@ -201,40 +236,6 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'phone.verified'])->group(function () {
     Route::post('/onboarding/progress', [OnboardingController::class, 'saveProgress'])->name('onboarding.progress');
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
-});
-
-// Digital Library checkout and protected media stay available after sign-in, even before onboarding is complete.
-Route::middleware(['auth'])->prefix('library')->name('library.')->group(function () {
-    Route::get('/my', [LibraryController::class, 'myLibrary'])->name('my');
-    Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
-    Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
-    Route::get('/cart', [LibraryController::class, 'cart'])->name('cart');
-    Route::post('/cart/items/{item:slug}', [LibraryController::class, 'addToCart'])
-        ->middleware('throttle:60,1')
-        ->name('cart.add');
-    Route::delete('/cart/items/{item:slug}', [LibraryController::class, 'removeFromCart'])
-        ->middleware('throttle:60,1')
-        ->name('cart.remove');
-    Route::post('/cart/checkout', [LibraryController::class, 'checkoutCart'])
-        ->middleware('throttle:10,1')
-        ->name('cart.checkout');
-    Route::get('/{item:slug}/pay', [LibraryController::class, 'pay'])
-        ->middleware('throttle:10,1')
-        ->name('pay');
-    Route::post('/{item:slug}/manual-payment', [LibraryController::class, 'storeManualPayment'])
-        ->middleware('throttle:10,1')
-        ->name('manual-payment');
-    Route::get('/{item:slug}/read', [LibraryController::class, 'read'])->name('read');
-    Route::get('/{item:slug}/media', [LibraryController::class, 'media'])->name('media');
-    Route::post('/{item:slug}/progress', [LibraryController::class, 'updateProgress'])
-        ->middleware('throttle:120,1')
-        ->name('progress');
-    Route::post('/{item:slug}/summary', [LibraryController::class, 'summary'])
-        ->middleware('throttle:10,1')
-        ->name('summary');
-    Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
-    Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
-    Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
 });
 
 // General user routes requiring completed onboarding
