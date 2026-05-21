@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import SiteSharePanel from '@/Components/layout/SiteSharePanel.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 import {
     HomeIcon,
@@ -375,6 +376,7 @@ onUnmounted(() => {
                         >
                             <UserCircleIcon class="h-6 w-6" />
                         </Link>
+                        <SiteSharePanel variant="icon" menu-align="right" />
                         <Link
                             href="/"
                             class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"

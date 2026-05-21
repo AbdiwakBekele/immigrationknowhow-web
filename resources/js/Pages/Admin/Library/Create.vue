@@ -38,7 +38,7 @@ const form = useForm({
     pdf_file: null,
     audio_file: null,
     cover_image: null,
-    price: '0',
+    price: '4.99',
     currency: 'USD',
     is_active: true,
     is_featured: false,

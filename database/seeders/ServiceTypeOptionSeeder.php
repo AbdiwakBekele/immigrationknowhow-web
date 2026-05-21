@@ -23,7 +23,7 @@ class ServiceTypeOptionSeeder extends Seeder
             ['value' => 'hvac_repair_services', 'label' => 'HVAC repair services', 'icon' => 'cog-6-tooth'],
             ['value' => 'mechanic', 'label' => 'Mechanic', 'icon' => 'wrench-screwdriver'],
             ['value' => 'nail_and_beauty_salon', 'label' => 'Nail and Beauty salon', 'icon' => 'sparkles'],
-            ['value' => 'errand_services', 'label' => 'Errand services', 'icon' => 'briefcase'],
+            ['value' => 'errand_services', 'label' => 'Help services', 'icon' => 'briefcase'],
             ['value' => 'lawn_care', 'label' => 'Lawn care', 'icon' => 'sun'],
             ['value' => 'trees_cutters', 'label' => 'Trees cutters', 'icon' => 'scissors'],
             ['value' => 'snow_removal_service', 'label' => 'Snow removal service', 'icon' => 'cloud'],

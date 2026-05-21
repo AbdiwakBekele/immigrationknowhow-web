@@ -731,18 +731,32 @@ onBeforeUnmount(() => {
                             <h3 class="text-base font-bold text-[#111827]">Recent Posts</h3>
                             <p class="mt-1 text-xs text-[#64748b]">Latest updates from the community feed.</p>
                             <div class="mt-3 space-y-2.5">
-                                <Link v-for="post in recentPosts" :key="`recent-${post.id}`" :href="communityPostPath(post.id)" class="block rounded-2xl border border-slate-200 p-2.5 transition-all hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm">
+                                <div
+                                    v-for="post in recentPosts"
+                                    :key="`recent-${post.id}`"
+                                    class="rounded-2xl border border-slate-200 p-2.5 transition-all hover:bg-slate-50"
+                                >
                                     <div class="flex items-start gap-2.5">
-                                        <div v-if="post.image_url" class="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#e2e8f0]">
-                                            <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
-                                        </div>
-                                        <div v-else class="h-12 w-12 shrink-0 rounded-lg bg-gradient-to-br from-slate-600 to-slate-400" />
-                                        <div class="min-w-0">
-                                            <p class="truncate text-sm font-semibold text-[#111827]">{{ post.title }}</p>
-                                            <p class="mt-0.5 truncate text-xs text-[#475569]">{{ sectionLabels[post.category] }}</p>
-                                        </div>
+                                        <Link :href="communityPostPath(post.id)" class="flex min-w-0 flex-1 items-start gap-2.5">
+                                            <div v-if="post.image_url" class="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#e2e8f0]">
+                                                <img :src="post.image_url" :alt="post.title" class="h-full w-full object-cover">
+                                            </div>
+                                            <div v-else class="h-12 w-12 shrink-0 rounded-lg bg-gradient-to-br from-slate-600 to-slate-400" />
+                                            <div class="min-w-0">
+                                                <p class="truncate text-sm font-semibold text-[#111827]">{{ post.title }}</p>
+                                                <p class="mt-0.5 truncate text-xs text-[#475569]">{{ sectionLabels[post.category] }}</p>
+                                            </div>
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            class="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                                            aria-label="Share post"
+                                            @click="onShare(post)"
+                                        >
+                                            <ShareIcon class="h-4 w-4" />
+                                        </button>
                                     </div>
-                                </Link>
+                                </div>
                                 <p v-if="recentPosts.length === 0" class="rounded-lg border border-dashed border-[#d4dcea] p-3 text-center text-xs text-[#64748b]">
                                     No recent posts available.
                                 </p>
@@ -805,6 +819,9 @@ onBeforeUnmount(() => {
                             Close
                         </button>
                     </div>
+                    <p v-if="shareModalPost" class="mb-3 break-all text-xs text-[#64748b]">
+                        {{ communityPostShareUrl(shareModalPost.id) }}
+                    </p>
                     <CommunityShareButtons
                         v-if="shareModalPost"
                         :post-id="shareModalPost.id"
