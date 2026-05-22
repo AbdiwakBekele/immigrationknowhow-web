@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 import {
     ArrowRightOnRectangleIcon,
     BanknotesIcon,
@@ -106,7 +107,7 @@ const logout = () => router.post('/logout');
             </nav>
         </aside>
 
-        <div class="lg:pl-64">
+        <div class="flex min-h-screen flex-col lg:pl-64">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
                 <div class="flex h-16 items-center justify-between px-4 sm:px-6">
                     <button class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" @click="sidebarOpen = true">
@@ -125,12 +126,14 @@ const logout = () => router.post('/logout');
                 </div>
             </header>
 
-            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
+            <main class="w-full flex-1 px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
                 <ImpersonationBanner />
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />
                 </div>
             </main>
+
+            <SiteLegalFooter variant="light" />
         </div>
     </div>
 </template>

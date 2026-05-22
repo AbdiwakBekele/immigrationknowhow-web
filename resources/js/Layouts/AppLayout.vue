@@ -5,6 +5,7 @@ import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 import SiteSharePanel from '@/Components/layout/SiteSharePanel.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 import { Transition } from 'vue';
 import {
     Bars3Icon,
@@ -434,7 +435,7 @@ const userAvatarInitial = computed(() => {
             </div>
         </aside>
 
-        <div class="lg:pl-64">
+        <div class="flex min-h-screen flex-col lg:pl-64">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
                 <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
@@ -524,7 +525,7 @@ const userAvatarInitial = computed(() => {
                 </div>
             </header>
 
-            <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
+            <main class="w-full flex-1 px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
                 <div
                     v-if="showEmailVerificationBanner"
@@ -546,6 +547,8 @@ const userAvatarInitial = computed(() => {
                     <slot />
                 </div>
             </main>
+
+            <SiteLegalFooter variant="light" />
         </div>
     </div>
 
@@ -624,20 +627,17 @@ const userAvatarInitial = computed(() => {
             </div>
         </nav>
 
-        <main class="flex-1 pt-16">
-            <slot />
-        </main>
+            <main class="flex-1 pt-16">
+                <slot />
+            </main>
 
-        <footer class="mt-auto border-t border-slate-800 bg-slate-900">
-            <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 sm:px-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-                <p class="text-sm text-slate-400">
-                    © {{ new Date().getFullYear() }} ImmigrationKnowHow. All rights reserved.
-                </p>
-                <div class="flex flex-wrap items-center gap-3">
-                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Share</span>
-                    <SiteSharePanel variant="footer" menu-align="right" />
-                </div>
-            </div>
-        </footer>
+            <SiteLegalFooter variant="dark">
+                <template #extra>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Share</span>
+                        <SiteSharePanel variant="footer" menu-align="right" />
+                    </div>
+                </template>
+            </SiteLegalFooter>
     </div>
 </template>

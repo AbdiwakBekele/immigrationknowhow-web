@@ -5,6 +5,7 @@ import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import SiteSharePanel from '@/Components/layout/SiteSharePanel.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 import {
     HomeIcon,
     InboxIcon,
@@ -332,7 +333,7 @@ onUnmounted(() => {
             </div>
         </aside>
 
-        <div class="lg:pl-64">
+        <div class="flex min-h-screen flex-col lg:pl-64">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
                 <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
@@ -428,7 +429,7 @@ onUnmounted(() => {
                 </div>
             </header>
 
-            <main class="w-full px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
+            <main class="w-full flex-1 px-1.5 py-1.5 sm:px-2 sm:py-2 lg:px-3 lg:py-3">
                 <ImpersonationBanner />
                 <div
                     v-if="showProviderEmailVerificationBanner"
@@ -450,6 +451,8 @@ onUnmounted(() => {
                     <slot />
                 </div>
             </main>
+
+            <SiteLegalFooter variant="light" />
         </div>
     </div>
 </template>

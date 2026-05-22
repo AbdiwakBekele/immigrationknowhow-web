@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 
 defineProps({
     panelBadge: {
@@ -28,9 +29,9 @@ defineProps({
 </script>
 
 <template>
-    <div class="min-h-screen bg-slate-200 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
+    <div class="flex min-h-screen flex-col bg-slate-200 px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
         <div
-            class="mx-auto min-h-[calc(100vh-2rem)] max-w-[1600px] overflow-hidden rounded-[2.5rem] border border-white/50 bg-[#f4f5f7] shadow-[0_30px_80px_-30px_rgba(15,23,42,0.28)] lg:min-h-[900px]"
+            class="mx-auto min-h-[calc(100vh-2rem)] w-full max-w-[1600px] flex-1 overflow-hidden rounded-[2.5rem] border border-white/50 bg-[#f4f5f7] shadow-[0_30px_80px_-30px_rgba(15,23,42,0.28)] lg:min-h-[900px]"
         >
             <div class="grid h-full min-h-[inherit] lg:grid-cols-[1.1fr_0.9fr]">
                 <!-- LEFT PANEL -->
@@ -142,5 +143,7 @@ defineProps({
                 </div>
             </div>
         </div>
+
+        <SiteLegalFooter variant="light" class="mt-6" />
     </div>
 </template>
