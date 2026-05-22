@@ -6,6 +6,7 @@ use App\Models\EmailLog;
 use App\Models\EmailTemplate;
 use App\Models\User;
 use App\Support\TransactionalEmailTemplateRenderer;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\Events\MessageSending;
@@ -36,6 +37,46 @@ class AppServiceProvider extends ServiceProvider
     {
         Model::preventLazyLoading(!$this->app->isProduction());
         Model::preventSilentlyDiscardingAttributes(!$this->app->isProduction());
+
+        ResetPassword::createUrlUsing(function (object $notifiable, string $token): string {
+            return route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+        });
+
+        ResetPassword::toMailUsing(function (object $notifiable, string $token): MailMessage {
+            $url = route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+
+            $renderer = app(TransactionalEmailTemplateRenderer::class);
+            $user = $notifiable instanceof User ? $notifiable : null;
+            $payload = $renderer->render(EmailTemplate::EVENT_PASSWORD_RESET, $user, [
+                'reset_link' => $url,
+            ]);
+
+            return (new MailMessage)
+                ->subject($payload['subject'])
+                ->greeting('Hello '.($payload['tokens']['{{first_name}}'] ?: 'there').'!')
+                ->line($payload['body'])
+                ->action($payload['action_label'] ?: 'Reset password', $payload['action_url'] ?: $url)
+                ->line('If you did not request a password reset, no further action is required.')
+                ->line('This link will expire in '.config('auth.passwords.'.config('auth.defaults.passwords').'.expire').' minutes.')
+                ->withSymfonyMessage(function (Email $message) use ($payload, $user): void {
+                    $headers = $message->getHeaders();
+                    $headers->addTextHeader('X-IKH-Event-Key', EmailTemplate::EVENT_PASSWORD_RESET);
+
+                    if (! empty($payload['template_id'])) {
+                        $headers->addTextHeader('X-IKH-Template-ID', (string) $payload['template_id']);
+                    }
+
+                    if ($user?->id) {
+                        $headers->addTextHeader('X-IKH-User-ID', (string) $user->id);
+                    }
+                });
+        });
 
         VerifyEmail::toMailUsing(function (object $notifiable, string $url): MailMessage {
             $renderer = app(TransactionalEmailTemplateRenderer::class);

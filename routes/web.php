@@ -174,6 +174,15 @@ Route::middleware('guest')->group(function () {
 Route::get('/login', [Auth\LoginController::class, 'create'])->name('login');
 Route::post('/login', [Auth\LoginController::class, 'store']);
 
+Route::get('/forgot-password', [Auth\ForgotPasswordController::class, 'create'])->name('password.request');
+Route::post('/forgot-password', [Auth\ForgotPasswordController::class, 'store'])
+    ->middleware('throttle:6,1')
+    ->name('password.email');
+Route::get('/reset-password/{token}', [Auth\ResetPasswordController::class, 'create'])->name('password.reset');
+Route::post('/reset-password', [Auth\ResetPasswordController::class, 'store'])
+    ->middleware('throttle:6,1')
+    ->name('password.store');
+
 Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
