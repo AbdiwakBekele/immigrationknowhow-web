@@ -16,6 +16,8 @@ class EmailTemplate extends Model
 
     public const EVENT_ACCOUNT_ACTIVATION = 'account_activation';
 
+    public const EVENT_PASSWORD_RESET = 'password_reset';
+
     protected $fillable = [
         'event_key',
         'role',
@@ -40,6 +42,7 @@ class EmailTemplate extends Model
             self::EVENT_INVITE,
             self::EVENT_WELCOME,
             self::EVENT_ACCOUNT_ACTIVATION,
+            self::EVENT_PASSWORD_RESET,
         ];
     }
 

@@ -58,6 +58,17 @@ class EmailTemplateSeeder extends Seeder
             'is_active' => true,
         ];
 
+        $templates[] = [
+            'event_key' => EmailTemplate::EVENT_PASSWORD_RESET,
+            'role' => null,
+            'name' => 'Default password reset',
+            'subject' => 'Reset your {{company_name}} password',
+            'body' => 'Hi {{first_name}}, use the link below to set a new password. If you did not request this, you can ignore this email.',
+            'action_label' => 'Reset password',
+            'action_url' => '{{reset_link}}',
+            'is_active' => true,
+        ];
+
         foreach (UserRole::cases() as $role) {
             $templates[] = [
                 'event_key' => EmailTemplate::EVENT_INVITE,
