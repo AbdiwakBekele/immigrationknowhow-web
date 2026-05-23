@@ -628,7 +628,7 @@ onBeforeUnmount(() => {
                                     v-if="item.cover_image_url"
                                     :src="item.cover_image_url"
                                     :alt="item.title"
-                                    class="absolute inset-0 h-full w-full object-cover object-top"
+                                    class="absolute inset-0 h-full w-full object-contain object-top"
                                     draggable="false"
                                     @contextmenu.prevent
                                 >

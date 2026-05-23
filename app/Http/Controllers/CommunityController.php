@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommunityComment;
 use App\Models\CommunityPost;
 use App\Models\CommunityPostReaction;
-use App\Support\CountryDisplay;
+use App\Support\PublicCommunityPostPresentation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -120,6 +120,10 @@ class CommunityController extends Controller
                 });
             }
 
+            if ($request->boolean('has_video')) {
+                $query->whereNotNull('video_url')->where('video_url', '!=', '');
+            }
+
             $prePaginationCount = (clone $query)->count();
             Log::info('community.posts.diagnostics.query', [
                 'requested_category' => $requestedCategory,
@@ -127,7 +131,8 @@ class CommunityController extends Controller
                 'matched_before_pagination' => $prePaginationCount,
             ]);
 
-            $paginated = $query->paginate(20);
+            $perPage = min(max($request->integer('per_page', 20), 1), 50);
+            $paginated = $query->paginate($perPage);
             $items = $paginated->getCollection();
             $userId = $request->user()?->id;
             $guestKey = $request->query('guest_key');
@@ -149,7 +154,7 @@ class CommunityController extends Controller
                     ->toArray();
             }
 
-            $posts = $paginated->through(fn (CommunityPost $post) => $this->formatCommunityPostPayload(
+            $posts = $paginated->through(fn (CommunityPost $post) => PublicCommunityPostPresentation::payload(
                 $post,
                 $reactionMap[$post->id] ?? [],
             ));
@@ -219,7 +224,7 @@ class CommunityController extends Controller
         $communityPost->loadMissing('contributor:id,first_name,last_name,email,country');
 
         return response()->json([
-            'post' => $this->formatCommunityPostPayload($communityPost, $userReactions),
+            'post' => PublicCommunityPostPresentation::payload($communityPost, $userReactions),
         ]);
     }
 
@@ -579,66 +584,4 @@ class CommunityController extends Controller
             && Schema::hasColumn('community_post_reactions', 'dedupe_key');
     }
 
-    private function absoluteMediaUrl(?string $url): ?string
-    {
-        $url = trim((string) $url);
-        if ($url === '') {
-            return null;
-        }
-
-        if (preg_match('#^https?://#i', $url)) {
-            return $url;
-        }
-
-        if (str_starts_with($url, '//')) {
-            return 'https:'.$url;
-        }
-
-        return url('/'.ltrim($url, '/'));
-    }
-
-    /**
-     * @param  array<int, string>  $userReactions
-     * @return array<string, mixed>
-     */
-    private function formatCommunityPostPayload(CommunityPost $post, array $userReactions = []): array
-    {
-        $importMeta = is_array($post->import_meta) ? $post->import_meta : [];
-        $contributor = $post->relationLoaded('contributor') ? $post->contributor : null;
-
-        $contributorName = $contributor?->full_name;
-        if (! filled($contributorName)) {
-            $fallbackEmail = trim((string) ($importMeta['contributor_email'] ?? ''));
-            $contributorName = $fallbackEmail !== '' ? $fallbackEmail : null;
-        }
-
-        $contributorCountrySource = filled($post->contributor_country)
-            ? (string) $post->contributor_country
-            : ($contributor?->country ?? null);
-
-        $contributorCountry = CountryDisplay::labelForDisplay($contributorCountrySource);
-
-        $imageUrl = trim((string) ($post->image_url ?? ''));
-        if ($imageUrl === '' && filled($post->description)) {
-            $imageUrl = $this->extractImageFromDescription((string) $post->description);
-        }
-
-        return [
-            'id' => $post->id,
-            'title' => $post->title,
-            'description' => $post->description,
-            'tag' => $post->tag,
-            'category' => $post->category,
-            'contributor_name' => $contributorName,
-            'contributor_country' => $contributorCountry,
-            'image_url' => $this->absoluteMediaUrl($imageUrl !== '' ? $imageUrl : null),
-            'video_url' => $this->absoluteMediaUrl($post->video_url),
-            'likes_count' => (int) $post->likes_count,
-            'comments_count' => (int) $post->comments_count,
-            'shares_count' => (int) $post->shares_count,
-            'bookmarks_count' => (int) $post->bookmarks_count,
-            'user_reactions' => $userReactions,
-            'created_at' => optional($post->created_at)->toIso8601String(),
-        ];
-    }
 }
