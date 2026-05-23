@@ -594,7 +594,7 @@ onBeforeUnmount(() => {
                                                     v-if="item.cover_image_url"
                                                     :src="item.cover_image_url"
                                                     :alt="item.title"
-                                                    class="absolute inset-0 h-full w-full object-cover object-top"
+                                                    class="absolute inset-0 h-full w-full object-contain"
                                                 />
                                                 <div
                                                     v-else
@@ -1105,7 +1105,7 @@ onBeforeUnmount(() => {
                                     v-if="related.cover_image_url"
                                     :src="related.cover_image_url"
                                     :alt="related.title"
-                                    class="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105"
+                                    class="absolute inset-0 h-full w-full object-contain transition duration-500 group-hover:scale-105"
                                 />
                                 <div
                                     v-else
