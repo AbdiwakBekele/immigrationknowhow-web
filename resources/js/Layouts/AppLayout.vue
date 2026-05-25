@@ -488,23 +488,6 @@ const userAvatarInitial = computed(() => {
                             </span>
                         </Link>
                         <Link
-                            :href="hasSeekerPortal ? route('library.my') : route('library.index')"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            :title="hasSeekerPortal ? 'My Library' : 'Library'"
-                            :aria-label="hasSeekerPortal ? 'My Library' : 'Library'"
-                        >
-                            <BookOpenIcon class="h-6 w-6" />
-                        </Link>
-                        <SiteSharePanel variant="icon" menu-align="right" />
-                        <Link
-                            href="/"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            title="View Site"
-                            aria-label="View Site"
-                        >
-                            <HomeIcon class="h-6 w-6" />
-                        </Link>
-                        <Link
                             v-if="dvLottery.show_in_menu && hasSeekerPortal"
                             :href="route('user.dv-lottery.index')"
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
@@ -606,7 +589,6 @@ const userAvatarInitial = computed(() => {
 
                     <div class="ml-auto flex items-center space-x-3 sm:space-x-4">
                         <SiteSharePanel variant="outline" menu-align="right" class="hidden sm:inline-flex" />
-                        <SiteSharePanel variant="icon" menu-align="right" class="sm:hidden" />
                         <Link
                             href="/login"
                             class="hidden px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex"
