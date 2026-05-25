@@ -3,7 +3,6 @@ import { ref, computed, watch, onMounted, onUnmounted, Transition } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
-import SiteSharePanel from '@/Components/layout/SiteSharePanel.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
 import {
     HomeIcon,
@@ -376,16 +375,6 @@ onUnmounted(() => {
                         >
                             <UserCircleIcon class="h-6 w-6" />
                         </Link>
-                        <SiteSharePanel variant="icon" menu-align="right" />
-                        <Link
-                            href="/"
-                            class="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
-                            title="View Site"
-                            aria-label="View Site"
-                        >
-                            <HomeIcon class="h-5 w-5" />
-                            <span class="hidden text-sm font-medium md:inline">View Site</span>
-                        </Link>
                         <Link
                             :href="route('provider.library.cart')"
                             class="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
@@ -399,14 +388,6 @@ onUnmounted(() => {
                             >
                                 {{ libraryCartBadge }}
                             </span>
-                        </Link>
-                        <Link
-                            href="/library"
-                            class="inline-flex h-11 w-11 items-center justify-center rounded-2xl text-slate-500 transition hover:bg-slate-100"
-                            title="Member library storefront"
-                            aria-label="Member library storefront"
-                        >
-                            <BookOpenIcon class="h-5 w-5" />
                         </Link>
                         <Link
                             v-if="dvLottery.show_in_menu"
