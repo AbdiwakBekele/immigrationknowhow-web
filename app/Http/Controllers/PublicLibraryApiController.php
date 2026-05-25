@@ -97,6 +97,7 @@ class PublicLibraryApiController extends Controller
                 'slug' => ['nullable', 'string', 'max:255'],
                 'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
                 'category' => ['nullable', 'string', 'max:120'],
+                'featured' => ['nullable', 'boolean'],
             ]);
 
             $query = LibraryItem::query()
@@ -138,6 +139,10 @@ class PublicLibraryApiController extends Controller
                 if ($category) {
                     $query->inCategory($category->id);
                 }
+            }
+
+            if (! empty($validated['featured'])) {
+                $query->featured();
             }
 
             $fullDescription = ! empty($validated['slug']);
