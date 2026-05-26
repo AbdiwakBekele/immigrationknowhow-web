@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,8 +32,21 @@ class LibraryCategoryController extends Controller
             ])
             ->values();
 
+        $authors = LibraryAuthor::query()
+            ->withCount('libraryItems')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (LibraryAuthor $author) => [
+                'id' => $author->id,
+                'name' => $author->name,
+                'slug' => $author->slug,
+                'items_count' => (int) $author->library_items_count,
+            ])
+            ->values();
+
         return Inertia::render('Admin/LibraryCategories/Index', [
             'categories' => $categories,
+            'authors' => $authors,
         ]);
     }
 

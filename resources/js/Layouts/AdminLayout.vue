@@ -85,7 +85,7 @@ const isActive = (href) => {
     }
 
     if (href.startsWith('/admin/library-categories')) {
-        return path.startsWith('/admin/library-categories');
+        return path.startsWith('/admin/library-categories') || path.startsWith('/admin/library-authors');
     }
 
     if (href === '/admin/videos') {
