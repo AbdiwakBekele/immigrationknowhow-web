@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             SubscriptionPlanSeeder::class,
             EmailTemplateSeeder::class,
             UsZipSeeder::class,
+            LibraryAuthorSeeder::class,
         ]);
     }
 }

@@ -578,6 +578,7 @@ Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|supe
             ->name('library.media');
         Route::resource('library', Admin\LibraryController::class);
         Route::resource('library-categories', Admin\LibraryCategoryController::class);
+        Route::resource('library-authors', Admin\LibraryAuthorController::class);
 
         // Legacy partner links
         Route::resource('partner-links', Admin\AffiliateController::class);
