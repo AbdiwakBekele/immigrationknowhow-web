@@ -47,7 +47,7 @@ export function adminSettingsNavItems() {
             children: [
                 { name: 'General settings', href: '/admin/settings' },
                 { name: 'Email templates', href: '/admin/email-templates' },
-                { name: 'Library categories & authors', href: '/admin/library-categories' },
+                { name: 'Library Category', href: '/admin/library-categories' },
                 { name: 'Service Types', href: '/admin/service-types' },
             ],
         },
