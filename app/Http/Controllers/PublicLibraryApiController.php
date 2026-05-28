@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -95,6 +96,8 @@ class PublicLibraryApiController extends Controller
                 'search' => ['nullable', 'string', 'max:100'],
                 'slug' => ['nullable', 'string', 'max:255'],
                 'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
+                'category' => ['nullable', 'string', 'max:120'],
+                'featured' => ['nullable', 'boolean'],
             ]);
 
             $query = LibraryItem::query()
@@ -125,6 +128,21 @@ class PublicLibraryApiController extends Controller
 
             if (! empty($validated['type'])) {
                 $query->where('type', $validated['type']);
+            }
+
+            if (! empty($validated['category'])) {
+                $category = LibraryCategory::query()
+                    ->active()
+                    ->where('slug', $validated['category'])
+                    ->first();
+
+                if ($category) {
+                    $query->inCategory($category->id);
+                }
+            }
+
+            if (! empty($validated['featured'])) {
+                $query->featured();
             }
 
             $fullDescription = ! empty($validated['slug']);

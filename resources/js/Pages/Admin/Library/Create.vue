@@ -181,6 +181,21 @@ const submit = () => {
                         <label class="mb-1 block text-sm font-medium text-slate-700">New author name (optional)</label>
                         <input v-model="form.new_author_name" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2">
                     </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Status</label>
+                        <div class="flex min-h-10 items-center gap-6">
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                <input v-model="form.is_active" type="checkbox" class="rounded border-slate-300">
+                                Active
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                <input v-model="form.is_featured" type="checkbox" class="rounded border-slate-300">
+                                Featured
+                            </label>
+                        </div>
+                        <p v-if="form.errors.is_active" class="mt-1 text-xs text-red-600">{{ form.errors.is_active }}</p>
+                        <p v-if="form.errors.is_featured" class="mt-1 text-xs text-red-600">{{ form.errors.is_featured }}</p>
+                    </div>
                 </section>
 
                 <section>

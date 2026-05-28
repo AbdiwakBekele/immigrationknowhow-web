@@ -21,7 +21,10 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Onboarding\ProviderPhoneVerificationController;
 use App\Http\Controllers\Provider;
 use App\Http\Controllers\PublicDvLotteryApiController;
+use App\Http\Controllers\PublicCommunityApiController;
 use App\Http\Controllers\PublicLibraryApiController;
+use App\Http\Controllers\PublicServiceProvidersApiController;
+use App\Http\Controllers\PublicServiceTypesApiController;
 use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\User;
@@ -144,6 +147,26 @@ Route::get('/api/public/library-items/{slug}', [PublicLibraryApiController::clas
 Route::get('/api/public/dv-lottery', [PublicDvLotteryApiController::class, 'show'])
     ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
     ->name('api.public.dv-lottery');
+Route::get('/api/public/service-types', [PublicServiceTypesApiController::class, 'index'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.service-types');
+Route::get('/api/public/service-providers', [PublicServiceProvidersApiController::class, 'index'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.service-providers');
+Route::get('/api/public/community/posts', [PublicCommunityApiController::class, 'posts'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.community.posts');
+Route::get('/api/public/community/posts/{communityPost}', [PublicCommunityApiController::class, 'show'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->whereNumber('communityPost')
+    ->name('api.public.community.posts.show');
+Route::get('/api/public/community/posts/{communityPost}/comments', [PublicCommunityApiController::class, 'comments'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->whereNumber('communityPost')
+    ->name('api.public.community.posts.comments');
+Route::get('/api/public/community/news', [PublicCommunityApiController::class, 'news'])
+    ->middleware(['throttle:60,1', PublicApiRequestLogger::class])
+    ->name('api.public.community.news');
 
 // Affiliate tracking
 Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('affiliate.track');
@@ -164,7 +187,6 @@ Route::prefix('webhooks')->name('webhooks.')->group(function () {
 */
 
 Route::middleware('guest')->group(function () {
-    Route::get('/register', [Auth\RegisterController::class, 'create'])->name('register');
     Route::post('/register', [Auth\RegisterController::class, 'store']);
 
     Route::get('/affiliate/register', [AffiliateAuth\RegistrationController::class, 'create'])->name('affiliate.register');
@@ -172,6 +194,11 @@ Route::middleware('guest')->group(function () {
     Route::get('/affiliate/invites/{token}', [AffiliateAuth\InviteAcceptanceController::class, 'show'])->name('affiliate.invites.show');
     Route::post('/affiliate/invites/{token}', [AffiliateAuth\InviteAcceptanceController::class, 'store'])->name('affiliate.invites.store');
 });
+
+// Login and register GET are not behind `guest`: authenticated users must still reach these pages
+// (e.g. marketing-site "Become A Member") instead of being redirected to `dashboard`, which
+// requires `role:user` and yields a 403 for provider-only accounts.
+Route::get('/register', [Auth\RegisterController::class, 'create'])->name('register');
 
 // Login is not behind `guest`: authenticated users must still reach this page (e.g. "Sign in"
 // from register) instead of being redirected to dashboard → onboarding by RedirectIfAuthenticated.
@@ -555,6 +582,7 @@ Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|supe
             ->name('library.media');
         Route::resource('library', Admin\LibraryController::class);
         Route::resource('library-categories', Admin\LibraryCategoryController::class);
+        Route::resource('library-authors', Admin\LibraryAuthorController::class);
 
         // Legacy partner links
         Route::resource('partner-links', Admin\AffiliateController::class);

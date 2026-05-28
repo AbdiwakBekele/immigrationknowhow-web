@@ -13,6 +13,7 @@ use App\Models\EmailTemplate;
 use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
 use App\Support\UserHomeUrl;
+use App\Support\UserRoleAccounts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,8 +31,13 @@ class RegisterController extends Controller
         protected CreateAffiliateEarningAction $createAffiliateEarning,
     ) {}
 
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
+        $user = Auth::user();
+        if ($user) {
+            return $this->redirectAuthenticatedVisitor($request, $user);
+        }
+
         $initialRole = $request->string('role')->toString();
         if (! in_array($initialRole, [UserRole::USER->value, UserRole::PROVIDER->value, UserRole::ADVERTISER->value], true)) {
             $initialRole = UserRole::USER->value;
@@ -126,5 +132,23 @@ class RegisterController extends Controller
 
         // Providers still complete coverage area before phone verification.
         return redirect()->route('address-detail');
+    }
+
+    /**
+     * Signed-in visitors (e.g. from the marketing site) should not hit guest middleware → dashboard.
+     */
+    protected function redirectAuthenticatedVisitor(Request $request, User $user): RedirectResponse
+    {
+        $redirect = $request->query('redirect');
+        if (is_string($redirect) && str_starts_with($redirect, '/')) {
+            return redirect($redirect);
+        }
+
+        $meta = UserRoleAccounts::meta($user);
+        if ($meta['can_add_seeker']) {
+            return redirect()->route('account-roles.seeker.create');
+        }
+
+        return redirect(UserHomeUrl::afterAuthentication($user));
     }
 }

@@ -553,13 +553,13 @@ const actionHref = (item) => {
                         <template v-if="viewMode === 'grid'">
                             <Link
                                 :href="item.has_access ? readUrl(item) : showUrl(item)"
-                                class="relative block aspect-square overflow-hidden bg-neutral-100"
+                                class="relative block aspect-[2/3] overflow-hidden bg-neutral-100"
                             >
                                 <img
                                     v-if="item.cover_image_url"
                                     :src="item.cover_image_url"
                                     :alt="item.title"
-                                    class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+                                    class="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                                 />
                                 <div
                                     v-else
@@ -638,7 +638,7 @@ const actionHref = (item) => {
                                     v-if="item.cover_image_url"
                                     :src="item.cover_image_url"
                                     :alt="item.title"
-                                    class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+                                    class="h-full w-full object-contain transition duration-300 group-hover:scale-105"
                                 />
                                 <div v-else class="flex h-full w-full items-center justify-center bg-neutral-100">
                                     <DocumentTextIcon class="h-16 w-16 text-neutral-300" />

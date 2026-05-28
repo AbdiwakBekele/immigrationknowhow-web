@@ -30,7 +30,12 @@ const user = computed(() => page.props.auth?.user);
 /** Spatie roles; advertisers are not necessarily `role:user`, so `/dashboard` etc. would 403. */
 const roleNames = computed(() => {
     const roles = user.value?.roles;
-    return Array.isArray(roles) ? roles : [];
+    if (!Array.isArray(roles)) {
+        return [];
+    }
+    return roles
+        .map((role) => (typeof role === 'string' ? role : role?.name))
+        .filter((name) => typeof name === 'string' && name !== '');
 });
 const hasSeekerPortal = computed(() => roleNames.value.includes('user'));
 const hasAdvertiserRole = computed(
@@ -38,6 +43,17 @@ const hasAdvertiserRole = computed(
 );
 /** Advertiser-only accounts: point nav at `advertiser.*` routes, not seeker middleware. */
 const useAdvertiserNav = computed(() => hasAdvertiserRole.value && !hasSeekerPortal.value);
+/** True when the seeker portal is active (not provider/advertiser-only shell). */
+const isSeekerAppBar = computed(() => {
+    const portal = page.props.auth?.active_portal;
+    if (portal === 'user') {
+        return true;
+    }
+    if (portal === 'provider' || portal === 'advertiser') {
+        return false;
+    }
+    return hasSeekerPortal.value && !useAdvertiserNav.value;
+});
 const primaryHomeHref = computed(() =>
     useAdvertiserNav.value ? route('advertiser.dashboard') : route('dashboard'),
 );
@@ -459,68 +475,95 @@ const userAvatarInitial = computed(() => {
                     </div>
 
                     <div class="flex items-center gap-2 sm:gap-3">
-                        <Link
-                            v-if="hasSeekerPortal"
-                            href="/messages"
-                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            title="Messages"
-                            aria-label="Messages"
-                        >
-                            <ChatBubbleLeftRightIcon class="h-6 w-6" />
-                            <span
-                                v-if="unreadMessages > 0"
-                                class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                        <!-- Service seeker app bar: no Library, Share, or View Site (sidebar only). -->
+                        <template v-if="isSeekerAppBar">
+                            <Link
+                                href="/messages"
+                                class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                title="Messages"
+                                aria-label="Messages"
                             >
-                                {{ unreadMessagesLabel }}
-                            </span>
-                        </Link>
-                        <Link
-                            :href="route('library.cart')"
-                            class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            title="Cart"
-                            :aria-label="libraryCartCount > 0 ? `Cart, ${libraryCartCount} items` : 'Cart'"
-                        >
-                            <ShoppingCartIcon class="h-6 w-6" />
-                            <span
-                                v-if="libraryCartCount > 0"
-                                class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                                <ChatBubbleLeftRightIcon class="h-6 w-6" />
+                                <span
+                                    v-if="unreadMessages > 0"
+                                    class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                                >
+                                    {{ unreadMessagesLabel }}
+                                </span>
+                            </Link>
+                            <Link
+                                :href="route('library.cart')"
+                                class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                title="Cart"
+                                :aria-label="libraryCartCount > 0 ? `Cart, ${libraryCartCount} items` : 'Cart'"
                             >
-                                {{ cartCountLabel }}
-                            </span>
-                        </Link>
-                        <Link
-                            :href="hasSeekerPortal ? route('library.my') : route('library.index')"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            :title="hasSeekerPortal ? 'My Library' : 'Library'"
-                            :aria-label="hasSeekerPortal ? 'My Library' : 'Library'"
-                        >
-                            <BookOpenIcon class="h-6 w-6" />
-                        </Link>
-                        <SiteSharePanel variant="icon" menu-align="right" />
-                        <Link
-                            href="/"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            title="View Site"
-                            aria-label="View Site"
-                        >
-                            <HomeIcon class="h-6 w-6" />
-                        </Link>
-                        <Link
-                            v-if="dvLottery.show_in_menu && hasSeekerPortal"
-                            :href="route('user.dv-lottery.index')"
-                            class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
-                        >
-                            DV Lottery
-                        </Link>
-                        <button
-                            type="button"
-                            title="Sign out"
-                            aria-label="Sign out"
-                            class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
-                            @click="logout"
-                        >
-                            <ArrowRightOnRectangleIcon class="h-6 w-6" />
-                        </button>
+                                <ShoppingCartIcon class="h-6 w-6" />
+                                <span
+                                    v-if="libraryCartCount > 0"
+                                    class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                                >
+                                    {{ cartCountLabel }}
+                                </span>
+                            </Link>
+                            <Link
+                                v-if="dvLottery.show_in_menu"
+                                :href="route('user.dv-lottery.index')"
+                                class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
+                            >
+                                DV Lottery
+                            </Link>
+                            <button
+                                type="button"
+                                title="Sign out"
+                                aria-label="Sign out"
+                                class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                @click="logout"
+                            >
+                                <ArrowRightOnRectangleIcon class="h-6 w-6" />
+                            </button>
+                        </template>
+                        <template v-else>
+                            <Link
+                                :href="route('library.cart')"
+                                class="relative inline-flex rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                title="Cart"
+                                :aria-label="libraryCartCount > 0 ? `Cart, ${libraryCartCount} items` : 'Cart'"
+                            >
+                                <ShoppingCartIcon class="h-6 w-6" />
+                                <span
+                                    v-if="libraryCartCount > 0"
+                                    class="absolute -top-0.5 -right-0.5 flex min-h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-sky-600 px-1.5 text-[10px] font-semibold leading-none text-white ring-2 ring-white tabular-nums"
+                                >
+                                    {{ cartCountLabel }}
+                                </span>
+                            </Link>
+                            <Link
+                                :href="route('library.index')"
+                                class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                title="Library"
+                                aria-label="Library"
+                            >
+                                <BookOpenIcon class="h-6 w-6" />
+                            </Link>
+                            <SiteSharePanel variant="icon" menu-align="right" />
+                            <Link
+                                href="/"
+                                class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                title="View Site"
+                                aria-label="View Site"
+                            >
+                                <HomeIcon class="h-6 w-6" />
+                            </Link>
+                            <button
+                                type="button"
+                                title="Sign out"
+                                aria-label="Sign out"
+                                class="inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100"
+                                @click="logout"
+                            >
+                                <ArrowRightOnRectangleIcon class="h-6 w-6" />
+                            </button>
+                        </template>
                     </div>
                 </div>
             </header>
@@ -609,7 +652,6 @@ const userAvatarInitial = computed(() => {
 
                     <div class="ml-auto flex items-center space-x-3 sm:space-x-4">
                         <SiteSharePanel variant="outline" menu-align="right" class="hidden sm:inline-flex" />
-                        <SiteSharePanel variant="icon" menu-align="right" class="sm:hidden" />
                         <Link
                             href="/login"
                             class="hidden px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:text-slate-900 sm:inline-flex"
