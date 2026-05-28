@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 </script>
 
 <template>
@@ -81,11 +82,7 @@ import BrandLogo from '@/Components/Brand/BrandLogo.vue';
                 </div>
             </div>
 
-            <!-- Footer -->
-            <div class="p-6 text-center text-sm text-slate-500">
-                <p>© {{ new Date().getFullYear() }} {{ $page.props.branding?.company_name || 'ImmigrationKnowHow' }}. All rights reserved.</p>
-                <p v-if="$page.props.branding?.support_email" class="mt-1">{{ $page.props.branding.support_email }}</p>
-            </div>
+            <SiteLegalFooter variant="light" :show-copyright="true" />
         </div>
     </div>
 </template>

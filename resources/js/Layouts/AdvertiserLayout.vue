@@ -11,6 +11,7 @@ import {
     ArrowRightOnRectangleIcon,
 } from '@heroicons/vue/24/outline';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
@@ -168,7 +169,7 @@ const userAvatarInitial = computed(() => {
             </div>
         </aside>
 
-        <div class="lg:pl-72">
+        <div class="flex min-h-screen flex-col lg:pl-72">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white">
                 <div class="flex h-16 items-center justify-between px-4 sm:px-6">
                     <button
@@ -193,12 +194,14 @@ const userAvatarInitial = computed(() => {
                 </div>
             </header>
 
-            <main class="w-full px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
+            <main class="w-full flex-1 px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4">
                 <ImpersonationBanner />
                 <div class="w-full [&>*]:!mx-0 [&>*]:!max-w-none [&>*]:w-full">
                     <slot />
                 </div>
             </main>
+
+            <SiteLegalFooter variant="light" />
         </div>
     </div>
 </template>

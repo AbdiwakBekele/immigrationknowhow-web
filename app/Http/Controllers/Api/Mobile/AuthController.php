@@ -3,15 +3,20 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Mobile\ForgotPasswordRequest;
 use App\Http\Requests\Mobile\LoginRequest;
 use App\Http\Requests\Mobile\RegisterRequest;
+use App\Http\Requests\Mobile\ResetPasswordRequest;
 use App\Http\Resources\Mobile\UserResource;
 use App\Models\User;
 use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -50,6 +55,49 @@ class AuthController extends Controller
             'token' => $token,
             'user' => (new UserResource($user))->resolve(),
         ]);
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $email = $request->validated('email');
+
+        $user = User::query()
+            ->where('email', $email)
+            ->first();
+
+        if ($user && $user->is_active) {
+            Password::sendResetLink(['email' => $email]);
+        }
+
+        return $this->success(
+            'If an account exists for that email address, we sent a password reset link.',
+            []
+        );
+    }
+
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $status = Password::reset(
+            $validated,
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return $this->success('Your password has been reset. You can sign in with your new password.', []);
+        }
+
+        return $this->error(__($status), [
+            'email' => [__($status)],
+        ], 422);
     }
 
     public function login(LoginRequest $request): JsonResponse
