@@ -130,13 +130,13 @@ const seekerUserNavigation = computed(() => {
         { name: 'Ad Analytics', href: route('user.ads.analytics'), icon: ChartBarIcon },
         { name: 'My Library', href: route('library.my'), icon: BookOpenIcon },
         { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
-        { name: 'Reviews', href: route('reviews.index'), icon: StarIcon },
         { name: 'AI Assistant', href: route('user.ai-assistant.index'), icon: SparklesIcon },
     ];
     if (dvLottery.value.show_in_menu) {
         items.push({ name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon });
     }
     items.push({ name: 'Community', href: '/community', icon: UserGroupIcon });
+    items.push({ name: 'Reviews', href: route('reviews.index'), icon: StarIcon });
     return items;
 });
 

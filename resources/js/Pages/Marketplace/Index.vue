@@ -1,6 +1,13 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import {
+    Dialog,
+    DialogPanel,
+    DialogTitle,
+    TransitionChild,
+    TransitionRoot,
+} from '@headlessui/vue';
 import { debounce } from 'lodash-es';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ProviderCard from '@/Components/marketplace/ProviderCard.vue';
@@ -10,9 +17,14 @@ import Button from '@/Components/ui/Button.vue';
 import {
     MagnifyingGlassIcon,
     AdjustmentsHorizontalIcon,
+    ChatBubbleLeftRightIcon,
     XMarkIcon,
     SparklesIcon,
     FunnelIcon,
+    HeartIcon,
+    LanguageIcon,
+    MapPinIcon,
+    VideoCameraIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -24,16 +36,26 @@ const props = defineProps({
 });
 
 const showFilters = ref(false);
+const isFilterEnabled = (value) => [true, 'true', 1, '1', 'on'].includes(value);
 
 const form = reactive({
     search: props.filters?.search || '',
     service_type: props.filters?.service_type || '',
     language: props.filters?.language || '',
     location: props.filters?.location || '',
-    remote_only: props.filters?.remote_only || false,
-    free_consultation: props.filters?.free_consultation || false,
-    favorites: [true, 'true', 1, '1', 'on'].includes(props.filters?.favorites),
+    remote_only: isFilterEnabled(props.filters?.remote_only),
+    free_consultation: isFilterEnabled(props.filters?.free_consultation),
+    favorites: isFilterEnabled(props.filters?.favorites),
     sort: props.filters?.sort || 'rating',
+});
+
+const filterDraft = reactive({
+    service_type: '',
+    language: '',
+    location: '',
+    remote_only: false,
+    free_consultation: false,
+    favorites: false,
 });
 
 const sortOptions = [
@@ -74,6 +96,17 @@ const activeFilterCount = computed(() => {
     ].filter(Boolean).length;
 });
 
+const draftFilterCount = computed(() => {
+    return [
+        Boolean(filterDraft.service_type),
+        Boolean(filterDraft.language),
+        Boolean(filterDraft.location),
+        Boolean(filterDraft.remote_only),
+        Boolean(filterDraft.free_consultation),
+        Boolean(filterDraft.favorites),
+    ].filter(Boolean).length;
+});
+
 const activeFilterPills = computed(() => {
     const pills = [];
     if (form.service_type) {
@@ -99,11 +132,50 @@ const activeFilterPills = computed(() => {
     return pills;
 });
 
+const syncFilterDraft = () => {
+    filterDraft.service_type = form.service_type;
+    filterDraft.language = form.language;
+    filterDraft.location = form.location;
+    filterDraft.remote_only = form.remote_only;
+    filterDraft.free_consultation = form.free_consultation;
+    filterDraft.favorites = form.favorites;
+};
+
 const applyFilters = () => {
     router.get(route('marketplace.index'), form, {
         preserveState: true,
         preserveScroll: true,
     });
+};
+
+const openFilters = () => {
+    syncFilterDraft();
+    showFilters.value = true;
+};
+
+const closeFilters = () => {
+    showFilters.value = false;
+    syncFilterDraft();
+};
+
+const resetFilterDraft = () => {
+    filterDraft.service_type = '';
+    filterDraft.language = '';
+    filterDraft.location = '';
+    filterDraft.remote_only = false;
+    filterDraft.free_consultation = false;
+    filterDraft.favorites = false;
+};
+
+const applyFilterModal = () => {
+    form.service_type = filterDraft.service_type;
+    form.language = filterDraft.language;
+    form.location = filterDraft.location;
+    form.remote_only = filterDraft.remote_only;
+    form.free_consultation = filterDraft.free_consultation;
+    form.favorites = filterDraft.favorites;
+    showFilters.value = false;
+    applyFilters();
 };
 
 const clearFilters = () => {
@@ -115,6 +187,8 @@ const clearFilters = () => {
     form.free_consultation = false;
     form.favorites = false;
     form.sort = 'rating';
+    resetFilterDraft();
+    showFilters.value = false;
     applyFilters();
 };
 
@@ -192,7 +266,7 @@ watch(() => form.sort, () => {
                         />
                         <Button
                             variant="ghost"
-                            @click="showFilters = !showFilters"
+                            @click="openFilters"
                             :class="[
                                 'border border-transparent',
                                 showFilters || hasActiveFilters ? 'bg-primary-50 text-primary-700 border-primary-100' : 'hover:bg-slate-100'
@@ -237,71 +311,222 @@ watch(() => form.sort, () => {
                         Clear all
                     </button>
                 </div>
+            </section>
 
-                <transition
-                    enter-active-class="transition-all duration-200 ease-out"
-                    enter-from-class="opacity-0 -translate-y-2"
-                    enter-to-class="opacity-100 translate-y-0"
-                    leave-active-class="transition-all duration-150 ease-in"
-                    leave-from-class="opacity-100 translate-y-0"
-                    leave-to-class="opacity-0 -translate-y-2"
-                >
-                    <div v-if="showFilters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <Select
-                            v-model="form.language"
-                            :options="languageOptions"
-                            label="Language"
-                            size="auth"
-                            @update:model-value="applyFilters"
-                        />
-                        <Input
-                            v-model="form.location"
-                            label="Location"
-                            placeholder="City or state"
-                            @blur="applyFilters"
-                        />
-                        <div>
-                            <p class="mb-3 block text-base font-medium text-slate-700">Options</p>
-                            <div class="space-y-3">
-                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                                <input
-                                    v-model="form.remote_only"
-                                    type="checkbox"
-                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
-                                    @change="applyFilters"
-                                />
-                                <span class="text-sm text-slate-700">Remote services only</span>
-                            </label>
-                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                                <input
-                                    v-model="form.free_consultation"
-                                    type="checkbox"
-                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
-                                    @change="applyFilters"
-                                />
-                                <span class="text-sm text-slate-700">Free consultation</span>
-                            </label>
-                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                                <input
-                                    v-model="form.favorites"
-                                    type="checkbox"
-                                    class="h-4 w-4 rounded border-slate-300 text-primary-600"
-                                    @change="applyFilters"
-                                />
-                                <span class="text-sm text-slate-700">My favorites</span>
-                            </label>
-                            </div>
-                        </div>
-                        <div class="flex flex-col">
-                            <span class="mb-3 block text-base font-medium text-transparent select-none">Actions</span>
-                            <Button v-if="hasActiveFilters || form.search" variant="ghost" size="sm" @click="clearFilters">
-                                <XMarkIcon class="h-4 w-4" />
-                                Clear all
-                            </Button>
+            <TransitionRoot as="template" :show="showFilters">
+                <Dialog as="div" class="relative z-50" @close="closeFilters">
+                    <TransitionChild
+                        as="template"
+                        enter="duration-200 ease-out"
+                        enter-from="opacity-0"
+                        enter-to="opacity-100"
+                        leave="duration-150 ease-in"
+                        leave-from="opacity-100"
+                        leave-to="opacity-0"
+                    >
+                        <div class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" />
+                    </TransitionChild>
+
+                    <div class="fixed inset-0 overflow-y-auto">
+                        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-6">
+                            <TransitionChild
+                                as="template"
+                                enter="duration-200 ease-out"
+                                enter-from="opacity-0 translate-y-6 scale-95"
+                                enter-to="opacity-100 translate-y-0 scale-100"
+                                leave="duration-150 ease-in"
+                                leave-from="opacity-100 translate-y-0 scale-100"
+                                leave-to="opacity-0 translate-y-6 scale-95"
+                            >
+                                <DialogPanel class="w-full max-w-3xl transform rounded-3xl bg-white text-left align-middle shadow-2xl transition-all">
+                                    <div class="relative overflow-hidden rounded-t-3xl bg-gradient-to-r from-sky-700 via-indigo-700 to-violet-700 px-5 py-5 text-white sm:px-6">
+                                        <div class="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-white/20 blur-2xl"></div>
+                                        <div class="pointer-events-none absolute bottom-0 left-8 h-20 w-20 rounded-full bg-sky-200/20 blur-2xl"></div>
+                                        <div class="relative flex items-start justify-between gap-4">
+                                            <div class="flex gap-3">
+                                                <span class="mt-1 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                                                    <AdjustmentsHorizontalIcon class="h-5 w-5" />
+                                                </span>
+                                                <div>
+                                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">Provider Filters</p>
+                                                    <DialogTitle as="h2" class="mt-1 text-2xl font-display font-bold">
+                                                        Refine your provider search
+                                                    </DialogTitle>
+                                                    <p class="mt-2 max-w-xl text-sm text-sky-50">
+                                                        Choose service, language, location, and preferences to find the right match faster.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/60"
+                                                aria-label="Close filters"
+                                                @click="closeFilters"
+                                            >
+                                                <XMarkIcon class="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <form class="space-y-5 p-5 sm:p-6" @submit.prevent="applyFilterModal">
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                                                <div class="mb-3 flex items-center gap-2">
+                                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                                                        <FunnelIcon class="h-4 w-4" />
+                                                    </span>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-slate-900">Service type</p>
+                                                        <p class="text-xs text-slate-500">Pick the expertise you need.</p>
+                                                    </div>
+                                                </div>
+                                                <Select
+                                                    v-model="filterDraft.service_type"
+                                                    :options="serviceTypeOptions"
+                                                    placeholder="All Services"
+                                                />
+                                            </div>
+
+                                            <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                                                <div class="mb-3 flex items-center gap-2">
+                                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                                                        <LanguageIcon class="h-4 w-4" />
+                                                    </span>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-slate-900">Language</p>
+                                                        <p class="text-xs text-slate-500">Find providers you can speak with.</p>
+                                                    </div>
+                                                </div>
+                                                <Select
+                                                    v-model="filterDraft.language"
+                                                    :options="languageOptions"
+                                                    placeholder="All Languages"
+                                                />
+                                            </div>
+
+                                            <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:col-span-2">
+                                                <div class="mb-3 flex items-center gap-2">
+                                                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                                                        <MapPinIcon class="h-4 w-4" />
+                                                    </span>
+                                                    <div>
+                                                        <p class="text-sm font-semibold text-slate-900">Location</p>
+                                                        <p class="text-xs text-slate-500">Search by city, state, or nearby area.</p>
+                                                    </div>
+                                                </div>
+                                                <Input
+                                                    v-model="filterDraft.location"
+                                                    placeholder="City or state"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                                            <div class="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-slate-900">Preferences</p>
+                                                    <p class="text-xs text-slate-500">Select any options that matter to your search.</p>
+                                                </div>
+                                                <p v-if="draftFilterCount" class="text-xs font-medium text-primary-700">
+                                                    {{ draftFilterCount }} selected
+                                                </p>
+                                            </div>
+
+                                            <div class="grid gap-3 sm:grid-cols-3">
+                                                <label
+                                                    :class="[
+                                                        'flex cursor-pointer gap-3 rounded-2xl border p-4 transition',
+                                                        filterDraft.remote_only ? 'border-primary-200 bg-primary-50 ring-2 ring-primary-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                                    ]"
+                                                >
+                                                    <input v-model="filterDraft.remote_only" type="checkbox" class="sr-only" />
+                                                    <span
+                                                        :class="[
+                                                            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                                                            filterDraft.remote_only ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-500'
+                                                        ]"
+                                                    >
+                                                        <VideoCameraIcon class="h-5 w-5" />
+                                                    </span>
+                                                    <span>
+                                                        <span class="block text-sm font-semibold text-slate-900">Remote only</span>
+                                                        <span class="mt-1 block text-xs leading-5 text-slate-500">Meet online from anywhere.</span>
+                                                    </span>
+                                                </label>
+
+                                                <label
+                                                    :class="[
+                                                        'flex cursor-pointer gap-3 rounded-2xl border p-4 transition',
+                                                        filterDraft.free_consultation ? 'border-primary-200 bg-primary-50 ring-2 ring-primary-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                                    ]"
+                                                >
+                                                    <input v-model="filterDraft.free_consultation" type="checkbox" class="sr-only" />
+                                                    <span
+                                                        :class="[
+                                                            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                                                            filterDraft.free_consultation ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-500'
+                                                        ]"
+                                                    >
+                                                        <ChatBubbleLeftRightIcon class="h-5 w-5" />
+                                                    </span>
+                                                    <span>
+                                                        <span class="block text-sm font-semibold text-slate-900">Free consultation</span>
+                                                        <span class="mt-1 block text-xs leading-5 text-slate-500">Start with a no-cost call.</span>
+                                                    </span>
+                                                </label>
+
+                                                <label
+                                                    :class="[
+                                                        'flex cursor-pointer gap-3 rounded-2xl border p-4 transition',
+                                                        filterDraft.favorites ? 'border-primary-200 bg-primary-50 ring-2 ring-primary-100' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                                    ]"
+                                                >
+                                                    <input v-model="filterDraft.favorites" type="checkbox" class="sr-only" />
+                                                    <span
+                                                        :class="[
+                                                            'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                                                            filterDraft.favorites ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-500'
+                                                        ]"
+                                                    >
+                                                        <HeartIcon class="h-5 w-5" />
+                                                    </span>
+                                                    <span>
+                                                        <span class="block text-sm font-semibold text-slate-900">My favorites</span>
+                                                        <span class="mt-1 block text-xs leading-5 text-slate-500">Show saved providers first.</span>
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                            <Button type="button" variant="secondary" size="sm" @click="resetFilterDraft">
+                                                <XMarkIcon class="h-4 w-4" />
+                                                Clear filters
+                                            </Button>
+
+                                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                                <Button type="button" variant="ghost" size="sm" @click="closeFilters">
+                                                    Cancel
+                                                </Button>
+                                                <Button type="submit" size="sm">
+                                                    Apply filters
+                                                    <span
+                                                        v-if="draftFilterCount"
+                                                        class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-white/20 px-1 text-xs font-semibold text-white"
+                                                    >
+                                                        {{ draftFilterCount }}
+                                                    </span>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </DialogPanel>
+                            </TransitionChild>
                         </div>
                     </div>
-                </transition>
-            </section>
+                </Dialog>
+            </TransitionRoot>
 
             <section v-if="featuredProviders?.length && !hasActiveFilters && !form.search" class="space-y-4">
                 <div class="flex items-center justify-between">
