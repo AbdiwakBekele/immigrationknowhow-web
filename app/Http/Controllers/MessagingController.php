@@ -23,41 +23,7 @@ class MessagingController extends Controller
     {
         $user = auth()->user();
 
-        $conversations = Conversation::query()
-            ->forUser($user)
-            ->forServiceInquiries()
-            ->with([
-                'user:id,first_name,last_name,avatar',
-                'serviceProvider.user:id,first_name,last_name,avatar',
-                'latestMessage',
-                'lead:id,service_type,status',
-            ])
-            ->withCount(['messages as unread_count' => function ($q) use ($user) {
-                $q->where('sender_id', '!=', $user->id)
-                    ->whereDoesntHave('reads', function ($rq) use ($user) {
-                        $rq->where('user_id', $user->id);
-                    });
-            }])
-            ->orderByDesc('last_message_at')
-            ->get();
-
-        $mergedConversations = $this->mergeByParticipants($conversations);
-        $perPage = 20;
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $items = $mergedConversations->slice(($currentPage - 1) * $perPage, $perPage)->values();
-
-        $paginatedConversations = new LengthAwarePaginator(
-            $items,
-            $mergedConversations->count(),
-            $perPage,
-            $currentPage,
-            [
-                'path' => $request->url(),
-                'query' => $request->query(),
-            ]
-        );
-
-        $totalUnread = $mergedConversations->sum('unread_count');
+        [$paginatedConversations, $totalUnread] = $this->conversationInbox($request, $user);
 
         return Inertia::render('Messages/Index', [
             'conversations' => $paginatedConversations,
@@ -66,7 +32,7 @@ class MessagingController extends Controller
         ]);
     }
 
-    public function show(Conversation $conversation): Response
+    public function show(Request $request, Conversation $conversation): Response
     {
         $user = auth()->user();
 
@@ -107,8 +73,12 @@ class MessagingController extends Controller
             );
         }
 
+        [$paginatedConversations, $totalUnread] = $this->conversationInbox($request, $user);
+
         return Inertia::render('Messages/Show', [
             'conversation' => $conversation,
+            'conversations' => $paginatedConversations,
+            'totalUnread' => $totalUnread,
             'isProvider' => $isProvider,
             'otherParticipant' => $isProvider
                 ? $conversation->user
@@ -262,5 +232,44 @@ class MessagingController extends Controller
             })
             ->sortByDesc('last_message_at')
             ->values();
+    }
+
+    protected function conversationInbox(Request $request, $user): array
+    {
+        $conversations = Conversation::query()
+            ->forUser($user)
+            ->forServiceInquiries()
+            ->with([
+                'user:id,first_name,last_name,avatar',
+                'serviceProvider.user:id,first_name,last_name,avatar',
+                'latestMessage',
+                'lead:id,service_type,status',
+            ])
+            ->withCount(['messages as unread_count' => function ($q) use ($user) {
+                $q->where('sender_id', '!=', $user->id)
+                    ->whereDoesntHave('reads', function ($rq) use ($user) {
+                        $rq->where('user_id', $user->id);
+                    });
+            }])
+            ->orderByDesc('last_message_at')
+            ->get();
+
+        $mergedConversations = $this->mergeByParticipants($conversations);
+        $perPage = 20;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $items = $mergedConversations->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $paginatedConversations = new LengthAwarePaginator(
+            $items,
+            $mergedConversations->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        return [$paginatedConversations, $mergedConversations->sum('unread_count')];
     }
 }
