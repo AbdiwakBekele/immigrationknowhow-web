@@ -397,12 +397,12 @@ onMounted(() => {
                             :key="post.id"
                             class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                         >
-                            <div v-if="post.image_url" class="h-40 w-full bg-slate-100">
+                            <div v-if="post.image_url" class="h-56 w-full bg-slate-100">
                                 <img :src="post.image_url" alt="Post image" class="h-full w-full object-cover">
                             </div>
                             <div
                                 v-else
-                                class="relative h-40 w-full overflow-hidden bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500"
+                                class="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-700 via-slate-600 to-slate-500"
                             >
                                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_45%)]" />
                                 <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.25),transparent_50%)]" />

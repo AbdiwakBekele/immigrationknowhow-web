@@ -6,12 +6,12 @@ import {
     ArrowLeftIcon,
     PaperAirplaneIcon,
     PaperClipIcon,
-    PhotoIcon,
     DocumentIcon,
     XMarkIcon,
     EllipsisVerticalIcon,
     ArchiveBoxIcon,
     InformationCircleIcon,
+    MagnifyingGlassIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
@@ -19,6 +19,8 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
 const props = defineProps({
     conversation: Object,
+    conversations: { type: Object, default: () => ({ data: [] }) },
+    totalUnread: { type: Number, default: 0 },
     isProvider: Boolean,
     otherParticipant: Object,
     contractClose: { type: Object, default: null },
@@ -28,6 +30,7 @@ const fileInput = ref(null);
 const showLeadInfo = ref(false);
 const showCloseModal = ref(false);
 const showOfferModal = ref(false);
+const searchQuery = ref('');
 
 const form = useForm({
     body: '',
@@ -59,10 +62,50 @@ const layoutComponent = computed(() => (props.isProvider ? ProviderLayout : AppL
 const messagesIndexHref = computed(() =>
     props.isProvider ? route('provider.messages.index') : route('messages.index'),
 );
+const archivedHref = computed(() =>
+    props.isProvider ? route('provider.messages.archived') : route('messages.archived'),
+);
+const activeConversationUuid = computed(() => props.conversation?.uuid);
+
+const filteredConversations = computed(() => {
+    const list = props.conversations?.data ?? [];
+    if (!searchQuery.value) return list;
+
+    const query = searchQuery.value.toLowerCase();
+    return list.filter((conv) => {
+        const person = getConversationPerson(conv);
+        const name = [
+            person?.full_name,
+            `${person?.first_name || ''} ${person?.last_name || ''}`.trim(),
+            conv.service_provider?.business_name,
+        ].filter(Boolean).join(' ');
+
+        return name.toLowerCase().includes(query)
+            || String(conv.latest_message?.body || '').toLowerCase().includes(query);
+    });
+});
 
 const formatTime = (date) => {
     const d = new Date(date);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatConversationTime = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const now = new Date();
+    const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    if (diffDays === 1) {
+        return 'Yesterday';
+    }
+    if (diffDays < 7) {
+        return d.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 const formatDate = (date) => {
@@ -199,6 +242,60 @@ const formatFileSize = (bytes) => {
 
 const archiveConversation = () => {
     router.post(route('messages.archive', props.conversation.uuid));
+};
+
+const deleteConversation = () => {
+    if (!window.confirm('Delete this conversation permanently?')) {
+        return;
+    }
+
+    router.delete(route('messages.destroy', props.conversation.uuid), {
+        preserveScroll: true,
+    });
+};
+
+const conversationHref = (conversation) =>
+    conversation?.uuid
+        ? (props.isProvider
+            ? route('provider.messages.show', conversation.uuid)
+            : route('messages.show', conversation.uuid))
+        : messagesIndexHref.value;
+
+const getConversationPerson = (conversation) =>
+    conversation?.service_provider?.user || conversation?.user || null;
+
+const getConversationName = (conversation) => {
+    if (!conversation) return 'Unknown';
+    if (!props.isProvider && conversation.service_provider?.business_name) {
+        return conversation.service_provider.business_name;
+    }
+
+    const person = getConversationPerson(conversation);
+    return person?.full_name
+        || `${person?.first_name || ''} ${person?.last_name || ''}`.trim()
+        || conversation.service_provider?.business_name
+        || 'Unknown';
+};
+
+const getConversationAvatarSrc = (conversation) => {
+    const person = getConversationPerson(conversation);
+    const fromUrl = String(person?.avatar_url ?? '').trim();
+    if (fromUrl) return fromUrl;
+
+    const raw = String(person?.avatar ?? '').trim();
+    if (!raw) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('/')) {
+        return raw;
+    }
+    return `/storage/${raw}`;
+};
+
+const getConversationInitial = (conversation) => {
+    const person = getConversationPerson(conversation);
+    const firstName = (person?.first_name || '').trim();
+    if (firstName) return firstName.charAt(0).toUpperCase();
+
+    return getConversationName(conversation).charAt(0).toUpperCase();
 };
 
 const getServiceTypeLabel = (type) => {
@@ -400,262 +497,430 @@ const getInitials = (person) => {
 </script>
 
 <template>
-    <Head :title="`Chat with ${otherParticipant.first_name}`" />
+    <Head :title="`Chat with ${otherParticipant?.first_name || 'Provider'}`" />
 
     <component :is="layoutComponent" :fullWidth="true" :noPadding="true">
-        <div class="flex h-[calc(100vh-4rem)] flex-col bg-gradient-to-b from-slate-50 to-slate-100/60">
-            <!-- Header -->
-            <div class="flex-shrink-0 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur">
-                <div class="mx-auto flex max-w-6xl items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <Link 
-                            :href="messagesIndexHref"
-                            class="p-2 -ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+        <div class="h-[calc(100vh-5rem)] overflow-hidden bg-slate-100 p-3 sm:p-4">
+            <div class="grid h-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[300px_minmax(0,1fr)]">
+                <aside class="flex min-h-0 flex-col border-b border-slate-200 bg-white lg:border-b-0 lg:border-r">
+                    <div class="border-b border-slate-100 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h1 class="text-xl font-semibold text-slate-950">Messages</h1>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    {{ totalUnread > 0 ? `${totalUnread} unread` : 'All caught up' }}
+                                </p>
+                            </div>
+                            <Link
+                                :href="archivedHref"
+                                class="inline-flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                            >
+                                <ArchiveBoxIcon class="mr-1.5 h-4 w-4" />
+                                Archived
+                            </Link>
+                        </div>
+
+                        <div class="relative mt-4">
+                            <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                            <input
+                                v-model="searchQuery"
+                                type="text"
+                                placeholder="Search chats..."
+                                class="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="min-h-0 flex-1 overflow-y-auto p-2">
+                        <Link
+                            v-for="item in filteredConversations"
+                            :key="item.id"
+                            :href="conversationHref(item)"
+                            :class="[
+                                'flex gap-3 rounded-2xl p-3 transition',
+                                item.uuid === activeConversationUuid
+                                    ? 'bg-primary-50 ring-1 ring-primary-100'
+                                    : 'hover:bg-slate-50'
+                            ]"
                         >
-                            <ArrowLeftIcon class="w-5 h-5" />
+                            <div class="relative shrink-0">
+                                <img
+                                    v-if="getConversationAvatarSrc(item)"
+                                    :src="getConversationAvatarSrc(item)"
+                                    :alt="getConversationName(item)"
+                                    class="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-200"
+                                />
+                                <div
+                                    v-else
+                                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-sm font-semibold text-white"
+                                >
+                                    {{ getConversationInitial(item) }}
+                                </div>
+                                <span
+                                    v-if="item.unread_count > 0"
+                                    class="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white"
+                                >
+                                    {{ item.unread_count > 9 ? '9+' : item.unread_count }}
+                                </span>
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <h2
+                                        :class="[
+                                            'truncate text-sm text-slate-950',
+                                            item.unread_count > 0 ? 'font-bold' : 'font-semibold'
+                                        ]"
+                                    >
+                                        {{ getConversationName(item) }}
+                                    </h2>
+                                    <span class="shrink-0 text-[11px] font-medium text-slate-400">
+                                        {{ formatConversationTime(item.last_message_at) }}
+                                    </span>
+                                </div>
+                                <div v-if="item.lead" class="mt-1 flex items-center gap-1.5">
+                                    <span class="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        {{ item.lead.service_type_label || getServiceTypeLabel(item.lead.service_type) }}
+                                    </span>
+                                    <span :class="['rounded-full px-2 py-0.5 text-[11px] font-medium', getStatusColor(item.lead.status)]">
+                                        {{ item.lead.status }}
+                                    </span>
+                                </div>
+                                <p
+                                    :class="[
+                                        'mt-1 truncate text-sm',
+                                        item.unread_count > 0 ? 'font-medium text-slate-800' : 'text-slate-500'
+                                    ]"
+                                >
+                                    {{ item.latest_message?.body || 'No messages yet' }}
+                                </p>
+                            </div>
                         </Link>
-                        
-                        <div class="flex items-center gap-3">
+
+                        <div v-if="!filteredConversations.length" class="px-4 py-10 text-center">
+                            <ChatBubbleLeftRightIcon class="mx-auto h-10 w-10 text-slate-300" />
+                            <p class="mt-3 text-sm font-semibold text-slate-900">No chats found</p>
+                            <p class="mt-1 text-xs text-slate-500">Try searching another name or message.</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <section class="flex min-h-0 flex-col bg-gradient-to-b from-slate-50 to-white">
+                    <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <Link
+                                :href="messagesIndexHref"
+                                class="-ml-1 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+                            >
+                                <ArrowLeftIcon class="h-5 w-5" />
+                            </Link>
                             <img
                                 v-if="getAvatarSrc(otherParticipant)"
                                 :src="getAvatarSrc(otherParticipant)"
-                                :alt="otherParticipant.first_name"
-                                class="h-10 w-10 rounded-full object-cover ring-1 ring-slate-200"
+                                :alt="otherParticipant?.first_name"
+                                class="h-11 w-11 rounded-2xl object-cover ring-1 ring-slate-200"
                             />
                             <div
                                 v-else
-                                class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-sm font-semibold text-white ring-1 ring-slate-200"
+                                class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-sm font-semibold text-white ring-1 ring-slate-200"
                             >
                                 {{ getInitials(otherParticipant) }}
                             </div>
-                            <div>
-                                <h1 class="font-semibold text-slate-900">
-                                    {{ otherParticipant.first_name }} {{ otherParticipant.last_name }}
-                                </h1>
-                                <p v-if="conversation.lead" class="text-sm text-slate-500">
+                            <div class="min-w-0">
+                                <h2 class="truncate font-semibold text-slate-950">
+                                    {{ otherParticipant?.first_name }} {{ otherParticipant?.last_name }}
+                                </h2>
+                                <p v-if="conversation.lead" class="truncate text-sm text-slate-500">
                                     {{ getServiceTypeLabel(conversation.lead.service_type) }}
                                 </p>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="flex items-center gap-2">
-                        <button 
-                            v-if="conversation.lead"
-                            @click="showLeadInfo = !showLeadInfo"
-                            :class="[
-                                'p-2 rounded-lg transition-colors',
-                                showLeadInfo ? 'bg-primary-100 text-primary-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                            ]"
-                        >
-                            <InformationCircleIcon class="w-5 h-5" />
-                        </button>
-                        
-                        <Menu as="div" class="relative">
-                            <MenuButton class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                                <EllipsisVerticalIcon class="w-5 h-5" />
-                            </MenuButton>
-                            <MenuItems class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-10">
-                                <MenuItem v-slot="{ active }">
-                                    <button 
-                                        @click="archiveConversation"
+                        <div class="flex items-center gap-2">
+                            <button
+                                v-if="conversation.lead"
+                                type="button"
+                                :class="[
+                                    'rounded-xl p-2 transition-colors',
+                                    showLeadInfo ? 'bg-primary-100 text-primary-700' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                                ]"
+                                @click="showLeadInfo = !showLeadInfo"
+                            >
+                                <InformationCircleIcon class="h-5 w-5" />
+                            </button>
+
+                            <Menu as="div" class="relative">
+                                <MenuButton class="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600">
+                                    <EllipsisVerticalIcon class="h-5 w-5" />
+                                </MenuButton>
+                                <MenuItems class="absolute right-0 z-20 mt-2 w-52 rounded-2xl border border-slate-200 bg-white py-1 shadow-lg">
+                                    <MenuItem v-slot="{ active }">
+                                        <button
+                                            type="button"
+                                            :class="[
+                                                'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm',
+                                                active ? 'bg-slate-50 text-slate-950' : 'text-slate-700'
+                                            ]"
+                                            @click="archiveConversation"
+                                        >
+                                            <ArchiveBoxIcon class="h-4 w-4" />
+                                            Archive conversation
+                                        </button>
+                                    </MenuItem>
+                                    <MenuItem v-slot="{ active }">
+                                        <button
+                                            type="button"
+                                            :class="[
+                                                'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-rose-600',
+                                                active ? 'bg-rose-50' : ''
+                                            ]"
+                                            @click="deleteConversation"
+                                        >
+                                            <XMarkIcon class="h-4 w-4" />
+                                            Delete conversation
+                                        </button>
+                                    </MenuItem>
+                                </MenuItems>
+                            </Menu>
+                        </div>
+                    </header>
+
+                    <Transition
+                        enter-active-class="transition-all duration-300 ease-out"
+                        enter-from-class="opacity-0 -translate-y-2"
+                        enter-to-class="opacity-100 translate-y-0"
+                        leave-active-class="transition-all duration-200 ease-in"
+                        leave-from-class="opacity-100 translate-y-0"
+                        leave-to-class="opacity-0 -translate-y-2"
+                    >
+                        <div v-if="showLeadInfo && conversation.lead" class="shrink-0 border-b border-primary-100 bg-primary-50 px-4 py-3">
+                            <div class="flex flex-wrap items-center gap-4 text-sm">
+                                <div>
+                                    <span class="font-medium text-primary-700">Status:</span>
+                                    <span :class="['ml-2 rounded-full px-2 py-0.5 text-xs font-medium', getStatusColor(conversation.lead.status)]">
+                                        {{ conversation.lead.status }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-primary-700">Urgency:</span>
+                                    <span class="ml-2 capitalize text-slate-700">{{ conversation.lead.urgency }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-medium text-primary-700">Created:</span>
+                                    <span class="ml-2 text-slate-700">{{ new Date(conversation.lead.created_at).toLocaleDateString() }}</span>
+                                </div>
+                            </div>
+                            <p v-if="conversation.lead.message" class="mt-2 line-clamp-2 text-sm text-slate-600">
+                                {{ conversation.lead.message }}
+                            </p>
+                        </div>
+                    </Transition>
+
+                    <div class="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <div class="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                            <div ref="messagesContainer" class="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+                                <div class="space-y-8">
+                                    <div v-if="form.errors.body" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                                        {{ form.errors.body }}
+                                    </div>
+
+                                    <div v-for="group in groupedMessages" :key="group.date" class="space-y-4">
+                                        <div class="flex items-center justify-center">
+                                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
+                                                {{ formatDate(group.date) }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            v-for="message in group.messages"
+                                            :key="message.uuid"
+                                            :class="['flex', message.is_mine ? 'justify-end' : 'justify-start']"
+                                        >
+                                            <div :class="['flex max-w-[82%] gap-3 sm:max-w-[72%]', message.is_mine && 'flex-row-reverse']">
+                                                <img
+                                                    v-if="!message.is_mine && getAvatarSrc(message.sender)"
+                                                    :src="getAvatarSrc(message.sender)"
+                                                    :alt="message.sender?.first_name"
+                                                    class="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+                                                />
+                                                <div
+                                                    v-else-if="!message.is_mine"
+                                                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-xs font-semibold text-white ring-1 ring-slate-200"
+                                                >
+                                                    {{ getInitials(message.sender) }}
+                                                </div>
+
+                                                <div
+                                                    :class="[
+                                                        'rounded-3xl px-4 py-3 shadow-sm',
+                                                        message.is_mine
+                                                            ? 'rounded-br-lg bg-primary-600 text-white'
+                                                            : 'rounded-bl-lg border border-slate-200 bg-slate-50 text-slate-900'
+                                                    ]"
+                                                >
+                                                    <p v-if="message.is_system_message" class="text-sm italic opacity-80">
+                                                        {{ message.body }}
+                                                    </p>
+
+                                                    <template v-else>
+                                                        <p class="whitespace-pre-wrap break-words text-sm leading-6">{{ message.body }}</p>
+                                                        <div v-if="message.attachments?.length" class="mt-2 space-y-2">
+                                                            <div
+                                                                v-for="(attachment, i) in message.attachments"
+                                                                :key="i"
+                                                                :class="[
+                                                                    'flex items-center gap-2 rounded-xl p-2',
+                                                                    message.is_mine ? 'bg-primary-500/30' : 'bg-white'
+                                                                ]"
+                                                            >
+                                                                <DocumentIcon class="h-5 w-5 shrink-0" />
+                                                                <span class="truncate text-sm">{{ attachment.name }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+
+                                                    <span :class="['mt-1 block text-xs', message.is_mine ? 'text-primary-100' : 'text-slate-400']">
+                                                        {{ formatTime(message.created_at) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="shrink-0 border-t border-slate-200 bg-white/95 p-3 backdrop-blur">
+                                <div v-if="attachmentPreviews.length" class="mb-3 flex flex-wrap gap-2">
+                                    <div
+                                        v-for="(preview, index) in attachmentPreviews"
+                                        :key="index"
+                                        class="group relative"
+                                    >
+                                        <div v-if="preview.type === 'image'" class="h-20 w-20 overflow-hidden rounded-xl">
+                                            <img :src="preview.url" :alt="preview.name" class="h-full w-full object-cover" />
+                                        </div>
+                                        <div v-else class="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
+                                            <DocumentIcon class="h-5 w-5 text-slate-500" />
+                                            <span class="max-w-[100px] truncate text-sm text-slate-700">{{ preview.name }}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                                            @click="removeAttachment(index)"
+                                        >
+                                            <XMarkIcon class="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <form class="flex items-end gap-2" @submit.prevent="sendMessage">
+                                    <input
+                                        ref="fileInput"
+                                        type="file"
+                                        multiple
+                                        accept="image/*,.pdf,.doc,.docx"
+                                        class="hidden"
+                                        @change="handleFileSelect"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        class="rounded-2xl p-3 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                        @click="triggerFileInput"
+                                    >
+                                        <PaperClipIcon class="h-5 w-5" />
+                                    </button>
+
+                                    <textarea
+                                        v-model="form.body"
+                                        rows="1"
+                                        placeholder="Type your message..."
+                                        class="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-primary-300 focus:bg-white focus:ring-2 focus:ring-primary-100"
+                                        @keydown="handleKeydown"
+                                    ></textarea>
+
+                                    <button
+                                        type="submit"
+                                        :disabled="form.processing || (!form.body.trim() && form.attachments.length === 0)"
                                         :class="[
-                                            'flex items-center gap-3 w-full px-4 py-2 text-sm',
-                                            active ? 'bg-slate-50 text-slate-900' : 'text-slate-700'
+                                            'rounded-2xl p-3 transition-all',
+                                            (form.body.trim() || form.attachments.length > 0)
+                                                ? 'bg-primary-600 text-white hover:bg-primary-500'
+                                                : 'cursor-not-allowed bg-slate-100 text-slate-400'
                                         ]"
                                     >
-                                        <ArchiveBoxIcon class="w-4 h-4" />
-                                        Archive conversation
+                                        <PaperAirplaneIcon class="h-5 w-5" />
                                     </button>
-                                </MenuItem>
-                            </MenuItems>
-                        </Menu>
-                    </div>
-                </div>
-            </div>
+                                </form>
+                            </div>
+                        </div>
 
-            <!-- Lead Info Panel (collapsible) -->
-            <Transition
-                enter-active-class="transition-all duration-300 ease-out"
-                enter-from-class="opacity-0 -translate-y-2"
-                enter-to-class="opacity-100 translate-y-0"
-                leave-active-class="transition-all duration-200 ease-in"
-                leave-from-class="opacity-100 translate-y-0"
-                leave-to-class="opacity-0 -translate-y-2"
-            >
-                <div v-if="showLeadInfo && conversation.lead" class="flex-shrink-0 bg-primary-50 border-b border-primary-100 px-4 py-4">
-                    <div class="max-w-4xl mx-auto">
-                        <div class="flex flex-wrap items-center gap-4 text-sm">
-                            <div>
-                                <span class="text-primary-600 font-medium">Status:</span>
-                                <span :class="['ml-2 px-2 py-0.5 rounded-full text-xs font-medium', getStatusColor(conversation.lead.status)]">
+                        <aside class="hidden min-h-0 overflow-y-auto rounded-3xl border border-slate-200 bg-white p-4 shadow-sm xl:block">
+                            <h3 class="text-sm font-semibold text-slate-900">Offer Stage</h3>
+                            <p class="mt-2 text-sm text-slate-600">{{ offerStage }}</p>
+                            <div v-if="conversation.lead" class="mt-3">
+                                <span :class="['rounded-full px-2 py-1 text-xs font-medium', getStatusColor(conversation.lead.status)]">
                                     {{ conversation.lead.status }}
                                 </span>
                             </div>
-                            <div>
-                                <span class="text-primary-600 font-medium">Urgency:</span>
-                                <span class="ml-2 text-slate-700 capitalize">{{ conversation.lead.urgency }}</span>
-                            </div>
-                            <div>
-                                <span class="text-primary-600 font-medium">Created:</span>
-                                <span class="ml-2 text-slate-700">{{ new Date(conversation.lead.created_at).toLocaleDateString() }}</span>
-                            </div>
-                        </div>
-                        <p v-if="conversation.lead.message" class="mt-2 text-sm text-slate-600 line-clamp-2">
-                            {{ conversation.lead.message }}
-                        </p>
+                            <button
+                                v-if="!isProvider && !canWithdrawOffer"
+                                type="button"
+                                class="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
+                                :class="canSendOffer ? 'bg-primary-600 text-white hover:bg-primary-500' : 'cursor-not-allowed bg-slate-100 text-slate-400'"
+                                :disabled="!canSendOffer"
+                                @click="openOfferModal"
+                            >
+                                Give Offer
+                            </button>
+                            <button
+                                v-if="canWithdrawOffer"
+                                type="button"
+                                class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                                @click="withdrawOffer"
+                            >
+                                Remove Offer
+                            </button>
+                            <p
+                                v-if="conversation.lead?.contract?.offered_rate !== null && conversation.lead?.contract?.offered_rate !== undefined"
+                                class="mt-2 text-xs text-slate-600"
+                            >
+                                Offered rate: {{ formatUsd(conversation.lead.contract.offered_rate) }}
+                            </p>
+                            <p
+                                v-if="conversation.lead?.contract?.agreed_rate !== null && conversation.lead?.contract?.agreed_rate !== undefined"
+                                class="mt-1 text-xs text-emerald-700"
+                            >
+                                Agreed rate: {{ formatUsd(conversation.lead.contract.agreed_rate) }}
+                            </p>
+                            <p v-if="!isProvider" class="mt-2 text-xs text-slate-500">
+                                Click Give Offer to send your contract offer.
+                            </p>
+                            <button
+                                v-if="canCloseContract"
+                                type="button"
+                                class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                                @click="openCloseContractModal"
+                            >
+                                Close Contract
+                            </button>
+                            <p v-if="canCloseContract" class="mt-2 text-xs text-slate-500">
+                                Closing requires leaving a review.
+                            </p>
+                            <button
+                                v-if="isProvider && canProviderAcceptOffer"
+                                type="button"
+                                class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
+                                @click="acceptOffer"
+                            >
+                                Accept Offer
+                            </button>
+                            <p v-if="isProvider && !canProviderAcceptOffer" class="mt-2 text-xs text-slate-500">
+                                Waiting for a user offer before acceptance.
+                            </p>
+                        </aside>
                     </div>
-                </div>
-            </Transition>
-
-            <!-- Messages + Offer Sidebar -->
-            <div class="flex-1 overflow-hidden px-4 py-4">
-                <div class="mx-auto grid h-full w-full max-w-6xl gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div ref="messagesContainer" class="min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white px-4 py-6 shadow-sm">
-                        <div class="space-y-8">
-                    <div v-if="form.errors.body" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                        {{ form.errors.body }}
-                    </div>
-                    <div v-for="group in groupedMessages" :key="group.date" class="space-y-4">
-                        <!-- Date Separator -->
-                        <div class="flex items-center justify-center">
-                            <span class="px-3 py-1 bg-slate-200 text-slate-600 text-xs font-medium rounded-full">
-                                {{ formatDate(group.date) }}
-                            </span>
-                        </div>
-
-                        <!-- Messages in this group -->
-                        <div 
-                            v-for="message in group.messages" 
-                            :key="message.uuid"
-                            :class="[
-                                'flex',
-                                message.is_mine ? 'justify-end' : 'justify-start'
-                            ]"
-                        >
-                            <div :class="['flex gap-3 max-w-[75%]', message.is_mine && 'flex-row-reverse']">
-                                <img
-                                    v-if="!message.is_mine && getAvatarSrc(message.sender)"
-                                    :src="getAvatarSrc(message.sender)"
-                                    :alt="message.sender?.first_name"
-                                    class="h-8 w-8 flex-shrink-0 rounded-full object-cover ring-1 ring-slate-200"
-                                />
-                                <div
-                                    v-else-if="!message.is_mine"
-                                    class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-500 to-slate-700 text-xs font-semibold text-white ring-1 ring-slate-200"
-                                >
-                                    {{ getInitials(message.sender) }}
-                                </div>
-                                
-                                <div :class="[
-                                    'rounded-2xl px-4 py-3',
-                                    message.is_mine
-                                        ? 'rounded-br-md bg-primary-600 text-white shadow-sm'
-                                        : 'rounded-bl-md border border-slate-200 bg-slate-50 text-slate-900'
-                                ]">
-                                    <!-- System message -->
-                                    <p v-if="message.is_system_message" class="text-sm italic opacity-80">
-                                        {{ message.body }}
-                                    </p>
-                                    
-                                    <!-- Regular message -->
-                                    <template v-else>
-                                        <p class="whitespace-pre-wrap break-words">{{ message.body }}</p>
-                                        
-                                        <!-- Attachments -->
-                                        <div v-if="message.attachments?.length" class="mt-2 space-y-2">
-                                            <div 
-                                                v-for="(attachment, i) in message.attachments" 
-                                                :key="i"
-                                                :class="[
-                                                    'flex items-center gap-2 p-2 rounded-lg',
-                                                    message.is_mine ? 'bg-primary-500/30' : 'bg-slate-100'
-                                                ]"
-                                            >
-                                                <DocumentIcon class="w-5 h-5 flex-shrink-0" />
-                                                <span class="text-sm truncate">{{ attachment.name }}</span>
-                                            </div>
-                                        </div>
-                                    </template>
-                                    
-                                    <span :class="[
-                                        'block text-xs mt-1',
-                                        message.is_mine ? 'text-primary-200' : 'text-slate-400'
-                                    ]">
-                                        {{ formatTime(message.created_at) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-                    <aside class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:block">
-                        <h3 class="text-sm font-semibold text-slate-900">Offer Stage</h3>
-                        <p class="mt-2 text-sm text-slate-600">{{ offerStage }}</p>
-                        <div v-if="conversation.lead" class="mt-3">
-                            <span :class="['rounded-full px-2 py-1 text-xs font-medium', getStatusColor(conversation.lead.status)]">
-                                {{ conversation.lead.status }}
-                            </span>
-                        </div>
-                        <button
-                            v-if="!isProvider && !canWithdrawOffer"
-                            type="button"
-                            class="mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
-                            :class="canSendOffer ? 'bg-primary-600 text-white hover:bg-primary-500' : 'cursor-not-allowed bg-slate-100 text-slate-400'"
-                            :disabled="!canSendOffer"
-                            @click="openOfferModal"
-                        >
-                            Give Offer
-                        </button>
-                        <button
-                            v-if="canWithdrawOffer"
-                            type="button"
-                            class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
-                            @click="withdrawOffer"
-                        >
-                            Remove Offer
-                        </button>
-                        <p
-                            v-if="conversation.lead?.contract?.offered_rate !== null && conversation.lead?.contract?.offered_rate !== undefined"
-                            class="mt-2 text-xs text-slate-600"
-                        >
-                            Offered rate: {{ formatUsd(conversation.lead.contract.offered_rate) }}
-                        </p>
-                        <p
-                            v-if="conversation.lead?.contract?.agreed_rate !== null && conversation.lead?.contract?.agreed_rate !== undefined"
-                            class="mt-1 text-xs text-emerald-700"
-                        >
-                            Agreed rate: {{ formatUsd(conversation.lead.contract.agreed_rate) }}
-                        </p>
-                        <p v-if="!isProvider" class="mt-2 text-xs text-slate-500">
-                            Click Give Offer to send your contract offer.
-                        </p>
-                        <button
-                            v-if="canCloseContract"
-                            type="button"
-                            class="mt-3 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
-                            @click="openCloseContractModal"
-                        >
-                            Close Contract
-                        </button>
-                        <p v-if="canCloseContract" class="mt-2 text-xs text-slate-500">
-                            Closing requires leaving a review.
-                        </p>
-                        <button
-                            v-if="isProvider && canProviderAcceptOffer"
-                            type="button"
-                            class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
-                            @click="acceptOffer"
-                        >
-                            Accept Offer
-                        </button>
-                        <p v-if="isProvider && !canProviderAcceptOffer" class="mt-2 text-xs text-slate-500">
-                            Waiting for a user offer before acceptance.
-                        </p>
-                    </aside>
-                </div>
+                </section>
             </div>
 
             <Teleport to="body">
@@ -873,76 +1138,6 @@ const getInitials = (person) => {
                 </div>
             </Teleport>
 
-            <!-- Message Input -->
-            <div class="flex-shrink-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
-                <div class="mx-auto max-w-6xl">
-                    <!-- Attachment Previews -->
-                    <div v-if="attachmentPreviews.length" class="flex flex-wrap gap-2 mb-3">
-                        <div 
-                            v-for="(preview, index) in attachmentPreviews" 
-                            :key="index"
-                            class="relative group"
-                        >
-                            <div v-if="preview.type === 'image'" class="w-20 h-20 rounded-lg overflow-hidden">
-                                <img :src="preview.url" :alt="preview.name" class="w-full h-full object-cover" />
-                            </div>
-                            <div v-else class="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg">
-                                <DocumentIcon class="w-5 h-5 text-slate-500" />
-                                <span class="text-sm text-slate-700 truncate max-w-[100px]">{{ preview.name }}</span>
-                            </div>
-                            <button 
-                                @click="removeAttachment(index)"
-                                class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                <XMarkIcon class="w-3 h-3" />
-                            </button>
-                        </div>
-                    </div>
-
-                    <form @submit.prevent="sendMessage" class="flex items-end gap-3">
-                        <input 
-                            ref="fileInput"
-                            type="file"
-                            multiple
-                            accept="image/*,.pdf,.doc,.docx"
-                            class="hidden"
-                            @change="handleFileSelect"
-                        />
-                        
-                        <button
-                            type="button"
-                            @click="triggerFileInput"
-                            class="rounded-xl p-3 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-                        >
-                            <PaperClipIcon class="w-5 h-5" />
-                        </button>
-                        
-                        <div class="flex-1 relative">
-                            <textarea
-                                v-model="form.body"
-                                @keydown="handleKeydown"
-                                placeholder="Type your message..."
-                                rows="1"
-                                class="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                style="min-height: 48px; max-height: 120px;"
-                            ></textarea>
-                        </div>
-                        
-                        <button 
-                            type="submit"
-                            :disabled="form.processing || (!form.body.trim() && form.attachments.length === 0)"
-                            :class="[
-                                'p-3 rounded-xl transition-all',
-                                (form.body.trim() || form.attachments.length > 0)
-                                    ? 'bg-primary-600 text-white hover:bg-primary-500'
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            ]"
-                        >
-                            <PaperAirplaneIcon class="w-5 h-5" />
-                        </button>
-                    </form>
-                </div>
-            </div>
         </div>
     </component>
 </template>

@@ -631,11 +631,11 @@ onBeforeUnmount(() => {
                                 </p>
                                 <p v-if="postsError" class="text-sm text-[#b91c1c]">{{ postsError }}</p>
 
-                                    <article v-for="post in filteredPosts" :key="post.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                                    <article v-for="post in filteredPosts" :key="post.id" class="min-h-[22rem] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                                     <Link :href="communityPostPath(post.id)" class="group block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[#1d4ed8] focus-visible:ring-offset-2">
                                         <div
                                             v-if="post.image_url || hasPostVideo(post)"
-                                            class="relative mb-3 h-52 overflow-hidden rounded-xl bg-[#e5e7eb] sm:h-56 md:h-64"
+                                            class="relative mb-3 h-60 overflow-hidden rounded-xl bg-[#e5e7eb] sm:h-64 md:h-72"
                                         >
                                             <img
                                                 v-if="post.image_url"
