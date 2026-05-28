@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
 import {
@@ -9,17 +9,21 @@ import {
     DocumentTextIcon,
     MusicalNoteIcon,
     HeartIcon,
+    MagnifyingGlassIcon,
     ShoppingCartIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/vue/24/solid';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
-defineProps({
+const props = defineProps({
     purchasedItems: { type: Object, required: true },
     availableItems: { type: Object, required: true },
+    filters: { type: Object, default: () => ({}) },
 });
 
-const activeTab = ref('available');
+const activeTab = ref(props.filters?.tab === 'purchased' ? 'purchased' : 'available');
+const search = ref(props.filters?.search || '');
 
 const page = usePage();
 const cartCount = computed(() => Number(page.props.library_cart_count ?? 0) || 0);
@@ -29,6 +33,43 @@ const cartBadge = computed(() => {
     if (n > 99) return '99+';
     return String(n);
 });
+const appliedSearch = computed(() => String(props.filters?.search || '').trim());
+let searchTimer = null;
+
+const submitSearch = () => {
+    const term = String(search.value || '').trim();
+
+    router.get(route('provider.library.index'), {
+        search: term || undefined,
+        tab: activeTab.value,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const queueSearch = () => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+
+    searchTimer = setTimeout(() => {
+        searchTimer = null;
+        submitSearch();
+    }, 350);
+};
+
+watch(search, queueSearch);
+
+onBeforeUnmount(() => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+});
+
+const clearSearch = () => {
+    search.value = '';
+};
 
 const cartPortal = { cart_portal: 'provider' };
 
@@ -120,6 +161,32 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
             >
                 {{ page.props.flash?.error || page.props.flash?.success || page.props.flash?.info }}
             </div>
+
+            <form class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm" @submit.prevent="submitSearch">
+                <div>
+                    <div class="relative flex-1">
+                        <MagnifyingGlassIcon
+                            class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+                            aria-hidden="true"
+                        />
+                        <input
+                            v-model="search"
+                            type="search"
+                            placeholder="Search by title, author, publisher, or ISBN..."
+                            class="h-11 w-full rounded-xl border border-neutral-200 bg-neutral-50 pl-10 pr-10 text-sm text-neutral-900 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                        />
+                        <button
+                            v-if="search"
+                            type="button"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 transition hover:text-neutral-600"
+                            aria-label="Clear search"
+                            @click="clearSearch"
+                        >
+                            <XMarkIcon class="h-4 w-4" />
+                        </button>
+                    </div>
+                </div>
+            </form>
 
             <!-- Tabs -->
             <div class="border-b border-neutral-200">
@@ -247,8 +314,12 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
                 <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center">
                     <ShoppingCartIcon class="mx-auto h-10 w-10 text-neutral-300" />
-                    <p class="mt-3 text-sm font-medium text-neutral-600">No additional titles available right now.</p>
-                    <p class="mt-1 text-xs text-neutral-400">Check back soon for new content.</p>
+                    <p class="mt-3 text-sm font-medium text-neutral-600">
+                        {{ appliedSearch ? 'No available titles match your search.' : 'No additional titles available right now.' }}
+                    </p>
+                    <p class="mt-1 text-xs text-neutral-400">
+                        {{ appliedSearch ? 'Try another search term or clear the search.' : 'Check back soon for new content.' }}
+                    </p>
                 </div>
                 <div v-if="availableItems.links && availableItems.last_page > 1" class="mt-8 flex justify-center">
                     <nav class="flex flex-wrap items-center justify-center gap-1">
@@ -338,9 +409,14 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                 </div>
                 <div v-else class="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center">
                     <BookOpenIcon class="mx-auto h-10 w-10 text-neutral-300" />
-                    <p class="mt-3 text-sm font-medium text-neutral-600">No purchased titles yet.</p>
-                    <p class="mt-1 text-xs text-neutral-400">Browse the Available tab to find titles to add to your library.</p>
+                    <p class="mt-3 text-sm font-medium text-neutral-600">
+                        {{ appliedSearch ? 'No purchased titles match your search.' : 'No purchased titles yet.' }}
+                    </p>
+                    <p class="mt-1 text-xs text-neutral-400">
+                        {{ appliedSearch ? 'Try another search term or clear the search.' : 'Browse the Available tab to find titles to add to your library.' }}
+                    </p>
                     <button
+                        v-if="!appliedSearch"
                         type="button"
                         class="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
                         @click="activeTab = 'available'"

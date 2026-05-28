@@ -1,15 +1,17 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import {
     BookOpenIcon,
     DocumentTextIcon,
+    MagnifyingGlassIcon,
     MusicalNoteIcon,
     PencilSquareIcon,
     PlusIcon,
     TrashIcon,
+    XMarkIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -36,6 +38,45 @@ const stats = computed(() => {
 });
 
 const formatType = (type) => props.types.find((option) => option.value === type)?.label ?? type;
+const search = ref(props.filters?.search || '');
+const hasSearch = computed(() => String(props.filters?.search || '').trim() !== '');
+let searchTimer = null;
+
+const applySearch = () => {
+    const term = String(search.value || '').trim();
+
+    router.get(route('admin.library.index'), {
+        type: props.filters?.type || undefined,
+        category: props.filters?.category || undefined,
+        search: term || undefined,
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const queueSearch = () => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+
+    searchTimer = setTimeout(() => {
+        searchTimer = null;
+        applySearch();
+    }, 350);
+};
+
+watch(search, queueSearch);
+
+onBeforeUnmount(() => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+});
+
+const clearSearch = () => {
+    search.value = '';
+};
 
 const formatPrice = (item) => {
     const amount = Number(item.price ?? 0);
@@ -107,6 +148,30 @@ const destroyItem = (item) => {
                     <h2 class="text-lg font-semibold text-gray-900">Library Items</h2>
                     <span class="text-sm text-gray-500">{{ items?.total ?? 0 }} total</span>
                 </div>
+
+                <form class="mb-5" @submit.prevent="applySearch">
+                    <div class="relative flex-1">
+                        <MagnifyingGlassIcon
+                            class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                            aria-hidden="true"
+                        />
+                        <input
+                            v-model="search"
+                            type="search"
+                            placeholder="Search by title, author, publisher, or ISBN..."
+                            class="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 text-sm text-gray-900 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/20"
+                        >
+                        <button
+                            v-if="search"
+                            type="button"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                            aria-label="Clear search"
+                            @click="clearSearch"
+                        >
+                            <XMarkIcon class="h-4 w-4" />
+                        </button>
+                    </div>
+                </form>
 
                 <div v-if="items?.data?.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <article
@@ -181,7 +246,12 @@ const destroyItem = (item) => {
                     </article>
                 </div>
 
-                <p v-else class="text-sm text-gray-500">No content in the library yet.</p>
+                <p v-else class="text-sm text-gray-500">
+                    {{ hasSearch ? 'No library items match your search.' : 'No content in the library yet.' }}
+                </p>
+                <p v-if="!items?.data?.length && hasSearch" class="mt-2 text-sm text-gray-500">
+                    Try another search term or clear the search.
+                </p>
 
                 <div v-if="items?.links?.length > 3" class="mt-6 flex flex-wrap justify-center gap-1">
                     <Link

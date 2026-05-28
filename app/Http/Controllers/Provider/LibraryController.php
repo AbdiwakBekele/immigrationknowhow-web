@@ -29,6 +29,9 @@ class LibraryController extends Controller
             ->whereHas('userAccess', function ($q) use ($user) {
                 $q->where('user_id', $user->id)->whereNotNull('purchased_at');
             })
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->search($request->string('search')->toString());
+            })
             ->with([
                 'libraryAuthor',
                 'category',
@@ -53,6 +56,9 @@ class LibraryController extends Controller
                     $access->where('user_id', $user->id)->whereNotNull('purchased_at');
                 });
             })
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->search($request->string('search')->toString());
+            })
             ->with(['libraryAuthor', 'category'])
             ->orderByDesc('is_featured')
             ->orderByDesc('created_at')
@@ -62,6 +68,7 @@ class LibraryController extends Controller
         return Inertia::render('Provider/Library/Index', [
             'purchasedItems' => $purchased->toArray(),
             'availableItems' => $available->toArray(),
+            'filters' => $request->only(['search', 'tab']),
         ]);
     }
 

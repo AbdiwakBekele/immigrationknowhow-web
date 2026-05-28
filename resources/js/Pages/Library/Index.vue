@@ -15,7 +15,7 @@ import {
     Squares2X2Icon,
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps({
     items: { type: Object, required: true },
@@ -40,6 +40,7 @@ const selectedType = ref(props.filters?.type || '');
 const selectedAccess = ref(props.filters?.access || '');
 const favoritesOnly = ref(props.filters?.favorites === 'true');
 const selectedSort = ref(props.filters?.sort || 'newest');
+let searchTimer = null;
 
 const user = computed(() => page.props.auth?.user ?? null);
 const isAuthenticated = computed(() => Boolean(user.value));
@@ -88,8 +89,10 @@ const activeModalFilterCount = computed(() => {
 });
 
 const applyFilters = () => {
+    const term = String(search.value || '').trim();
+
     router.get(route(storefrontRoute.value), {
-        search: search.value || undefined,
+        search: term || undefined,
         category: selectedCategory.value || undefined,
         region: selectedRegion.value || undefined,
         author: selectedAuthor.value || undefined,
@@ -102,6 +105,25 @@ const applyFilters = () => {
         preserveScroll: true,
     });
 };
+
+const queueSearch = () => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+
+    searchTimer = setTimeout(() => {
+        searchTimer = null;
+        applyFilters();
+    }, 350);
+};
+
+watch(search, queueSearch);
+
+onBeforeUnmount(() => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+});
 
 const submitFilters = () => {
     showFilterModal.value = false;
