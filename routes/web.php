@@ -9,6 +9,7 @@ use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LibraryController;
 use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
@@ -45,6 +46,9 @@ use Inertia\Inertia;
 
 Route::redirect('/', '/login')->name('home');
 Route::get('/favicon.ico', fn () => redirect('/favicon.svg', 301));
+
+Route::get('/privacy-policy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms-of-service', [LegalController::class, 'terms'])->name('legal.terms');
 
 /** Stripe Checkout return for mobile AI Assistant (no auth — WebView intercepts this URL). */
 Route::get('/mobile/ai-assistant/checkout-return', function () {

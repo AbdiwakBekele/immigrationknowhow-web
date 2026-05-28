@@ -282,8 +282,8 @@ const logout = () => {
                         <ul class="mt-4 space-y-3">
                             <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">About</a></li>
                             <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Contact</a></li>
-                            <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Privacy Policy</a></li>
-                            <li><a href="#" class="text-sm text-slate-400 hover:text-white transition-colors">Terms of Service</a></li>
+                            <li><Link :href="route('legal.privacy')" class="text-sm text-slate-400 hover:text-white transition-colors">Privacy Policy</Link></li>
+                            <li><Link :href="route('legal.terms')" class="text-sm text-slate-400 hover:text-white transition-colors">Terms of Service</Link></li>
                         </ul>
                     </div>
                 </div>

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import BrandLogo from '@/Components/Brand/BrandLogo.vue';
 import ImpersonationBanner from '@/Components/ImpersonationBanner.vue';
+import SiteLegalFooter from '@/Components/legal/SiteLegalFooter.vue';
 import { adminMainNavItems, adminSettingsNavItems } from '@/config/adminSidebarNav.js';
 import {
     Bars3Icon,
@@ -246,7 +247,7 @@ const isActive = (href) => {
             </nav>
         </aside>
 
-        <div class="lg:pl-72">
+        <div class="flex min-h-screen flex-col lg:pl-72">
             <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
                 <div class="flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
@@ -303,10 +304,12 @@ const isActive = (href) => {
                 </div>
             </header>
 
-            <main class="p-4 sm:p-6 lg:p-8">
+            <main class="flex-1 p-4 sm:p-6 lg:p-8">
                 <ImpersonationBanner />
                 <slot />
             </main>
+
+            <SiteLegalFooter variant="light" />
         </div>
     </div>
 </template>
