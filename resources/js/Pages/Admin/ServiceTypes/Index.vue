@@ -40,9 +40,7 @@ const toggleActive = (type) => {
                         Service configuration
                     </p>
                     <h1 class="mt-2 admin-title">Service types</h1>
-                    <p class="admin-subtitle">
-                        Options in <code class="rounded bg-slate-100 px-1 font-mono text-xs">service_type_options</code> — used for onboarding, provider profiles, and filters.
-                    </p>
+                  
                 </div>
                 <Link
                     href="/admin/service-types/create"
