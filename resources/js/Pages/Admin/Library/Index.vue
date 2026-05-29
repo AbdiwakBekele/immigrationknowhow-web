@@ -37,7 +37,6 @@ const stats = computed(() => {
     };
 });
 
-const formatType = (type) => props.types.find((option) => option.value === type)?.label ?? type;
 const search = ref(props.filters?.search || '');
 const hasSearch = computed(() => String(props.filters?.search || '').trim() !== '');
 let searchTimer = null;
@@ -78,8 +77,32 @@ const clearSearch = () => {
     search.value = '';
 };
 
+const itemCategory = (item) => item?.category?.name || 'General';
+const itemCreator = (item) => item?.author || item?.library_author?.name || 'Unknown Author';
+
+const itemFormat = (item) => {
+    if (item?.has_audio_companion) return 'PDF + Audio';
+    if (item?.type === 'audiobook') return 'Audio';
+    return 'PDF';
+};
+
+const itemYear = (item) => {
+    if (item?.published_at) {
+        const y = new Date(item.published_at).getFullYear();
+        if (!Number.isNaN(y)) return y;
+    }
+    if (item?.publication_year) return item.publication_year;
+    if (item?.created_at) {
+        const y = new Date(item.created_at).getFullYear();
+        if (!Number.isNaN(y)) return y;
+    }
+    return 'Now';
+};
+
+const requiresPayment = (item) => Number(item?.price ?? 0) > 0;
+
 const formatPrice = (item) => {
-    const amount = Number(item.price ?? 0);
+    const amount = Number(item?.price ?? 0);
     if (!Number.isFinite(amount) || amount <= 0) {
         return 'Free';
     }
@@ -173,72 +196,86 @@ const destroyItem = (item) => {
                     </div>
                 </form>
 
-                <div v-if="items?.data?.length" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div v-if="items?.data?.length" class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
                     <article
                         v-for="item in items.data"
                         :key="item.id"
-                        class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                        class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <div class="relative h-44 bg-gray-100">
+                        <Link
+                            :href="route('admin.library.show', item.slug)"
+                            class="relative block aspect-square overflow-hidden bg-neutral-100"
+                        >
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
                                 :alt="item.title"
-                                class="h-full w-full object-cover object-top"
+                                class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
                             >
                             <div
                                 v-else
-                                class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
+                                class="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 to-indigo-700"
                             >
-                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-9 w-9 text-white/90" />
-                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-9 w-9 text-white/90" />
-                                <DocumentTextIcon v-else class="h-9 w-9 text-white/90" />
+                                <BookOpenIcon v-if="item.type === 'ebook'" class="h-14 w-14 text-white/90" />
+                                <MusicalNoteIcon v-else-if="item.type === 'audiobook'" class="h-14 w-14 text-white/90" />
+                                <DocumentTextIcon v-else class="h-14 w-14 text-white/90" />
                             </div>
-                        </div>
-
-                        <div class="space-y-3 p-4">
-                            <div class="min-w-0">
-                                <h3 class="truncate font-semibold text-gray-900">{{ item.title }}</h3>
-                                <p class="truncate text-sm text-gray-500">
-                                    {{ item.author || 'Unknown author' }}
-                                </p>
+                            <span class="absolute left-2 top-2 rounded bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                                {{ itemCategory(item) }}
+                            </span>
+                            <span
+                                v-if="!item.is_active"
+                                class="absolute right-2 top-2 rounded bg-red-600 px-2 py-0.5 text-[11px] font-semibold text-white"
+                            >
+                                Inactive
+                            </span>
+                            <span
+                                v-else-if="item.is_featured"
+                                class="absolute right-2 top-2 rounded bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white"
+                            >
+                                Featured
+                            </span>
+                        </Link>
+                        <div class="flex flex-1 flex-col p-3">
+                            <Link :href="route('admin.library.show', item.slug)" class="block">
+                                <h3 class="line-clamp-2 text-sm font-semibold leading-5 text-neutral-950 transition group-hover:text-blue-700">
+                                    {{ item.title }}
+                                </h3>
+                            </Link>
+                            <p class="mt-1 text-xs text-neutral-500">{{ itemCreator(item) }}</p>
+                            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-neutral-400">
+                                <span>{{ itemFormat(item) }}</span>
+                                <span>{{ itemYear(item) }}</span>
                             </div>
-
-                            <div class="flex flex-wrap gap-2 text-xs">
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{{ formatType(item.type) }}</span>
-                                <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">{{ formatPrice(item) }}</span>
+                            <div class="mt-auto flex items-center justify-between gap-2 border-t border-neutral-100 pt-3">
                                 <span
-                                    class="rounded-full px-2.5 py-1"
-                                    :class="item.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                    class="text-sm font-bold"
+                                    :class="requiresPayment(item) ? 'text-neutral-900' : 'text-emerald-600'"
                                 >
-                                    {{ item.is_active ? 'Active' : 'Inactive' }}
+                                    {{ formatPrice(item) }}
                                 </span>
-                                <span v-if="item.is_featured" class="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">Featured</span>
-                            </div>
-
-                            <p class="text-xs text-gray-500">
-                                Category: {{ item.category?.name || 'Uncategorized' }}
-                            </p>
-
-                            <div class="flex items-center justify-between gap-2">
-                                <Link :href="route('admin.library.show', item.slug)" class="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-                                    View
-                                </Link>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-1">
+                                    <Link
+                                        :href="route('admin.library.show', item.slug)"
+                                        class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                                        title="View"
+                                    >
+                                        View
+                                    </Link>
                                     <Link
                                         :href="route('admin.library.edit', item.slug)"
-                                        class="inline-flex rounded-lg border border-gray-200 p-1.5 text-gray-600 hover:bg-gray-50"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-neutral-200 text-neutral-600 transition hover:bg-neutral-50"
                                         title="Edit"
                                     >
-                                        <PencilSquareIcon class="h-4 w-4" />
+                                        <PencilSquareIcon class="h-3.5 w-3.5" />
                                     </Link>
                                     <button
                                         type="button"
-                                        class="inline-flex rounded-lg border border-gray-200 p-1.5 text-red-600 hover:bg-red-50"
+                                        class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50"
                                         title="Delete"
                                         @click="destroyItem(item)"
                                     >
-                                        <TrashIcon class="h-4 w-4" />
+                                        <TrashIcon class="h-3.5 w-3.5" />
                                     </button>
                                 </div>
                             </div>
