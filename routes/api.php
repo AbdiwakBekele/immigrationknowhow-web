@@ -5,21 +5,22 @@ use App\Http\Controllers\Api\Mobile\AuthController;
 use App\Http\Controllers\Api\Mobile\ContractsController;
 use App\Http\Controllers\Api\Mobile\DvLotteryController;
 use App\Http\Controllers\Api\Mobile\MessagesController;
-use App\Http\Controllers\Api\Mobile\MobileProfileController;
-use App\Http\Controllers\Api\Mobile\MobileRoleController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
+use App\Http\Controllers\Api\Mobile\MobileAppleIapController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryStreamController;
+use App\Http\Controllers\Api\Mobile\MobileProfileController;
+use App\Http\Controllers\Api\Mobile\MobileProviderReviewsController;
+use App\Http\Controllers\Api\Mobile\MobileRoleController;
 use App\Http\Controllers\Api\Mobile\MobileSeekerReviewsController;
 use App\Http\Controllers\Api\Mobile\MobileVideoController;
 use App\Http\Controllers\Api\Mobile\MobileVideoStreamController;
 use App\Http\Controllers\Api\Mobile\OnboardingController;
-use App\Http\Controllers\Api\Mobile\ProviderDashboardController;
-use App\Http\Controllers\Api\Mobile\ProviderLeadsController;
-use App\Http\Controllers\Api\Mobile\ProviderBackgroundChecksController;
 use App\Http\Controllers\Api\Mobile\ProviderAnalyticsController;
-use App\Http\Controllers\Api\Mobile\MobileProviderReviewsController;
+use App\Http\Controllers\Api\Mobile\ProviderBackgroundChecksController;
+use App\Http\Controllers\Api\Mobile\ProviderDashboardController;
 use App\Http\Controllers\Api\Mobile\ProviderFavoritesController;
+use App\Http\Controllers\Api\Mobile\ProviderLeadsController;
 use App\Http\Controllers\Api\Mobile\ProviderNotificationsController;
 use App\Http\Controllers\Api\Mobile\ProvidersController;
 use App\Http\Controllers\Api\Mobile\ProviderSubscriptionsController;
@@ -91,7 +92,13 @@ Route::prefix('mobile')->group(function () {
         Route::get('/', [AiAssistantController::class, 'show']);
         Route::post('/checkout', [AiAssistantController::class, 'checkout']);
         Route::post('/confirm-checkout', [AiAssistantController::class, 'confirmCheckout']);
+        Route::post('/apple-purchase', [MobileAppleIapController::class, 'purchaseAiAssistant']);
         Route::post('/ask', [AiAssistantController::class, 'ask']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('iap')->group(function () {
+        Route::get('/config', [MobileAppleIapController::class, 'config']);
+        Route::post('/restore', [MobileAppleIapController::class, 'restore']);
     });
 
     Route::middleware('auth:sanctum')->prefix('library')->group(function () {
@@ -101,6 +108,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/items/{item:slug}/favorite', [MobileLibraryController::class, 'toggleFavorite']);
         Route::post('/items/{item:slug}/checkout', [MobileLibraryController::class, 'stripeCheckout']);
         Route::post('/items/{item:slug}/confirm-checkout', [MobileLibraryController::class, 'confirmCheckout']);
+        Route::post('/items/{item:slug}/apple-purchase', [MobileAppleIapController::class, 'purchaseLibraryItem']);
         Route::post('/items/{item:slug}/grant-free', [MobileLibraryController::class, 'grantFree']);
         Route::post('/items/{item:slug}/progress', [MobileLibraryController::class, 'updateProgress']);
         Route::get('/items/{item:slug}/summary', [MobileLibraryController::class, 'summary']);

@@ -110,6 +110,7 @@ final class FulfillLibraryStripeCheckout
                     'purchased_at' => now(),
                     'purchase_amount' => round((float) $item->price, 2),
                     'purchase_currency' => strtoupper((string) ($item->currency ?? $sessionCurrency)),
+                    'purchase_source' => 'stripe',
                     'stripe_checkout_session_id' => $session->id,
                     'stripe_payment_intent_id' => $paymentIntentId,
                 ]);

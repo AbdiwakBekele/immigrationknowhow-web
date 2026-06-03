@@ -54,6 +54,35 @@ return [
             : '',
     ],
 
+    /*
+    | Apple In-App Purchase (App Store Server API) — required for iOS digital purchases.
+    | Create products in App Store Connect matching library item apple_product_id (or default prefix + uuid).
+    */
+    'apple_iap' => [
+        'bundle_id' => ($b = env('APPLE_BUNDLE_ID', 'com.immigrantknowhow.ikhapp')) !== null && (string) $b !== ''
+            ? trim((string) $b)
+            : 'com.immigrantknowhow.ikhapp',
+        'issuer_id' => ($i = env('APPLE_ISSUER_ID')) !== null && (string) $i !== ''
+            ? trim((string) $i)
+            : '',
+        'key_id' => ($k = env('APPLE_KEY_ID')) !== null && (string) $k !== ''
+            ? trim((string) $k)
+            : '',
+        'private_key' => ($p = env('APPLE_PRIVATE_KEY')) !== null && (string) $p !== ''
+            ? trim((string) $p)
+            : '',
+        'private_key_path' => ($path = env('APPLE_PRIVATE_KEY_PATH')) !== null && (string) $path !== ''
+            ? trim((string) $path)
+            : '',
+        'sandbox' => filter_var(env('APPLE_IAP_SANDBOX', true), FILTER_VALIDATE_BOOL),
+        'ai_assistant_product_id' => ($a = env('APPLE_AI_ASSISTANT_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.ai_assistant.monthly')) !== null && (string) $a !== ''
+            ? trim((string) $a)
+            : 'com.immigrantknowhow.ikhapp.ai_assistant.monthly',
+        'library_product_prefix' => ($l = env('APPLE_LIBRARY_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.library')) !== null && (string) $l !== ''
+            ? trim((string) $l)
+            : 'com.immigrantknowhow.ikhapp.library',
+    ],
+
     'openai' => [
         'api_key' => ($k = env('OPENAI_API_KEY')) !== null && (string) $k !== ''
             ? trim((string) $k)

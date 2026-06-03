@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AppleIapConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,7 @@ class LibraryItem extends Model
 
     /** Disk for e-book / audiobook binaries (not publicly linked). */
     public const LIBRARY_MEDIA_DISK = 'library_media';
+
     public const LEGACY_LIBRARY_MEDIA_DISK = 'library_media_local';
 
     public const TYPE_DEFINITIONS = [
@@ -96,6 +98,7 @@ class LibraryItem extends Model
         'is_premium',
         'price',
         'currency',
+        'apple_product_id',
         'is_featured',
         'is_active',
         'download_count',
@@ -159,29 +162,29 @@ class LibraryItem extends Model
      * Where the main library file currently lives (private disk first, then legacy public).
      */
     public function resolveLibraryFileDisk(): ?string
-{
-    if (! $this->file_path) {
+    {
+        if (! $this->file_path) {
+            return null;
+        }
+
+        if (Storage::disk('s3')->exists($this->file_path)) {
+            return 's3';
+        }
+
+        if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+            return self::LIBRARY_MEDIA_DISK;
+        }
+
+        if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
+            return self::LEGACY_LIBRARY_MEDIA_DISK;
+        }
+
+        if (Storage::disk('public')->exists($this->file_path)) {
+            return 'public';
+        }
+
         return null;
     }
-
-    if (Storage::disk('s3')->exists($this->file_path)) {
-        return 's3';
-    }
-
-    if (Storage::disk(self::LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
-        return self::LIBRARY_MEDIA_DISK;
-    }
-
-    if (Storage::disk(self::LEGACY_LIBRARY_MEDIA_DISK)->exists($this->file_path)) {
-        return self::LEGACY_LIBRARY_MEDIA_DISK;
-    }
-
-    if (Storage::disk('public')->exists($this->file_path)) {
-        return 'public';
-    }
-
-    return null;
-}
 
     /**
      * Optional audiobook file bundled with an e-book (same purchase / access).
@@ -603,6 +606,16 @@ class LibraryItem extends Model
         $access->update(['last_accessed_at' => now()]);
 
         return $access;
+    }
+
+    public function appleProductId(): string
+    {
+        $configured = trim((string) ($this->apple_product_id ?? ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return AppleIapConfig::defaultLibraryProductId((string) $this->uuid);
     }
 
     public static function supportedTypes(): array

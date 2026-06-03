@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Models\User;
+use App\Support\AppleIapConfig;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +22,8 @@ use Stripe\Stripe;
 
 class MobileLibraryController extends Controller
 {
+    use DetectsMobileClient;
+
     public function browse(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -178,6 +183,9 @@ class MobileLibraryController extends Controller
                 'has_access' => $hasAccess,
                 'requires_paid_access' => $requiresPaidAccess,
                 'stripe_configured' => StripeConfig::checkoutConfigured(),
+                'apple_product_id' => $requiresPaidAccess ? $item->appleProductId() : null,
+                'apple_iap_configured' => AppleIapConfig::configured(),
+                'ios_requires_apple_iap' => true,
                 'manual_payment_pending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
                 'related' => $related,
             ],
@@ -289,6 +297,14 @@ class MobileLibraryController extends Controller
     {
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($request->user(), $item);
+
+        if ($this->mobileClientIsIos($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'On iOS, use In-App Purchase to buy this title.',
+                'errors' => (object) [],
+            ], 422);
+        }
 
         $requiresPaidAccess = $this->requiresPaidAccess($item);
         if (! $item->is_premium && ! $requiresPaidAccess) {
@@ -433,7 +449,7 @@ class MobileLibraryController extends Controller
             ], 403);
         }
 
-        $fulfill = app(\App\Actions\Library\FulfillLibraryStripeCheckout::class);
+        $fulfill = app(FulfillLibraryStripeCheckout::class);
         $fulfilled = $fulfill($session);
 
         return response()->json([

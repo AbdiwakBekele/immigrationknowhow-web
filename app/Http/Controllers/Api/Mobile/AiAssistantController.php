@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
 use App\Services\Ai\AiAssistantAccountService;
 use App\Services\Ai\ServiceSeekerAssistantService;
+use App\Support\AppleIapConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,6 +20,8 @@ use Stripe\Subscription;
 
 class AiAssistantController extends Controller
 {
+    use DetectsMobileClient;
+
     public function __construct(
         private readonly AiAssistantAccountService $aiAccount,
     ) {}
@@ -63,6 +67,14 @@ class AiAssistantController extends Controller
 
     public function checkout(Request $request): JsonResponse
     {
+        if ($this->mobileClientIsIos($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'On iOS, subscribe with In-App Purchase in the app.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
         if (! Schema::hasTable('ai_assistant_subscriptions')) {
             return response()->json([
                 'success' => false,
@@ -392,6 +404,9 @@ class AiAssistantController extends Controller
             'subscription_shared_across_portals' => true,
             'monthly_price' => '4.99',
             'currency' => 'USD',
+            'apple_product_id' => AppleIapConfig::aiAssistantProductId(),
+            'apple_iap_configured' => AppleIapConfig::configured(),
+            'ios_requires_apple_iap' => true,
             'chat_messages' => $this->aiAccount->chatMessagesForUser($userId),
         ];
     }
