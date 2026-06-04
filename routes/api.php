@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Mobile\AuthController;
 use App\Http\Controllers\Api\Mobile\ContractsController;
 use App\Http\Controllers\Api\Mobile\DvLotteryController;
 use App\Http\Controllers\Api\Mobile\MessagesController;
+use App\Http\Controllers\Api\Mobile\MobileAccountController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
 use App\Http\Controllers\Api\Mobile\MobileAppleIapController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryController;
@@ -83,6 +84,9 @@ Route::prefix('mobile')->group(function () {
         Route::post('/avatar', [MobileProfileController::class, 'updateAvatar']);
         Route::delete('/avatar', [MobileProfileController::class, 'deleteAvatar']);
     });
+
+    Route::middleware(['auth:sanctum', 'role:user|provider'])
+        ->delete('/account', [MobileAccountController::class, 'destroy']);
 
     Route::middleware(['auth:sanctum', 'role:user'])->get('/seeker/dashboard', SeekerDashboardController::class);
 

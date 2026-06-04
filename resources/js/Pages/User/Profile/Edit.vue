@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import DeleteAccountSection from '@/Components/Account/DeleteAccountSection.vue';
 import RoleAccountsPanel from '@/Components/Account/RoleAccountsPanel.vue';
 import Button from '@/Components/ui/Button.vue';
 import Input from '@/Components/ui/Input.vue';
@@ -14,7 +15,6 @@ import {
     ChatBubbleLeftRightIcon,
     CheckCircleIcon,
     EnvelopeIcon,
-    ExclamationTriangleIcon,
     HeartIcon,
     KeyIcon,
     LinkIcon,
@@ -23,7 +23,6 @@ import {
     ShieldCheckIcon,
     SparklesIcon,
     StarIcon,
-    TrashIcon,
     UserPlusIcon,
     UsersIcon,
 } from '@heroicons/vue/24/outline';
@@ -394,11 +393,6 @@ const inviteForm = useForm({
     note: '',
 });
 
-const deleteForm = useForm({
-    password: '',
-    confirmation: '',
-});
-
 const avatarInput = ref(null);
 const avatarTypeError = ref('');
 const avatarUploading = ref(false);
@@ -407,7 +401,6 @@ const petTypeInput = ref('');
 const hobbyInput = ref('');
 const socialLabelInput = ref('');
 const socialUrlInput = ref('');
-const showDeleteConfirm = ref(false);
 
 const allowedAvatarTypes = ['image/jpeg', 'image/png'];
 
@@ -530,10 +523,6 @@ const deleteAvatar = () => {
     router.delete(route('profile.avatar.delete'), {
         preserveScroll: true,
     });
-};
-
-const deleteAccount = () => {
-    deleteForm.delete(route('profile.destroy'));
 };
 
 const toggleLanguage = (code) => {
@@ -1072,6 +1061,7 @@ const initialFor = (...values) => {
                             </div>
                         </section>
 
+                        <DeleteAccountSection />
                     </main>
 
                     <aside class="space-y-6">
@@ -1251,39 +1241,6 @@ const initialFor = (...values) => {
                                 </Button>
                             </div>
                         </form>
-
-                        <section class="rounded-lg border border-red-200 bg-white p-5 shadow-sm">
-                            <div class="flex items-start gap-3">
-                                <div class="rounded-lg border border-red-100 bg-red-50 p-2 text-red-700">
-                                    <ExclamationTriangleIcon class="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h2 class="text-lg font-semibold text-slate-950">Delete Account</h2>
-                                    <p class="mt-1 text-sm text-slate-500">This permanently removes your account access.</p>
-                                </div>
-                            </div>
-                            <button
-                                v-if="!showDeleteConfirm"
-                                type="button"
-                                class="mt-5 rounded-lg border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
-                                @click="showDeleteConfirm = true"
-                            >
-                                Delete account
-                            </button>
-                            <form v-else class="mt-5 space-y-4" @submit.prevent="deleteAccount">
-                                <Input v-model="deleteForm.password" type="password" label="Password" :error="deleteForm.errors.password" />
-                                <Input v-model="deleteForm.confirmation" label="Type DELETE" :error="deleteForm.errors.confirmation" />
-                                <div class="flex flex-wrap gap-2">
-                                    <Button type="submit" :loading="deleteForm.processing">
-                                        <TrashIcon class="h-4 w-4" />
-                                        Delete account
-                                    </Button>
-                                    <Button type="button" variant="secondary" @click="showDeleteConfirm = false">
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </form>
-                        </section>
 
                         <form class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm" @submit.prevent="updateNotifications">
                             <div class="mb-5 flex items-start gap-3">

@@ -15,11 +15,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Str;
 
 class ProfileController extends Controller
 {
@@ -181,7 +181,7 @@ class ProfileController extends Controller
         $user = auth()->user();
 
         // Delete old avatar if exists
-        if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+        if ($user->avatar && ! str_starts_with($user->avatar, 'http')) {
             Storage::disk('public')->delete($user->avatar);
         }
 
@@ -196,7 +196,7 @@ class ProfileController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+        if ($user->avatar && ! str_starts_with($user->avatar, 'http')) {
             Storage::disk('public')->delete($user->avatar);
         }
 
@@ -242,37 +242,6 @@ class ProfileController extends Controller
         ]);
 
         return back()->with('success', 'Notification preferences updated.');
-    }
-
-    public function destroy(Request $request): RedirectResponse
-    {
-        return $this->deleteAccount($request);
-    }
-
-    public function deleteAccount(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-            'confirmation' => ['required', 'in:DELETE'],
-        ]);
-
-        $user = auth()->user();
-
-        // Delete avatar
-        if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
-            Storage::disk('public')->delete($user->avatar);
-        }
-
-        // Log out
-        auth()->logout();
-
-        // Soft delete the user
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect('/')->with('success', 'Your account has been deleted.');
     }
 
     private function defaultNotificationPreferences(): array
