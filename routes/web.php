@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Account;
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\Admin\AdsAnalyticsController;
 use App\Http\Controllers\Admin\AdsController;
@@ -8,35 +9,34 @@ use App\Http\Controllers\Affiliate as AffiliatePortal;
 use App\Http\Controllers\Affiliate\Auth as AffiliateAuth;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Auth;
+use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\Contracts\ContractController as ContractsContractController;
+use App\Http\Controllers\DvLotteryController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LibraryController;
 use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
-use App\Http\Controllers\DvLotteryController;
-use App\Http\Controllers\CommunityController;
-use App\Http\Controllers\Contracts\ContractController as ContractsContractController;
-use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Onboarding\ProviderPhoneVerificationController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Provider;
-use App\Http\Controllers\PublicDvLotteryApiController;
+use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\PublicCommunityApiController;
+use App\Http\Controllers\PublicDvLotteryApiController;
 use App\Http\Controllers\PublicLibraryApiController;
 use App\Http\Controllers\PublicServiceProvidersApiController;
 use App\Http\Controllers\PublicServiceTypesApiController;
-use App\Http\Controllers\PublicAdController;
 use App\Http\Controllers\UploadController;
 use App\Http\Controllers\User;
 use App\Http\Controllers\User\AiAssistantController;
 use App\Http\Controllers\VideoProductController;
-use App\Http\Middleware\PublicApiRequestLogger;
 use App\Http\Controllers\Webhooks\CheckrWebhookController;
 use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
 use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
+use App\Http\Middleware\PublicApiRequestLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -300,7 +300,6 @@ Route::middleware(['auth', 'role:user', 'onboarding.complete'])->group(function 
     Route::post('/profile/provider-invites', [User\ProfileController::class, 'storeProviderInvite'])->name('profile.provider-invites.store');
     Route::post('/profile/avatar', [User\ProfileController::class, 'updateAvatar'])->name('profile.avatar');
     Route::delete('/profile/avatar', [User\ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
-    Route::delete('/profile', [User\ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Messaging
     Route::prefix('messages')->name('messages.')->group(function () {
@@ -393,6 +392,10 @@ Route::middleware(['auth', 'onboarding.complete'])->prefix('account-roles')->nam
     Route::post('/seeker', [User\RoleAccountController::class, 'storeSeeker'])->name('seeker.store');
     Route::post('/provider/start', [User\RoleAccountController::class, 'startProvider'])->name('provider.start');
 });
+
+Route::middleware(['auth', 'role:user|provider'])
+    ->delete('/account', [Account\DeleteAccountController::class, 'destroy'])
+    ->name('account.destroy');
 
 /*
 |--------------------------------------------------------------------------

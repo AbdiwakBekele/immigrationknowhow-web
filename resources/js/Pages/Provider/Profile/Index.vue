@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import DeleteAccountSection from '@/Components/Account/DeleteAccountSection.vue';
 import RoleAccountsPanel from '@/Components/Account/RoleAccountsPanel.vue';
 import ProviderProfileFeed from '@/Components/marketplace/ProviderProfileFeed.vue';
 import Button from '@/Components/ui/Button.vue';
@@ -781,6 +782,8 @@ const saveProfessionalDetails = () => {
                                     </div>
                                 </div>
                             </section>
+
+                            <DeleteAccountSection />
                         </main>
 
                         <aside class="space-y-6">
