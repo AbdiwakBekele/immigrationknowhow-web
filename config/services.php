@@ -81,6 +81,12 @@ return [
         'library_product_prefix' => ($l = env('APPLE_LIBRARY_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.library')) !== null && (string) $l !== ''
             ? trim((string) $l)
             : 'com.immigrantknowhow.ikhapp.library',
+        'library_ebook_product_id' => ($e = env('APPLE_LIBRARY_EBOOK_PRODUCT_ID', 'EBOOK_TO2026')) !== null && (string) $e !== ''
+            ? trim((string) $e)
+            : 'EBOOK_TO2026',
+        'library_ebook_slug' => ($s = env('APPLE_LIBRARY_EBOOK_SLUG')) !== null && (string) $s !== ''
+            ? trim((string) $s)
+            : '',
     ],
 
     'openai' => [
