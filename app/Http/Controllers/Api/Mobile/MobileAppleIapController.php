@@ -28,6 +28,7 @@ class MobileAppleIapController extends Controller
                 'bundle_id' => AppleIapConfig::bundleId(),
                 'sandbox' => AppleIapConfig::useSandbox(),
                 'ai_assistant_product_id' => AppleIapConfig::aiAssistantProductId(),
+                'library_ebook_product_id' => AppleIapConfig::libraryEbookProductId(),
                 'library_product_prefix' => trim((string) config('services.apple_iap.library_product_prefix', '')),
                 'ios_requires_apple_iap' => true,
             ],

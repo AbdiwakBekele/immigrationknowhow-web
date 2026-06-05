@@ -615,6 +615,14 @@ class LibraryItem extends Model
             return $configured;
         }
 
+        $envProductId = AppleIapConfig::libraryEbookProductId();
+        if ($envProductId !== '') {
+            $slugFilter = AppleIapConfig::libraryEbookSlug();
+            if ($slugFilter === '' || $this->slug === $slugFilter) {
+                return $envProductId;
+            }
+        }
+
         return AppleIapConfig::defaultLibraryProductId((string) $this->uuid);
     }
 
