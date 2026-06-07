@@ -235,12 +235,12 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="showUrl(item)" class="relative block aspect-[2/3] overflow-hidden bg-neutral-100">
+                        <Link :href="showUrl(item)" class="relative block aspect-square overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
                                 :alt="item.title"
-                                class="h-full w-full object-contain transition duration-300 group-hover:scale-105"
+                                class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
                             />
                             <div
                                 v-else
@@ -336,12 +336,12 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
-                        <Link :href="readUrl(item)" class="relative block aspect-[2/3] overflow-hidden bg-neutral-100">
+                        <Link :href="readUrl(item)" class="relative block aspect-square overflow-hidden bg-neutral-100">
                             <img
                                 v-if="item.cover_image_url"
                                 :src="item.cover_image_url"
                                 :alt="item.title"
-                                class="h-full w-full object-contain transition duration-300 group-hover:scale-105"
+                                class="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
                             />
                             <div
                                 v-else
