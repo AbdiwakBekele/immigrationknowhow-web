@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Actions\Advertiser\ApplyAdOwnerEditStatus;
 use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdAnalyticsEvent;
 use App\Models\AdPayment;
+use App\Support\AdPostingPricing;
+use App\Support\AppleIapConfig;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +20,8 @@ use Stripe\Stripe;
 
 class MobileAdsController extends Controller
 {
+    use DetectsMobileClient;
+
     public function index(Request $request): JsonResponse
     {
         $ads = Ad::query()
@@ -30,10 +35,8 @@ class MobileAdsController extends Controller
             'message' => 'OK',
             'data' => [
                 'ads' => $ads,
-                'ad_posting_price' => [
-                    'amount_cents' => max(0, (int) config('ads.default_price_cents', 2500)),
-                    'currency' => strtoupper((string) config('ads.currency', 'USD')),
-                ],
+                'ad_posting_price' => AdPostingPricing::apiPayload((int) $request->user()->id),
+                'ios_requires_apple_iap' => true,
             ],
         ]);
     }
@@ -100,7 +103,7 @@ class MobileAdsController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validateAd($request);
-        $priceCents = max(0, (int) config('ads.default_price_cents', 2500));
+        $priceCents = AdPostingPricing::priceCentsForNewAd((int) $request->user()->id);
         $imageUrl = $this->resolveImageUrl($request, $validated);
         $requireApproval = (bool) config('ads.require_admin_approval', true);
 
@@ -205,6 +208,13 @@ class MobileAdsController extends Controller
     public function checkout(Request $request, Ad $ad): JsonResponse
     {
         $this->authorizeAd($request, $ad);
+
+        if ($blocked = $this->iosStripeCheckoutBlockedResponse(
+            $request,
+            'Ad publishing payment is not available in the iOS app. Sign in at immigrationknowhow.com to pay and publish.',
+        )) {
+            return $blocked;
+        }
 
         if ($ad->isSuspended()) {
             return response()->json(['success' => false, 'message' => 'This ad was suspended by an administrator.', 'errors' => (object) []], 422);
@@ -423,6 +433,8 @@ class MobileAdsController extends Controller
             ],
             'meta' => $ad->meta ?? [],
             'is_publicly_visible' => $ad->isPubliclyVisible(),
+            'apple_product_id' => $ad->status === 'pending_payment' ? $ad->applePublishProductId() : null,
+            'ios_requires_apple_iap' => true,
         ];
     }
 

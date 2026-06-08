@@ -7,7 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\Review;
 use App\Models\SubscriptionPlan;
+use App\Support\AppleIapConfig;
 use App\Support\ProviderVerification;
+use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -55,12 +57,11 @@ class ProviderDashboardController extends Controller
             ->orderBy('date')
             ->get();
 
-        $stripeSecret = config('services.stripe.secret');
-        $hasActivePlan = SubscriptionPlan::query()
-            ->active()
-            ->whereNotNull('stripe_price_id')
-            ->exists();
-        $isSubscriptionCheckoutConfigured = is_string($stripeSecret) && $stripeSecret !== '' && $hasActivePlan;
+        $stripeConfigured = StripeProviderSubscriptionCheckout::secretConfigured()
+            && SubscriptionPlan::query()->active()->whereNotNull('stripe_price_id')->exists();
+        $hasPaidPlan = SubscriptionPlan::query()->active()->where('price_cents', '>', 0)->exists();
+        $appleIapConfigured = AppleIapConfig::configured();
+        $isSubscriptionCheckoutConfigured = $stripeConfigured || ($appleIapConfigured && $hasPaidPlan);
 
         $unreadNotificationsCount = 0;
         if (Schema::hasTable('notifications')) {
@@ -77,6 +78,9 @@ class ProviderDashboardController extends Controller
                 'leads_chart_data' => $leadsChartData,
                 'unread_notifications_count' => $unreadNotificationsCount,
                 'subscription_checkout_configured' => $isSubscriptionCheckoutConfigured,
+                'stripe_billing_configured' => $stripeConfigured,
+                'apple_iap_configured' => $appleIapConfigured,
+                'ios_requires_apple_iap' => true,
                 'provider' => $provider->only([
                     'id', 'slug', 'business_name', 'average_rating', 'total_reviews',
                     'background_check_status', 'is_featured', 'profile_views',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AppleIapConfig;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,6 +77,21 @@ class Ad extends Model
     public function isPubliclyVisible(): bool
     {
         return $this->status === 'published' && $this->published_at !== null;
+    }
+
+    public function applePublishProductId(): ?string
+    {
+        if ((int) $this->price_cents <= 0) {
+            return null;
+        }
+
+        if ((int) $this->price_cents !== AppleIapConfig::adPublishPriceCents()) {
+            return null;
+        }
+
+        $productId = AppleIapConfig::adPublishProductId();
+
+        return $productId !== '' ? $productId : null;
     }
 
     public function scopePublished($query)

@@ -7,6 +7,7 @@ use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdPayment;
+use App\Support\AdPostingPricing;
 use App\Support\StripeConfig;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,7 +61,7 @@ class AdController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateAd($request);
-        $priceCents = $this->defaultPriceCents();
+        $priceCents = AdPostingPricing::priceCentsForNewAd((int) $request->user()->id);
         $imageUrl = $this->resolveImageUrl($request, $validated);
         $requireApproval = (bool) config('ads.require_admin_approval', true);
 
@@ -420,22 +421,14 @@ class AdController extends Controller
         abort_unless($ad->user_id === auth()->id(), 404);
     }
 
-    private function defaultPriceCents(): int
-    {
-        return max(0, (int) config('ads.default_price_cents', 2500));
-    }
-
     private function defaultCurrency(): string
     {
-        return strtoupper((string) config('ads.currency', 'USD'));
+        return AdPostingPricing::currency();
     }
 
     private function adPricingPayload(): array
     {
-        return [
-            'amount_cents' => $this->defaultPriceCents(),
-            'currency' => $this->defaultCurrency(),
-        ];
+        return AdPostingPricing::apiPayload((int) auth()->id());
     }
 
     private function stripeIsConfigured(): bool

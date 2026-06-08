@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Enums\UserRole;
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Mobile\UserResource;
 use App\Models\ProviderSubscription;
@@ -13,6 +14,8 @@ use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
+use App\Support\AppleIapConfig;
+use App\Support\ProviderSubscriptionPromo;
 use App\Support\StripeProviderSubscriptionCheckout;
 use App\Support\UserRoleAccounts;
 use App\Support\UsStateOptions;
@@ -27,6 +30,8 @@ use Stripe\Stripe;
 
 class OnboardingController extends Controller
 {
+    use DetectsMobileClient;
+
     public function __construct(
         protected PhoneVerificationService $phoneVerification
     ) {}
@@ -65,6 +70,10 @@ class OnboardingController extends Controller
             // Service seeker — mirror web Onboarding/User routing.
             $initialStep = $needsPhone ? max(2, min(3, $requestedStep)) : 4;
         }
+
+        $providerProfile = $isProvider
+            ? ServiceProvider::query()->where('user_id', $user->id)->first()
+            : null;
 
         $subscriptionPlans = $isProvider
             ? SubscriptionPlan::query()
@@ -113,8 +122,15 @@ class OnboardingController extends Controller
                 $isAdvertiser => $this->advertiserSteps(),
                 default => $this->userSteps(),
             },
-            'subscriptionPlans' => $subscriptionPlans,
+            'subscriptionPlans' => $subscriptionPlans->map(fn (SubscriptionPlan $plan) => array_merge($plan->toArray(), [
+                'apple_product_id' => (int) $plan->price_cents > 0 ? $plan->appleProductId() : null,
+            ]))->values(),
             'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
+            'appleIapConfigured' => AppleIapConfig::configured(),
+            'ios_requires_apple_iap' => true,
+            'providerSubscriptionPromo' => $isProvider
+                ? ProviderSubscriptionPromo::promoPayload($providerProfile)
+                : null,
         ]);
     }
 
@@ -574,6 +590,15 @@ class OnboardingController extends Controller
         $user->refresh();
 
         if ($providerForCheckout instanceof ServiceProvider && $planForCheckout instanceof SubscriptionPlan) {
+            if ($this->mobileClientIsIos($request)) {
+                return $this->success('In-App Purchase required', [
+                    'requires_apple_iap' => true,
+                    'plan_uuid' => (string) $planForCheckout->uuid,
+                    'apple_product_id' => $planForCheckout->appleProductId(),
+                    'user' => (new UserResource($user))->resolve(),
+                ]);
+            }
+
             $checkoutUrl = $this->createStripeCheckoutUrl($request, $providerForCheckout, $planForCheckout);
             if ($checkoutUrl) {
                 return $this->success('Checkout required', [
@@ -616,15 +641,13 @@ class OnboardingController extends Controller
                     'plan_name' => (string) $plan->name,
                     'source' => 'onboarding_mobile',
                 ],
-                'subscription_data' => [
-                    'metadata' => [
-                        'provider_id' => (string) $provider->id,
-                        'user_id' => (string) $request->user()->id,
-                        'plan_uuid' => (string) $plan->uuid,
-                        'app' => 'provider_subscription',
-                        'source' => 'onboarding_mobile',
-                    ],
-                ],
+                'subscription_data' => ProviderSubscriptionPromo::stripeSubscriptionData($provider, [
+                    'provider_id' => (string) $provider->id,
+                    'user_id' => (string) $request->user()->id,
+                    'plan_uuid' => (string) $plan->uuid,
+                    'app' => 'provider_subscription',
+                    'source' => 'onboarding_mobile',
+                ]),
             ]);
         } catch (\Throwable $e) {
             Log::warning('Mobile onboarding Stripe checkout creation failed', [

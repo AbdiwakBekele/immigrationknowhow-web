@@ -9,7 +9,7 @@ import { formatAdStatus } from '@/utils/formatAdStatus';
 
 const props = defineProps({
     ads: { type: Array, default: () => [] },
-    adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
+    adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD', free_limit: 0, free_remaining: 0, next_ad_price_cents: 0 }) },
     adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
     adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
     analyticsSummary: { type: Object, default: () => ({ views: 0, clicks: 0, ctr: 0 }) },
@@ -117,6 +117,13 @@ const maxClicks = computed(() => {
                         <p class="mt-1 text-sm text-slate-500">
                             <template v-if="activeTab === 'analytics'">
                                 Performance overview across all your ads.
+                            </template>
+                            <template v-else-if="Number(adPostingPrice.free_remaining || 0) > 0">
+                                {{ Number(adPostingPrice.free_remaining) }} of
+                                {{ Number(adPostingPrice.free_limit || 0) }} complimentary publish
+                                {{ Number(adPostingPrice.free_remaining) === 1 ? 'slot' : 'slots' }} remaining.
+                                After that, {{ adPostingPrice.currency }}
+                                {{ (Number(adPostingPrice.amount_cents || 0) / 100).toFixed(2) }} per ad.
                             </template>
                             <template v-else>
                                 One-time publish fee:

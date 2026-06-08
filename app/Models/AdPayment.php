@@ -16,6 +16,8 @@ class AdPayment extends Model
         'user_id',
         'amount_cents',
         'currency',
+        'purchase_source',
+        'apple_transaction_id',
         'status',
         'stripe_checkout_session_id',
         'stripe_payment_intent_id',

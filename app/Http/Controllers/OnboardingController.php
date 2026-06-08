@@ -11,6 +11,7 @@ use App\Support\CountryOptions;
 use App\Support\LanguageOptions;
 use App\Support\PhoneDialOptions;
 use App\Support\ServiceTypeOptions;
+use App\Support\ProviderSubscriptionPromo;
 use App\Support\StripeProviderSubscriptionCheckout;
 use App\Support\UserRoleAccounts;
 use App\Support\UsStateOptions;
@@ -158,6 +159,10 @@ class OnboardingController extends Controller
             'is_provider_flow' => $isProvider,
         ]);
 
+        $providerProfile = $isProvider
+            ? ServiceProvider::query()->where('user_id', $user->id)->first()
+            : null;
+
         $subscriptionPlans = $isProvider
             ? SubscriptionPlan::query()
                 ->active()
@@ -210,6 +215,9 @@ class OnboardingController extends Controller
                 : ($isAdvertiser ? $this->getAdvertiserSteps() : $this->getUserSteps()),
             'subscriptionPlans' => $subscriptionPlans,
             'stripeBillingReady' => StripeProviderSubscriptionCheckout::secretConfigured(),
+            'providerSubscriptionPromo' => $isProvider
+                ? ProviderSubscriptionPromo::promoPayload($providerProfile)
+                : null,
             'addingProviderAccount' => UserRoleAccounts::isAddingProviderAccount($user),
         ]);
     }
@@ -479,17 +487,15 @@ class OnboardingController extends Controller
                     'plan_price_cents' => (string) $planPriceCents,
                     'charged_amount_cents' => (string) $planPriceCents,
                 ],
-                'subscription_data' => [
-                    'metadata' => [
-                        'provider_id' => (string) $provider->id,
-                        'user_id' => (string) $request->user()->id,
-                        'plan_uuid' => (string) $plan->uuid,
-                        'app' => 'provider_subscription',
-                        'source' => 'onboarding',
-                        'plan_price_cents' => (string) $planPriceCents,
-                        'charged_amount_cents' => (string) $planPriceCents,
-                    ],
-                ],
+                'subscription_data' => ProviderSubscriptionPromo::stripeSubscriptionData($provider, [
+                    'provider_id' => (string) $provider->id,
+                    'user_id' => (string) $request->user()->id,
+                    'plan_uuid' => (string) $plan->uuid,
+                    'app' => 'provider_subscription',
+                    'source' => 'onboarding',
+                    'plan_price_cents' => (string) $planPriceCents,
+                    'charged_amount_cents' => (string) $planPriceCents,
+                ]),
             ]);
         } catch (\Throwable $e) {
             Log::warning('Onboarding Stripe checkout creation failed', [

@@ -20,7 +20,7 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'professional-monthly',
                 'name' => 'Professional',
                 'description' => 'Full profile visibility, lead intake, and messaging for immigration service providers. Billed monthly.',
-                'price_cents' => 4900,
+                'price_cents' => 999,
                 'currency' => 'USD',
                 'billing_cycle' => 'monthly',
                 'features' => [
@@ -40,7 +40,7 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'professional-yearly',
                 'name' => 'Professional (Annual)',
                 'description' => 'Same Professional features with annual billing and a lower effective monthly rate.',
-                'price_cents' => 49900,
+                'price_cents' => 9900,
                 'currency' => 'USD',
                 'billing_cycle' => 'yearly',
                 'features' => [

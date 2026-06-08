@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AppleIapConfig;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +47,7 @@ class VideoEmbed extends Model
         'sort_order',
         'price',
         'currency',
+        'apple_product_id',
     ];
 
     protected $hidden = [
@@ -138,6 +140,16 @@ class VideoEmbed extends Model
     public function isUpload(): bool
     {
         return $this->source === self::SOURCE_UPLOAD;
+    }
+
+    public function appleProductId(): string
+    {
+        $configured = trim((string) ($this->apple_product_id ?? ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return AppleIapConfig::defaultVideoProductId((string) $this->uuid);
     }
 
     public function getEmbedHtmlAttribute(): string

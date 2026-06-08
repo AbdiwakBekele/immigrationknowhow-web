@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\VideoEmbed;
 use App\Models\VideoUserAccess;
@@ -14,6 +15,8 @@ use Stripe\Stripe;
 
 class MobileVideoController extends Controller
 {
+    use DetectsMobileClient;
+
     public function index(Request $request): JsonResponse
     {
         $query = VideoEmbed::query()->active()->ordered();
@@ -84,6 +87,8 @@ class MobileVideoController extends Controller
                 'requires_paid_access' => $requiresPaidAccess,
                 'stream_path' => $streamPath,
                 'stripe_configured' => StripeConfig::checkoutConfigured(),
+                'apple_product_id' => $requiresPaidAccess ? $video->appleProductId() : null,
+                'ios_requires_apple_iap' => true,
                 'related' => VideoEmbed::query()
                     ->active()
                     ->where('id', '!=', $video->id)
@@ -98,6 +103,13 @@ class MobileVideoController extends Controller
     public function stripeCheckout(Request $request, VideoEmbed $video): JsonResponse
     {
         abort_unless($video->is_active, 404);
+
+        if ($blocked = $this->iosStripeCheckoutBlockedResponse(
+            $request,
+            'On iOS, use In-App Purchase to buy this video.',
+        )) {
+            return $blocked;
+        }
 
         $price = (float) ($video->price ?? 0);
         if ($price <= 0) {
