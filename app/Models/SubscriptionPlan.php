@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AppleIapConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,7 @@ class SubscriptionPlan extends Model
         'service_type_option_id',
         'stripe_product_id',
         'stripe_price_id',
+        'apple_product_id',
         'commission_type',
         'commission_value',
         'recurring_commission_enabled',
@@ -86,6 +88,16 @@ class SubscriptionPlan extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
+    }
+
+    public function appleProductId(): string
+    {
+        $configured = trim((string) ($this->apple_product_id ?? ''));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return AppleIapConfig::providerProductIdForBillingCycle($this->billing_cycle, (string) $this->uuid);
     }
 
     /**

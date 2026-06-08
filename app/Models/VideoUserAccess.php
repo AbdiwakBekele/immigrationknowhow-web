@@ -15,6 +15,9 @@ class VideoUserAccess extends Model
         'purchased_at',
         'purchase_amount',
         'purchase_currency',
+        'purchase_source',
+        'apple_transaction_id',
+        'apple_original_transaction_id',
         'stripe_checkout_session_id',
         'stripe_payment_intent_id',
     ];

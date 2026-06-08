@@ -22,6 +22,10 @@ const props = defineProps({
     existingData: { type: Object, default: () => ({}) },
     subscriptionPlans: { type: Array, default: () => [] },
     stripeBillingReady: { type: Boolean, default: false },
+    providerSubscriptionPromo: {
+        type: Object,
+        default: () => ({ trial_months: 0, trial_eligible: false }),
+    },
     serviceTypes: { type: Array, default: () => [] },
     countryOptions: { type: Array, default: () => [] },
     addingProviderAccount: { type: Boolean, default: false },
@@ -922,7 +926,15 @@ const goBack = () => {
                 <div v-else-if="isProviderSubscriptionStep" class="space-y-5">
                     <p class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-500">Subscription</p>
                     <p class="text-sm text-neutral-600">
-                        Choose a plan to publish your provider profile. Free plans activate instantly; paid plans use Stripe checkout.
+                        Choose a plan to publish your provider profile. Free plans activate instantly; paid plans use secure checkout.
+                    </p>
+                    <p
+                        v-if="providerSubscriptionPromo?.trial_eligible && Number(providerSubscriptionPromo?.trial_months || 0) > 0"
+                        class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+                    >
+                        New providers get
+                        <strong>{{ providerSubscriptionPromo.trial_months }} months free</strong>, then
+                        $9.99/month or $99/year depending on the plan you choose.
                     </p>
 
                     <div v-if="selectablePlans.length === 0" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -957,7 +969,7 @@ const goBack = () => {
                                                 class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
                                             >
                                                 <span v-if="(plan.price_cents ?? 0) <= 0">Free</span>
-                                                <span v-else>${{ ((plan.price_cents ?? 0) / 100).toFixed(0) }} / {{ plan.billing_cycle }}</span>
+                                                <span v-else>${{ ((plan.price_cents ?? 0) / 100).toFixed(2) }} / {{ plan.billing_cycle }}</span>
                                             </span>
                                         </div>
                                     </div>

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
+use App\Support\AppleIapConfig;
+use App\Support\ProviderSubscriptionPromo;
 use App\Support\StripeConfig;
 use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +19,8 @@ use Stripe\Subscription as StripeSubscription;
 
 class ProviderSubscriptionsController extends Controller
 {
+    use DetectsMobileClient;
+
     public function index(Request $request): JsonResponse
     {
         $provider = $this->resolveProvider($request);
@@ -50,16 +55,29 @@ class ProviderSubscriptionsController extends Controller
             'success' => true,
             'message' => 'OK',
             'data' => [
-                'plans' => $plans,
+                'plans' => $plans->map(fn (SubscriptionPlan $plan) => array_merge($plan->toArray(), [
+                    'apple_product_id' => (int) $plan->price_cents > 0 ? $plan->appleProductId() : null,
+                ]))->values(),
                 'current_subscription' => $currentSubscription,
                 'subscription_history' => $history,
                 'stripe_billing_configured' => StripeConfig::hasSecretKey(),
+                'apple_iap_configured' => AppleIapConfig::configured(),
+                'subscription_billing_configured' => StripeConfig::hasSecretKey() || AppleIapConfig::configured(),
+                'ios_requires_apple_iap' => true,
+                'provider_subscription_promo' => ProviderSubscriptionPromo::promoPayload($provider),
             ],
         ]);
     }
 
     public function checkout(Request $request, SubscriptionPlan $plan): JsonResponse
     {
+        if ($blocked = $this->iosStripeCheckoutBlockedResponse(
+            $request,
+            'On iOS, subscribe with In-App Purchase in the app.',
+        )) {
+            return $blocked;
+        }
+
         $provider = $this->resolveProvider($request);
 
         if (! in_array((string) $plan->status, ['active'], true)) {
@@ -149,14 +167,12 @@ class ProviderSubscriptionsController extends Controller
                     'plan_uuid' => (string) $plan->uuid,
                     'plan_name' => (string) $plan->name,
                 ],
-                'subscription_data' => [
-                    'metadata' => [
-                        'provider_id' => (string) $provider->id,
-                        'user_id' => (string) $request->user()->id,
-                        'plan_uuid' => (string) $plan->uuid,
-                        'app' => 'provider_subscription',
-                    ],
-                ],
+                'subscription_data' => ProviderSubscriptionPromo::stripeSubscriptionData($provider, [
+                    'provider_id' => (string) $provider->id,
+                    'user_id' => (string) $request->user()->id,
+                    'plan_uuid' => (string) $plan->uuid,
+                    'app' => 'provider_subscription',
+                ]),
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -192,6 +208,14 @@ class ProviderSubscriptionsController extends Controller
         $provider = $this->resolveProvider($request);
         if ((int) $subscription->service_provider_id !== (int) $provider->id) {
             return response()->json(['success' => false, 'message' => 'Forbidden.', 'errors' => (object) []], 403);
+        }
+
+        if (filled($subscription->apple_original_transaction_id) && blank($subscription->stripe_subscription_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This subscription was purchased with the App Store. Manage cancellation in iPhone Settings → Apple ID → Subscriptions.',
+                'errors' => (object) [],
+            ], 422);
         }
 
         if (! is_string($subscription->stripe_subscription_id) || $subscription->stripe_subscription_id === '') {
@@ -244,6 +268,14 @@ class ProviderSubscriptionsController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden.', 'errors' => (object) []], 403);
         }
 
+        if (filled($subscription->apple_original_transaction_id) && blank($subscription->stripe_subscription_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This subscription was purchased with the App Store. Manage it in iPhone Settings → Apple ID → Subscriptions.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
         if (! is_string($subscription->stripe_subscription_id) || $subscription->stripe_subscription_id === '') {
             return response()->json([
                 'success' => false,
@@ -292,6 +324,14 @@ class ProviderSubscriptionsController extends Controller
         $provider = $this->resolveProvider($request);
         if ((int) $subscription->service_provider_id !== (int) $provider->id) {
             return response()->json(['success' => false, 'message' => 'Forbidden.', 'errors' => (object) []], 403);
+        }
+
+        if (filled($subscription->apple_original_transaction_id) && blank($subscription->stripe_subscription_id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This subscription was purchased with the App Store. Switch plans using In-App Purchase in the app or manage it in iPhone Settings → Apple ID → Subscriptions.',
+                'errors' => (object) [],
+            ], 422);
         }
 
         if (! is_string($subscription->stripe_subscription_id) || $subscription->stripe_subscription_id === '') {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
+use App\Support\ProviderSubscriptionPromo;
 use App\Support\StripeConfig;
 use App\Support\StripeProviderSubscriptionCheckout;
 use Illuminate\Http\RedirectResponse;
@@ -100,6 +101,7 @@ class SubscriptionController extends Controller
             'subscriptionHistory' => $history,
             'stripeBillingConfigured' => $stripeBillingConfigured,
             'showStripeSetupHints' => (bool) config('app.debug'),
+            'providerSubscriptionPromo' => ProviderSubscriptionPromo::promoPayload($provider),
         ]);
     }
 
@@ -178,14 +180,12 @@ class SubscriptionController extends Controller
                     'plan_uuid' => (string) $plan->uuid,
                     'plan_name' => (string) $plan->name,
                 ],
-                'subscription_data' => [
-                    'metadata' => [
-                        'provider_id' => (string) $provider->id,
-                        'user_id' => (string) $request->user()->id,
-                        'plan_uuid' => (string) $plan->uuid,
-                        'app' => 'provider_subscription',
-                    ],
-                ],
+                'subscription_data' => ProviderSubscriptionPromo::stripeSubscriptionData($provider, [
+                    'provider_id' => (string) $provider->id,
+                    'user_id' => (string) $request->user()->id,
+                    'plan_uuid' => (string) $plan->uuid,
+                    'app' => 'provider_subscription',
+                ]),
             ]);
         } catch (\Throwable $e) {
             return back()->with('error', config('app.debug')

@@ -1393,7 +1393,7 @@ watch(
                                 </template>
                                 <template v-else>
                                     <span class="font-display text-4xl font-bold text-sky-600">
-                                        ${{ (plan.price_cents / 100).toFixed(0) }}
+                                        ${{ (plan.price_cents / 100).toFixed(2) }}
                                     </span>
                                 </template>
                             </div>

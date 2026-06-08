@@ -7,7 +7,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD' }) },
+    adPostingPrice: { type: Object, default: () => ({ amount_cents: 0, currency: 'USD', free_limit: 0, free_remaining: 0, next_ad_price_cents: 0 }) },
     adsRouteNamePrefix: { type: String, default: 'advertiser.ads' },
     adPortal: { type: Object, default: () => ({ portal: 'advertiser' }) },
 });
@@ -55,8 +55,16 @@ const onImageSelected = (event) => {
                     <h1 class="text-2xl font-semibold text-slate-900">Create ad</h1>
                 </div>
                 <p class="mt-1 text-sm text-slate-500">
-                    Publish fee:
-                    {{ adPostingPrice.currency }} {{ (Number(adPostingPrice.amount_cents || 0) / 100).toFixed(2) }}.
+                    <template v-if="Number(adPostingPrice.free_remaining || 0) > 0">
+                        This ad is free — {{ Number(adPostingPrice.free_remaining) }} of
+                        {{ Number(adPostingPrice.free_limit || 0) }} complimentary publish
+                        {{ Number(adPostingPrice.free_remaining) === 1 ? 'slot' : 'slots' }} remaining.
+                    </template>
+                    <template v-else>
+                        Publish fee:
+                        {{ adPostingPrice.currency }}
+                        {{ (Number(adPostingPrice.amount_cents || 0) / 100).toFixed(2) }} per ad.
+                    </template>
                 </p>
             </div>
 

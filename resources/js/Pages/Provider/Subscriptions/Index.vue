@@ -9,6 +9,10 @@ const props = defineProps({
     subscriptionHistory: { type: Array, default: () => [] },
     stripeBillingConfigured: { type: Boolean, default: true },
     showStripeSetupHints: { type: Boolean, default: false },
+    providerSubscriptionPromo: {
+        type: Object,
+        default: () => ({ trial_months: 0, trial_eligible: false }),
+    },
 });
 
 const currentPlanId = computed(() => props.currentSubscription?.subscription_plan_id ?? null);
@@ -186,6 +190,15 @@ const changePlan = (planUuid) => {
                 </div>
                 </div>
             </section>
+
+            <p
+                v-if="providerSubscriptionPromo?.trial_eligible && Number(providerSubscriptionPromo?.trial_months || 0) > 0"
+                class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+            >
+                Your first subscription includes
+                <strong>{{ providerSubscriptionPromo.trial_months }} months free</strong>. After the trial,
+                billing continues at the plan rate ($9.99/month or $99/year).
+            </p>
 
             <div v-if="freePlans.length" class="space-y-3">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Free</h2>

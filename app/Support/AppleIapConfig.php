@@ -119,4 +119,67 @@ final class AppleIapConfig
 
         return $prefix.'.'.$itemUuid;
     }
+
+    public static function providerProductPrefix(): string
+    {
+        return trim((string) config('services.apple_iap.provider_product_prefix', 'com.immigrantknowhow.ikhapp.provider'));
+    }
+
+    public static function providerMonthlyProductId(): string
+    {
+        return trim((string) config('services.apple_iap.provider_monthly_product_id', ''));
+    }
+
+    public static function providerYearlyProductId(): string
+    {
+        return trim((string) config('services.apple_iap.provider_yearly_product_id', ''));
+    }
+
+    /**
+     * Resolve the App Store product ID for a provider subscription plan.
+     * Prefers env monthly/yearly IDs; falls back to prefix + plan UUID.
+     */
+    public static function providerProductIdForBillingCycle(?string $billingCycle, string $planUuid): string
+    {
+        $cycle = strtolower(trim((string) $billingCycle));
+
+        if ($cycle === 'yearly') {
+            $yearly = self::providerYearlyProductId();
+            if ($yearly !== '') {
+                return $yearly;
+            }
+        } else {
+            $monthly = self::providerMonthlyProductId();
+            if ($monthly !== '') {
+                return $monthly;
+            }
+        }
+
+        return self::defaultProviderProductId($planUuid);
+    }
+
+    public static function defaultProviderProductId(string $planUuid): string
+    {
+        return self::providerProductPrefix().'.'.$planUuid;
+    }
+
+    public static function videoProductPrefix(): string
+    {
+        return trim((string) config('services.apple_iap.video_product_prefix', 'com.immigrantknowhow.ikhapp.video'));
+    }
+
+    public static function defaultVideoProductId(string $videoUuid): string
+    {
+        return self::videoProductPrefix().'.'.$videoUuid;
+    }
+
+    public static function adPublishProductId(): string
+    {
+        return trim((string) config('services.apple_iap.ad_publish_product_id', ''));
+    }
+
+    public static function adPublishPriceCents(): int
+    {
+        return max(0, (int) config('ads.default_price_cents', 999));
+    }
 }

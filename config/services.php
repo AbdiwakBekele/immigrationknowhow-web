@@ -87,6 +87,21 @@ return [
         'library_ebook_slug' => ($s = env('APPLE_LIBRARY_EBOOK_SLUG')) !== null && (string) $s !== ''
             ? trim((string) $s)
             : '',
+        'provider_product_prefix' => ($p = env('APPLE_PROVIDER_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.provider')) !== null && (string) $p !== ''
+            ? trim((string) $p)
+            : 'com.immigrantknowhow.ikhapp.provider',
+        'provider_monthly_product_id' => ($m = env('APPLE_PROVIDER_MONTHLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.professional_monthly')) !== null && (string) $m !== ''
+            ? trim((string) $m)
+            : 'com.immigrantknowhow.ikhapp.provider.professional_monthly',
+        'provider_yearly_product_id' => ($y = env('APPLE_PROVIDER_YEARLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.professional_yearly')) !== null && (string) $y !== ''
+            ? trim((string) $y)
+            : 'com.immigrantknowhow.ikhapp.provider.professional_yearly',
+        'video_product_prefix' => ($v = env('APPLE_VIDEO_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.video')) !== null && (string) $v !== ''
+            ? trim((string) $v)
+            : 'com.immigrantknowhow.ikhapp.video',
+        'ad_publish_product_id' => ($a = env('APPLE_AD_PUBLISH_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.ad.publish')) !== null && (string) $a !== ''
+            ? trim((string) $a)
+            : 'com.immigrantknowhow.ikhapp.ad.publish',
     ],
 
     'openai' => [
