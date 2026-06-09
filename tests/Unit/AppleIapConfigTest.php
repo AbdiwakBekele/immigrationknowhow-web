@@ -77,8 +77,8 @@ class AppleIapConfigTest extends TestCase
     public function test_provider_plan_uses_env_monthly_and_yearly_product_ids(): void
     {
         config([
-            'services.apple_iap.provider_monthly_product_id' => 'com.immigrantknowhow.ikhapp.provider.professional_monthly',
-            'services.apple_iap.provider_yearly_product_id' => 'com.immigrantknowhow.ikhapp.provider.professional_yearly',
+            'services.apple_iap.provider_monthly_product_id' => 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_monthly',
+            'services.apple_iap.provider_yearly_product_id' => 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_yearly',
         ]);
 
         $monthly = new SubscriptionPlan;
@@ -89,14 +89,14 @@ class AppleIapConfigTest extends TestCase
         $yearly->billing_cycle = 'yearly';
         $yearly->uuid = '550e8400-e29b-41d4-a716-446655440002';
 
-        $this->assertSame('com.immigrantknowhow.ikhapp.provider.professional_monthly', $monthly->appleProductId());
-        $this->assertSame('com.immigrantknowhow.ikhapp.provider.professional_yearly', $yearly->appleProductId());
+        $this->assertSame('com.immigrantknowhow.ikhapp.provider.serviceprofessional_monthly', $monthly->appleProductId());
+        $this->assertSame('com.immigrantknowhow.ikhapp.provider.serviceprofessional_yearly', $yearly->appleProductId());
     }
 
     public function test_provider_plan_db_apple_product_id_overrides_env(): void
     {
         config([
-            'services.apple_iap.provider_monthly_product_id' => 'com.immigrantknowhow.ikhapp.provider.professional_monthly',
+            'services.apple_iap.provider_monthly_product_id' => 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_monthly',
         ]);
 
         $plan = new SubscriptionPlan;

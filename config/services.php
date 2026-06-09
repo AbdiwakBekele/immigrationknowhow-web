@@ -75,9 +75,9 @@ return [
             ? trim((string) $path)
             : '',
         'sandbox' => filter_var(env('APPLE_IAP_SANDBOX', true), FILTER_VALIDATE_BOOL),
-        'ai_assistant_product_id' => ($a = env('APPLE_AI_ASSISTANT_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.ai_assistant.monthly')) !== null && (string) $a !== ''
+        'ai_assistant_product_id' => ($a = env('APPLE_AI_ASSISTANT_MONTHLY', 'com.immigrantknowhow.ikhapp.monthly.ai_assistant')) !== null && (string) $a !== ''
             ? trim((string) $a)
-            : 'com.immigrantknowhow.ikhapp.ai_assistant.monthly',
+            : 'com.immigrantknowhow.ikhapp.monthly.ai_assistant',
         'library_product_prefix' => ($l = env('APPLE_LIBRARY_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.library')) !== null && (string) $l !== ''
             ? trim((string) $l)
             : 'com.immigrantknowhow.ikhapp.library',
@@ -90,12 +90,12 @@ return [
         'provider_product_prefix' => ($p = env('APPLE_PROVIDER_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.provider')) !== null && (string) $p !== ''
             ? trim((string) $p)
             : 'com.immigrantknowhow.ikhapp.provider',
-        'provider_monthly_product_id' => ($m = env('APPLE_PROVIDER_MONTHLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.professional_monthly')) !== null && (string) $m !== ''
+        'provider_monthly_product_id' => ($m = env('APPLE_PROVIDER_MONTHLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_monthly')) !== null && (string) $m !== ''
             ? trim((string) $m)
-            : 'com.immigrantknowhow.ikhapp.provider.professional_monthly',
-        'provider_yearly_product_id' => ($y = env('APPLE_PROVIDER_YEARLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.professional_yearly')) !== null && (string) $y !== ''
+            : 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_monthly',
+        'provider_yearly_product_id' => ($y = env('APPLE_PROVIDER_YEARLY_PRODUCT_ID', 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_yearly')) !== null && (string) $y !== ''
             ? trim((string) $y)
-            : 'com.immigrantknowhow.ikhapp.provider.professional_yearly',
+            : 'com.immigrantknowhow.ikhapp.provider.serviceprofessional_yearly',
         'video_product_prefix' => ($v = env('APPLE_VIDEO_PRODUCT_PREFIX', 'com.immigrantknowhow.ikhapp.video')) !== null && (string) $v !== ''
             ? trim((string) $v)
             : 'com.immigrantknowhow.ikhapp.video',
