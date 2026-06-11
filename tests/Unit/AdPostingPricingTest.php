@@ -14,7 +14,7 @@ class AdPostingPricingTest extends TestCase
 
     public function test_first_three_ads_are_free_then_standard_price_applies(): void
     {
-        config(['ads.free_limit' => 3, 'ads.default_price_cents' => 2499]);
+        config(['ads.free_limit' => 3, 'ads.default_price_cents' => 999]);
 
         $user = User::query()->create([
             'first_name' => 'Test',
@@ -39,6 +39,6 @@ class AdPostingPricingTest extends TestCase
         }
 
         $this->assertSame(0, AdPostingPricing::freeAdsRemaining($user->id));
-        $this->assertSame(2499, AdPostingPricing::priceCentsForNewAd($user->id));
+        $this->assertSame(999, AdPostingPricing::priceCentsForNewAd($user->id));
     }
 }
