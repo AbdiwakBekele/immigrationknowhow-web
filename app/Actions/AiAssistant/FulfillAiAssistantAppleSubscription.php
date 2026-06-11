@@ -5,6 +5,7 @@ namespace App\Actions\AiAssistant;
 use App\Models\AiAssistantSubscription;
 use App\Services\Apple\AppStoreServerClient;
 use App\Support\AppleIapConfig;
+use App\Support\AppleIapPurchaseLogger;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -26,7 +27,22 @@ final class FulfillAiAssistantAppleSubscription
             throw new RuntimeException('Apple AI Assistant product ID is not configured.');
         }
 
-        $payload = $this->appStore->getTransaction($transactionId);
+        try {
+            $payload = $this->appStore->getTransaction($transactionId);
+        } catch (RuntimeException $e) {
+            AppleIapPurchaseLogger::log(
+                purchaseType: 'subscription',
+                userId: $userId,
+                productId: $expectedProductId,
+                transactionId: $transactionId,
+                originalTransactionId: null,
+                environment: $this->appStore->lastSuccessfulEnvironment(),
+                success: false,
+                message: $e->getMessage(),
+            );
+
+            throw $e;
+        }
 
         $bundleId = (string) ($payload['bundleId'] ?? '');
         if ($bundleId !== AppleIapConfig::bundleId()) {
@@ -40,6 +56,7 @@ final class FulfillAiAssistantAppleSubscription
 
         $appleTransactionId = (string) ($payload['transactionId'] ?? $transactionId);
         $originalTransactionId = (string) ($payload['originalTransactionId'] ?? $appleTransactionId);
+        $environment = (string) ($payload['_apple_environment'] ?? $this->appStore->lastSuccessfulEnvironment() ?? 'unknown');
 
         $status = 'active';
         $currentPeriodEnd = null;
@@ -63,7 +80,7 @@ final class FulfillAiAssistantAppleSubscription
             $status = 'canceled';
         }
 
-        return AiAssistantSubscription::upsertForUser($userId, [
+        $subscription = AiAssistantSubscription::upsertForUser($userId, [
             'status' => $status,
             'apple_product_id' => $productId,
             'apple_transaction_id' => $appleTransactionId,
@@ -75,6 +92,19 @@ final class FulfillAiAssistantAppleSubscription
                 'transaction' => $payload,
             ],
         ]);
+
+        AppleIapPurchaseLogger::log(
+            purchaseType: 'subscription',
+            userId: $userId,
+            productId: $productId,
+            transactionId: $appleTransactionId,
+            originalTransactionId: $originalTransactionId,
+            environment: $environment,
+            success: $subscription->isActive(),
+            message: $subscription->isActive() ? null : 'Subscription status: '.$subscription->status,
+        );
+
+        return $subscription;
     }
 
     /**
