@@ -17,6 +17,7 @@ use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
 use App\Models\VideoEmbed;
 use App\Support\AppleIapConfig;
+use App\Support\AppleIapPurchaseLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +26,8 @@ use RuntimeException;
 class MobileAppleIapController extends Controller
 {
     use DetectsMobileClient;
+
+    private const IAP_UNAVAILABLE_MESSAGE = 'Purchases are temporarily unavailable. Please try again later or contact support.';
 
     public function config(Request $request): JsonResponse
     {
@@ -67,12 +70,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'library.apple-purchase')) {
+            return $response;
         }
 
         $userId = (int) $request->user()->id;
@@ -121,12 +120,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'ai-assistant.apple-purchase')) {
+            return $response;
         }
 
         try {
@@ -182,12 +177,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'provider.apple-purchase')) {
+            return $response;
         }
 
         if ((int) $plan->price_cents <= 0) {
@@ -260,12 +251,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'video.apple-purchase')) {
+            return $response;
         }
 
         $price = (float) ($video->price ?? 0);
@@ -318,12 +305,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'ad.apple-purchase')) {
+            return $response;
         }
 
         $productId = $ad->applePublishProductId();
@@ -366,12 +349,8 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
-        if (! AppleIapConfig::configured()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apple In-App Purchase is not configured on the server.',
-                'errors' => (object) [],
-            ], 422);
+        if ($response = $this->ensureAppleIapConfigured($request, 'iap.restore')) {
+            return $response;
         }
 
         $validated = $request->validate([
@@ -537,5 +516,20 @@ class MobileAppleIapController extends Controller
         }
 
         return $provider;
+    }
+
+    private function ensureAppleIapConfigured(Request $request, string $endpoint): ?JsonResponse
+    {
+        if (AppleIapConfig::configured()) {
+            return null;
+        }
+
+        AppleIapPurchaseLogger::logNotConfigured($endpoint, (int) $request->user()->id);
+
+        return response()->json([
+            'success' => false,
+            'message' => self::IAP_UNAVAILABLE_MESSAGE,
+            'errors' => (object) [],
+        ], 422);
     }
 }

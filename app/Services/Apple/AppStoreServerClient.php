@@ -9,9 +9,20 @@ use RuntimeException;
 
 final class AppStoreServerClient
 {
+    public const ENV_PRODUCTION = 'production';
+
+    public const ENV_SANDBOX = 'sandbox';
+
+    private ?string $lastSuccessfulEnvironment = null;
+
     public function __construct(
         private readonly AppStoreJwtFactory $jwtFactory,
     ) {}
+
+    public function lastSuccessfulEnvironment(): ?string
+    {
+        return $this->lastSuccessfulEnvironment;
+    }
 
     /**
      * @return array<string, mixed>
@@ -23,13 +34,21 @@ final class AppStoreServerClient
             throw new RuntimeException('Missing transaction ID.');
         }
 
-        $response = $this->request('GET', '/inApps/v1/transactions/'.rawurlencode($transactionId));
+        $response = $this->requestWithEnvironmentFallback(
+            'GET',
+            '/inApps/v1/transactions/'.rawurlencode($transactionId),
+        );
         $signed = $response['signedTransactionInfo'] ?? null;
         if (! is_string($signed) || trim($signed) === '') {
             throw new RuntimeException('Apple did not return transaction info.');
         }
 
-        return $this->decodeJwsPayload($signed);
+        $payload = $this->decodeJwsPayload($signed);
+        if ($this->lastSuccessfulEnvironment !== null) {
+            $payload['_apple_environment'] = $this->lastSuccessfulEnvironment;
+        }
+
+        return $payload;
     }
 
     /**
@@ -42,19 +61,79 @@ final class AppStoreServerClient
             throw new RuntimeException('Missing original transaction ID.');
         }
 
-        return $this->request(
+        return $this->requestWithEnvironmentFallback(
             'GET',
-            '/inApps/v1/subscriptions/'.rawurlencode($originalTransactionId)
+            '/inApps/v1/subscriptions/'.rawurlencode($originalTransactionId),
         );
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function request(string $method, string $path): array
+    private function requestWithEnvironmentFallback(string $method, string $path): array
+    {
+        $environments = $this->environmentsToTry();
+        $lastError = null;
+
+        foreach ($environments as $environment) {
+            try {
+                $json = $this->requestInEnvironment($method, $path, $environment);
+                $this->lastSuccessfulEnvironment = $environment;
+
+                return $json;
+            } catch (RuntimeException $e) {
+                $lastError = $e;
+
+                if (! $this->shouldTryAlternateEnvironment($e, $environment, $environments)) {
+                    throw $e;
+                }
+            }
+        }
+
+        throw $lastError ?? new RuntimeException('Apple API request failed.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function environmentsToTry(): array
+    {
+        // App Review / sandbox purchases: try production first, then sandbox (21007-style fallback).
+        return [self::ENV_PRODUCTION, self::ENV_SANDBOX];
+    }
+
+    /**
+     * @param  list<string>  $environments
+     */
+    private function shouldTryAlternateEnvironment(
+        RuntimeException $error,
+        string $currentEnvironment,
+        array $environments,
+    ): bool {
+        $currentIndex = array_search($currentEnvironment, $environments, true);
+        if ($currentIndex === false || $currentIndex >= count($environments) - 1) {
+            return false;
+        }
+
+        $message = strtolower($error->getMessage());
+
+        return str_contains($message, 'http 404')
+            || str_contains($message, 'not found')
+            || str_contains($message, 'transaction id')
+            || str_contains($message, 'invalid transaction')
+            || str_contains($message, 'does not exist');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestInEnvironment(string $method, string $path, string $environment): array
     {
         $token = $this->jwtFactory->make();
-        $url = rtrim(AppleIapConfig::apiBaseUrl(), '/').$path;
+        $baseUrl = $environment === self::ENV_SANDBOX
+            ? 'https://api.storekit-sandbox.itunes.apple.com'
+            : 'https://api.storekit.itunes.apple.com';
+        $url = rtrim($baseUrl, '/').$path;
 
         try {
             $response = Http::withToken($token)

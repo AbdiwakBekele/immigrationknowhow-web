@@ -6,6 +6,7 @@ use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Services\Apple\AppStoreServerClient;
 use App\Support\AppleIapConfig;
+use App\Support\AppleIapPurchaseLogger;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -24,7 +25,25 @@ final class FulfillLibraryApplePurchase
             throw new RuntimeException('Apple In-App Purchase is not configured on the server.');
         }
 
-        $payload = $this->appStore->getTransaction($transactionId);
+        $expectedProductId = $item->appleProductId();
+
+        try {
+            $payload = $this->appStore->getTransaction($transactionId);
+        } catch (RuntimeException $e) {
+            AppleIapPurchaseLogger::log(
+                purchaseType: 'ebook',
+                userId: $userId,
+                productId: $expectedProductId,
+                transactionId: $transactionId,
+                originalTransactionId: null,
+                environment: $this->appStore->lastSuccessfulEnvironment(),
+                success: false,
+                message: $e->getMessage(),
+                extra: ['library_item_id' => $item->id, 'library_slug' => $item->slug],
+            );
+
+            throw $e;
+        }
 
         $bundleId = (string) ($payload['bundleId'] ?? '');
         if ($bundleId !== AppleIapConfig::bundleId()) {
@@ -32,7 +51,6 @@ final class FulfillLibraryApplePurchase
         }
 
         $productId = (string) ($payload['productId'] ?? '');
-        $expectedProductId = $item->appleProductId();
         if ($productId === '' || $productId !== $expectedProductId) {
             throw new RuntimeException('Transaction product does not match this library item.');
         }
@@ -44,8 +62,32 @@ final class FulfillLibraryApplePurchase
 
         $appleTransactionId = (string) ($payload['transactionId'] ?? $transactionId);
         $appleOriginalTransactionId = (string) ($payload['originalTransactionId'] ?? $appleTransactionId);
+        $environment = (string) ($payload['_apple_environment'] ?? $this->appStore->lastSuccessfulEnvironment() ?? 'unknown');
 
-        return DB::transaction(function () use ($item, $userId, $appleTransactionId, $appleOriginalTransactionId) {
+        $existingByTransaction = LibraryUserAccess::query()
+            ->where('user_id', $userId)
+            ->where('library_item_id', $item->id)
+            ->where('apple_transaction_id', $appleTransactionId)
+            ->whereNotNull('purchased_at')
+            ->exists();
+
+        if ($existingByTransaction) {
+            AppleIapPurchaseLogger::log(
+                purchaseType: 'ebook',
+                userId: $userId,
+                productId: $productId,
+                transactionId: $appleTransactionId,
+                originalTransactionId: $appleOriginalTransactionId,
+                environment: $environment,
+                success: true,
+                message: 'idempotent_duplicate_transaction',
+                extra: ['library_item_id' => $item->id, 'library_slug' => $item->slug],
+            );
+
+            return true;
+        }
+
+        $granted = DB::transaction(function () use ($item, $userId, $appleTransactionId, $appleOriginalTransactionId) {
             /** @var LibraryUserAccess $access */
             $access = LibraryUserAccess::query()->firstOrCreate(
                 [
@@ -72,5 +114,18 @@ final class FulfillLibraryApplePurchase
 
             return true;
         });
+
+        AppleIapPurchaseLogger::log(
+            purchaseType: 'ebook',
+            userId: $userId,
+            productId: $productId,
+            transactionId: $appleTransactionId,
+            originalTransactionId: $appleOriginalTransactionId,
+            environment: $environment,
+            success: $granted,
+            extra: ['library_item_id' => $item->id, 'library_slug' => $item->slug],
+        );
+
+        return $granted;
     }
 }
