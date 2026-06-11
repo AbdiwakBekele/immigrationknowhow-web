@@ -13,7 +13,7 @@ final class AdPostingPricing
 
     public static function standardPriceCents(): int
     {
-        return max(0, (int) config('ads.default_price_cents', 2499));
+        return max(0, (int) config('ads.default_price_cents', 999));
     }
 
     public static function currency(): string

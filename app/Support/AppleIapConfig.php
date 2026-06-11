@@ -180,6 +180,6 @@ final class AppleIapConfig
 
     public static function adPublishPriceCents(): int
     {
-        return max(0, (int) config('ads.default_price_cents', 2499));
+        return max(0, (int) config('ads.default_price_cents', 999));
     }
 }

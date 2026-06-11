@@ -52,8 +52,8 @@ class AiAssistantController extends Controller
             'isAddonActive' => $this->aiAccount->isSubscribedUser($user),
             'subscriptionSharedAcrossPortals' => true,
             'chatMessages' => $this->aiAccount->chatMessagesForUser($user->id),
-            'monthlyPrice' => '4.99',
-            'currency' => 'USD',
+            'monthlyPrice' => \App\Support\AiAssistantPricing::monthlyPriceAmount(),
+            'currency' => \App\Support\AiAssistantPricing::currency(),
         ]);
     }
 
