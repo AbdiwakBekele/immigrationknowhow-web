@@ -9,49 +9,64 @@ use Tests\TestCase;
 
 class AppleIapConfigTest extends TestCase
 {
-    public function test_library_item_resolves_configured_apple_product_id(): void
-    {
-        $item = new LibraryItem([
-            'apple_product_id' => 'com.example.custom.book',
-            'uuid' => '550e8400-e29b-41d4-a716-446655440000',
-        ]);
-
-        $this->assertSame('com.example.custom.book', $item->appleProductId());
-    }
-
-    public function test_library_item_uses_env_ebook_product_id(): void
+    public function test_library_item_returns_ebook_credit_product_for_standard_paid_title(): void
     {
         config([
-            'services.apple_iap.library_ebook_product_id' => 'EBOOK_TO2026',
-            'services.apple_iap.library_ebook_slug' => '',
+            'library.standard_price_cents' => 499,
+            'services.apple_iap.library_ebook_product_id' => 'com.example.ebook_credit',
         ]);
 
         $item = new LibraryItem([
-            'apple_product_id' => null,
+            'type' => 'ebook',
+            'price' => 4.99,
+            'currency' => 'USD',
+            'is_premium' => false,
+            'is_active' => true,
             'uuid' => '550e8400-e29b-41d4-a716-446655440000',
-            'slug' => 'any-paid-title',
+            'slug' => 'paid-title',
         ]);
 
-        $this->assertSame('EBOOK_TO2026', $item->appleProductId());
+        $this->assertSame('com.example.ebook_credit', $item->appleProductId());
+        $this->assertTrue($item->usesEbookCreditIap());
     }
 
-    public function test_library_item_falls_back_to_uuid_based_product_id(): void
+    public function test_library_item_returns_null_when_price_is_not_standard(): void
     {
         config([
-            'services.apple_iap.library_product_prefix' => 'com.immigrantknowhow.ikhapp.library',
+            'library.standard_price_cents' => 499,
+            'services.apple_iap.library_ebook_product_id' => 'com.example.ebook_credit',
+        ]);
+
+        $item = new LibraryItem([
+            'type' => 'ebook',
+            'price' => 9.99,
+            'currency' => 'USD',
+            'is_premium' => false,
+            'is_active' => true,
+            'uuid' => '550e8400-e29b-41d4-a716-446655440000',
+        ]);
+
+        $this->assertNull($item->appleProductId());
+        $this->assertFalse($item->usesEbookCreditIap());
+    }
+
+    public function test_library_item_returns_null_when_ebook_credit_product_not_configured(): void
+    {
+        config([
+            'library.standard_price_cents' => 499,
             'services.apple_iap.library_ebook_product_id' => '',
-            'services.apple_iap.library_ebook_slug' => '',
         ]);
 
         $item = new LibraryItem([
-            'apple_product_id' => null,
+            'type' => 'ebook',
+            'price' => 4.99,
+            'currency' => 'USD',
+            'is_premium' => false,
+            'is_active' => true,
             'uuid' => '550e8400-e29b-41d4-a716-446655440000',
         ]);
 
-        $this->assertSame(
-            'com.immigrantknowhow.ikhapp.library.550e8400-e29b-41d4-a716-446655440000',
-            $item->appleProductId()
-        );
+        $this->assertNull($item->appleProductId());
     }
 
     public function test_private_key_prefers_file_path_over_inline(): void

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Actions\Library\IssueSignupEbookCoupon;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Mobile\ForgotPasswordRequest;
 use App\Http\Requests\Mobile\LoginRequest;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -48,6 +50,12 @@ class AuthController extends Controller
 
         RoleHelper::ensureExists($effectiveRole);
         $user->assignRole($effectiveRole);
+
+        try {
+            app(IssueSignupEbookCoupon::class)($user, $effectiveRole);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
 
         $token = $user->createToken('mobile')->plainTextToken;
 

@@ -608,22 +608,20 @@ class LibraryItem extends Model
         return $access;
     }
 
-    public function appleProductId(): string
+    public function appleProductId(): ?string
     {
-        $configured = trim((string) ($this->apple_product_id ?? ''));
-        if ($configured !== '') {
-            return $configured;
+        if (! \App\Support\LibraryEbookPricing::itemQualifiesForEbookCredit($this)) {
+            return null;
         }
 
-        $envProductId = AppleIapConfig::libraryEbookProductId();
-        if ($envProductId !== '') {
-            $slugFilter = AppleIapConfig::libraryEbookSlug();
-            if ($slugFilter === '' || $this->slug === $slugFilter) {
-                return $envProductId;
-            }
-        }
+        $creditProductId = AppleIapConfig::libraryEbookCreditProductId();
 
-        return AppleIapConfig::defaultLibraryProductId((string) $this->uuid);
+        return $creditProductId !== '' ? $creditProductId : null;
+    }
+
+    public function usesEbookCreditIap(): bool
+    {
+        return $this->appleProductId() !== null;
     }
 
     public static function supportedTypes(): array

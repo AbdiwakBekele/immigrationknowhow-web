@@ -3,20 +3,25 @@
 namespace App\Http\Controllers\Api\Mobile;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Actions\Library\GrantLibraryItemAccess;
+use App\Actions\Library\RedeemEbookCoupon;
 use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
+use App\Models\EbookCoupon;
 use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Models\User;
 use App\Support\AppleIapConfig;
+use App\Support\LibraryEbookPricing;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use RuntimeException;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Stripe;
 
@@ -131,6 +136,7 @@ class MobileLibraryController extends Controller
         $userAccess = $item->userAccess()->where('user_id', $request->user()->id)->first();
         $hasAccess = (bool) $userAccess?->purchased_at;
         $requiresPaidAccess = $this->requiresPaidAccess($item);
+        $signupCoupon = EbookCoupon::activeSignupCouponForUser((int) $request->user()->id);
 
         $related = LibraryItem::query()
             ->active()
@@ -184,6 +190,10 @@ class MobileLibraryController extends Controller
                 'requires_paid_access' => $requiresPaidAccess,
                 'stripe_configured' => StripeConfig::checkoutConfigured(),
                 'apple_product_id' => $requiresPaidAccess ? $item->appleProductId() : null,
+                'uses_ebook_credit_iap' => $requiresPaidAccess && $item->usesEbookCreditIap(),
+                'ebook_standard_price_cents' => LibraryEbookPricing::standardPriceCents(),
+                'ebook_standard_currency' => LibraryEbookPricing::currency(),
+                'ebook_coupon_available' => $signupCoupon !== null && ! $hasAccess && $requiresPaidAccess,
                 'apple_iap_configured' => AppleIapConfig::configured(),
                 'ios_requires_apple_iap' => true,
                 'manual_payment_pending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
@@ -474,22 +484,61 @@ class MobileLibraryController extends Controller
             ], 422);
         }
 
-        $access = $item->userAccess()->firstOrCreate([
-            'user_id' => $request->user()->id,
+        app(GrantLibraryItemAccess::class)($item, (int) $request->user()->id, [
+            'purchase_amount' => 0,
+            'purchase_currency' => $item->currency ?? 'USD',
+            'purchase_source' => 'free',
         ]);
-
-        if (! $access->purchased_at) {
-            $access->update([
-                'purchased_at' => now(),
-                'purchase_amount' => 0,
-                'purchase_currency' => $item->currency ?? 'USD',
-            ]);
-        }
 
         return response()->json([
             'success' => true,
             'message' => 'Added to your library.',
             'data' => (object) [],
+        ]);
+    }
+
+    public function redeemCoupon(Request $request, LibraryItem $item, RedeemEbookCoupon $redeem): JsonResponse
+    {
+        abort_unless($item->is_active, 404);
+        $this->abortIfNotAvailableInUserRegion($request->user(), $item);
+
+        $validated = $request->validate([
+            'code' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $userId = (int) $request->user()->id;
+        $code = isset($validated['code']) ? strtoupper(trim((string) $validated['code'])) : '';
+
+        $coupon = $code !== ''
+            ? EbookCoupon::query()->where('code', $code)->first()
+            : EbookCoupon::activeSignupCouponForUser($userId);
+
+        if (! $coupon) {
+            return response()->json([
+                'success' => false,
+                'message' => $code !== ''
+                    ? 'Coupon code not found.'
+                    : 'You do not have an active free ebook coupon.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        try {
+            $access = $redeem($coupon, $item, $userId);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Coupon redeemed. This title is now in your library.',
+            'data' => [
+                'has_access' => $access->purchased_at !== null,
+            ],
         ]);
     }
 

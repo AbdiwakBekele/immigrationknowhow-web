@@ -16,8 +16,10 @@ use App\Models\ProviderSubscription;
 use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
 use App\Models\VideoEmbed;
+use App\Support\AdApplePurchaseLogger;
 use App\Support\AppleIapConfig;
 use App\Support\AppleIapPurchaseLogger;
+use App\Support\LibraryEbookPurchaseLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -40,6 +42,8 @@ class MobileAppleIapController extends Controller
                 'sandbox' => AppleIapConfig::useSandbox(),
                 'ai_assistant_product_id' => AppleIapConfig::aiAssistantProductId(),
                 'library_ebook_product_id' => AppleIapConfig::libraryEbookProductId(),
+                'library_ebook_credit_product_id' => AppleIapConfig::libraryEbookCreditProductId(),
+                'library_ebook_standard_price_cents' => \App\Support\LibraryEbookPricing::standardPriceCents(),
                 'library_product_prefix' => trim((string) config('services.apple_iap.library_product_prefix', '')),
                 'provider_product_prefix' => AppleIapConfig::providerProductPrefix(),
                 'provider_monthly_product_id' => AppleIapConfig::providerMonthlyProductId(),
@@ -62,7 +66,12 @@ class MobileAppleIapController extends Controller
             'transaction_id' => ['required', 'string', 'max:128'],
         ]);
 
+        $userId = (int) $request->user()->id;
+        LibraryEbookPurchaseLogger::logControllerRequest($request, $item, $userId);
+
         if (! $this->mobileClientIsIos($request)) {
+            LibraryEbookPurchaseLogger::logControllerRejected($userId, $item, 'not_ios_client');
+
             return response()->json([
                 'success' => false,
                 'message' => 'Apple purchases are only accepted from the iOS app.',
@@ -71,20 +80,31 @@ class MobileAppleIapController extends Controller
         }
 
         if ($response = $this->ensureAppleIapConfigured($request, 'library.apple-purchase')) {
+            LibraryEbookPurchaseLogger::logControllerRejected(
+                $userId,
+                $item,
+                'apple_iap_not_configured',
+                'Purchases are temporarily unavailable. Please try again later or contact support.',
+            );
+
             return $response;
         }
 
-        $userId = (int) $request->user()->id;
+        $transactionId = (string) $validated['transaction_id'];
 
         try {
-            $fulfilled = $fulfill($item, $userId, (string) $validated['transaction_id']);
+            $fulfilled = $fulfill($item, $userId, $transactionId);
         } catch (RuntimeException $e) {
+            LibraryEbookPurchaseLogger::logControllerFailure($userId, $item, $transactionId, $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => config('app.debug') ? $e->getMessage() : 'Could not verify Apple purchase.',
                 'errors' => (object) [],
             ], 422);
         }
+
+        LibraryEbookPurchaseLogger::logControllerSuccess($userId, $item, $fulfilled);
 
         return response()->json([
             'success' => true,
@@ -297,7 +317,12 @@ class MobileAppleIapController extends Controller
             'transaction_id' => ['required', 'string', 'max:128'],
         ]);
 
+        $userId = (int) $request->user()->id;
+        AdApplePurchaseLogger::logControllerRequest($request, $ad, $userId);
+
         if (! $this->mobileClientIsIos($request)) {
+            AdApplePurchaseLogger::logControllerRejected($userId, $ad, 'not_ios_client');
+
             return response()->json([
                 'success' => false,
                 'message' => 'Apple purchases are only accepted from the iOS app.',
@@ -306,27 +331,62 @@ class MobileAppleIapController extends Controller
         }
 
         if ($response = $this->ensureAppleIapConfigured($request, 'ad.apple-purchase')) {
+            AdApplePurchaseLogger::logControllerRejected(
+                $userId,
+                $ad,
+                'apple_iap_not_configured',
+                'Purchases are temporarily unavailable. Please try again later or contact support.',
+            );
+
             return $response;
+        }
+
+        if ($ad->status === 'pending_payment' && (int) $ad->price_cents > 0) {
+            $standardPriceCents = AppleIapConfig::adPublishPriceCents();
+            if ((int) $ad->price_cents !== $standardPriceCents) {
+                $previousPriceCents = (int) $ad->price_cents;
+                $ad->update([
+                    'price_cents' => $standardPriceCents,
+                    'currency' => strtoupper((string) config('ads.currency', 'USD')),
+                ]);
+                $ad->refresh();
+                AdApplePurchaseLogger::logPriceNormalized($userId, $ad, $previousPriceCents);
+            }
         }
 
         $productId = $ad->applePublishProductId();
         if ($productId === null) {
+            AdApplePurchaseLogger::logControllerRejected(
+                $userId,
+                $ad,
+                'iap_product_unavailable',
+                'This ad is not available for In-App Purchase.',
+            );
+
             return response()->json([
                 'success' => false,
-                'message' => 'This ad is not available for In-App Purchase.',
+                'message' => config('app.debug')
+                    ? 'This ad is not available for In-App Purchase (check price_cents and APPLE_AD_PUBLISH_PRODUCT_ID).'
+                    : 'This ad is not available for In-App Purchase.',
                 'errors' => (object) [],
             ], 422);
         }
 
+        $transactionId = (string) $validated['transaction_id'];
+
         try {
-            $fulfilled = $fulfill($ad, (int) $request->user()->id, (string) $validated['transaction_id']);
+            $fulfilled = $fulfill($ad, $userId, $transactionId);
         } catch (RuntimeException $e) {
+            AdApplePurchaseLogger::logControllerFailure($userId, $ad, $transactionId, $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => config('app.debug') ? $e->getMessage() : 'Could not verify Apple purchase.',
                 'errors' => (object) [],
             ], 422);
         }
+
+        AdApplePurchaseLogger::logControllerSuccess($userId, $ad->fresh(), $fulfilled);
 
         return response()->json([
             'success' => true,
@@ -373,9 +433,15 @@ class MobileAppleIapController extends Controller
         $providerRestored = false;
         $errors = [];
 
+        $ebookCreditProductId = AppleIapConfig::libraryEbookCreditProductId();
+
         foreach ($validated['library'] ?? [] as $entry) {
             $productId = (string) ($entry['product_id'] ?? '');
             $transactionId = (string) ($entry['transaction_id'] ?? '');
+
+            if ($ebookCreditProductId !== '' && $productId === $ebookCreditProductId) {
+                continue;
+            }
 
             $item = LibraryItem::query()
                 ->where('apple_product_id', $productId)

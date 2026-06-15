@@ -101,6 +101,12 @@ final class AppleIapConfig
 
     public static function libraryEbookProductId(): string
     {
+        return self::libraryEbookCreditProductId();
+    }
+
+    /** Consumable IAP: one credit redeems for one library title at the standard price. */
+    public static function libraryEbookCreditProductId(): string
+    {
         return trim((string) config('services.apple_iap.library_ebook_product_id', ''));
     }
 
