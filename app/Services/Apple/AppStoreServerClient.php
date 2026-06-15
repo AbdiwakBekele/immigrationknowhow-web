@@ -98,7 +98,13 @@ final class AppStoreServerClient
      */
     private function environmentsToTry(): array
     {
-        // App Review / sandbox purchases: try production first, then sandbox (21007-style fallback).
+        // Sandbox StoreKit purchases only exist on the sandbox API. When developing locally
+        // (APPLE_IAP_SANDBOX=true), hit sandbox first so we do not fail on production HTTP 401.
+        if (AppleIapConfig::useSandbox()) {
+            return [self::ENV_SANDBOX, self::ENV_PRODUCTION];
+        }
+
+        // App Review / live: production first, then sandbox fallback for receipt-style mismatches.
         return [self::ENV_PRODUCTION, self::ENV_SANDBOX];
     }
 
@@ -117,7 +123,8 @@ final class AppStoreServerClient
 
         $message = strtolower($error->getMessage());
 
-        return str_contains($message, 'http 404')
+        return str_contains($message, 'http 401')
+            || str_contains($message, 'http 404')
             || str_contains($message, 'not found')
             || str_contains($message, 'transaction id')
             || str_contains($message, 'invalid transaction')
@@ -149,7 +156,17 @@ final class AppStoreServerClient
         }
 
         if (! $response->successful()) {
-            throw new RuntimeException('Apple API returned HTTP '.$response->status().'.');
+            $appleError = $response->json('errorMessage') ?? $response->json('errorCode') ?? null;
+            $detail = is_string($appleError) || is_numeric($appleError)
+                ? (string) $appleError
+                : trim((string) $response->body());
+
+            $message = 'Apple API returned HTTP '.$response->status().'.';
+            if ($detail !== '') {
+                $message .= ' '.$detail;
+            }
+
+            throw new RuntimeException($message);
         }
 
         $json = $response->json();

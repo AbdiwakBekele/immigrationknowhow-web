@@ -18,6 +18,8 @@ class EmailTemplate extends Model
 
     public const EVENT_PASSWORD_RESET = 'password_reset';
 
+    public const EVENT_EBOOK_COUPON = 'ebook_coupon';
+
     protected $fillable = [
         'event_key',
         'role',
@@ -43,6 +45,7 @@ class EmailTemplate extends Model
             self::EVENT_WELCOME,
             self::EVENT_ACCOUNT_ACTIVATION,
             self::EVENT_PASSWORD_RESET,
+            self::EVENT_EBOOK_COUPON,
         ];
     }
 

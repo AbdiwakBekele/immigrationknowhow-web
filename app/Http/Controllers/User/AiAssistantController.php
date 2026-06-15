@@ -7,6 +7,7 @@ use App\Models\AiAssistantMessage;
 use App\Models\AiAssistantSubscription;
 use App\Services\Ai\AiAssistantAccountService;
 use App\Services\Ai\ServiceSeekerAssistantService;
+use App\Support\AiAssistantPricing;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -89,7 +90,7 @@ class AiAssistantController extends Controller
                         'name' => 'AI Assistant Add-on',
                         'description' => 'AI assistant for your account (service seeker and provider)',
                     ],
-                    'unit_amount' => 499,
+                    'unit_amount' => AiAssistantPricing::monthlyPriceCents(),
                     'recurring' => [
                         'interval' => 'month',
                     ],

@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Notifications\RoleAwareTransactionalEmailNotification;
 use App\Models\EmailTemplate;
+use App\Actions\Library\IssueSignupEbookCoupon;
 use App\Support\RoleHelper;
 use App\Support\ServiceTypeOptions;
 use App\Support\UserHomeUrl;
@@ -99,6 +100,11 @@ class RegisterController extends Controller
 
         RoleHelper::ensureExists($effectiveRole);
         $user->assignRole($effectiveRole);
+        try {
+            app(IssueSignupEbookCoupon::class)($user, $effectiveRole);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
         try {
             $user->notify(new RoleAwareTransactionalEmailNotification(EmailTemplate::EVENT_WELCOME, $user, [
                 'role' => $effectiveRole,

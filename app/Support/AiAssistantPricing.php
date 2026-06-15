@@ -3,12 +3,12 @@
 namespace App\Support;
 
 /**
- * Display pricing for the AI Assistant subscription (mobile + web).
- * Matches the default provider monthly plan ($9.99) — no separate env var.
+ * Display and Stripe fallback pricing for the AI Assistant subscription (mobile + web).
+ * Matches App Store Connect ($4.99/month) — no separate env var.
  */
 final class AiAssistantPricing
 {
-    private const MONTHLY_PRICE_CENTS = 999;
+    private const MONTHLY_PRICE_CENTS = 499;
 
     private const CURRENCY = 'USD';
 

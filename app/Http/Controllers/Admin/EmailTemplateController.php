@@ -167,6 +167,7 @@ class EmailTemplateController extends Controller
             EmailTemplate::EVENT_INVITE => 'Invite emails',
             EmailTemplate::EVENT_WELCOME => 'Welcome emails',
             EmailTemplate::EVENT_ACCOUNT_ACTIVATION => 'Account activation emails',
+            EmailTemplate::EVENT_EBOOK_COUPON => 'Free ebook coupon emails',
             default => $eventKey,
         };
     }

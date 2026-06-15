@@ -113,6 +113,7 @@ Route::prefix('mobile')->group(function () {
         Route::post('/items/{item:slug}/checkout', [MobileLibraryController::class, 'stripeCheckout']);
         Route::post('/items/{item:slug}/confirm-checkout', [MobileLibraryController::class, 'confirmCheckout']);
         Route::post('/items/{item:slug}/apple-purchase', [MobileAppleIapController::class, 'purchaseLibraryItem']);
+        Route::post('/items/{item:slug}/redeem-coupon', [MobileLibraryController::class, 'redeemCoupon']);
         Route::post('/items/{item:slug}/grant-free', [MobileLibraryController::class, 'grantFree']);
         Route::post('/items/{item:slug}/progress', [MobileLibraryController::class, 'updateProgress']);
         Route::get('/items/{item:slug}/summary', [MobileLibraryController::class, 'summary']);

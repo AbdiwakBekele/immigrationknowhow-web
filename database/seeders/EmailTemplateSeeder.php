@@ -69,6 +69,17 @@ class EmailTemplateSeeder extends Seeder
             'is_active' => true,
         ];
 
+        $templates[] = [
+            'event_key' => EmailTemplate::EVENT_EBOOK_COUPON,
+            'role' => null,
+            'name' => 'Signup free ebook coupon',
+            'subject' => 'Your free ebook coupon — {{company_name}}',
+            'body' => 'Hi {{first_name}}, welcome! Redeem coupon {{coupon_code}} in the app to unlock your first ebook for free. Browse the library and enter this code on any paid title.',
+            'action_label' => 'Browse library',
+            'action_url' => '{{library_link}}',
+            'is_active' => true,
+        ];
+
         foreach (UserRole::cases() as $role) {
             $templates[] = [
                 'event_key' => EmailTemplate::EVENT_INVITE,
@@ -102,6 +113,19 @@ class EmailTemplateSeeder extends Seeder
                 'action_url' => '{{activation_link}}',
                 'is_active' => true,
             ];
+
+            if (in_array($role->value, ['user', 'provider'], true)) {
+                $templates[] = [
+                    'event_key' => EmailTemplate::EVENT_EBOOK_COUPON,
+                    'role' => $role->value,
+                    'name' => ucfirst($role->value).' free ebook coupon',
+                    'subject' => 'Your free ebook coupon — {{company_name}}',
+                    'body' => 'Hi {{first_name}}, your one-time coupon is {{coupon_code}}. Open the library in the app, choose any ebook, and redeem it for free access.',
+                    'action_label' => 'Browse library',
+                    'action_url' => '{{library_link}}',
+                    'is_active' => true,
+                ];
+            }
         }
 
         return $templates;
