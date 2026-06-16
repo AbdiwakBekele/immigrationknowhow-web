@@ -7,9 +7,9 @@ use App\Models\ServiceProvider;
 use App\Models\SubscriptionPlan;
 use App\Services\Apple\AppStoreServerClient;
 use App\Support\AppleIapConfig;
+use App\Support\ProviderAppleSubscriptionLogger;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 final class FulfillProviderAppleSubscription
@@ -20,24 +20,42 @@ final class FulfillProviderAppleSubscription
 
     public function __invoke(ServiceProvider $provider, SubscriptionPlan $plan, int $userId, string $transactionId): ProviderSubscription
     {
+        ProviderAppleSubscriptionLogger::logFulfillStarted($provider, $plan, $userId, $transactionId);
+
         if (! AppleIapConfig::configured()) {
+            ProviderAppleSubscriptionLogger::logValidationFailed($userId, 'apple_iap_not_configured', [
+                'provider_id' => $provider->id,
+                'plan_id' => $plan->id,
+            ]);
             throw new RuntimeException('Apple In-App Purchase is not configured on the server.');
         }
 
         $expectedProductId = $plan->appleProductId();
         $payload = $this->appStore->getTransaction($transactionId);
+        ProviderAppleSubscriptionLogger::logApplePayload($userId, $transactionId, $payload);
 
         $bundleId = (string) ($payload['bundleId'] ?? '');
         if ($bundleId !== AppleIapConfig::bundleId()) {
+            ProviderAppleSubscriptionLogger::logValidationFailed($userId, 'bundle_id_mismatch', [
+                'expected_bundle_id' => AppleIapConfig::bundleId(),
+                'actual_bundle_id' => $bundleId,
+            ]);
             throw new RuntimeException('Transaction bundle ID does not match this app.');
         }
 
         $productId = (string) ($payload['productId'] ?? '');
         if ($productId === '' || $productId !== $expectedProductId) {
+            ProviderAppleSubscriptionLogger::logValidationFailed($userId, 'product_id_mismatch', [
+                'expected_product_id' => $expectedProductId,
+                'actual_product_id' => $productId,
+            ]);
             throw new RuntimeException('Transaction product does not match this subscription plan.');
         }
 
         if ($payload['revocationDate'] ?? null) {
+            ProviderAppleSubscriptionLogger::logValidationFailed($userId, 'transaction_revoked', [
+                'revocation_date' => $payload['revocationDate'],
+            ]);
             throw new RuntimeException('This purchase was revoked.');
         }
 
@@ -54,16 +72,21 @@ final class FulfillProviderAppleSubscription
             $status = $statusInfo['status'];
             $currentPeriodEnd = $statusInfo['current_period_end'] ?? $currentPeriodEnd;
             $cancelAtPeriodEnd = $statusInfo['cancel_at_period_end'];
-        } catch (RuntimeException $e) {
-            Log::warning('provider.apple_subscription_status_lookup_failed', [
-                'provider_id' => $provider->id,
-                'plan_id' => $plan->id,
-                'original_transaction_id' => $originalTransactionId,
-                'message' => $e->getMessage(),
+            ProviderAppleSubscriptionLogger::logStatusResolved($userId, [
+                'status' => $status,
+                'current_period_end' => $currentPeriodEnd?->toIso8601String(),
+                'cancel_at_period_end' => $cancelAtPeriodEnd,
             ]);
+        } catch (RuntimeException $e) {
+            ProviderAppleSubscriptionLogger::logStatusLookupFailed(
+                $provider->id,
+                $plan->id,
+                $originalTransactionId,
+                $e->getMessage(),
+            );
         }
 
-        return DB::transaction(function () use (
+        $record = DB::transaction(function () use (
             $provider,
             $plan,
             $userId,
@@ -118,6 +141,10 @@ final class FulfillProviderAppleSubscription
 
             return $record->fresh(['plan']);
         });
+
+        ProviderAppleSubscriptionLogger::logFulfillSuccess($userId, $record);
+
+        return $record;
     }
 
     private function defaultPeriodEnd(SubscriptionPlan $plan): CarbonImmutable

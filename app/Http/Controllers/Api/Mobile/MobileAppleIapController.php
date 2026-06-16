@@ -20,6 +20,7 @@ use App\Support\AdApplePurchaseLogger;
 use App\Support\AppleIapConfig;
 use App\Support\AppleIapPurchaseLogger;
 use App\Support\LibraryEbookPurchaseLogger;
+use App\Support\ProviderAppleSubscriptionLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -177,7 +178,11 @@ class MobileAppleIapController extends Controller
         SubscriptionPlan $plan,
         FulfillProviderAppleSubscription $fulfill,
     ): JsonResponse {
+        $userId = (int) $request->user()->id;
+
         if (! in_array((string) $plan->status, ['active'], true)) {
+            ProviderAppleSubscriptionLogger::logControllerRejected('plan_not_active', $userId, $plan);
+
             return response()->json([
                 'success' => false,
                 'message' => 'This plan is not available.',
@@ -190,6 +195,8 @@ class MobileAppleIapController extends Controller
         ]);
 
         if (! $this->mobileClientIsIos($request)) {
+            ProviderAppleSubscriptionLogger::logControllerRejected('not_ios_client', $userId, $plan);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Apple purchases are only accepted from the iOS app.',
@@ -198,10 +205,14 @@ class MobileAppleIapController extends Controller
         }
 
         if ($response = $this->ensureAppleIapConfigured($request, 'provider.apple-purchase')) {
+            ProviderAppleSubscriptionLogger::logControllerRejected('apple_iap_not_configured', $userId, $plan);
+
             return $response;
         }
 
         if ((int) $plan->price_cents <= 0) {
+            ProviderAppleSubscriptionLogger::logControllerRejected('free_plan', $userId, $plan);
+
             return response()->json([
                 'success' => false,
                 'message' => 'This plan is free and does not require purchase.',
@@ -210,8 +221,12 @@ class MobileAppleIapController extends Controller
         }
 
         $provider = $this->resolveProvider($request);
+        ProviderAppleSubscriptionLogger::logControllerRequest($request, $plan, $provider);
+
         $types = is_array($provider->service_types) ? $provider->service_types : [];
         if (! SubscriptionPlan::query()->whereKey($plan->id)->forProviderServiceTypeValues($types)->exists()) {
+            ProviderAppleSubscriptionLogger::logControllerRejected('service_type_mismatch', $userId, $plan);
+
             return response()->json([
                 'success' => false,
                 'message' => 'This plan is not available for your service types.',
@@ -219,14 +234,18 @@ class MobileAppleIapController extends Controller
             ], 422);
         }
 
+        $transactionId = (string) $validated['transaction_id'];
+
         try {
             $subscription = $fulfill(
                 $provider,
                 $plan,
-                (int) $request->user()->id,
-                (string) $validated['transaction_id'],
+                $userId,
+                $transactionId,
             );
         } catch (RuntimeException $e) {
+            ProviderAppleSubscriptionLogger::logControllerFailure($userId, $plan, $transactionId, $e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => config('app.debug') ? $e->getMessage() : 'Could not verify Apple subscription.',
@@ -235,12 +254,21 @@ class MobileAppleIapController extends Controller
         }
 
         if (! in_array((string) $subscription->status, ['active', 'trialing', 'past_due'], true)) {
+            ProviderAppleSubscriptionLogger::logControllerRejected(
+                'subscription_not_active',
+                $userId,
+                $plan,
+                'Status after fulfillment: '.$subscription->status,
+            );
+
             return response()->json([
                 'success' => false,
                 'message' => 'Subscription is not active yet. Try Restore Purchases or contact support.',
                 'errors' => (object) [],
             ], 422);
         }
+
+        ProviderAppleSubscriptionLogger::logControllerSuccess($userId, $subscription, $plan);
 
         return response()->json([
             'success' => true,
@@ -499,9 +527,12 @@ class MobileAppleIapController extends Controller
 
                 if (! $plan) {
                     $errors[] = "Unknown provider plan product: {$productId}";
+                    ProviderAppleSubscriptionLogger::logRestoreResult($userId, $provider->id, false, "Unknown product: {$productId}");
 
                     continue;
                 }
+
+                ProviderAppleSubscriptionLogger::logRestoreAttempt($userId, $provider->id, $productId, $transactionId);
 
                 try {
                     $subscription = app(FulfillProviderAppleSubscription::class)(
@@ -512,9 +543,18 @@ class MobileAppleIapController extends Controller
                     );
                     if (in_array((string) $subscription->status, ['active', 'trialing', 'past_due'], true)) {
                         $providerRestored = true;
+                        ProviderAppleSubscriptionLogger::logRestoreResult($userId, $provider->id, true);
+                    } else {
+                        ProviderAppleSubscriptionLogger::logRestoreResult(
+                            $userId,
+                            $provider->id,
+                            false,
+                            'Status after restore: '.$subscription->status,
+                        );
                     }
                 } catch (RuntimeException $e) {
                     $errors[] = $e->getMessage();
+                    ProviderAppleSubscriptionLogger::logRestoreResult($userId, $provider->id, false, $e->getMessage());
                 }
             }
         }
