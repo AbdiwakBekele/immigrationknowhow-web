@@ -7,6 +7,7 @@ use App\Actions\Advertiser\FulfillAdvertiserStripeCheckout;
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdPayment;
+use App\Support\AdImageUpload;
 use App\Support\AdPostingPricing;
 use App\Support\StripeConfig;
 use Illuminate\Http\RedirectResponse;
@@ -342,7 +343,7 @@ class AdController extends Controller
             'description' => ['required', 'string', 'max:5000'],
             'cta_url' => ['required', 'url:http,https', 'max:2048'],
             'image_url' => ['nullable', 'string', 'max:2048'],
-            'image_file' => ['nullable', 'image', 'max:5120'],
+            'image_file' => AdImageUpload::rules(),
             'clear_image' => ['sometimes', 'boolean'],
         ]);
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\AdAnalyticsEvent;
 use App\Models\AdPayment;
+use App\Support\AdImageUpload;
 use App\Support\AdPostingPricing;
 use App\Support\AppleIapConfig;
 use App\Support\StripeConfig;
@@ -374,7 +375,7 @@ class MobileAdsController extends Controller
             'description' => ['required', 'string', 'max:5000'],
             'cta_url' => ['required', 'url:http,https', 'max:2048'],
             'image_url' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'string', 'max:2048'],
-            'image' => [$isCreate ? 'nullable' : 'sometimes', 'nullable', 'image', 'max:5120'],
+            'image' => AdImageUpload::rules($isCreate),
             'clear_image' => ['sometimes', 'boolean'],
         ];
         $validated = $request->validate($rules);

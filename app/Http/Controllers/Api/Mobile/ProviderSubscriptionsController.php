@@ -42,6 +42,16 @@ class ProviderSubscriptionsController extends Controller
             ->with('plan')
             ->first();
 
+        $pendingSubscription = ProviderSubscription::query()
+            ->where('service_provider_id', $provider->id)
+            ->where('status', 'incomplete')
+            ->latest('id')
+            ->with('plan')
+            ->first();
+
+        $hasActiveSubscription = $currentSubscription !== null;
+        $hasPaidPlans = $plans->contains(fn (SubscriptionPlan $plan) => (int) $plan->price_cents > 0);
+
         $history = ProviderSubscription::query()
             ->where('service_provider_id', $provider->id)
             ->with(['plan', 'payments' => function ($query) {
@@ -59,6 +69,9 @@ class ProviderSubscriptionsController extends Controller
                     'apple_product_id' => (int) $plan->price_cents > 0 ? $plan->appleProductId() : null,
                 ]))->values(),
                 'current_subscription' => $currentSubscription,
+                'pending_subscription' => $pendingSubscription,
+                'has_active_subscription' => $hasActiveSubscription,
+                'requires_subscription' => $hasPaidPlans && ! $hasActiveSubscription,
                 'subscription_history' => $history,
                 'stripe_billing_configured' => StripeConfig::hasSecretKey(),
                 'apple_iap_configured' => AppleIapConfig::configured(),
