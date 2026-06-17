@@ -223,6 +223,23 @@ class MobileAppleIapController extends Controller
         $provider = $this->resolveProvider($request);
         ProviderAppleSubscriptionLogger::logControllerRequest($request, $plan, $provider);
 
+        $providerProductId = $plan->appleProductId();
+        $aiAssistantProductId = AppleIapConfig::aiAssistantProductId();
+        if ($providerProductId === '' || ($aiAssistantProductId !== '' && $providerProductId === $aiAssistantProductId)) {
+            ProviderAppleSubscriptionLogger::logControllerRejected(
+                'provider_product_id_invalid_or_ai_conflict',
+                $userId,
+                $plan,
+                'Resolved provider Apple product ID is invalid or matches AI Assistant product ID.',
+            );
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Provider subscription product is not configured correctly. Please contact support.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
         $types = is_array($provider->service_types) ? $provider->service_types : [];
         if (! SubscriptionPlan::query()->whereKey($plan->id)->forProviderServiceTypeValues($types)->exists()) {
             ProviderAppleSubscriptionLogger::logControllerRejected('service_type_mismatch', $userId, $plan);
@@ -275,7 +292,7 @@ class MobileAppleIapController extends Controller
             'message' => 'Provider subscription is active.',
             'data' => [
                 'subscription' => $subscription,
-                'apple_product_id' => $plan->appleProductId(),
+                'apple_product_id' => $providerProductId,
             ],
         ]);
     }

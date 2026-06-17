@@ -132,7 +132,7 @@ final class FulfillProviderAppleSubscription
             $record->save();
 
             if (in_array((string) $record->status, ['active', 'trialing', 'past_due'], true)) {
-                $provider->update([
+                $provider->updateExistingColumns([
                     'subscription_plan' => $plan->name,
                     'subscription_expires_at' => $currentPeriodEnd,
                     'stripe_subscription_status' => 'active',

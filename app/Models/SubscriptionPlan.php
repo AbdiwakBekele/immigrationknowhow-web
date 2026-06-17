@@ -92,11 +92,7 @@ class SubscriptionPlan extends Model
 
     public function appleProductId(): string
     {
-        $configured = trim((string) ($this->apple_product_id ?? ''));
-        if ($configured !== '') {
-            return $configured;
-        }
-
+        // Provider subscriptions must be strictly env-driven with no fallback.
         return AppleIapConfig::providerProductIdForBillingCycle($this->billing_cycle, (string) $this->uuid);
     }
 

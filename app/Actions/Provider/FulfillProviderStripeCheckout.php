@@ -67,7 +67,7 @@ final class FulfillProviderStripeCheckout
 
             $provider = ServiceProvider::query()->find($providerId);
             if ($provider) {
-                $provider->update([
+                $provider->updateExistingColumns([
                     'stripe_customer_id' => $customerId,
                     'stripe_subscription_id' => $subscriptionId,
                     'stripe_subscription_status' => 'active',

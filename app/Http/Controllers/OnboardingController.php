@@ -427,7 +427,7 @@ class OnboardingController extends Controller
                     ]);
 
                     if ($selectedTotalCents <= 0) {
-                        $serviceProvider->update([
+                        $serviceProvider->updateExistingColumns([
                             'subscription_plan' => $selectedPlan->name,
                             'subscription_expires_at' => null,
                             'stripe_subscription_status' => 'active',

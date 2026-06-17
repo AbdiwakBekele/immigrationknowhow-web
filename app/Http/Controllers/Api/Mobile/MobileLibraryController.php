@@ -45,7 +45,8 @@ class MobileLibraryController extends Controller
 
         $query = LibraryItem::query()
             ->with(['category', 'libraryAuthor'])
-            ->active();
+            ->active()
+            ->availableInRegion(LibraryItem::regionForCountry($user->country ?? null));
 
         if (! empty($validated['search'])) {
             $query->search($validated['search']);
@@ -140,6 +141,7 @@ class MobileLibraryController extends Controller
 
         $related = LibraryItem::query()
             ->active()
+            ->availableInRegion(LibraryItem::regionForCountry($request->user()->country ?? null))
             ->where('id', '!=', $item->id)
             ->where('category_id', $item->category_id)
             ->with('libraryAuthor')
@@ -208,9 +210,12 @@ class MobileLibraryController extends Controller
         $section = $request->query('section', 'purchased');
         $perPage = min(24, max(1, (int) $request->query('per_page', 12)));
 
+        $userRegion = LibraryItem::regionForCountry($user->country ?? null);
+
         if ($section === 'available') {
             $paginator = LibraryItem::query()
                 ->active()
+                ->availableInRegion($userRegion)
                 ->where(function ($q) use ($user) {
                     $q->whereDoesntHave('userAccess', function ($access) use ($user) {
                         $access->where('user_id', $user->id)->whereNotNull('purchased_at');
@@ -641,6 +646,10 @@ class MobileLibraryController extends Controller
 
     private function abortIfNotAvailableInUserRegion(User $user, LibraryItem $item): void
     {
+        if ($this->userHasAccess($user->id, $item)) {
+            return;
+        }
+
         $region = LibraryItem::regionForCountry($user->country ?? null);
         if ($region === null) {
             return;

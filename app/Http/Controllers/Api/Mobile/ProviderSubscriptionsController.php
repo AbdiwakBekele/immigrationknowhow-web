@@ -131,7 +131,7 @@ class ProviderSubscriptionsController extends Controller
             ]);
             $providerSubscription->save();
 
-            $provider->update([
+            $provider->updateExistingColumns([
                 'subscription_plan' => $plan->name,
                 'subscription_expires_at' => null,
                 'stripe_subscription_status' => 'active',
