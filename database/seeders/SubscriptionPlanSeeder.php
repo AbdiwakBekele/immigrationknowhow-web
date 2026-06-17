@@ -40,7 +40,7 @@ class SubscriptionPlanSeeder extends Seeder
                 'slug' => 'professional-yearly',
                 'name' => 'Professional (Annual)',
                 'description' => 'Same Professional features with annual billing and a lower effective monthly rate.',
-                'price_cents' => 9900,
+                'price_cents' => 9999,
                 'currency' => 'USD',
                 'billing_cycle' => 'yearly',
                 'features' => [
