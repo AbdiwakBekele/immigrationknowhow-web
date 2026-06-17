@@ -197,7 +197,7 @@ const changePlan = (planUuid) => {
             >
                 Your first subscription includes
                 <strong>{{ providerSubscriptionPromo.trial_months }} months free</strong>. After the trial,
-                billing continues at the plan rate ($9.99/month or $99/year).
+                billing continues at the plan rate ($9.99/month or $99.99/year).
             </p>
 
             <div v-if="freePlans.length" class="space-y-3">

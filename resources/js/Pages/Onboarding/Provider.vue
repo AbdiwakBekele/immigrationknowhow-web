@@ -934,7 +934,7 @@ const goBack = () => {
                     >
                         New providers get
                         <strong>{{ providerSubscriptionPromo.trial_months }} months free</strong>, then
-                        $9.99/month or $99/year depending on the plan you choose.
+                        $9.99/month or $99.99/year depending on the plan you choose.
                     </p>
 
                     <div v-if="selectablePlans.length === 0" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
