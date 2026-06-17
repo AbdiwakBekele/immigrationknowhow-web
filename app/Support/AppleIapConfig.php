@@ -143,25 +143,23 @@ final class AppleIapConfig
 
     /**
      * Resolve the App Store product ID for a provider subscription plan.
-     * Prefers env monthly/yearly IDs; falls back to prefix + plan UUID.
+     * Strictly uses env monthly/yearly IDs (no fallback).
      */
     public static function providerProductIdForBillingCycle(?string $billingCycle, string $planUuid): string
     {
         $cycle = strtolower(trim((string) $billingCycle));
 
-        if ($cycle === 'yearly') {
+        if (in_array($cycle, ['year', 'yearly', 'annual'], true)) {
             $yearly = self::providerYearlyProductId();
-            if ($yearly !== '') {
-                return $yearly;
-            }
-        } else {
-            $monthly = self::providerMonthlyProductId();
-            if ($monthly !== '') {
-                return $monthly;
-            }
+            return $yearly;
         }
 
-        return self::defaultProviderProductId($planUuid);
+        if (in_array($cycle, ['month', 'monthly'], true)) {
+            $monthly = self::providerMonthlyProductId();
+            return $monthly;
+        }
+
+        return '';
     }
 
     public static function defaultProviderProductId(string $planUuid): string

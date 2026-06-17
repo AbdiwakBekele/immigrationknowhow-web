@@ -18,6 +18,8 @@ use Spatie\Sluggable\SlugOptions;
 class ServiceProvider extends Model
 {
     use HasFactory, HasSlug, SoftDeletes;
+    /** @var array<string, bool>|null */
+    private static ?array $columnMapCache = null;
 
     protected $fillable = [
         'user_id',
@@ -354,6 +356,55 @@ class ServiceProvider extends Model
         return in_array((string) $this->stripe_subscription_status, ['active', 'trialing', 'past_due'], true)
             || ($this->subscription_plan &&
                 (! $this->subscription_expires_at || $this->subscription_expires_at->isFuture()));
+    }
+
+    /**
+     * Filters attributes to only columns that exist on the service_providers table.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public static function existingColumnsOnly(array $attributes): array
+    {
+        if (self::$columnMapCache === null) {
+            self::$columnMapCache = [];
+            foreach (array_keys((new self)->getAttributes()) as $key) {
+                self::$columnMapCache[$key] = true;
+            }
+            // Fallback for environments where model attributes are empty pre-hydration.
+            if (self::$columnMapCache === []) {
+                $candidates = [
+                    'stripe_customer_id',
+                    'stripe_subscription_id',
+                    'stripe_subscription_status',
+                    'stripe_current_period_end',
+                    'subscription_plan',
+                    'subscription_expires_at',
+                ];
+                foreach ($candidates as $candidate) {
+                    self::$columnMapCache[$candidate] = Schema::hasColumn('service_providers', $candidate);
+                }
+            }
+        }
+
+        return array_filter(
+            $attributes,
+            fn ($value, $key) => isset(self::$columnMapCache[(string) $key]) && self::$columnMapCache[(string) $key] === true,
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateExistingColumns(array $attributes): bool
+    {
+        $safe = self::existingColumnsOnly($attributes);
+        if ($safe === []) {
+            return true;
+        }
+
+        return $this->update($safe);
     }
 
     public function incrementProfileViews(): void

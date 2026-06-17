@@ -82,7 +82,7 @@ final class SyncProviderStripeSubscription
             );
         }
 
-        $provider->update([
+        $provider->updateExistingColumns([
             'stripe_customer_id' => is_string($subscription->customer) ? $subscription->customer : null,
             'stripe_subscription_id' => $subscription->id,
             'stripe_subscription_status' => $status,
