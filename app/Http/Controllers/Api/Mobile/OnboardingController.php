@@ -591,6 +591,17 @@ class OnboardingController extends Controller
 
         if ($providerForCheckout instanceof ServiceProvider && $planForCheckout instanceof SubscriptionPlan) {
             if ($this->mobileClientIsIos($request)) {
+                Log::info('mobile.onboarding.complete.requires_apple_iap', [
+                    'user_id' => $user->id,
+                    'provider_id' => $providerForCheckout->id,
+                    'plan_uuid' => $planForCheckout->uuid,
+                    'plan_name' => $planForCheckout->name,
+                    'plan_billing_cycle' => $planForCheckout->billing_cycle,
+                    'plan_price_cents' => (int) $planForCheckout->price_cents,
+                    'apple_product_id' => $planForCheckout->appleProductId(),
+                    'apple_iap' => AppleIapConfig::configurationDiagnostics(),
+                ]);
+
                 return $this->success('In-App Purchase required', [
                     'requires_apple_iap' => true,
                     'plan_uuid' => (string) $planForCheckout->uuid,

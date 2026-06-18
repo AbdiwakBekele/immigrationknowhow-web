@@ -31,7 +31,18 @@ final class FulfillProviderAppleSubscription
         }
 
         $expectedProductId = $plan->appleProductId();
+        $appleStartedAt = microtime(true);
+        ProviderAppleSubscriptionLogger::info('fulfill.apple_get_transaction.start', [
+            'user_id' => $userId,
+            'transaction_id' => $transactionId,
+        ]);
         $payload = $this->appStore->getTransaction($transactionId);
+        ProviderAppleSubscriptionLogger::info('fulfill.apple_get_transaction.done', [
+            'user_id' => $userId,
+            'transaction_id' => $transactionId,
+            'elapsed_ms' => (int) round((microtime(true) - $appleStartedAt) * 1000),
+            'apple_environment' => $payload['_apple_environment'] ?? null,
+        ]);
         ProviderAppleSubscriptionLogger::logApplePayload($userId, $transactionId, $payload);
 
         $bundleId = (string) ($payload['bundleId'] ?? '');
@@ -67,7 +78,18 @@ final class FulfillProviderAppleSubscription
         $cancelAtPeriodEnd = false;
 
         try {
+            $statusStartedAt = microtime(true);
+            ProviderAppleSubscriptionLogger::info('fulfill.apple_get_subscription_status.start', [
+                'user_id' => $userId,
+                'original_transaction_id' => $originalTransactionId,
+            ]);
             $subscriptionResponse = $this->appStore->getSubscriptionStatuses($originalTransactionId);
+            ProviderAppleSubscriptionLogger::info('fulfill.apple_get_subscription_status.done', [
+                'user_id' => $userId,
+                'original_transaction_id' => $originalTransactionId,
+                'elapsed_ms' => (int) round((microtime(true) - $statusStartedAt) * 1000),
+                'apple_environment' => $this->appStore->lastSuccessfulEnvironment(),
+            ]);
             $statusInfo = $this->resolveSubscriptionStatus($subscriptionResponse, $expectedProductId);
             $status = $statusInfo['status'];
             $currentPeriodEnd = $statusInfo['current_period_end'] ?? $currentPeriodEnd;

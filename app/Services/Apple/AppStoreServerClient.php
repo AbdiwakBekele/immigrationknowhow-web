@@ -5,6 +5,7 @@ namespace App\Services\Apple;
 use App\Support\AppleIapConfig;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 final class AppStoreServerClient
@@ -141,6 +142,13 @@ final class AppStoreServerClient
             ? 'https://api.storekit-sandbox.itunes.apple.com'
             : 'https://api.storekit.itunes.apple.com';
         $url = rtrim($baseUrl, '/').$path;
+        $startedAt = microtime(true);
+
+        Log::info('apple.app_store_api.request', [
+            'method' => $method,
+            'environment' => $environment,
+            'path' => $path,
+        ]);
 
         try {
             $response = Http::withToken($token)
@@ -151,6 +159,14 @@ final class AppStoreServerClient
             $message = $e->response?->json('errorMessage')
                 ?? $e->response?->body()
                 ?? $e->getMessage();
+
+            Log::warning('apple.app_store_api.request_exception', [
+                'method' => $method,
+                'environment' => $environment,
+                'path' => $path,
+                'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'message' => is_string($message) ? $message : 'Apple API request failed.',
+            ]);
 
             throw new RuntimeException(is_string($message) ? $message : 'Apple API request failed.', 0, $e);
         }
@@ -166,6 +182,15 @@ final class AppStoreServerClient
                 $message .= ' '.$detail;
             }
 
+            Log::warning('apple.app_store_api.http_error', [
+                'method' => $method,
+                'environment' => $environment,
+                'path' => $path,
+                'status' => $response->status(),
+                'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'detail' => $detail,
+            ]);
+
             throw new RuntimeException($message);
         }
 
@@ -173,6 +198,13 @@ final class AppStoreServerClient
         if (! is_array($json)) {
             throw new RuntimeException('Invalid Apple API response.');
         }
+
+        Log::info('apple.app_store_api.success', [
+            'method' => $method,
+            'environment' => $environment,
+            'path' => $path,
+            'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ]);
 
         return $json;
     }

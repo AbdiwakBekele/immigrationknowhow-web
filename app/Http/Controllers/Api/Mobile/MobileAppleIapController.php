@@ -178,7 +178,23 @@ class MobileAppleIapController extends Controller
         SubscriptionPlan $plan,
         FulfillProviderAppleSubscription $fulfill,
     ): JsonResponse {
+        $startedAt = microtime(true);
         $userId = (int) $request->user()->id;
+
+        ProviderAppleSubscriptionLogger::info('controller.entry', [
+            'user_id' => $userId,
+            'plan_uuid' => $plan->uuid,
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+            'plan_billing_cycle' => $plan->billing_cycle,
+            'plan_price_cents' => (int) $plan->price_cents,
+            'expected_apple_product_id' => $plan->appleProductId(),
+            'request_transaction_id' => (string) $request->input('transaction_id', ''),
+            'request_original_transaction_id' => (string) $request->input('original_transaction_id', ''),
+            'request_product_id' => (string) $request->input('product_id', ''),
+            'client_header' => (string) $request->header('X-IKH-Client', ''),
+            'apple_iap' => AppleIapConfig::configurationDiagnostics(),
+        ]);
 
         if (! in_array((string) $plan->status, ['active'], true)) {
             ProviderAppleSubscriptionLogger::logControllerRejected('plan_not_active', $userId, $plan);
@@ -262,6 +278,13 @@ class MobileAppleIapController extends Controller
             );
         } catch (RuntimeException $e) {
             ProviderAppleSubscriptionLogger::logControllerFailure($userId, $plan, $transactionId, $e->getMessage());
+            ProviderAppleSubscriptionLogger::error('controller.failed', [
+                'user_id' => $userId,
+                'plan_uuid' => $plan->uuid,
+                'transaction_id' => $transactionId,
+                'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'message' => $e->getMessage(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -286,6 +309,13 @@ class MobileAppleIapController extends Controller
         }
 
         ProviderAppleSubscriptionLogger::logControllerSuccess($userId, $subscription, $plan);
+        ProviderAppleSubscriptionLogger::info('controller.completed', [
+            'user_id' => $userId,
+            'plan_uuid' => $plan->uuid,
+            'subscription_uuid' => $subscription->uuid,
+            'subscription_status' => $subscription->status,
+            'elapsed_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ]);
 
         return response()->json([
             'success' => true,
@@ -647,7 +677,12 @@ class MobileAppleIapController extends Controller
             return null;
         }
 
+        $diagnostics = AppleIapConfig::configurationDiagnostics();
         AppleIapPurchaseLogger::logNotConfigured($endpoint, (int) $request->user()->id);
+        ProviderAppleSubscriptionLogger::warning('controller.apple_iap_not_configured', array_merge([
+            'endpoint' => $endpoint,
+            'user_id' => (int) $request->user()->id,
+        ], $diagnostics));
 
         return response()->json([
             'success' => false,

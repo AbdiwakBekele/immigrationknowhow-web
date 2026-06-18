@@ -12,6 +12,30 @@ final class AppleIapConfig
             && self::privateKey() !== '';
     }
 
+    /**
+     * Safe diagnostics for logs (no secret values).
+     *
+     * @return array<string, bool|string>
+     */
+    public static function configurationDiagnostics(): array
+    {
+        $privateKeyPath = trim((string) config('services.apple_iap.private_key_path', ''));
+        $resolvedPath = $privateKeyPath !== '' ? self::resolvePrivateKeyPath($privateKeyPath) : '';
+        $inlineKey = trim((string) config('services.apple_iap.private_key', ''));
+
+        return [
+            'bundle_id_set' => self::bundleId() !== '',
+            'issuer_id_set' => self::issuerId() !== '',
+            'key_id_set' => self::keyId() !== '',
+            'private_key_inline_set' => $inlineKey !== '',
+            'private_key_path_configured' => $privateKeyPath !== '',
+            'private_key_path_readable' => $resolvedPath !== '' && is_readable($resolvedPath),
+            'private_key_resolved' => self::privateKey() !== '',
+            'sandbox' => self::useSandbox(),
+            'configured' => self::configured(),
+        ];
+    }
+
     public static function bundleId(): string
     {
         return trim((string) config('services.apple_iap.bundle_id', ''));
