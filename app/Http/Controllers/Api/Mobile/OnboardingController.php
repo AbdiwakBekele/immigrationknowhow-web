@@ -630,8 +630,8 @@ class OnboardingController extends Controller
                 'mode' => 'subscription',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => rtrim(config('app.url'), '/').'/provider/subscriptions?checkout=success',
-                'cancel_url' => rtrim(config('app.url'), '/').'/provider/subscriptions?checkout=cancelled',
+                'success_url' => route('mobile.provider-subscription.checkout-return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('mobile.provider-subscription.checkout-return', [], true).'?checkout=cancelled',
                 'line_items' => $lineItems,
                 'metadata' => [
                     'app' => 'provider_subscription',

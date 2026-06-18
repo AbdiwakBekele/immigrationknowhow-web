@@ -63,6 +63,32 @@ Route::get('/mobile/ai-assistant/checkout-return', function () {
     );
 })->name('mobile.ai-assistant.checkout-return');
 
+/** Stripe Checkout return for mobile provider subscriptions (no auth — WebView intercepts this URL). */
+Route::get('/mobile/provider-subscription/checkout-return', function () {
+    return response(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        .'<title>Payment complete</title></head><body style="font-family:system-ui,sans-serif;text-align:center;padding:2.5rem 1.5rem">'
+        .'<h1 style="font-size:1.25rem;color:#0f172a">Payment successful</h1>'
+        .'<p style="color:#475569;line-height:1.5">Your provider subscription is active. You can close this screen and return to the app.</p>'
+        .'</body></html>',
+        200,
+        ['Content-Type' => 'text/html; charset=UTF-8']
+    );
+})->name('mobile.provider-subscription.checkout-return');
+
+/** Stripe Checkout return for mobile video purchases (no auth — WebView intercepts this URL). */
+Route::get('/mobile/video/checkout-return', function () {
+    return response(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        .'<title>Payment complete</title></head><body style="font-family:system-ui,sans-serif;text-align:center;padding:2.5rem 1.5rem">'
+        .'<h1 style="font-size:1.25rem;color:#0f172a">Payment successful</h1>'
+        .'<p style="color:#475569;line-height:1.5">Your video is unlocked. You can close this screen and return to the app.</p>'
+        .'</body></html>',
+        200,
+        ['Content-Type' => 'text/html; charset=UTF-8']
+    );
+})->name('mobile.video.checkout-return');
+
 Route::post('/locale', function (Request $request) {
     $validated = $request->validate([
         'locale' => ['required', 'string', 'in:en,fr,es'],

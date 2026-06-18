@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Ad;
-
 final class AdPostingPricing
 {
     public static function freeLimit(): int
@@ -37,7 +36,7 @@ final class AdPostingPricing
     }
 
     /**
-     * @return array{amount_cents: int, currency: string, free_limit: int, free_remaining: int, next_ad_price_cents: int, apple_product_id: string|null}
+     * @return array{amount_cents: int, currency: string, free_limit: int, free_remaining: int, next_ad_price_cents: int, apple_product_id: string|null, stripe_billing_configured: bool}
      */
     public static function apiPayload(int $userId): array
     {
@@ -50,6 +49,7 @@ final class AdPostingPricing
             'free_remaining' => self::freeAdsRemaining($userId),
             'next_ad_price_cents' => self::priceCentsForNewAd($userId),
             'apple_product_id' => $productId !== '' ? $productId : null,
+            'stripe_billing_configured' => StripeConfig::hasSecretKey(),
         ];
     }
 }

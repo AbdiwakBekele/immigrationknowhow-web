@@ -124,6 +124,7 @@ Route::prefix('mobile')->group(function () {
         Route::get('/', [MobileVideoController::class, 'index']);
         Route::get('/{video:slug}/stream', MobileVideoStreamController::class);
         Route::post('/{video:slug}/checkout', [MobileVideoController::class, 'stripeCheckout']);
+        Route::post('/{video:slug}/confirm-checkout', [MobileVideoController::class, 'confirmCheckout']);
         Route::post('/{video:slug}/apple-purchase', [MobileAppleIapController::class, 'purchaseVideo']);
         Route::post('/{video:slug}/grant-free', [MobileVideoController::class, 'grantFree']);
         Route::get('/{video:slug}', [MobileVideoController::class, 'show']);
@@ -166,6 +167,7 @@ Route::prefix('mobile')->group(function () {
         Route::patch('/profile', [MobileProfileController::class, 'updateProvider']);
         Route::get('/subscriptions', [ProviderSubscriptionsController::class, 'index']);
         Route::post('/subscriptions/checkout/{plan:uuid}', [ProviderSubscriptionsController::class, 'checkout']);
+        Route::post('/subscriptions/confirm-checkout', [ProviderSubscriptionsController::class, 'confirmCheckout']);
         Route::post('/subscriptions/apple-purchase/{plan:uuid}', [MobileAppleIapController::class, 'purchaseProviderPlan']);
         Route::post('/subscriptions/{subscription:uuid}/cancel', [ProviderSubscriptionsController::class, 'cancel']);
         Route::post('/subscriptions/{subscription:uuid}/resume', [ProviderSubscriptionsController::class, 'resume']);

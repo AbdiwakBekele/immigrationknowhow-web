@@ -10,6 +10,7 @@ use App\Services\Ai\AiAssistantAccountService;
 use App\Services\Ai\ServiceSeekerAssistantService;
 use App\Support\AppleIapConfig;
 use App\Support\AiAssistantPricing;
+use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -407,6 +408,7 @@ class AiAssistantController extends Controller
             'currency' => \App\Support\AiAssistantPricing::currency(),
             'apple_product_id' => AppleIapConfig::aiAssistantProductId(),
             'apple_iap_configured' => AppleIapConfig::configured(),
+            'stripe_billing_configured' => StripeConfig::hasSecretKey(),
             'ios_requires_apple_iap' => true,
             'chat_messages' => $this->aiAccount->chatMessagesForUser($userId),
         ];

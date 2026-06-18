@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Mobile;
 
+use App\Actions\Provider\SyncProviderStripeSubscription;
 use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\ProviderSubscription;
@@ -170,8 +171,8 @@ class ProviderSubscriptionsController extends Controller
                 'mode' => 'subscription',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => config('app.url').'/provider/subscriptions?checkout=success',
-                'cancel_url' => config('app.url').'/provider/subscriptions?checkout=cancelled',
+                'success_url' => route('mobile.provider-subscription.checkout-return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('mobile.provider-subscription.checkout-return', [], true).'?checkout=cancelled',
                 'line_items' => $lineItems,
                 'metadata' => [
                     'app' => 'provider_subscription',
@@ -212,6 +213,7 @@ class ProviderSubscriptionsController extends Controller
             'data' => [
                 'checkout_url' => $checkoutUrl,
                 'free_plan_activated' => false,
+                'checkout_session_id' => (string) $session->id,
             ],
         ]);
     }
@@ -430,6 +432,77 @@ class ProviderSubscriptionsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Plan change scheduled successfully.',
+            'data' => (object) [],
+        ]);
+    }
+
+    public function confirmCheckout(Request $request, SyncProviderStripeSubscription $syncProviderSubscription): JsonResponse
+    {
+        if ($blocked = $this->iosStripeCheckoutBlockedResponse(
+            $request,
+            'On iOS, subscribe with In-App Purchase in the app.',
+        )) {
+            return $blocked;
+        }
+
+        $validated = $request->validate([
+            'session_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        if (! StripeConfig::hasSecretKey()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Stripe is not configured.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $provider = $this->resolveProvider($request);
+        $sessionId = trim((string) $validated['session_id']);
+
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::retrieve($sessionId);
+            $metadataUserId = (int) ($session->metadata['user_id'] ?? $session->client_reference_id ?? 0);
+            if ($metadataUserId !== (int) $request->user()->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Checkout session does not match your account.',
+                    'errors' => (object) [],
+                ], 422);
+            }
+
+            $subscriptionId = is_string($session->subscription) ? $session->subscription : null;
+            if (! $subscriptionId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Subscription could not be verified.',
+                    'errors' => (object) [],
+                ], 422);
+            }
+
+            $subscription = StripeSubscription::retrieve($subscriptionId);
+            $record = $syncProviderSubscription($subscription, $provider->id);
+            if (! $record || ! in_array((string) $record->status, ['trialing', 'active', 'past_due'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment is still processing. Please wait a moment and try again.',
+                    'errors' => (object) [],
+                ], 422);
+            }
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug')
+                    ? 'Could not confirm subscription: '.$e->getMessage()
+                    : 'Could not confirm subscription. Please try again.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Subscription activated successfully.',
             'data' => (object) [],
         ]);
     }
