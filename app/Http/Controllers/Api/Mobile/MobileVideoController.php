@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
 use App\Models\VideoEmbed;
 use App\Models\VideoUserAccess;
+use App\Actions\Video\FulfillVideoStripeCheckout;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -160,8 +161,8 @@ class MobileVideoController extends Controller
                 'mode' => 'payment',
                 'customer_email' => $request->user()->email,
                 'client_reference_id' => (string) $request->user()->id,
-                'success_url' => route('videos.purchase.return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('videos.purchase.cancel', $video, true),
+                'success_url' => route('mobile.video.checkout-return', [], true).'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('mobile.video.checkout-return', [], true).'?checkout=cancelled',
                 'metadata' => [
                     'app' => 'video',
                     'video_id' => (string) $video->id,
@@ -235,6 +236,74 @@ class MobileVideoController extends Controller
             'success' => true,
             'message' => 'OK',
             'data' => (object) [],
+        ]);
+    }
+
+    public function confirmCheckout(Request $request, VideoEmbed $video, FulfillVideoStripeCheckout $fulfill): JsonResponse
+    {
+        abort_unless($video->is_active, 404);
+
+        if ($blocked = $this->iosStripeCheckoutBlockedResponse(
+            $request,
+            'On iOS, use In-App Purchase to buy this video.',
+        )) {
+            return $blocked;
+        }
+
+        $sessionId = $request->input('session_id');
+        if (! is_string($sessionId) || trim($sessionId) === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing session ID.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        if (! StripeConfig::checkoutConfigured()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payments are not configured.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        try {
+            Stripe::setApiKey((string) config('services.stripe.secret'));
+            $session = StripeCheckoutSession::retrieve(trim($sessionId));
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not verify payment.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $metadataUserId = (int) ($session->metadata['user_id'] ?? 0);
+        if ($metadataUserId !== (int) $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session does not belong to this user.',
+                'errors' => (object) [],
+            ], 403);
+        }
+
+        $metadataVideoId = (int) ($session->metadata['video_id'] ?? 0);
+        if ($metadataVideoId !== (int) $video->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Checkout session does not match this video.',
+                'errors' => (object) [],
+            ], 422);
+        }
+
+        $fulfilled = $fulfill($session);
+
+        return response()->json([
+            'success' => true,
+            'message' => $fulfilled ? 'Purchase confirmed.' : 'Payment is still processing.',
+            'data' => [
+                'fulfilled' => $fulfilled,
+            ],
         ]);
     }
 }
