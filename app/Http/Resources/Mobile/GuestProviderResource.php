@@ -24,7 +24,6 @@ class GuestProviderResource extends JsonResource
 
         return [
             'slug' => $provider->slug,
-            'avatar_url' => $provider->user?->avatar_url,
             'business_type' => $businessType,
             'location' => $locationParts !== [] ? implode(', ', $locationParts) : 'Location not specified',
         ];
