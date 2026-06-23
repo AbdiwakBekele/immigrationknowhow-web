@@ -33,12 +33,12 @@ class GuestBrowseController extends Controller
             'title' => 'How Immigration Know How works',
             'steps' => [
                 [
-                    'title' => 'Browse providers and resources',
-                    'description' => 'Explore immigration service categories, trusted providers, and educational eBooks without creating an account.',
+                    'title' => 'Browse service providers and resources',
+                    'description' => 'Explore immigration service categories, trusted service providers, and educational eBooks without creating an account.',
                 ],
                 [
                     'title' => 'Create your free account',
-                    'description' => 'Sign up to request a provider match, save favorites, message providers, and access your library.',
+                    'description' => 'Sign up to request a service provider match, save favorites, message service providers, and access your library.',
                 ],
                 [
                     'title' => 'Get matched with the right help',
@@ -108,7 +108,11 @@ class GuestBrowseController extends Controller
                     'total' => $paginator->total(),
                 ],
             ],
-            'categories' => LibraryCategory::active()->ordered()->get(['id', 'name', 'slug']),
+            'categories' => LibraryCategory::active()
+                ->ordered()
+                ->whereNotNull('name')
+                ->where('name', '!=', '')
+                ->get(['id', 'name', 'slug']),
             'regions' => LibraryItem::regionOptions(),
         ]);
     }
@@ -148,7 +152,7 @@ class GuestBrowseController extends Controller
         ]);
 
         $query = ServiceProvider::query()
-            ->with(['user:id,first_name,last_name,avatar,city,state,country,postal_code'])
+            ->with(['user:id,first_name,last_name,city,state,country,postal_code'])
             ->active()
             ->acceptingClients();
 
@@ -174,7 +178,7 @@ class GuestBrowseController extends Controller
     {
         abort_unless($provider->is_active && $provider->accepting_clients, 404);
 
-        $provider->load(['user:id,first_name,last_name,avatar,city,state,country,postal_code']);
+        $provider->load(['user:id,first_name,last_name,city,state,country,postal_code']);
 
         return $this->success('Sign in required for full access', [
             'provider' => (new GuestProviderResource($provider))->resolve(),
