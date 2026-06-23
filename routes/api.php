@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Mobile\AiAssistantController;
 use App\Http\Controllers\Api\Mobile\AuthController;
 use App\Http\Controllers\Api\Mobile\ContractsController;
 use App\Http\Controllers\Api\Mobile\DvLotteryController;
+use App\Http\Controllers\Api\Mobile\GuestBrowseController;
 use App\Http\Controllers\Api\Mobile\MessagesController;
 use App\Http\Controllers\Api\Mobile\MobileAccountController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
@@ -57,6 +58,16 @@ Route::prefix('mobile')->group(function () {
         Route::post('/phone/verify', [OnboardingController::class, 'verifyOtp']);
         Route::post('/progress', [OnboardingController::class, 'saveProgress']);
         Route::post('/complete', [OnboardingController::class, 'complete']);
+    });
+
+    // Guest browse (no auth — limited payloads for App Store compliance)
+    Route::prefix('guest')->middleware('throttle:60,1')->group(function () {
+        Route::get('/meta', [GuestBrowseController::class, 'meta']);
+        Route::get('/how-it-works', [GuestBrowseController::class, 'howItWorks']);
+        Route::get('/library', [GuestBrowseController::class, 'libraryBrowse']);
+        Route::get('/library/{slug}', [GuestBrowseController::class, 'libraryShow']);
+        Route::get('/providers', [GuestBrowseController::class, 'providers']);
+        Route::get('/providers/{provider:slug}', [GuestBrowseController::class, 'providerShow']);
     });
 
     // Marketplace (public read)
