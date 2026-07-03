@@ -78,7 +78,11 @@ class EmailTemplateController extends Controller
                 '{{role_label}}',
                 '{{invite_link}}',
                 '{{activation_link}}',
+                '{{reset_link}}',
                 '{{dashboard_link}}',
+                '{{library_link}}',
+                '{{coupon_code}}',
+                '{{coupon}}',
                 '{{support_email}}',
             ],
             'previewTokens' => [
@@ -91,7 +95,11 @@ class EmailTemplateController extends Controller
                 '{{role_label}}' => $this->roleLabel($emailTemplate->role),
                 '{{invite_link}}' => 'https://example.com/invite/abc123',
                 '{{activation_link}}' => 'https://example.com/activate/abc123',
+                '{{reset_link}}' => 'https://example.com/reset/abc123',
                 '{{dashboard_link}}' => 'https://example.com/dashboard',
+                '{{library_link}}' => url('/library'),
+                '{{coupon_code}}' => 'IKH-DEMO-CODE',
+                '{{coupon}}' => 'IKH-DEMO-CODE',
                 '{{support_email}}' => $branding['support_email'] ?? config('mail.from.address') ?? '',
             ],
         ]);
@@ -143,7 +151,11 @@ class EmailTemplateController extends Controller
                 'role' => $emailTemplate->role,
                 'invite_link' => url('/'),
                 'activation_link' => url('/'),
+                'reset_link' => url('/'),
                 'dashboard_link' => url('/'),
+                'library_link' => url('/library'),
+                'coupon_code' => 'IKH-TEST-CODE',
+                'coupon' => 'IKH-TEST-CODE',
             ],
         ));
 
