@@ -68,6 +68,9 @@ class TransactionalEmailTemplateRenderer
             '{{activation_link}}' => (string) ($context['activation_link'] ?? ''),
             '{{reset_link}}' => (string) ($context['reset_link'] ?? ''),
             '{{dashboard_link}}' => (string) ($context['dashboard_link'] ?? ''),
+            '{{library_link}}' => (string) ($context['library_link'] ?? ''),
+            '{{coupon_code}}' => (string) ($context['coupon_code'] ?? $context['coupon'] ?? ''),
+            '{{coupon}}' => (string) ($context['coupon'] ?? $context['coupon_code'] ?? ''),
             '{{support_email}}' => (string) ($context['support_email'] ?? $branding['support_email'] ?? config('mail.from.address')),
         ];
     }
@@ -103,24 +106,28 @@ class TransactionalEmailTemplateRenderer
                 EmailTemplate::EVENT_INVITE => 'You are invited to {{company_name}}',
                 EmailTemplate::EVENT_ACCOUNT_ACTIVATION => 'Activate your {{company_name}} account',
                 EmailTemplate::EVENT_PASSWORD_RESET => 'Reset your {{company_name}} password',
+                EmailTemplate::EVENT_EBOOK_COUPON => 'Your free ebook coupon — {{company_name}}',
                 default => 'Welcome to {{company_name}}',
             },
             'body' => match ($eventKey) {
                 EmailTemplate::EVENT_INVITE => 'Hi {{first_name}}, you have been invited to join {{company_name}}.',
                 EmailTemplate::EVENT_ACCOUNT_ACTIVATION => 'Please verify your email address to activate your account.',
                 EmailTemplate::EVENT_PASSWORD_RESET => 'We received a request to reset your password. Use the button below to choose a new one. If you did not request this, you can ignore this email.',
+                EmailTemplate::EVENT_EBOOK_COUPON => 'Hi {{first_name}}, your one-time coupon is {{coupon_code}}. Open the library and redeem it for free access to any ebook.',
                 default => 'Welcome {{first_name}}. Your account is ready.',
             },
             'action_label' => match ($eventKey) {
                 EmailTemplate::EVENT_INVITE => 'Open invite',
                 EmailTemplate::EVENT_ACCOUNT_ACTIVATION => 'Verify email',
                 EmailTemplate::EVENT_PASSWORD_RESET => 'Reset password',
+                EmailTemplate::EVENT_EBOOK_COUPON => 'Browse library',
                 default => 'Open dashboard',
             },
             'action_url' => match ($eventKey) {
                 EmailTemplate::EVENT_INVITE => '{{invite_link}}',
                 EmailTemplate::EVENT_ACCOUNT_ACTIVATION => '{{activation_link}}',
                 EmailTemplate::EVENT_PASSWORD_RESET => '{{reset_link}}',
+                EmailTemplate::EVENT_EBOOK_COUPON => '{{library_link}}',
                 default => '{{dashboard_link}}',
             },
             'event_key' => $eventKey,
