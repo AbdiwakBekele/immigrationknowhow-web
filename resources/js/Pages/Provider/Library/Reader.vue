@@ -28,7 +28,6 @@ const props = defineProps({
     progressUrl: { type: String, required: true },
     summary: { type: String, default: null },
     summaryUrl: { type: String, default: null },
-    summaryStatus: { type: String, default: null },
 });
 
 const pdfMediaUrl = computed(() => props.mediaUrls?.pdf || (props.item.type === 'ebook' ? props.mediaUrl : null));
@@ -534,9 +533,6 @@ onBeforeUnmount(() => {
                             {{ summaryLoading ? 'Loading...' : 'Load summary' }}
                         </button>
                     </div>
-                    <p v-if="summaryStatus === 'failed'" class="text-sm text-amber-200">
-                        Summary generation failed previously for this book.
-                    </p>
                     <p v-if="summaryError" class="text-sm text-red-200">{{ summaryError }}</p>
                     <div v-else-if="aiSummary" class="prose prose-invert prose-sm max-w-none" v-html="renderedSummaryHtml" />
                     <p v-else class="text-sm text-slate-300">Summary will appear here when ready.</p>

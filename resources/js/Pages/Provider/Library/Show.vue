@@ -32,7 +32,6 @@ const props = defineProps({
     progressUrl: { type: String, default: null },
     summary: { type: String, default: null },
     summaryUrl: { type: String, default: null },
-    summaryStatus: { type: String, default: null },
 });
 
 const page = usePage();
@@ -171,10 +170,9 @@ const addAccessLabel = computed(() => {
     return props.item.type === 'ebook' ? 'Add to library & read' : 'Add to library & listen';
 });
 
-const canShowSummaryTab = computed(() => props.item.type === 'ebook' && props.hasAccess);
+const canShowSummaryTab = computed(() => props.item.type === 'ebook');
 const canRequestSummary = computed(() => (
-    props.hasAccess
-    && Boolean(props.summaryUrl)
+    Boolean(props.summaryUrl)
     && !summaryText.value
 ));
 const renderedSummaryHtml = computed(() => renderSafeMarkdown(summaryText.value));
@@ -212,7 +210,10 @@ const loadSummary = async () => {
         const payload = await response.json();
         summaryText.value = payload.summary || '';
         if (!summaryText.value) {
-            summaryError.value = payload.message || 'Summary not available yet for this ebook.';
+            const pending = String(payload.message || '').toLowerCase().includes('being generated');
+            if (!pending) {
+                summaryError.value = payload.message || 'Summary not available yet for this ebook.';
+            }
         }
     } catch {
         summaryError.value = 'Could not load summary right now. Please try again.';
@@ -221,8 +222,42 @@ const loadSummary = async () => {
     }
 };
 
+let summaryPollTimer = null;
+
+const stopSummaryPolling = () => {
+    if (summaryPollTimer) {
+        clearInterval(summaryPollTimer);
+        summaryPollTimer = null;
+    }
+};
+
+const pollSummaryIfNeeded = () => {
+    stopSummaryPolling();
+    if (summaryText.value || props.item.type !== 'ebook' || !props.summaryUrl) {
+        return;
+    }
+
+    void loadSummary();
+
+    let attempts = 0;
+    summaryPollTimer = setInterval(() => {
+        attempts += 1;
+        if (summaryText.value || attempts >= 36) {
+            stopSummaryPolling();
+            return;
+        }
+
+        void loadSummary();
+    }, 5000);
+};
+
 watch(activeDetailTab, (tab) => {
-    if (tab !== 'summary') return;
+    if (tab !== 'summary') {
+        stopSummaryPolling();
+        return;
+    }
+
+    pollSummaryIfNeeded();
 });
 
 const landingAudioPayload = () => ({
@@ -321,11 +356,15 @@ const formatPlaybackTime = (seconds) => {
 
 onMounted(() => {
     if (canShowSummaryTab.value) activeDetailTab.value = 'summary';
+    if (activeDetailTab.value === 'summary') {
+        pollSummaryIfNeeded();
+    }
     document.addEventListener('visibilitychange', handleLandingAudioVisibility);
     window.addEventListener('pagehide', flushLandingAudioProgress);
 });
 
 onBeforeUnmount(() => {
+    stopSummaryPolling();
     flushLandingAudioProgress();
     document.removeEventListener('visibilitychange', handleLandingAudioVisibility);
     window.removeEventListener('pagehide', flushLandingAudioProgress);
@@ -485,16 +524,13 @@ onBeforeUnmount(() => {
                                             {{ summaryLoading ? 'Loading summary...' : 'Summarize this book' }}
                                         </button>
                                     </div>
-                                    <p v-if="summaryStatus === 'failed'" class="text-sm text-amber-700">
-                                        Summary generation failed previously for this book.
-                                    </p>
                                     <p v-if="summaryError" class="text-sm text-red-600">{{ summaryError }}</p>
                                     <div v-else-if="summaryText" class="prose prose-slate prose-sm max-w-none sm:prose-base" v-html="renderedSummaryHtml" />
                                     <p v-else-if="canRequestSummary" class="text-sm text-slate-600">
                                         Summary will appear here when ready.
                                     </p>
                                     <p v-else class="text-sm text-slate-600">
-                                        Purchase this ebook to unlock its AI summary.
+                                        Summary will appear here when ready.
                                     </p>
                                 </div>
                             </div>
