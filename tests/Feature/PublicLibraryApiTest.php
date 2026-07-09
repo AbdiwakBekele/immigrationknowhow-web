@@ -56,4 +56,19 @@ class PublicLibraryApiTest extends TestCase
             ->assertJsonPath('data.0.slug', 'featured-guide')
             ->assertJsonPath('data.0.title', 'Featured Guide');
     }
+
+    public function test_public_library_item_show_includes_ai_summary_for_ebooks(): void
+    {
+        $this->createItem([
+            'title' => 'Summarized Guide',
+            'slug' => 'summarized-guide',
+            'ai_summary' => '## Quick take\n\nThis is the AI summary.',
+            'ai_summary_status' => 'success',
+        ]);
+
+        $this->getJson(route('api.public.library-items.show', 'summarized-guide'))
+            ->assertOk()
+            ->assertJsonPath('item.slug', 'summarized-guide')
+            ->assertJsonPath('item.ai_summary', '## Quick take\n\nThis is the AI summary.');
+    }
 }
