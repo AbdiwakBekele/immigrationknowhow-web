@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Provider;
 
+use App\Actions\Library\QueueLibraryEbookSummary;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\LibraryController as SiteLibraryController;
 use App\Models\LibraryItem;
@@ -166,6 +167,11 @@ class LibraryController extends Controller
         $stripeConfigured = StripeConfig::checkoutConfigured();
         $manualPaymentsAvailable = (bool) config('manual_payment.enabled');
 
+        if ($item->type === 'ebook') {
+            app(QueueLibraryEbookSummary::class)($item);
+            $item = $item->fresh() ?? $item;
+        }
+
         Log::info('Provider library show payload prepared', [
             'library_item_id' => $item->id,
             'user_id' => auth()->id(),
@@ -210,7 +216,6 @@ class LibraryController extends Controller
             'progressUrl' => route('library.progress', $item),
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
-            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
 }

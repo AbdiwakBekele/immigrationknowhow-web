@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
+use App\Actions\Library\QueueLibraryEbookSummary;
 use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
@@ -534,6 +535,8 @@ class LibraryController extends Controller
                 ? 'Add STRIPE_KEY (publishable) and STRIPE_SECRET from Stripe to enable card checkout. Run php artisan config:clear after changing .env.'
                 : ($manualPaymentsAvailable ? null : 'Online checkout is not available right now. Please try again later or contact support.'));
 
+        $item = $this->prepareEbookSummary($item);
+
         Log::info('Library show: summary payload prepared', [
             'library_item_id' => $item->id,
             'user_id' => auth()->id(),
@@ -581,7 +584,6 @@ class LibraryController extends Controller
             'progressUrl' => route('library.progress', $item),
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
-            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
 
@@ -1012,7 +1014,7 @@ class LibraryController extends Controller
         $this->abortIfNotAvailableInUserRegion($item);
         abort_unless($item->type === 'ebook', 404);
 
-        $fresh = LibraryItem::query()->whereKey($item->id)->firstOrFail();
+        $fresh = $this->prepareEbookSummary($item);
         Log::info('Library AI summary: user requested summary retrieval', [
             'library_item_id' => $fresh->id,
             'user_id' => auth()->id(),
@@ -1022,7 +1024,7 @@ class LibraryController extends Controller
 
         $message = null;
         if (! $fresh->ai_summary) {
-            $message = 'Summary not available yet. It is generated when admin uploads this ebook.';
+            $message = 'Summary is being generated. Please check back shortly.';
         }
 
         if ($request->expectsJson()) {
@@ -1036,13 +1038,23 @@ class LibraryController extends Controller
 
             return response()->json([
                 'summary' => $fresh->ai_summary,
-                'status' => $fresh->ai_summary_status,
                 'message' => $message,
                 'generated_at' => optional($fresh->ai_summary_generated_at)?->toIso8601String(),
             ]);
         }
 
         return $message ? back()->with('info', $message) : back();
+    }
+
+    private function prepareEbookSummary(LibraryItem $item): LibraryItem
+    {
+        if ($item->type !== 'ebook') {
+            return $item;
+        }
+
+        app(QueueLibraryEbookSummary::class)($item);
+
+        return $item->fresh() ?? $item;
     }
 
     private function stripeIsConfigured(): bool

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Mobile;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
 use App\Actions\Library\GrantLibraryItemAccess;
+use App\Actions\Library\QueueLibraryEbookSummary;
 use App\Actions\Library\RedeemEbookCoupon;
 use App\Http\Controllers\Api\Mobile\Concerns\DetectsMobileClient;
 use App\Http\Controllers\Controller;
@@ -156,6 +157,11 @@ class MobileLibraryController extends Controller
                 'currency' => $r->currency,
             ]);
 
+        if ($item->type === 'ebook') {
+            app(QueueLibraryEbookSummary::class)($item);
+            $item = $item->fresh() ?? $item;
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'OK',
@@ -185,7 +191,6 @@ class MobileLibraryController extends Controller
                     'file_size' => $item->file_size,
                     'view_count' => $item->view_count,
                     'ai_summary' => $item->type === 'ebook' ? $item->ai_summary : null,
-                    'ai_summary_status' => $item->type === 'ebook' ? $item->ai_summary_status : null,
                 ],
                 'user_access' => $userAccess,
                 'has_access' => $hasAccess,
@@ -582,9 +587,14 @@ class MobileLibraryController extends Controller
         abort_unless($item->type === 'ebook', 404);
 
         $fresh = LibraryItem::query()->whereKey($item->id)->firstOrFail();
+        if ($fresh->type === 'ebook') {
+            app(QueueLibraryEbookSummary::class)($fresh);
+            $fresh = $fresh->fresh() ?? $fresh;
+        }
+
         $message = null;
         if (! $fresh->ai_summary) {
-            $message = 'Summary not available yet. It is generated when admin uploads this ebook.';
+            $message = 'Summary is being generated. Please check back shortly.';
         }
 
         return response()->json([
@@ -592,7 +602,6 @@ class MobileLibraryController extends Controller
             'message' => 'OK',
             'data' => [
                 'summary' => $fresh->ai_summary,
-                'status' => $fresh->ai_summary_status,
                 'message' => $message,
                 'generated_at' => optional($fresh->ai_summary_generated_at)?->toIso8601String(),
             ],

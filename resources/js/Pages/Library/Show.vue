@@ -33,7 +33,6 @@ const props = defineProps({
     progressUrl: { type: String, default: null },
     summary: { type: String, default: null },
     summaryUrl: { type: String, default: null },
-    summaryStatus: { type: String, default: null },
 });
 
 const page = usePage();
@@ -48,7 +47,6 @@ const summaryError = ref('');
 console.group('[Library Show] Summary initial state');
 console.info('Item slug:', props.item?.slug);
 console.info('User has access:', props.hasAccess);
-console.info('Summary status:', props.summaryStatus || 'not_generated');
 console.info('Summary prop chars:', (props.summary || '').length);
 console.info('Summary URL available:', Boolean(props.summaryUrl));
 console.groupEnd();
@@ -281,7 +279,6 @@ const loadSummary = async () => {
     summaryError.value = '';
     console.info('[Library Show] Summary request started', {
         itemSlug: props.item?.slug,
-        summaryStatus: props.summaryStatus,
     });
 
     const token = csrfToken();
@@ -313,10 +310,13 @@ const loadSummary = async () => {
         });
         summaryText.value = payload.summary || '';
         if (!summaryText.value) {
-            summaryError.value = payload.message || 'Summary not available yet for this ebook.';
-            console.warn('[Library Show] Summary empty', {
-                message: summaryError.value,
-            });
+            const pending = String(payload.message || '').toLowerCase().includes('being generated');
+            if (!pending) {
+                summaryError.value = payload.message || 'Summary not available yet for this ebook.';
+                console.warn('[Library Show] Summary empty', {
+                    message: summaryError.value,
+                });
+            }
         }
     } catch (error) {
         console.error('[Library Show] Summary request failed', error);
@@ -327,15 +327,47 @@ const loadSummary = async () => {
     }
 };
 
+let summaryPollTimer = null;
+
+const stopSummaryPolling = () => {
+    if (summaryPollTimer) {
+        clearInterval(summaryPollTimer);
+        summaryPollTimer = null;
+    }
+};
+
+const pollSummaryIfNeeded = () => {
+    stopSummaryPolling();
+    if (summaryText.value || props.item.type !== 'ebook' || !props.summaryUrl) {
+        return;
+    }
+
+    void loadSummary();
+
+    let attempts = 0;
+    summaryPollTimer = setInterval(() => {
+        attempts += 1;
+        if (summaryText.value || attempts >= 36) {
+            stopSummaryPolling();
+            return;
+        }
+
+        void loadSummary();
+    }, 5000);
+};
+
 watch(activeDetailTab, (tab) => {
-    if (tab !== 'summary') return;
+    if (tab !== 'summary') {
+        stopSummaryPolling();
+        return;
+    }
 
     console.info('[Library Show] Summary tab opened', {
         hasSummaryText: Boolean(summaryText.value),
         summaryTextChars: summaryText.value.length,
-        summaryStatus: props.summaryStatus,
         canRequestSummary: canRequestSummary.value,
     });
+    pollSummaryIfNeeded();
 });
 
 const landingAudioPayload = () => ({
@@ -488,11 +520,15 @@ onMounted(() => {
     if (canShowSummaryTab.value) {
         activeDetailTab.value = 'summary';
     }
+    if (activeDetailTab.value === 'summary') {
+        pollSummaryIfNeeded();
+    }
     document.addEventListener('visibilitychange', handleLandingAudioVisibility);
     window.addEventListener('pagehide', flushLandingAudioProgress);
 });
 
 onBeforeUnmount(() => {
+    stopSummaryPolling();
     flushLandingAudioProgress();
     document.removeEventListener('visibilitychange', handleLandingAudioVisibility);
     window.removeEventListener('pagehide', flushLandingAudioProgress);
@@ -786,9 +822,6 @@ onBeforeUnmount(() => {
 	                                        </button>
 	                                    </div>
 
-	                                    <p v-if="summaryStatus === 'failed'" class="text-sm text-amber-700">
-	                                        Summary generation failed previously for this book. Check logs before retrying via code/admin.
-	                                    </p>
 	                                    <p v-if="summaryError" class="text-sm text-red-600">{{ summaryError }}</p>
 	                                    <div
 	                                        v-else-if="summaryText"

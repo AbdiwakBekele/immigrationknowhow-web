@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Library\QueueLibraryEbookSummary;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use Illuminate\Http\JsonResponse;
@@ -61,6 +62,11 @@ class PublicLibraryApiController extends Controller
 
         if (! $item) {
             return response()->json(['message' => 'Library item not found.'], 404);
+        }
+
+        if ($item->type === 'ebook') {
+            app(QueueLibraryEbookSummary::class)($item);
+            $item = $item->fresh() ?? $item;
         }
 
         return response()->json([
