@@ -48,7 +48,7 @@ class PublicLibraryApiController extends Controller
             'narrator' => $item->narrator,
             'difficulty_level' => $item->difficulty_level,
             'recommended_age_group' => $item->recommended_age_group,
-            'ai_summary' => ($fullDescription && $item->type === 'ebook') ? $item->ai_summary : null,
+            'ai_summary' => $item->type === 'ebook' ? $item->ai_summary : null,
         ];
     }
 

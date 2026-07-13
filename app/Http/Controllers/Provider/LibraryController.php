@@ -191,6 +191,7 @@ class LibraryController extends Controller
             'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
+            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
 

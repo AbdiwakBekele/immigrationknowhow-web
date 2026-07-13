@@ -171,10 +171,7 @@ const addAccessLabel = computed(() => {
 });
 
 const canShowSummaryTab = computed(() => props.item.type === 'ebook');
-const canRequestSummary = computed(() => (
-    Boolean(props.summaryUrl)
-    && !summaryText.value
-));
+const canRequestSummary = computed(() => Boolean(props.summaryUrl) && !summaryText.value);
 const renderedSummaryHtml = computed(() => renderSafeMarkdown(summaryText.value));
 
 const csrfToken = () => {
@@ -526,9 +523,6 @@ onBeforeUnmount(() => {
                                     </div>
                                     <p v-if="summaryError" class="text-sm text-red-600">{{ summaryError }}</p>
                                     <div v-else-if="summaryText" class="prose prose-slate prose-sm max-w-none sm:prose-base" v-html="renderedSummaryHtml" />
-                                    <p v-else-if="canRequestSummary" class="text-sm text-slate-600">
-                                        Summary will appear here when ready.
-                                    </p>
                                     <p v-else class="text-sm text-slate-600">
                                         Summary will appear here when ready.
                                     </p>

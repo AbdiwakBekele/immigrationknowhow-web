@@ -543,7 +543,7 @@ class LibraryController extends Controller
             'has_access' => $hasAccess,
             'summary_status' => $item->ai_summary_status,
             'summary_chars' => mb_strlen((string) ($item->ai_summary ?? '')),
-            'summary_url_enabled' => $item->type === 'ebook' && $hasAccess,
+            'summary_url_enabled' => $item->type === 'ebook' && auth()->check(),
         ]);
 
         return Inertia::render('Library/Show', [
@@ -558,7 +558,8 @@ class LibraryController extends Controller
             'mediaUrls' => $hasAccess ? $this->readerMediaUrls($item) : [],
             'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
-            'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
+            'summaryUrl' => ($item->type === 'ebook' && auth()->check()) ? route('library.summary', $item) : null,
+            'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
 
