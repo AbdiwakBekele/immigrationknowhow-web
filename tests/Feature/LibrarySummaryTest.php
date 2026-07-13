@@ -13,16 +13,23 @@ class LibrarySummaryTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_summary_requires_purchased_access(): void
+    public function test_summary_is_available_without_purchase(): void
     {
         Storage::fake(LibraryItem::LIBRARY_MEDIA_DISK);
 
         $user = $this->createUser();
         $item = $this->createLibraryItem();
 
+        $item->forceFill([
+            'ai_summary' => "## Quick Summary\n\nStored summary from admin upload.",
+            'ai_summary_generated_at' => now(),
+            'ai_summary_status' => 'success',
+        ])->save();
+
         $this->actingAs($user)
             ->postJson(route('library.summary', $item))
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonPath('summary', "## Quick Summary\n\nStored summary from admin upload.");
     }
 
     public function test_summary_endpoint_returns_cached_summary_for_purchased_ebooks(): void
@@ -51,6 +58,46 @@ class LibrarySummaryTest extends TestCase
             ->assertJsonPath('summary', "## Quick Summary\n\nStored summary from admin upload.");
 
         $this->assertNotNull($item->fresh()->ai_summary_generated_at);
+    }
+
+    public function test_library_show_includes_summary_for_logged_in_users_without_purchase(): void
+    {
+        Storage::fake(LibraryItem::LIBRARY_MEDIA_DISK);
+
+        $user = $this->createUser();
+        $item = $this->createLibraryItem();
+
+        $item->forceFill([
+            'ai_summary' => "## Quick Summary\n\nVisible on hub without purchase.",
+            'ai_summary_generated_at' => now(),
+            'ai_summary_status' => 'success',
+        ])->save();
+
+        $this->actingAs($user)
+            ->get(route('library.show', $item))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Library/Show')
+                ->where('summary', "## Quick Summary\n\nVisible on hub without purchase.")
+                ->where('summaryUrl', route('library.summary', $item))
+                ->where('hasAccess', false)
+            );
+    }
+
+    public function test_public_library_api_includes_ai_summary_for_ebooks(): void
+    {
+        Storage::fake(LibraryItem::LIBRARY_MEDIA_DISK);
+
+        $item = $this->createLibraryItem();
+        $item->forceFill([
+            'ai_summary' => "## Quick Summary\n\nPublic marketing summary.",
+            'ai_summary_generated_at' => now(),
+            'ai_summary_status' => 'success',
+        ])->save();
+
+        $this->getJson('/api/public/library-items/'.$item->slug)
+            ->assertOk()
+            ->assertJsonPath('item.ai_summary', "## Quick Summary\n\nPublic marketing summary.");
     }
 
     private function createUser(array $overrides = []): User

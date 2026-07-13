@@ -580,7 +580,6 @@ class MobileLibraryController extends Controller
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($request->user(), $item);
         abort_unless($item->type === 'ebook', 404);
-        abort_unless($this->userHasAccess($request->user()->id, $item), 403);
 
         $fresh = LibraryItem::query()->whereKey($item->id)->firstOrFail();
         $message = null;

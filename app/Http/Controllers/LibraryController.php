@@ -540,7 +540,7 @@ class LibraryController extends Controller
             'has_access' => $hasAccess,
             'summary_status' => $item->ai_summary_status,
             'summary_chars' => mb_strlen((string) ($item->ai_summary ?? '')),
-            'summary_url_enabled' => $item->type === 'ebook' && $hasAccess,
+            'summary_url_enabled' => $item->type === 'ebook' && auth()->check(),
         ]);
 
         return Inertia::render('Library/Show', [
@@ -555,7 +555,7 @@ class LibraryController extends Controller
             'mediaUrls' => $hasAccess ? $this->readerMediaUrls($item) : [],
             'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
-            'summaryUrl' => ($item->type === 'ebook' && $hasAccess) ? route('library.summary', $item) : null,
+            'summaryUrl' => ($item->type === 'ebook' && auth()->check()) ? route('library.summary', $item) : null,
             'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }
@@ -1011,7 +1011,6 @@ class LibraryController extends Controller
         abort_unless($item->is_active, 404);
         $this->abortIfNotAvailableInUserRegion($item);
         abort_unless($item->type === 'ebook', 404);
-        abort_unless($this->userHasAccess($item), 403);
 
         $fresh = LibraryItem::query()->whereKey($item->id)->firstOrFail();
         Log::info('Library AI summary: user requested summary retrieval', [

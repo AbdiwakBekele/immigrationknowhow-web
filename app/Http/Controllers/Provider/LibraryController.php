@@ -184,7 +184,7 @@ class LibraryController extends Controller
             'mediaUrls' => $hasAccess ? $this->readerMediaUrls($item) : [],
             'progressUrl' => $hasAccess ? route('library.progress', $item) : null,
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
-            'summaryUrl' => ($item->type === 'ebook' && $hasAccess) ? route('library.summary', $item) : null,
+            'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
             'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
         ]);
     }

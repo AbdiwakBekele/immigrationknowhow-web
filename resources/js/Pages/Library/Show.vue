@@ -206,12 +206,8 @@ const addAccessLabel = computed(() => {
     if (hasAudioCompanion.value) return 'Add to library';
     return props.item.type === 'ebook' ? 'Add to library & read' : 'Add to library & listen';
 });
-const canShowSummaryTab = computed(() => props.item.type === 'ebook' && props.hasAccess);
-const canRequestSummary = computed(() => (
-    props.hasAccess
-    && Boolean(props.summaryUrl)
-    && !summaryText.value
-));
+const canShowSummaryTab = computed(() => props.item.type === 'ebook');
+const canRequestSummary = computed(() => Boolean(props.summaryUrl) && !summaryText.value);
 const renderedSummaryHtml = computed(() => renderSafeMarkdown(summaryText.value));
 
 const formatDate = (value) => {
@@ -800,11 +796,8 @@ onBeforeUnmount(() => {
 	                                        v-html="renderedSummaryHtml"
 	                                    >
 	                                    </div>
-	                                    <p v-else-if="canRequestSummary" class="text-sm text-slate-600">
-	                                        Summary will appear here when ready.
-	                                    </p>
 	                                    <p v-else class="text-sm text-slate-600">
-	                                        Purchase this ebook to unlock its AI summary.
+	                                        Summary will appear here when ready.
 	                                    </p>
 	                                </div>
 	                            </div>
