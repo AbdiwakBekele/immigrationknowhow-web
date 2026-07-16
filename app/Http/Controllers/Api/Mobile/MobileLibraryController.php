@@ -40,14 +40,19 @@ class MobileLibraryController extends Controller
             'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
             'category' => ['nullable', 'string', 'max:120'],
             'author' => ['nullable', 'string', 'max:120'],
+            'region' => ['nullable', 'string', Rule::in(LibraryItem::supportedRegions())],
             'sort' => ['nullable', 'string', 'max:32'],
             'favorites' => ['nullable', 'boolean'],
         ]);
 
         $query = LibraryItem::query()
             ->with(['category', 'libraryAuthor'])
-            ->active()
-            ->availableInRegion(LibraryItem::regionForCountry($user->country ?? null));
+            ->active();
+
+        // Match web hub: only filter by region when the client asks for it.
+        if (! empty($validated['region'])) {
+            $query->availableInRegion($validated['region']);
+        }
 
         if (! empty($validated['search'])) {
             $query->search($validated['search']);
@@ -213,14 +218,17 @@ class MobileLibraryController extends Controller
     {
         $user = $request->user();
         $section = $request->query('section', 'purchased');
-        $perPage = min(24, max(1, (int) $request->query('per_page', 12)));
-
-        $userRegion = LibraryItem::regionForCountry($user->country ?? null);
+        $perPage = min(50, max(1, (int) $request->query('per_page', 12)));
 
         if ($section === 'available') {
             $paginator = LibraryItem::query()
                 ->active()
-                ->availableInRegion($userRegion)
+                ->when($request->filled('region'), function ($q) use ($request) {
+                    $region = $request->query('region');
+                    if (is_string($region) && in_array($region, LibraryItem::supportedRegions(), true)) {
+                        $q->availableInRegion($region);
+                    }
+                })
                 ->where(function ($q) use ($user) {
                     $q->whereDoesntHave('userAccess', function ($access) use ($user) {
                         $access->where('user_id', $user->id)->whereNotNull('purchased_at');
