@@ -31,9 +31,6 @@ use App\Http\Controllers\UploadController;
 use App\Http\Controllers\User;
 use App\Http\Controllers\User\AiAssistantController;
 use App\Http\Controllers\VideoProductController;
-use App\Http\Controllers\Webhooks\CheckrWebhookController;
-use App\Http\Controllers\Webhooks\InboundEmailWebhookController;
-use App\Http\Controllers\Webhooks\StripeLibraryWebhookController;
 use App\Http\Middleware\PublicApiRequestLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -199,12 +196,6 @@ Route::get('/go/{tracking_code}', [AffiliateController::class, 'track'])->name('
 
 // DV Lottery link
 Route::get('/dv-lottery', fn () => redirect('https://dvprogram.state.gov/'))->name('dv-lottery');
-
-Route::prefix('webhooks')->name('webhooks.')->group(function () {
-    Route::post('/checkr', CheckrWebhookController::class)->name('checkr');
-    Route::post('/stripe', StripeLibraryWebhookController::class)->name('stripe');
-    Route::post('/email/inbound', InboundEmailWebhookController::class)->name('email.inbound');
-});
 
 /*
 |--------------------------------------------------------------------------
