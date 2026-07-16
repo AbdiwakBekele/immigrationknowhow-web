@@ -14,14 +14,20 @@ use App\Http\Controllers\Controller;
 use App\Models\AiAssistantSubscription;
 use App\Models\ProviderSubscription;
 use App\Models\ProviderSubscriptionPayment;
+use App\Models\StripeWebhookEvent;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Stripe\Checkout\Session;
 use Stripe\Event;
+use Stripe\Exception\SignatureVerificationException;
 use Stripe\Invoice;
 use Stripe\Subscription;
 use Stripe\Webhook;
+use Throwable;
+use UnexpectedValueException;
 
 class StripeLibraryWebhookController extends Controller
 {
@@ -35,17 +41,42 @@ class StripeLibraryWebhookController extends Controller
         CreateAffiliateEarningAction $createAffiliateEarning,
         FulfillContractCloseCheckout $fulfillContractClose,
     ): Response {
+        $startedAt = microtime(true);
         $secret = config('services.stripe.webhook_secret');
         if (! is_string($secret) || $secret === '') {
+            Log::error('stripe.webhook.secret_missing');
+
             return response('Webhook secret not configured', 503);
         }
 
         $payload = $request->getContent();
-        $sigHeader = $request->header('Stripe-Signature', '');
+        $sigHeader = (string) $request->header('Stripe-Signature', '');
+        if ($sigHeader === '') {
+            Log::warning('stripe.webhook.signature_missing');
+
+            return response('Missing Stripe-Signature header', 400);
+        }
 
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $secret);
-        } catch (UnexpectedValueException|\Throwable $e) {
+        } catch (UnexpectedValueException $exception) {
+            Log::warning('stripe.webhook.invalid_payload', [
+                'error_class' => $exception::class,
+            ]);
+
+            return response('Invalid webhook payload', 400);
+        } catch (SignatureVerificationException $exception) {
+            Log::warning('stripe.webhook.invalid_signature', [
+                'error_class' => $exception::class,
+            ]);
+
+            return response('Invalid webhook signature', 400);
+        } catch (Throwable $exception) {
+            Log::error('stripe.webhook.construct_failed', [
+                'error_class' => $exception::class,
+                'error_message' => $exception->getMessage(),
+            ]);
+
             return response('Invalid payload or signature', 400);
         }
 
@@ -53,6 +84,112 @@ class StripeLibraryWebhookController extends Controller
             return response('Invalid event', 400);
         }
 
+        $eventId = (string) $event->id;
+        $eventType = (string) $event->type;
+        $livemode = (bool) ($event->livemode ?? false);
+
+        if (config('services.stripe.webhook_expect_live') && ! $livemode) {
+            Log::warning('stripe.webhook.test_event_rejected', [
+                'stripe_event_id' => $eventId,
+                'event_type' => $eventType,
+            ]);
+
+            return response('Test-mode event rejected by live webhook', 400);
+        }
+
+        $existing = StripeWebhookEvent::query()->where('stripe_event_id', $eventId)->first();
+        if ($existing && $existing->processing_status === StripeWebhookEvent::STATUS_PROCESSED) {
+            Log::info('stripe.webhook.duplicate_ignored', [
+                'stripe_event_id' => $eventId,
+                'event_type' => $eventType,
+            ]);
+
+            return response('OK', 200);
+        }
+
+        try {
+            $record = $existing ?? StripeWebhookEvent::query()->create([
+                'stripe_event_id' => $eventId,
+                'event_type' => $eventType,
+                'processing_status' => StripeWebhookEvent::STATUS_RECEIVED,
+                'attempts' => 0,
+            ]);
+        } catch (QueryException $exception) {
+            // Concurrent insert of the same event id.
+            $race = StripeWebhookEvent::query()->where('stripe_event_id', $eventId)->first();
+            if ($race && $race->processing_status === StripeWebhookEvent::STATUS_PROCESSED) {
+                return response('OK', 200);
+            }
+            $record = $race;
+            if (! $record) {
+                Log::error('stripe.webhook.record_create_failed', [
+                    'stripe_event_id' => $eventId,
+                    'event_type' => $eventType,
+                    'error_class' => $exception::class,
+                ]);
+
+                return response('Unable to record webhook event', 500);
+            }
+        }
+
+        $record->attempts = (int) $record->attempts + 1;
+        $record->save();
+
+        try {
+            $this->dispatchEvent(
+                $event,
+                $fulfillLibrary,
+                $fulfillVideo,
+                $fulfillAdvertiser,
+                $fulfillProvider,
+                $syncProviderSubscription,
+                $createAffiliateEarning,
+                $fulfillContractClose,
+            );
+
+            $record->forceFill([
+                'processing_status' => StripeWebhookEvent::STATUS_PROCESSED,
+                'processed_at' => now(),
+                'failure_message' => null,
+            ])->save();
+
+            Log::info('stripe.webhook.processed', [
+                'stripe_event_id' => $eventId,
+                'event_type' => $eventType,
+                'livemode' => $livemode,
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
+            return response('OK', 200);
+        } catch (Throwable $exception) {
+            $record->forceFill([
+                'processing_status' => StripeWebhookEvent::STATUS_FAILED,
+                'failure_message' => mb_substr($exception->getMessage(), 0, 500),
+            ])->save();
+
+            Log::error('stripe.webhook.processing_failed', [
+                'stripe_event_id' => $eventId,
+                'event_type' => $eventType,
+                'error_class' => $exception::class,
+                'error_message' => $exception->getMessage(),
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
+            // Non-2xx so Stripe retries transient failures.
+            return response('Webhook processing failed', 500);
+        }
+    }
+
+    private function dispatchEvent(
+        Event $event,
+        FulfillLibraryStripeCheckout $fulfillLibrary,
+        FulfillVideoStripeCheckout $fulfillVideo,
+        FulfillAdvertiserStripeCheckout $fulfillAdvertiser,
+        FulfillProviderStripeCheckout $fulfillProvider,
+        SyncProviderStripeSubscription $syncProviderSubscription,
+        CreateAffiliateEarningAction $createAffiliateEarning,
+        FulfillContractCloseCheckout $fulfillContractClose,
+    ): void {
         if ($event->type === 'checkout.session.completed') {
             $session = $event->data->object;
             if ($session instanceof Session) {
@@ -67,11 +204,21 @@ class StripeLibraryWebhookController extends Controller
                     $this->syncAiAssistantCheckout($session);
                 } elseif ($app === 'contract_close') {
                     $fulfillContractClose($session);
-                } else {
+                } elseif ($app === 'library' || $app === '') {
+                    // Empty app defaults to library for older sessions.
                     $fulfillLibrary($session);
+                } else {
+                    Log::warning('stripe.webhook.unknown_checkout_app', [
+                        'stripe_event_id' => (string) $event->id,
+                        'app' => $app,
+                    ]);
                 }
             }
-        } elseif (in_array($event->type, ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'], true)) {
+
+            return;
+        }
+
+        if (in_array($event->type, ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'], true)) {
             $subscription = $event->data->object;
             if ($subscription instanceof Subscription) {
                 $app = (string) ($subscription->metadata['app'] ?? '');
@@ -81,7 +228,11 @@ class StripeLibraryWebhookController extends Controller
                     $syncProviderSubscription($subscription);
                 }
             }
-        } elseif (in_array($event->type, ['invoice.paid', 'invoice.payment_failed'], true)) {
+
+            return;
+        }
+
+        if (in_array($event->type, ['invoice.paid', 'invoice.payment_failed'], true)) {
             $invoice = $event->data->object;
             if ($invoice instanceof Invoice) {
                 $payment = $this->syncInvoice($invoice);
@@ -89,9 +240,14 @@ class StripeLibraryWebhookController extends Controller
                     $this->createCommission($payment, $createAffiliateEarning);
                 }
             }
+
+            return;
         }
 
-        return response('OK', 200);
+        Log::warning('stripe.webhook.unhandled_event_type', [
+            'stripe_event_id' => (string) $event->id,
+            'event_type' => (string) $event->type,
+        ]);
     }
 
     private function syncInvoice(Invoice $invoice): ?ProviderSubscriptionPayment

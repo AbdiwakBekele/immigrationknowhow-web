@@ -49,6 +49,15 @@ return [
         'webhook_secret' => ($w = env('STRIPE_WEBHOOK_SECRET')) !== null && (string) $w !== ''
             ? trim((string) $w)
             : '',
+        /*
+        | When true, reject Stripe events with livemode=false (protects production
+        | from accidentally processing test-mode deliveries against a live endpoint).
+        | Defaults to true in the production environment.
+        */
+        'webhook_expect_live' => filter_var(
+            env('STRIPE_WEBHOOK_EXPECT_LIVE', env('APP_ENV') === 'production' ? 'true' : 'false'),
+            FILTER_VALIDATE_BOOL
+        ),
         'ai_assistant_price_id' => ($p = env('STRIPE_AI_ASSISTANT_PRICE_ID')) !== null && (string) $p !== ''
             ? trim((string) $p)
             : '',
