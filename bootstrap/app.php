@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            // No web session/CSRF/Inertia — raw body required for signature verification.
+            require __DIR__.'/../routes/webhooks.php';
+        },
     )
     ->withMiddleware(function (Middleware $middleware) {
         // Ensure API preflight/response headers are always applied in local web/mobile dev.
