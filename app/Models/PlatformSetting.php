@@ -168,7 +168,11 @@ class PlatformSetting extends Model
         if ($showAfterClose === null) {
             $showAfterClose = true;
         }
-        $showInMenu = $isOpen || ($isClosed && (bool) $showAfterClose);
+        $isBeforeOpen = $hasValidDateRange && $today->lessThan($openFrom);
+        $showInMenu = ! $hasValidDateRange
+            || $isBeforeOpen
+            || $isOpen
+            || ($isClosed && (bool) $showAfterClose);
 
         return [
             'title' => $this->dv_lottery_page_title ?: $defaults['dv_lottery_page_title'],
