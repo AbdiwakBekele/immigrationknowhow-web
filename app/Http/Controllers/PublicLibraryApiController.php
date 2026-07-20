@@ -98,7 +98,7 @@ class PublicLibraryApiController extends Controller
 
         try {
             $validated = $request->validate([
-                'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+                'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
                 'page' => ['nullable', 'integer', 'min:1'],
                 'search' => ['nullable', 'string', 'max:100'],
                 'slug' => ['nullable', 'string', 'max:255'],
@@ -157,7 +157,7 @@ class PublicLibraryApiController extends Controller
             $items = $query
                 ->orderByDesc('is_featured')
                 ->orderByDesc('created_at')
-                ->paginate((int) ($validated['per_page'] ?? 12))
+                ->paginate((int) ($validated['per_page'] ?? 100))
                 ->through(fn (LibraryItem $item): array => $this->publicItemPayload($item, $fullDescription));
 
             Log::info('PublicLibraryApi request completed', array_merge($context, [

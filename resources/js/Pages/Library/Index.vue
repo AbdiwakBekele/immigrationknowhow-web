@@ -16,6 +16,7 @@ import {
     XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useInertiaInfiniteScroll } from '@/composables/useInertiaInfiniteScroll';
 
 const props = defineProps({
     items: { type: Object, required: true },
@@ -57,8 +58,38 @@ const storefrontRoute = computed(() => {
     return 'library.index';
 });
 
-const visibleItems = computed(() => props.items?.data ?? []);
-const resultTotal = computed(() => Number(props.items?.total ?? visibleItems.value.length) || 0);
+const buildLibraryQuery = () => {
+    const term = String(search.value || '').trim();
+
+    return {
+        search: term || undefined,
+        category: selectedCategory.value || undefined,
+        region: selectedRegion.value || undefined,
+        author: selectedAuthor.value || undefined,
+        type: props.forcedType ? undefined : (selectedType.value || undefined),
+        access: selectedAccess.value || undefined,
+        favorites: favoritesOnly.value ? 'true' : undefined,
+        sort: selectedSort.value || undefined,
+    };
+};
+
+const {
+    displayedItems,
+    total: libraryTotal,
+    loadingMore: libraryLoadingMore,
+    loadMoreSentinel: libraryLoadMoreSentinel,
+    hasMore: libraryHasMore,
+} = useInertiaInfiniteScroll(
+    () => props.items,
+    {
+        getUrl: () => route(storefrontRoute.value),
+        buildQuery: buildLibraryQuery,
+        only: 'items',
+    },
+);
+
+const visibleItems = computed(() => displayedItems.value);
+const resultTotal = computed(() => Number(libraryTotal.value ?? visibleItems.value.length) || 0);
 const resultLabel = computed(() => {
     const noun = props.forcedType === 'audiobook' ? 'audiobook' : 'eBook';
     const plural = resultTotal.value === 1 ? noun : `${noun}s`;
@@ -781,23 +812,18 @@ const actionHref = (item) => {
                     </button>
                 </div>
 
-                <div v-if="items.links && items.last_page > 1" class="mt-10 flex justify-center">
-                    <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <Link
-                            v-for="link in items.links"
-                            :key="link.label"
-                            :href="link.url || '#'"
-                            :class="[
-                                'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
-                                link.active
-                                    ? 'bg-blue-600 text-white'
-                                    : link.url
-                                      ? 'text-neutral-600 hover:bg-neutral-100'
-                                      : 'cursor-not-allowed text-neutral-300',
-                            ]"
-                            v-html="link.label"
-                        />
-                    </nav>
+                <div v-if="visibleItems.length && (libraryHasMore || libraryLoadingMore)" class="mt-10 flex flex-col items-center gap-3">
+                    <div
+                        ref="libraryLoadMoreSentinel"
+                        class="h-1 w-full"
+                        aria-hidden="true"
+                    />
+                    <p v-if="libraryLoadingMore" class="text-sm text-neutral-500">
+                        Loading more titles…
+                    </p>
+                    <p v-else class="text-sm text-neutral-500">
+                        Showing {{ visibleItems.length }} of {{ resultTotal }} titles
+                    </p>
                 </div>
             </section>
         </div>

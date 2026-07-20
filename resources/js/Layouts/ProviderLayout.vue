@@ -86,13 +86,7 @@ const navigation = computed(() => {
         { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
         { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
         { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
-        ...(dvLottery.value.show_in_menu
-            ? [{
-                name: 'DV Lottery',
-                href: '/provider/dv-lottery',
-                icon: BookOpenIcon,
-            }]
-            : []),
+        { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
         { name: 'Subscriptions', href: '/provider/subscriptions', icon: CreditCardIcon },
         ...(providerRequiresBackgroundCheck.value
             ? [{ name: 'Background Check', href: '/provider/background-check', icon: ShieldCheckIcon }]
@@ -391,7 +385,6 @@ onUnmounted(() => {
                             </span>
                         </Link>
                         <Link
-                            v-if="dvLottery.show_in_menu"
                             href="/provider/dv-lottery"
                             class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                         >

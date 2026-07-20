@@ -55,7 +55,7 @@ class GuestBrowseController extends Controller
     public function libraryBrowse(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
             'search' => ['nullable', 'string', 'max:100'],
             'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
@@ -96,7 +96,7 @@ class GuestBrowseController extends Controller
 
         $query->orderByDesc('is_featured')->orderByDesc('created_at');
 
-        $paginator = $query->paginate((int) ($validated['per_page'] ?? 20));
+        $paginator = $query->paginate((int) ($validated['per_page'] ?? 100));
 
         return $this->success('OK', [
             'items' => [

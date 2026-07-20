@@ -111,13 +111,11 @@ const navigation = computed(() => [
     { name: 'Find Services', href: route('marketplace.index'), icon: MagnifyingGlassIcon },
     { name: 'Library', href: route('library.index'), icon: BookOpenIcon },
     { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
-    ...(dvLottery.value.show_in_menu
-        ? [{
-            name: 'DV Lottery',
-            href: route('user.dv-lottery.index'),
-            icon: BookOpenIcon,
-        }]
-        : []),
+    {
+        name: 'DV Lottery',
+        href: route('user.dv-lottery.index'),
+        icon: BookOpenIcon,
+    },
 ]);
 
 const seekerUserNavigation = computed(() => {
@@ -131,10 +129,8 @@ const seekerUserNavigation = computed(() => {
         { name: 'My Library', href: route('library.my'), icon: BookOpenIcon },
         { name: 'Videos', href: route('videos.index'), icon: VideoCameraIcon },
         { name: 'AI Assistant', href: route('user.ai-assistant.index'), icon: SparklesIcon },
+        { name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon },
     ];
-    if (dvLottery.value.show_in_menu) {
-        items.push({ name: 'DV Lottery', href: route('user.dv-lottery.index'), icon: BookOpenIcon });
-    }
     items.push({ name: 'Community', href: '/community', icon: UserGroupIcon });
     items.push({ name: 'Reviews', href: route('reviews.index'), icon: StarIcon });
     return items;
@@ -506,7 +502,6 @@ const userAvatarInitial = computed(() => {
                                 </span>
                             </Link>
                             <Link
-                                v-if="dvLottery.show_in_menu"
                                 :href="route('user.dv-lottery.index')"
                                 class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:inline-flex"
                             >

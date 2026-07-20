@@ -34,7 +34,7 @@ class MobileLibraryController extends Controller
     {
         $user = $request->user();
         $validated = $request->validate([
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
             'search' => ['nullable', 'string', 'max:100'],
             'type' => ['nullable', 'string', Rule::in(LibraryItem::supportedTypes())],
@@ -89,7 +89,7 @@ class MobileLibraryController extends Controller
             default => $query->orderByDesc('is_featured')->orderByDesc('created_at'),
         };
 
-        $paginator = $query->paginate((int) ($validated['per_page'] ?? 16));
+        $paginator = $query->paginate((int) ($validated['per_page'] ?? 100));
 
         $items = $paginator->getCollection()->map(function (LibraryItem $item) use ($user) {
             $access = $item->userAccess()->where('user_id', $user->id)->first();
@@ -218,7 +218,7 @@ class MobileLibraryController extends Controller
     {
         $user = $request->user();
         $section = $request->query('section', 'purchased');
-        $perPage = min(50, max(1, (int) $request->query('per_page', 12)));
+        $perPage = min(100, max(1, (int) $request->query('per_page', 100)));
 
         if ($section === 'available') {
             $paginator = LibraryItem::query()

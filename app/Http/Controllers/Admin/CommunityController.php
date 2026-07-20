@@ -9,7 +9,6 @@ use App\Support\PhoneDialOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -152,10 +151,10 @@ class CommunityController extends Controller
             'is_published' => $isPublished,
             'published_at' => $isPublished ? now() : null,
             'image_url' => $request->hasFile('image')
-                ? Storage::url($request->file('image')->store('community/images', 'public'))
+                ? $this->storePublicMedia($request->file('image'), 'community/images')
                 : null,
             'video_url' => $request->hasFile('video')
-                ? Storage::url($request->file('video')->store('community/videos', 'public'))
+                ? $this->storePublicMedia($request->file('video'), 'community/videos')
                 : ($validated['video_url'] ?? null),
         ]);
 
@@ -178,12 +177,12 @@ class CommunityController extends Controller
 
         $imageUrl = $communityPost->image_url;
         if ($request->hasFile('image')) {
-            $imageUrl = Storage::url($request->file('image')->store('community/images', 'public'));
+            $imageUrl = $this->storePublicMedia($request->file('image'), 'community/images');
         }
 
         $videoUrl = $communityPost->video_url;
         if ($request->hasFile('video')) {
-            $videoUrl = Storage::url($request->file('video')->store('community/videos', 'public'));
+            $videoUrl = $this->storePublicMedia($request->file('video'), 'community/videos');
         } elseif (array_key_exists('video_url', $validated)) {
             $videoUrl = $validated['video_url'] ?: null;
         }
@@ -263,5 +262,10 @@ class CommunityController extends Controller
         $normalized = strtoupper(trim((string) $value));
 
         return $normalized !== '' ? $normalized : 'US';
+    }
+
+    private function storePublicMedia(\Illuminate\Http\UploadedFile $file, string $directory): string
+    {
+        return '/storage/'.$file->store($directory, 'public');
     }
 }

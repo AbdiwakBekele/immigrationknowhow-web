@@ -444,7 +444,7 @@ class LibraryController extends Controller
         };
 
         // Add favorite status for current user
-        $items = $query->paginate(16)
+        $items = $query->paginate(100)
             ->withQueryString();
 
         // Add favorite status to each item
@@ -612,7 +612,7 @@ class LibraryController extends Controller
                     ->where('user_id', $user->id)
                     ->limit(1)
             )
-            ->paginate(12, ['*'], 'purchased_page')
+            ->paginate(100, ['*'], 'purchased_page')
             ->withQueryString();
 
         $available = LibraryItem::query()
@@ -628,7 +628,7 @@ class LibraryController extends Controller
             ->with(['libraryAuthor', 'category'])
             ->orderByDesc('is_featured')
             ->orderByDesc('created_at')
-            ->paginate(12, ['*'], 'available_page')
+            ->paginate(100, ['*'], 'available_page')
             ->withQueryString();
 
         return Inertia::render('Library/MyLibrary', [

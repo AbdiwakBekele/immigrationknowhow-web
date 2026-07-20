@@ -13,6 +13,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/vue/24/solid';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useInertiaInfiniteScroll } from '@/composables/useInertiaInfiniteScroll';
 
 const props = defineProps({
     purchasedItems: { type: Object, required: true },
@@ -106,6 +107,51 @@ const userAccessRecord = (item) => {
 
 const isFavorited = (item) => Boolean(userAccessRecord(item)?.is_favorite);
 
+const buildMyLibraryQuery = (tab) => {
+    const term = String(search.value || '').trim();
+
+    return {
+        search: term || undefined,
+        tab,
+    };
+};
+
+const availableScroll = useInertiaInfiniteScroll(
+    () => props.availableItems,
+    {
+        getUrl: () => route('library.my'),
+        buildQuery: () => buildMyLibraryQuery('available'),
+        pageParam: 'available_page',
+        only: 'availableItems',
+    },
+);
+
+const purchasedScroll = useInertiaInfiniteScroll(
+    () => props.purchasedItems,
+    {
+        getUrl: () => route('library.my'),
+        buildQuery: () => buildMyLibraryQuery('purchased'),
+        pageParam: 'purchased_page',
+        only: 'purchasedItems',
+    },
+);
+
+const {
+    displayedItems: availableItemsList,
+    total: availableTotal,
+    loadingMore: availableLoadingMore,
+    loadMoreSentinel: availableLoadMoreSentinel,
+    hasMore: availableHasMore,
+} = availableScroll;
+
+const {
+    displayedItems: purchasedItemsList,
+    total: purchasedTotal,
+    loadingMore: purchasedLoadingMore,
+    loadMoreSentinel: purchasedLoadMoreSentinel,
+    hasMore: purchasedHasMore,
+} = purchasedScroll;
+
 const readUrl = (item) => route('library.read', { item: item.slug });
 const showUrl = (item) => route('library.show', { item: item.slug });
 const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug });
@@ -191,7 +237,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 v-if="availableItems?.data?.length"
                                 class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
                             >
-                                {{ availableItems.total ?? availableItems.data.length }}
+                                {{ availableTotal || availableItemsList.length }}
                             </span>
                         </span>
                         <span
@@ -214,7 +260,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                                 v-if="purchasedItems?.data?.length"
                                 class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
                             >
-                                {{ purchasedItems.total ?? purchasedItems.data.length }}
+                                {{ purchasedTotal || purchasedItemsList.length }}
                             </span>
                         </span>
                         <span
@@ -227,11 +273,11 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
 
             <section v-if="activeTab === 'available'">
                 <div
-                    v-if="availableItems?.data?.length"
+                    v-if="availableItemsList.length"
                     class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
                 >
                     <article
-                        v-for="item in availableItems.data"
+                        v-for="item in availableItemsList"
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
@@ -304,35 +350,24 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         {{ appliedSearch ? 'Try another search term or clear the search.' : 'Check back soon for new content.' }}
                     </p>
                 </div>
-                <div v-if="availableItems.links && availableItems.last_page > 1" class="mt-8 flex justify-center">
-                    <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <template v-for="link in availableItems.links" :key="`available-${link.label}`">
-                            <Link
-                                v-if="link.url"
-                                :href="link.url"
-                                :class="[
-                                    'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
-                                    link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
-                                ]"
-                                v-html="link.label"
-                            />
-                            <span
-                                v-else
-                                class="min-w-9 cursor-not-allowed rounded-lg px-3 py-2 text-sm font-semibold text-neutral-300"
-                                v-html="link.label"
-                            />
-                        </template>
-                    </nav>
+                <div v-if="availableHasMore || availableLoadingMore" class="mt-8 flex flex-col items-center gap-3">
+                    <div ref="availableLoadMoreSentinel" class="h-1 w-full" aria-hidden="true" />
+                    <p v-if="availableLoadingMore" class="text-sm text-neutral-500">
+                        Loading more titles…
+                    </p>
+                    <p v-else class="text-sm text-neutral-500">
+                        Showing {{ availableItemsList.length }} of {{ availableTotal }} titles
+                    </p>
                 </div>
             </section>
 
             <section v-if="activeTab === 'purchased'">
                 <div
-                    v-if="purchasedItems?.data?.length"
+                    v-if="purchasedItemsList.length"
                     class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
                 >
                     <article
-                        v-for="item in purchasedItems.data"
+                        v-for="item in purchasedItemsList"
                         :key="item.uuid"
                         class="group flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
@@ -407,25 +442,14 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
                         Browse available titles
                     </button>
                 </div>
-                <div v-if="purchasedItems.links && purchasedItems.last_page > 1" class="mt-8 flex justify-center">
-                    <nav class="flex flex-wrap items-center justify-center gap-1">
-                        <template v-for="link in purchasedItems.links" :key="`purchased-${link.label}`">
-                            <Link
-                                v-if="link.url"
-                                :href="link.url"
-                                :class="[
-                                    'min-w-9 rounded-lg px-3 py-2 text-sm font-semibold transition',
-                                    link.active ? 'bg-blue-600 text-white' : 'text-neutral-600 hover:bg-neutral-100',
-                                ]"
-                                v-html="link.label"
-                            />
-                            <span
-                                v-else
-                                class="min-w-9 cursor-not-allowed rounded-lg px-3 py-2 text-sm font-semibold text-neutral-300"
-                                v-html="link.label"
-                            />
-                        </template>
-                    </nav>
+                <div v-if="purchasedHasMore || purchasedLoadingMore" class="mt-8 flex flex-col items-center gap-3">
+                    <div ref="purchasedLoadMoreSentinel" class="h-1 w-full" aria-hidden="true" />
+                    <p v-if="purchasedLoadingMore" class="text-sm text-neutral-500">
+                        Loading more titles…
+                    </p>
+                    <p v-else class="text-sm text-neutral-500">
+                        Showing {{ purchasedItemsList.length }} of {{ purchasedTotal }} titles
+                    </p>
                 </div>
             </section>
         </div>

@@ -47,7 +47,7 @@ class LibraryController extends Controller
                     ->where('user_id', $user->id)
                     ->limit(1)
             )
-            ->paginate(12, ['*'], 'purchased_page')
+            ->paginate(100, ['*'], 'purchased_page')
             ->withQueryString();
 
         $available = LibraryItem::query()
@@ -63,7 +63,7 @@ class LibraryController extends Controller
             ->with(['libraryAuthor', 'category'])
             ->orderByDesc('is_featured')
             ->orderByDesc('created_at')
-            ->paginate(12, ['*'], 'available_page')
+            ->paginate(100, ['*'], 'available_page')
             ->withQueryString();
 
         return Inertia::render('Provider/Library/Index', [
