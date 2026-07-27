@@ -57,6 +57,44 @@ class PublicLibraryApiTest extends TestCase
             ->assertJsonPath('data.0.title', 'Featured Guide');
     }
 
+    public function test_public_library_items_list_featured_first_and_exposes_is_featured(): void
+    {
+        $olderRegular = $this->createItem([
+            'title' => 'Older Regular Guide',
+            'slug' => 'older-regular-guide',
+            'is_featured' => false,
+        ]);
+        $olderRegular->forceFill(['created_at' => now()->subDays(2)])->save();
+
+        $featured = $this->createItem([
+            'title' => 'Featured Guide',
+            'slug' => 'featured-guide',
+            'is_featured' => true,
+        ]);
+        $featured->forceFill(['created_at' => now()->subDay()])->save();
+
+        $newerRegular = $this->createItem([
+            'title' => 'Newer Regular Guide',
+            'slug' => 'newer-regular-guide',
+            'is_featured' => false,
+        ]);
+        $newerRegular->forceFill(['created_at' => now()])->save();
+
+        $response = $this->getJson(route('api.public.library-items', [
+            'per_page' => 10,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(3, 'data')
+            ->assertJsonPath('data.0.slug', 'featured-guide')
+            ->assertJsonPath('data.0.is_featured', true)
+            ->assertJsonPath('data.1.slug', 'newer-regular-guide')
+            ->assertJsonPath('data.1.is_featured', false)
+            ->assertJsonPath('data.2.slug', 'older-regular-guide')
+            ->assertJsonPath('data.2.is_featured', false);
+    }
+
     public function test_public_library_item_show_includes_ai_summary_for_ebooks(): void
     {
         $this->createItem([
