@@ -95,6 +95,32 @@ class PublicLibraryApiTest extends TestCase
             ->assertJsonPath('data.2.is_featured', false);
     }
 
+    public function test_public_library_items_can_filter_to_non_featured_only(): void
+    {
+        $this->createItem([
+            'title' => 'Featured Guide',
+            'slug' => 'featured-guide',
+            'is_featured' => true,
+        ]);
+
+        $this->createItem([
+            'title' => 'Regular Guide',
+            'slug' => 'regular-guide',
+            'is_featured' => false,
+        ]);
+
+        $response = $this->getJson(route('api.public.library-items', [
+            'featured' => 0,
+            'per_page' => 10,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.slug', 'regular-guide')
+            ->assertJsonPath('data.0.is_featured', false);
+    }
+
     public function test_public_library_item_show_includes_ai_summary_for_ebooks(): void
     {
         $this->createItem([

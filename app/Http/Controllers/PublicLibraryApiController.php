@@ -150,8 +150,12 @@ class PublicLibraryApiController extends Controller
                 }
             }
 
-            if (! empty($validated['featured'])) {
-                $query->featured();
+            if (array_key_exists('featured', $validated)) {
+                if ($validated['featured']) {
+                    $query->featured();
+                } else {
+                    $query->where('is_featured', false);
+                }
             }
 
             $fullDescription = ! empty($validated['slug']);
