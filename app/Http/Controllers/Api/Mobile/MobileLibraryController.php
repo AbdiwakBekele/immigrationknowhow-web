@@ -219,10 +219,12 @@ class MobileLibraryController extends Controller
         $user = $request->user();
         $section = $request->query('section', 'purchased');
         $perPage = min(100, max(1, (int) $request->query('per_page', 100)));
+        $search = trim((string) $request->query('search', ''));
 
         if ($section === 'available') {
             $paginator = LibraryItem::query()
                 ->active()
+                ->when($search !== '', fn ($q) => $q->search($search))
                 ->when($request->filled('region'), function ($q) use ($request) {
                     $region = $request->query('region');
                     if (is_string($region) && in_array($region, LibraryItem::supportedRegions(), true)) {
@@ -247,6 +249,7 @@ class MobileLibraryController extends Controller
         } else {
             $paginator = LibraryItem::query()
                 ->active()
+                ->when($search !== '', fn ($q) => $q->search($search))
                 ->whereHas('userAccess', function ($q) use ($user) {
                     $q->where('user_id', $user->id)->whereNotNull('purchased_at');
                 })
