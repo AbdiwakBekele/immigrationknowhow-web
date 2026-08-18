@@ -8,7 +8,7 @@ final class LibraryEbookPricing
 {
     public static function standardPriceCents(): int
     {
-        return max(0, (int) config('library.standard_price_cents', 499));
+        return max(0, (int) config('library.standard_price_cents', 599));
     }
 
     public static function currency(): string
