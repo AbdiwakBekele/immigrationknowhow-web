@@ -114,7 +114,7 @@ class EbookCouponTest extends TestCase
     private function createPaidItem(array $overrides = []): LibraryItem
     {
         config([
-            'library.standard_price_cents' => 499,
+            'library.standard_price_cents' => 599,
             'services.apple_iap.library_ebook_product_id' => 'com.test.ebook_credit',
         ]);
 
@@ -126,7 +126,7 @@ class EbookCouponTest extends TestCase
             'file_name' => 'paid.pdf',
             'file_size' => 1,
             'file_type' => 'pdf',
-            'price' => 4.99,
+            'price' => 5.99,
             'currency' => 'USD',
             'is_premium' => false,
             'is_active' => true,

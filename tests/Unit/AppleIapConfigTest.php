@@ -12,13 +12,13 @@ class AppleIapConfigTest extends TestCase
     public function test_library_item_returns_ebook_credit_product_for_standard_paid_title(): void
     {
         config([
-            'library.standard_price_cents' => 499,
+            'library.standard_price_cents' => 599,
             'services.apple_iap.library_ebook_product_id' => 'com.example.ebook_credit',
         ]);
 
         $item = new LibraryItem([
             'type' => 'ebook',
-            'price' => 4.99,
+            'price' => 5.99,
             'currency' => 'USD',
             'is_premium' => false,
             'is_active' => true,
@@ -33,7 +33,7 @@ class AppleIapConfigTest extends TestCase
     public function test_library_item_returns_null_when_price_is_not_standard(): void
     {
         config([
-            'library.standard_price_cents' => 499,
+            'library.standard_price_cents' => 599,
             'services.apple_iap.library_ebook_product_id' => 'com.example.ebook_credit',
         ]);
 
@@ -53,13 +53,13 @@ class AppleIapConfigTest extends TestCase
     public function test_library_item_returns_null_when_ebook_credit_product_not_configured(): void
     {
         config([
-            'library.standard_price_cents' => 499,
+            'library.standard_price_cents' => 599,
             'services.apple_iap.library_ebook_product_id' => '',
         ]);
 
         $item = new LibraryItem([
             'type' => 'ebook',
-            'price' => 4.99,
+            'price' => 5.99,
             'currency' => 'USD',
             'is_premium' => false,
             'is_active' => true,
