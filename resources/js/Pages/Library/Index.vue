@@ -2,6 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import EbookShareCampaignBanner from '@/Components/library/EbookShareCampaignBanner.vue';
 import {
     AdjustmentsHorizontalIcon,
     BookOpenIcon,
@@ -296,6 +297,7 @@ const actionHref = (item) => {
 
     <AppLayout>
         <div class="min-h-full space-y-6 text-neutral-950 lg:space-y-8">
+            <EbookShareCampaignBanner v-if="isAuthenticated" />
             <section class="rounded-2xl border border-neutral-200 bg-white px-4 py-5 shadow-sm sm:px-6">
                 <div class="flex flex-col gap-4 border-b border-neutral-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
                     <div>

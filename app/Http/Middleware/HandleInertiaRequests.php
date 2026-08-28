@@ -6,6 +6,7 @@ use App\Models\Message;
 use App\Models\PlatformSetting;
 use App\Models\ServiceTypeOption;
 use App\Models\User;
+use App\Support\EbookShareCampaignPresenter;
 use App\Support\ImpersonationActorId;
 use App\Support\UserRoleAccounts;
 use Illuminate\Http\Request;
@@ -115,6 +116,20 @@ class HandleInertiaRequests extends Middleware
                 }
 
                 return count(array_unique(array_filter(array_map('intval', $raw))));
+            },
+            'ebook_share_campaign' => static function () use ($request): ?array {
+                if (! $request->user()) {
+                    return null;
+                }
+
+                if (! Schema::hasTable('ebook_share_campaigns')) {
+                    return null;
+                }
+
+                $user = $request->user();
+                $user->loadMissing('roles');
+
+                return EbookShareCampaignPresenter::forUser($user);
             },
             'impersonation' => static function () use ($request) {
                 $impersonatorId = \App\Support\ImpersonationActorId::fromSession(

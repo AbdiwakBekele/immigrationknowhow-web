@@ -22,6 +22,7 @@ import {
     ArrowRightOnRectangleIcon,
     XMarkIcon,
     ShoppingCartIcon,
+    GiftIcon,
 } from '@heroicons/vue/24/outline';
 
 const page = usePage();
@@ -84,6 +85,14 @@ const navigation = computed(() => {
         { name: 'Messages', href: '/provider/messages', icon: ChatBubbleLeftRightIcon },
         { name: 'My Ads', href: '/provider/ads', icon: MegaphoneIcon },
         { name: 'My Library', href: route('provider.library.index'), icon: BookOpenIcon },
+    ];
+
+    const campaign = page.props.ebook_share_campaign;
+    if (campaign?.eligible && (campaign.can_start || (campaign.rewarded && campaign.coupon_code))) {
+        items.push({ name: 'Share & Earn', href: route('provider.library.share'), icon: GiftIcon });
+    }
+
+    items.push(
         { name: 'Community', href: '/community', icon: ChatBubbleLeftRightIcon },
         { name: 'AI Assistant', href: route('provider.ai-assistant.index'), icon: SparklesIcon },
         { name: 'DV Lottery', href: '/provider/dv-lottery', icon: BookOpenIcon },
@@ -93,7 +102,7 @@ const navigation = computed(() => {
             : []),
         { name: 'Analytics', href: '/provider/analytics', icon: ChartBarIcon },
         { name: 'Reviews', href: '/provider/portal-reviews', icon: StarIcon },
-    ];
+    );
 
     const seen = new Set();
 

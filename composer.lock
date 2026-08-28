@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "be818c92952d0696d735b9cff3777436",
+    "content-hash": "9bca83feadb7f75321d51183285dd3c0",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -6975,16 +6975,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.11.5",
+            "version": "8.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "766e44f9986622335ecbbbd131e61390eddbd700"
+                "reference": "e3b9248f556ed522ce841ba2b7e9228ff1c8276a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/766e44f9986622335ecbbbd131e61390eddbd700",
-                "reference": "766e44f9986622335ecbbbd131e61390eddbd700",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/e3b9248f556ed522ce841ba2b7e9228ff1c8276a",
+                "reference": "e3b9248f556ed522ce841ba2b7e9228ff1c8276a",
                 "shasum": ""
             },
             "require": {
@@ -7021,7 +7021,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2026-05-06T08:38:47+00:00"
+            "time": "2026-02-05T12:32:52+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

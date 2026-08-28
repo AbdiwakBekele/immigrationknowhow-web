@@ -2,6 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import EbookShareCampaignBanner from '@/Components/library/EbookShareCampaignBanner.vue';
 import {
     BookOpenIcon,
     BookmarkIcon,
@@ -174,6 +175,7 @@ const freePurchaseUrl = (item) => route('library.purchase', { item: item.slug })
 
     <ProviderLayout>
         <div class="mx-auto max-w-7xl space-y-6 pb-10 text-neutral-950">
+            <EbookShareCampaignBanner :campaign-href="route('provider.library.share')" />
             <!-- Header -->
             <section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-wrap items-start justify-between gap-4">

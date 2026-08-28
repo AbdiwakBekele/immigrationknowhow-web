@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Actions\Library\FulfillLibraryStripeCheckout;
 use App\Actions\Library\QueueLibraryEbookSummary;
+use App\Actions\Library\RedeemEbookCoupon;
+use App\Models\EbookCoupon;
 use App\Models\LibraryAuthor;
 use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Services\Library\LibraryMediaStreamService;
+use App\Support\EbookShareCampaignPresenter;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Stripe\Checkout\Session as StripeCheckoutSession;
 use Stripe\Stripe;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -546,6 +550,10 @@ class LibraryController extends Controller
             'summary_url_enabled' => $item->type === 'ebook' && auth()->check(),
         ]);
 
+        $shareCampaign = auth()->check()
+            ? EbookShareCampaignPresenter::forUser(auth()->user())
+            : null;
+
         return Inertia::render('Library/Show', [
             'item' => $item,
             'relatedItems' => $relatedItems,
@@ -560,7 +568,70 @@ class LibraryController extends Controller
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => ($item->type === 'ebook' && auth()->check()) ? route('library.summary', $item) : null,
             'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
+            'shareCampaign' => $shareCampaign,
+            'activeEbookCoupon' => $this->activeEbookCouponPayload(),
         ]);
+    }
+
+    public function redeemCoupon(Request $request, LibraryItem $item, RedeemEbookCoupon $redeem): JsonResponse
+    {
+        abort_unless($item->is_active, 404);
+        abort_unless(auth()->check(), 403);
+        $this->abortIfNotAvailableInUserRegion($item);
+
+        $validated = $request->validate([
+            'code' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $userId = (int) auth()->id();
+        $code = isset($validated['code']) ? strtoupper(trim((string) $validated['code'])) : '';
+
+        $coupon = $code !== ''
+            ? EbookCoupon::query()->where('code', $code)->first()
+            : EbookCoupon::activeCouponForUser($userId);
+
+        if (! $coupon) {
+            return response()->json([
+                'success' => false,
+                'message' => $code !== ''
+                    ? 'Coupon code not found.'
+                    : 'You do not have an active free ebook coupon.',
+            ], 422);
+        }
+
+        try {
+            $redeem($coupon, $item, $userId);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Coupon redeemed. This title is now in your library.',
+        ]);
+    }
+
+    /**
+     * @return array{code: string, issued_for: string}|null
+     */
+    private function activeEbookCouponPayload(): ?array
+    {
+        if (! auth()->check()) {
+            return null;
+        }
+
+        $coupon = EbookCoupon::activeCouponForUser((int) auth()->id());
+        if (! $coupon) {
+            return null;
+        }
+
+        return [
+            'code' => $coupon->code,
+            'issued_for' => $coupon->issued_for,
+        ];
     }
 
     public function read(LibraryItem $item): Response|RedirectResponse

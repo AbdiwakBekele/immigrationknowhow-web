@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Mobile\MessagesController;
 use App\Http\Controllers\Api\Mobile\MobileAccountController;
 use App\Http\Controllers\Api\Mobile\MobileAdsController;
 use App\Http\Controllers\Api\Mobile\MobileAppleIapController;
+use App\Http\Controllers\Api\Mobile\MobileEbookShareController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryController;
 use App\Http\Controllers\Api\Mobile\MobileLibraryStreamController;
 use App\Http\Controllers\Api\Mobile\MobileProfileController;
@@ -117,6 +118,9 @@ Route::prefix('mobile')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->prefix('library')->group(function () {
+        Route::get('/share-campaign', [MobileEbookShareController::class, 'status']);
+        Route::post('/items/{item:slug}/share/start', [MobileEbookShareController::class, 'start']);
+        Route::post('/items/{item:slug}/share/intent', [MobileEbookShareController::class, 'intent']);
         Route::get('/browse', [MobileLibraryController::class, 'browse']);
         Route::get('/my', [MobileLibraryController::class, 'my']);
         Route::get('/items/{item:slug}', [MobileLibraryController::class, 'show']);
