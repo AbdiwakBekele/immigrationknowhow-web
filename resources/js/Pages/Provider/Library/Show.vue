@@ -2,7 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
-import EbookShareCampaignBanner from '@/Components/library/EbookShareCampaignBanner.vue';
+import EbookShareCampaignBanner from '@/Components/Library/EbookShareCampaignBanner.vue';
 import {
     ArrowLeftIcon,
     BookOpenIcon,
