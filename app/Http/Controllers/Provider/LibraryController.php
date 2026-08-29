@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Provider;
 use App\Actions\Library\QueueLibraryEbookSummary;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\LibraryController as SiteLibraryController;
+use App\Models\EbookCoupon;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
+use App\Support\EbookShareCampaignPresenter;
 use App\Support\StripeConfig;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -192,7 +194,29 @@ class LibraryController extends Controller
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
             'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
+            'shareCampaign' => EbookShareCampaignPresenter::forUser(auth()->user()),
+            'activeEbookCoupon' => $this->activeEbookCouponPayload(),
         ]);
+    }
+
+    /**
+     * @return array{code: string, issued_for: string}|null
+     */
+    private function activeEbookCouponPayload(): ?array
+    {
+        if (! auth()->check()) {
+            return null;
+        }
+
+        $coupon = EbookCoupon::activeCouponForUser((int) auth()->id());
+        if (! $coupon) {
+            return null;
+        }
+
+        return [
+            'code' => $coupon->code,
+            'issued_for' => $coupon->issued_for,
+        ];
     }
 
     public function read(LibraryItem $item): Response|RedirectResponse
@@ -216,6 +240,13 @@ class LibraryController extends Controller
             'progressUrl' => route('library.progress', $item),
             'summary' => $item->type === 'ebook' ? $item->ai_summary : null,
             'summaryUrl' => $item->type === 'ebook' ? route('library.summary', $item) : null,
+        ]);
+    }
+
+    public function shareCampaign(Request $request): Response
+    {
+        return Inertia::render('Provider/Library/ShareCampaign', [
+            'campaign' => EbookShareCampaignPresenter::forUser($request->user()),
         ]);
     }
 }

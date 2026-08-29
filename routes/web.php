@@ -14,7 +14,10 @@ use App\Http\Controllers\Contracts\ContractController as ContractsContractContro
 use App\Http\Controllers\DvLotteryController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LegalController;
+use App\Http\Controllers\EbookShareCoverController;
+use App\Http\Controllers\EbookShareLandingController;
 use App\Http\Controllers\LibraryController;
+use App\Http\Controllers\LibraryShareCampaignController;
 use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
 use App\Http\Controllers\MessagingController;
@@ -95,6 +98,13 @@ Route::post('/locale', function (Request $request) {
     return back();
 })->name('locale.update');
 
+Route::get('/s/{token}', EbookShareLandingController::class)
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('ebook-share.landing');
+Route::get('/s/{token}/cover', EbookShareCoverController::class)
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('ebook-share.cover');
+
 // Public library access
 Route::get('/library', [LibraryController::class, 'index'])->name('library.index');
 Route::get('/ebooks', [LibraryController::class, 'ebooks'])->name('library.ebooks');
@@ -104,6 +114,14 @@ Route::redirect('/library/audiobooks', '/audiobooks', 301);
 
 // Register before /library/{item:slug} so paths like /library/my and /library/cart are not treated as book slugs.
 Route::middleware(['auth'])->prefix('library')->name('library.')->group(function () {
+    Route::get('/share', [LibraryShareCampaignController::class, 'show'])->name('share');
+    Route::get('/share/status', [LibraryShareCampaignController::class, 'status'])->name('share.status');
+    Route::post('/share/items/{item:slug}/start', [LibraryShareCampaignController::class, 'start'])
+        ->middleware('throttle:30,1')
+        ->name('share.start');
+    Route::post('/share/items/{item:slug}/intent', [LibraryShareCampaignController::class, 'intent'])
+        ->middleware('throttle:30,1')
+        ->name('share.intent');
     Route::get('/my', [LibraryController::class, 'myLibrary'])->name('my');
     Route::get('/purchase/return', [LibraryController::class, 'purchaseReturn'])->name('purchase.return');
     Route::get('/purchase/cancel/{item:slug}', [LibraryController::class, 'purchaseCancel'])->name('purchase.cancel');
@@ -134,6 +152,9 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
     Route::get('/{item:slug}/download', [LibraryController::class, 'download'])->name('download');
     Route::post('/{item:slug}/purchase', [LibraryController::class, 'purchase'])->name('purchase');
     Route::post('/{item:slug}/favorite', [LibraryController::class, 'toggleFavorite'])->name('favorite');
+    Route::post('/{item:slug}/redeem-coupon', [LibraryController::class, 'redeemCoupon'])
+        ->middleware('throttle:20,1')
+        ->name('redeem-coupon');
 });
 
 Route::get('/library/{item:slug}', [LibraryController::class, 'show'])->name('library.show');
@@ -482,6 +503,7 @@ Route::middleware(['auth', 'role:provider', 'onboarding.complete'])
 
         // Provider library (separate from service-seeker /library/my page)
         Route::get('/library', [Provider\LibraryController::class, 'index'])->name('library.index');
+        Route::get('/library/share', [Provider\LibraryController::class, 'shareCampaign'])->name('library.share');
         Route::get('/library/cart', [Provider\LibraryController::class, 'cart'])->name('library.cart');
         Route::get('/library/{item:slug}', [Provider\LibraryController::class, 'show'])->name('library.show');
         Route::get('/library/{item:slug}/read', [Provider\LibraryController::class, 'read'])->name('library.read');

@@ -2,6 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
 import ProviderLayout from '@/Layouts/ProviderLayout.vue';
+import EbookShareCampaignBanner from '@/Components/library/EbookShareCampaignBanner.vue';
 import {
     ArrowLeftIcon,
     BookOpenIcon,
@@ -19,6 +20,8 @@ import {
 import { HeartIcon as HeartSolid } from '@heroicons/vue/24/solid';
 import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { renderSafeMarkdown } from '@/utils/markdown';
+import { buildEbookShareTargets, recordEbookShareIntent } from '@/utils/ebookShare';
+import { redeemEbookCoupon } from '@/utils/ebookCoupon';
 
 const props = defineProps({
     item: { type: Object, required: true },
@@ -32,9 +35,116 @@ const props = defineProps({
     progressUrl: { type: String, default: null },
     summary: { type: String, default: null },
     summaryUrl: { type: String, default: null },
+    shareCampaign: { type: Object, default: null },
+    activeEbookCoupon: { type: Object, default: null },
 });
 
 const page = usePage();
+const shareCampaignState = ref(props.shareCampaign ? { ...props.shareCampaign } : null);
+const shareRewardBusy = ref(false);
+const shareRewardMessage = ref('');
+const shareRewardError = ref('');
+
+const couponCodeInput = ref(props.activeEbookCoupon?.code || '');
+const redeemingCoupon = ref(false);
+const couponMessage = ref('');
+const couponError = ref('');
+
+watch(
+    () => props.activeEbookCoupon,
+    (value) => {
+        if (value?.code) {
+            couponCodeInput.value = value.code;
+        }
+    },
+);
+
+const canRedeemCoupon = computed(() => (
+    !props.hasAccess
+    && props.requiresPaidAccess
+    && props.item.type === 'ebook'
+    && Boolean(props.activeEbookCoupon?.code)
+));
+
+async function redeemCouponForBook() {
+    if (!canRedeemCoupon.value || redeemingCoupon.value) {
+        return;
+    }
+
+    redeemingCoupon.value = true;
+    couponMessage.value = '';
+    couponError.value = '';
+
+    try {
+        const payload = await redeemEbookCoupon(props.item.slug, couponCodeInput.value);
+        couponMessage.value = payload?.message || 'Coupon redeemed. Opening your book…';
+        router.reload({ only: ['hasAccess', 'userAccess', 'activeEbookCoupon', 'mediaUrls', 'progressUrl', 'summary', 'summaryUrl'] });
+    } catch (error) {
+        couponError.value = error?.message || 'Unable to redeem coupon.';
+    } finally {
+        redeemingCoupon.value = false;
+    }
+}
+
+watch(
+    () => props.shareCampaign,
+    (value) => {
+        shareCampaignState.value = value ? { ...value } : null;
+    },
+);
+
+const canShareForReward = computed(() => (
+    props.item.type === 'ebook'
+    && shareCampaignState.value?.can_start
+));
+
+const shareProgressLabel = computed(() => {
+    if (!shareCampaignState.value) {
+        return '';
+    }
+
+    return `${shareCampaignState.value.confirmed_shares || 0} / ${shareCampaignState.value.required_shares || 5} shares for a free book`;
+});
+
+const bookAlreadyShared = computed(() => {
+    const events = shareCampaignState.value?.events || [];
+    return events.some((event) => event.slug === props.item.slug && event.status === 'confirmed');
+});
+
+async function shareForReward(platform) {
+    if (!canShareForReward.value || shareRewardBusy.value) {
+        return;
+    }
+
+    shareRewardBusy.value = true;
+    shareRewardMessage.value = '';
+    shareRewardError.value = '';
+
+    try {
+        const payload = await recordEbookShareIntent(props.item.slug, platform);
+        if (payload?.data?.campaign) {
+            shareCampaignState.value = payload.data.campaign;
+        }
+        shareRewardMessage.value = payload?.message || 'Share recorded.';
+
+        const eventShareUrl = payload?.data?.share_url
+            || payload?.data?.event?.share_url
+            || shareCampaignState.value?.events?.find((event) => event.slug === props.item.slug)?.share_url;
+        if (!eventShareUrl) {
+            shareRewardError.value = 'Share link is not ready yet. Please try again.';
+            return;
+        }
+
+        const targets = buildEbookShareTargets(eventShareUrl, props.item.title);
+        const url = platform === 'facebook' ? targets.facebook : targets.x;
+        window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+        shareRewardError.value = error?.message || 'Unable to record share.';
+    } finally {
+        shareRewardBusy.value = false;
+    }
+}
+
 const isOpening = ref(false);
 const isFavorited = ref(props.userAccess?.is_favorite || false);
 const activeDetailTab = ref('more');
@@ -374,6 +484,7 @@ onBeforeUnmount(() => {
     <ProviderLayout>
         <div class="relative pb-12 pt-6 sm:pb-16 sm:pt-8">
             <div class="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <EbookShareCampaignBanner :campaign-href="route('provider.library.share')" />
                 <div class="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:gap-4">
                     <Link
                         :href="libraryListUrl"
@@ -599,6 +710,35 @@ onBeforeUnmount(() => {
                                 </div>
 
                                 <div v-if="!hasAccess && (item.is_premium || requiresPaidAccess)" class="space-y-4">
+                                    <div
+                                        v-if="canRedeemCoupon"
+                                        class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+                                    >
+                                        <p class="text-sm font-semibold text-emerald-950">Use your free ebook coupon</p>
+                                        <p class="mt-1 text-xs text-emerald-800">
+                                            Paste your code below, then redeem it for this book at no cost.
+                                        </p>
+                                        <label class="mt-3 block text-xs font-semibold uppercase tracking-wide text-emerald-900">
+                                            Coupon code
+                                        </label>
+                                        <input
+                                            v-model="couponCodeInput"
+                                            type="text"
+                                            class="mt-1 w-full rounded-xl border border-emerald-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900"
+                                            placeholder="IKH-XXXX-XXXX"
+                                        >
+                                        <button
+                                            type="button"
+                                            class="mt-3 flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                                            :disabled="redeemingCoupon || !couponCodeInput.trim()"
+                                            @click="redeemCouponForBook"
+                                        >
+                                            {{ redeemingCoupon ? 'Redeeming…' : 'Redeem coupon for this book' }}
+                                        </button>
+                                        <p v-if="couponMessage" class="mt-2 text-xs text-emerald-700">{{ couponMessage }}</p>
+                                        <p v-if="couponError" class="mt-2 text-xs text-red-600">{{ couponError }}</p>
+                                    </div>
+
                                     <p v-if="page.props.flash?.error" class="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
                                         {{ page.props.flash.error }}
                                     </p>
@@ -658,6 +798,43 @@ onBeforeUnmount(() => {
                                     >
                                         {{ addAccessLabel }}
                                     </button>
+                                </div>
+
+                                <div
+                                    v-if="canShareForReward"
+                                    class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+                                >
+                                    <p class="text-sm font-semibold text-emerald-900">Share for a free ebook</p>
+                                    <p class="mt-1 text-sm text-emerald-800">{{ shareProgressLabel }}</p>
+                                    <p v-if="bookAlreadyShared" class="mt-2 text-xs font-medium text-emerald-700">
+                                        This book is already counted toward your reward.
+                                    </p>
+                                    <div v-else class="mt-3 grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            class="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-[#1d4ed8] hover:bg-blue-50 disabled:opacity-60"
+                                            :disabled="shareRewardBusy"
+                                            @click="shareForReward('facebook')"
+                                        >
+                                            Share on Facebook
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+                                            :disabled="shareRewardBusy"
+                                            @click="shareForReward('x')"
+                                        >
+                                            Share on X
+                                        </button>
+                                    </div>
+                                    <p v-if="shareRewardMessage" class="mt-2 text-xs text-emerald-700">{{ shareRewardMessage }}</p>
+                                    <p v-if="shareRewardError" class="mt-2 text-xs text-red-600">{{ shareRewardError }}</p>
+                                    <Link
+                                        :href="route('library.share')"
+                                        class="mt-3 inline-flex text-xs font-semibold text-emerald-800 hover:text-emerald-950"
+                                    >
+                                        View campaign progress
+                                    </Link>
                                 </div>
 
                                 <button

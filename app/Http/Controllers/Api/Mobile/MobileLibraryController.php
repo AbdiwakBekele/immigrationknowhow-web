@@ -14,7 +14,7 @@ use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Models\User;
-use App\Support\AppleIapConfig;
+use App\Support\EbookShareCampaignPresenter;
 use App\Support\LibraryEbookPricing;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
@@ -143,7 +143,7 @@ class MobileLibraryController extends Controller
         $userAccess = $item->userAccess()->where('user_id', $request->user()->id)->first();
         $hasAccess = (bool) $userAccess?->purchased_at;
         $requiresPaidAccess = $this->requiresPaidAccess($item);
-        $signupCoupon = EbookCoupon::activeSignupCouponForUser((int) $request->user()->id);
+        $anyCoupon = EbookCoupon::activeCouponForUser((int) $request->user()->id);
 
         $related = LibraryItem::query()
             ->active()
@@ -205,7 +205,8 @@ class MobileLibraryController extends Controller
                 'uses_ebook_credit_iap' => $requiresPaidAccess && $item->usesEbookCreditIap(),
                 'ebook_standard_price_cents' => LibraryEbookPricing::standardPriceCents(),
                 'ebook_standard_currency' => LibraryEbookPricing::currency(),
-                'ebook_coupon_available' => $signupCoupon !== null && ! $hasAccess && $requiresPaidAccess,
+                'ebook_coupon_available' => $anyCoupon !== null && ! $hasAccess && $requiresPaidAccess,
+                'share_campaign' => EbookShareCampaignPresenter::forUser($request->user()),
                 'apple_iap_configured' => AppleIapConfig::configured(),
                 'ios_requires_apple_iap' => true,
                 'manual_payment_pending' => (bool) ($userAccess?->manual_payment_requested_at && ! $userAccess?->purchased_at),
@@ -532,7 +533,7 @@ class MobileLibraryController extends Controller
 
         $coupon = $code !== ''
             ? EbookCoupon::query()->where('code', $code)->first()
-            : EbookCoupon::activeSignupCouponForUser($userId);
+            : EbookCoupon::activeCouponForUser($userId);
 
         if (! $coupon) {
             return response()->json([

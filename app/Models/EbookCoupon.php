@@ -9,6 +9,8 @@ class EbookCoupon extends Model
 {
     public const ISSUED_FOR_SIGNUP = 'signup';
 
+    public const ISSUED_FOR_SOCIAL_SHARE = 'social_share';
+
     protected $fillable = [
         'user_id',
         'code',
@@ -68,5 +70,24 @@ class EbookCoupon extends Model
             })
             ->latest('id')
             ->first();
+    }
+
+    public static function activeSocialShareCouponForUser(int $userId): ?self
+    {
+        return self::query()
+            ->where('user_id', $userId)
+            ->where('issued_for', self::ISSUED_FOR_SOCIAL_SHARE)
+            ->whereNull('redeemed_at')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->latest('id')
+            ->first();
+    }
+
+    public static function activeCouponForUser(int $userId): ?self
+    {
+        return self::activeSignupCouponForUser($userId)
+            ?? self::activeSocialShareCouponForUser($userId);
     }
 }
