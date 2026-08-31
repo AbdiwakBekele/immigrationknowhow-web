@@ -6,6 +6,7 @@ use App\Enums\ServiceType;
 use App\Models\ServiceProvider;
 use App\Models\User;
 use App\Support\ProviderShareMeta;
+use App\Support\PublicSocialPreview;
 use App\Support\UserRoleAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -178,6 +179,9 @@ class MarketplaceController extends Controller
         $isFavorited = $canFavorite
             && $viewer->favoriteServiceProviders()->whereKey($provider->getKey())->exists();
 
+        $providerShare = ProviderShareMeta::forProvider($provider);
+        PublicSocialPreview::apply($providerShare);
+
         return Inertia::render('Marketplace/Show', [
             'provider' => $provider,
             'profileFeed' => $profileFeed->all(),
@@ -192,7 +196,7 @@ class MarketplaceController extends Controller
             'serviceTypeLabels' => collect($provider->service_types ?? [])
                 ->map(fn ($type) => ServiceType::tryFrom($type)?->label() ?? $type)
                 ->toArray(),
-            'providerShare' => ProviderShareMeta::forProvider($provider),
+            'providerShare' => $providerShare,
         ]);
     }
 

@@ -6,6 +6,8 @@
 
         <title data-inertia>{{ config('app.name', 'ImmigrationKnowHow') }}</title>
 
+        @include('partials.social-preview')
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=dm-sans:400,500,600,700|outfit:400,500,600,700,800|jetbrains-mono:400,500" rel="stylesheet" />

@@ -125,7 +125,7 @@ async function shareForReward(platform) {
         if (payload?.data?.campaign) {
             shareCampaignState.value = payload.data.campaign;
         }
-        shareRewardMessage.value = payload?.message || 'Share recorded.';
+        shareRewardMessage.value = payload?.message || 'Share link opened. It will be confirmed when someone opens your link.';
 
         const eventShareUrl = payload?.data?.share_url
             || payload?.data?.event?.share_url

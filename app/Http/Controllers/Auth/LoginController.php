@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AdminTwoFactorService;
+use App\Support\AdminTwoFactorSession;
 use App\Support\RoleHelper;
 use App\Support\UserHomeUrl;
 use Illuminate\Http\RedirectResponse;
@@ -16,6 +18,10 @@ use Inertia\Response;
 
 class LoginController extends Controller
 {
+    public function __construct(
+        protected AdminTwoFactorService $adminTwoFactor,
+    ) {}
+
     public function create(): Response
     {
         $user = Auth::user();
@@ -85,6 +91,10 @@ class LoginController extends Controller
             }
         }
 
+        if ($this->adminTwoFactor->requiresChallenge($user)) {
+            return $this->redirectAdminToTwoFactorChallenge($request, $user);
+        }
+
         if ($this->hasIntendedLibraryCheckout($request) && ! $user->isProvider() && ! $user->isAffiliate() && ! $user->isAdvertiser()) {
             return redirect()->intended(route('dashboard'));
         }
@@ -99,8 +109,23 @@ class LoginController extends Controller
         return is_string($intended) && (bool) preg_match('#/library/[^/]+/pay(?:\?|$)#', $intended);
     }
 
+    private function redirectAdminToTwoFactorChallenge(Request $request, User $user): RedirectResponse
+    {
+        AdminTwoFactorSession::clear($request);
+        AdminTwoFactorSession::markPending($request);
+
+        $intended = $request->session()->get('url.intended');
+        if (is_string($intended) && str_contains($intended, '/admin')) {
+            $request->session()->put(AdminTwoFactorSession::INTENDED_URL, $intended);
+        }
+
+        return redirect()->route('admin.2fa.challenge');
+    }
+
     public function destroy(Request $request): RedirectResponse
     {
+        AdminTwoFactorSession::clear($request);
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

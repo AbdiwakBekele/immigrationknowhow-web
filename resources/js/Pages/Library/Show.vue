@@ -37,6 +37,7 @@ const props = defineProps({
     summaryUrl: { type: String, default: null },
     shareCampaign: { type: Object, default: null },
     activeEbookCoupon: { type: Object, default: null },
+    shareMeta: { type: Object, default: null },
 });
 
 const page = usePage();
@@ -127,7 +128,7 @@ async function shareForReward(platform) {
         if (payload?.data?.campaign) {
             shareCampaignState.value = payload.data.campaign;
         }
-        shareRewardMessage.value = payload?.message || 'Share recorded.';
+        shareRewardMessage.value = payload?.message || 'Share link opened. It will be confirmed when someone opens your link.';
 
         const eventShareUrl = payload?.data?.share_url
             || payload?.data?.event?.share_url
@@ -646,7 +647,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head :title="item.title" />
+    <Head :title="shareMeta?.title || item.title">
+        <template v-if="shareMeta">
+            <meta head-key="description" name="description" :content="shareMeta.description" />
+            <link head-key="canonical" rel="canonical" :href="shareMeta.url" />
+            <meta head-key="og:title" property="og:title" :content="shareMeta.title" />
+            <meta head-key="og:description" property="og:description" :content="shareMeta.description" />
+            <meta head-key="og:url" property="og:url" :content="shareMeta.url" />
+            <meta head-key="og:type" property="og:type" content="website" />
+            <meta head-key="og:image" property="og:image" :content="shareMeta.image" />
+            <meta head-key="twitter:card" name="twitter:card" content="summary_large_image" />
+            <meta head-key="twitter:title" name="twitter:title" :content="shareMeta.title" />
+            <meta head-key="twitter:description" name="twitter:description" :content="shareMeta.description" />
+            <meta head-key="twitter:image" name="twitter:image" :content="shareMeta.image" />
+        </template>
+    </Head>
 
     <AppLayout>
         <div

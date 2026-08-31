@@ -24,6 +24,7 @@ class SuperAdminSeeder extends Seeder
                 'is_active' => true,
                 'onboarding_completed' => true,
                 'onboarding_completed_at' => now(),
+                'phone' => env('SUPER_ADMIN_PHONE', '+15551234567'),
             ]
         );
 

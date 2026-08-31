@@ -17,6 +17,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\EbookShareCoverController;
 use App\Http\Controllers\EbookShareLandingController;
 use App\Http\Controllers\LibraryController;
+use App\Http\Controllers\LibraryCoverController;
 use App\Http\Controllers\LibraryShareCampaignController;
 use App\Http\Controllers\LocationLookupController;
 use App\Http\Controllers\MarketplaceController;
@@ -157,6 +158,7 @@ Route::middleware(['auth'])->prefix('library')->name('library.')->group(function
         ->name('redeem-coupon');
 });
 
+Route::get('/library/{item:slug}/cover', LibraryCoverController::class)->name('library.cover');
 Route::get('/library/{item:slug}', [LibraryController::class, 'show'])->name('library.show');
 
 // Purchasable video files (admin digital products — separate from Library)
@@ -255,6 +257,19 @@ Route::post('/reset-password', [Auth\ResetPasswordController::class, 'store'])
 Route::post('/logout', [Auth\LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+Route::middleware(['auth', 'role:admin|super_admin'])
+    ->prefix('admin/two-factor')
+    ->name('admin.2fa.')
+    ->group(function () {
+        Route::get('/', [Auth\AdminTwoFactorController::class, 'show'])->name('challenge');
+        Route::post('/send', [Auth\AdminTwoFactorController::class, 'send'])
+            ->middleware('throttle:3,1')
+            ->name('send');
+        Route::post('/verify', [Auth\AdminTwoFactorController::class, 'verify'])
+            ->middleware('throttle:12,1')
+            ->name('verify');
+    });
 
 Route::post('/impersonation/leave', [Admin\UserController::class, 'stopImpersonating'])
     ->middleware('auth')
@@ -553,7 +568,7 @@ Route::middleware(['auth', 'role:affiliate', 'affiliate.access', 'verified'])
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'impersonation.redirect_admin_back', 'role:admin|super_admin', 'onboarding.complete'])
+Route::middleware(['auth', 'admin.2fa', 'impersonation.redirect_admin_back', 'role:admin|super_admin', 'onboarding.complete'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {

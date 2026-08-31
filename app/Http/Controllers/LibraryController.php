@@ -12,6 +12,7 @@ use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Services\Library\LibraryMediaStreamService;
 use App\Support\EbookShareCampaignPresenter;
+use App\Support\PublicSocialPreview;
 use App\Support\StripeConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -554,6 +555,9 @@ class LibraryController extends Controller
             ? EbookShareCampaignPresenter::forUser(auth()->user())
             : null;
 
+        $shareMeta = PublicSocialPreview::forLibraryItem($item);
+        PublicSocialPreview::apply($shareMeta);
+
         return Inertia::render('Library/Show', [
             'item' => $item,
             'relatedItems' => $relatedItems,
@@ -570,6 +574,7 @@ class LibraryController extends Controller
             'summaryStatus' => $item->type === 'ebook' ? $item->ai_summary_status : null,
             'shareCampaign' => $shareCampaign,
             'activeEbookCoupon' => $this->activeEbookCouponPayload(),
+            'shareMeta' => $shareMeta,
         ]);
     }
 

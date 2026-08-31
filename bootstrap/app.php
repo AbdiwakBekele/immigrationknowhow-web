@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CaptureAffiliateAttribution;
+use App\Http\Middleware\EnsureAdminTwoFactorVerified;
 use App\Http\Middleware\EnsureAffiliatePortalAccess;
 use App\Http\Middleware\EnsureOnboardingComplete;
 use App\Http\Middleware\EnsurePhoneVerified;
@@ -47,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'phone.verified' => EnsurePhoneVerified::class,
             'affiliate.access' => EnsureAffiliatePortalAccess::class,
             'impersonation.redirect_admin_back' => RedirectImpersonatedFromAdmin::class,
+            'admin.2fa' => EnsureAdminTwoFactorVerified::class,
         ]);
 
         // Disable CSRF for webhooks

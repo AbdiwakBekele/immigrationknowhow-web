@@ -406,9 +406,15 @@ function recordShareAction() {
 
 async function onNativeShare() {
     if (!shareModalPost.value || !navigator.share) return;
-    const shareUrl = communityPostShareUrl(shareModalPost.value.id);
-    await navigator.share({ title: shareModalPost.value.title, url: shareUrl });
-    reactToPost(shareModalPost.value.id, 'share').catch(() => undefined);
+    try {
+        const shareUrl = communityPostShareUrl(shareModalPost.value.id);
+        await navigator.share({ title: shareModalPost.value.title, url: shareUrl });
+        reactToPost(shareModalPost.value.id, 'share').catch(() => undefined);
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            return;
+        }
+    }
 }
 
 const debouncedLoadPosts = debounce(() => {
