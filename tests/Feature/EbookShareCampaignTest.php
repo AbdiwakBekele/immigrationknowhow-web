@@ -31,14 +31,26 @@ class EbookShareCampaignTest extends TestCase
         Notification::fake();
 
         $user = $this->createSeeker('share-campaign@example.com');
+        $visitor = $this->createSeeker('share-visitor@example.com');
         Sanctum::actingAs($user);
 
         for ($i = 1; $i <= 5; $i++) {
             $item = $this->createEbook(['slug' => "share-book-{$i}", 'title' => "Share Book {$i}"]);
 
-            $this->postJson("/api/mobile/library/items/{$item->slug}/share/intent", [
+            $intentResponse = $this->postJson("/api/mobile/library/items/{$item->slug}/share/intent", [
                 'platform' => $i % 2 === 0 ? 'x' : 'facebook',
             ])->assertOk()->assertJsonPath('success', true);
+
+            $shareUrl = (string) $intentResponse->json('data.share_url');
+            $token = basename(parse_url($shareUrl, PHP_URL_PATH) ?: '');
+
+            $this->assertNotSame('', $token);
+
+            $this->actingAs($visitor);
+            $this->get("/s/{$token}")
+                ->assertRedirect(route('library.show', $item));
+
+            Sanctum::actingAs($user);
         }
 
         $campaign = EbookShareCampaign::query()->where('user_id', $user->id)->first();
@@ -53,6 +65,24 @@ class EbookShareCampaignTest extends TestCase
 
         $this->assertNotNull($coupon);
         $this->assertSame($coupon->id, $campaign->ebook_coupon_id);
+    }
+
+    public function test_share_intent_does_not_confirm_before_link_visit(): void
+    {
+        $user = $this->createSeeker('share-pending@example.com');
+        Sanctum::actingAs($user);
+
+        $item = $this->createEbook(['slug' => 'pending-share-book']);
+
+        $intentResponse = $this->postJson("/api/mobile/library/items/{$item->slug}/share/intent", [
+            'platform' => 'facebook',
+        ])->assertOk();
+
+        $this->assertSame(EbookShareEvent::STATUS_PENDING, $intentResponse->json('data.event.status'));
+
+        $event = EbookShareEvent::query()->where('library_item_id', $item->id)->first();
+        $this->assertNotNull($event);
+        $this->assertSame(EbookShareEvent::STATUS_PENDING, $event->status);
     }
 
     public function test_same_book_cannot_be_shared_twice_in_campaign(): void

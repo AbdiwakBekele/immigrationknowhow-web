@@ -104,10 +104,11 @@ class TwilioService
         return false;
     }
 
-    public function sendVerificationOtp(string $phoneE164): void
+    public function sendVerificationOtp(string $to, string $channel = 'sms'): void
     {
         if ($this->isFakeMode()) {
-            Log::info("FAKE OTP sent to {$phoneE164}: 123456");
+            Log::info("FAKE OTP sent via {$channel} to {$to}: 123456");
+
             return;
         }
 
@@ -124,10 +125,11 @@ class TwilioService
             $this->client()->verify->v2
                 ->services($verifySid)
                 ->verifications
-                ->create($phoneE164, 'sms');
+                ->create($to, $channel);
         } catch (\Twilio\Exceptions\RestException $e) {
             Log::error('Twilio Verify send failed', [
-                'phone' => $phoneE164,
+                'to' => $to,
+                'channel' => $channel,
                 'error' => $e->getMessage(),
                 'code' => $e->getCode(),
                 'status' => method_exists($e, 'getStatusCode') ? $e->getStatusCode() : null,
@@ -136,15 +138,17 @@ class TwilioService
             ]);
 
             $twilioMsg = $e->getMessage();
-            $hint = str_contains($twilioMsg, 'is not a valid phone number')
-                ? 'The phone number format is invalid. Please check the country code and number.'
-                : 'Failed to send verification code. Please check the phone number and try again.';
+            $hint = match (true) {
+                str_contains($twilioMsg, 'is not a valid phone number') => 'The phone number format is invalid. Please check the country code and number.',
+                $channel === 'email' => 'Failed to send verification code by email. Please try again.',
+                default => 'Failed to send verification code. Please check the phone number and try again.',
+            };
 
             throw new Exception($hint);
         }
     }
 
-    public function checkVerificationOtp(string $phoneE164, string $code): bool
+    public function checkVerificationOtp(string $to, string $code, string $channel = 'sms'): bool
     {
         $normalizedCode = preg_replace('/\D+/', '', $code) ?? '';
 
@@ -163,14 +167,15 @@ class TwilioService
                 ->services($verifySid)
                 ->verificationChecks
                 ->create([
-                    'to' => $phoneE164,
+                    'to' => $to,
                     'code' => $normalizedCode,
                 ]);
 
             return ($result->status ?? null) === 'approved';
         } catch (\Twilio\Exceptions\RestException $e) {
             Log::warning('Twilio Verify check failed', [
-                'phone' => $phoneE164,
+                'to' => $to,
+                'channel' => $channel,
                 'error' => $e->getMessage(),
             ]);
 

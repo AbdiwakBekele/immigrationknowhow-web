@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateAdminProfileRequest;
+use App\Services\PhoneVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,6 +15,10 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        protected PhoneVerificationService $phoneVerification,
+    ) {}
+
     public function index(): Response
     {
         $user = auth()->user()->load('roles');
@@ -30,6 +35,10 @@ class ProfileController extends Controller
 
         if ($data['email'] !== $user->email) {
             $data['email_verified_at'] = null;
+        }
+
+        if (filled($data['phone'] ?? null)) {
+            $data['phone'] = $this->phoneVerification->normalizePhone($data['phone'], $user);
         }
 
         $user->update($data);

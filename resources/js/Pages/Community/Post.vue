@@ -30,6 +30,10 @@ const props = defineProps({
         type: String,
         default: 'guest',
     },
+    shareMeta: {
+        type: Object,
+        default: null,
+    },
 });
 
 const layoutComponent = computed(() => (
@@ -228,9 +232,15 @@ function recordShareAction() {
 
 async function onNativeShare() {
     if (!post.value || !navigator.share) return;
-    const shareUrl = communityPostShareUrl(post.value.id);
-    await navigator.share({ title: post.value.title, url: shareUrl });
-    reactToPost('share').catch(() => undefined);
+    try {
+        const shareUrl = communityPostShareUrl(post.value.id);
+        await navigator.share({ title: post.value.title, url: shareUrl });
+        reactToPost('share').catch(() => undefined);
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            return;
+        }
+    }
 }
 
 onMounted(async () => {
@@ -240,7 +250,21 @@ onMounted(async () => {
 </script>
 
 <template>
-    <Head :title="post?.title ? `${post.title} | Community` : 'Community Post'" />
+    <Head :title="shareMeta?.title ? `${shareMeta.title} | Community` : (post?.title ? `${post.title} | Community` : 'Community Post')">
+        <template v-if="shareMeta">
+            <meta head-key="description" name="description" :content="shareMeta.description" />
+            <link head-key="canonical" rel="canonical" :href="shareMeta.url" />
+            <meta head-key="og:title" property="og:title" :content="shareMeta.title" />
+            <meta head-key="og:description" property="og:description" :content="shareMeta.description" />
+            <meta head-key="og:url" property="og:url" :content="shareMeta.url" />
+            <meta head-key="og:type" property="og:type" content="website" />
+            <meta head-key="og:image" property="og:image" :content="shareMeta.image" />
+            <meta head-key="twitter:card" name="twitter:card" content="summary_large_image" />
+            <meta head-key="twitter:title" name="twitter:title" :content="shareMeta.title" />
+            <meta head-key="twitter:description" name="twitter:description" :content="shareMeta.description" />
+            <meta head-key="twitter:image" name="twitter:image" :content="shareMeta.image" />
+        </template>
+    </Head>
     <component :is="layoutComponent">
         <section class="min-h-screen bg-slate-50 py-4 md:py-6">
             <div class="mx-auto max-w-5xl px-3 sm:px-4 lg:px-6">

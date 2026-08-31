@@ -185,7 +185,7 @@ const removeAvatar = () => {
             <!-- Editable profile -->
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-900">Account details</h2>
-                <p class="mt-0.5 text-xs text-slate-500">Name, email, and phone are stored on your user record.</p>
+                <p class="mt-0.5 text-xs text-slate-500">Name, email, and phone are stored on your user record. Phone is required for admin two-factor authentication.</p>
 
                 <form class="mt-4 space-y-4" @submit.prevent="submitProfile">
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -240,14 +240,17 @@ const removeAvatar = () => {
                     <div>
                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
                             Phone
+                            <span class="text-red-500">*</span>
                         </label>
                         <input
                             v-model="profileForm.phone"
                             type="tel"
                             class="input w-full"
                             autocomplete="tel"
-                            placeholder="Optional"
+                            placeholder="+1 555 123 4567"
+                            required
                         />
+                        <p class="mt-1 text-xs text-slate-500">Used for SMS two-factor authentication when signing in to the admin panel.</p>
                         <p v-if="profileForm.errors.phone" class="mt-1 text-xs text-red-600">
                             {{ profileForm.errors.phone }}
                         </p>

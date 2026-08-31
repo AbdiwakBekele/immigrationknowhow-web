@@ -6,6 +6,7 @@ use App\Models\CommunityComment;
 use App\Models\CommunityPost;
 use App\Models\CommunityPostReaction;
 use App\Support\PublicCommunityPostPresentation;
+use App\Support\PublicSocialPreview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -29,9 +30,13 @@ class CommunityController extends Controller
     {
         abort_unless($communityPost->is_published, 404);
 
+        $shareMeta = PublicSocialPreview::forCommunityPost($communityPost);
+        PublicSocialPreview::apply($shareMeta);
+
         return Inertia::render('Community/Post', [
             'postId' => $communityPost->id,
             'dashboardContext' => $this->dashboardContext($request),
+            'shareMeta' => $shareMeta,
         ]);
     }
 
