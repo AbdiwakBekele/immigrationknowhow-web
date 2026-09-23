@@ -14,6 +14,7 @@ use App\Models\LibraryCategory;
 use App\Models\LibraryItem;
 use App\Models\LibraryUserAccess;
 use App\Models\User;
+use App\Support\AppleIapConfig;
 use App\Support\EbookShareCampaignPresenter;
 use App\Support\LibraryEbookPricing;
 use App\Support\StripeConfig;
@@ -49,10 +50,10 @@ class MobileLibraryController extends Controller
             ->with(['category', 'libraryAuthor'])
             ->active();
 
-        // Match web hub: only filter by region when the client asks for it.
-        if (! empty($validated['region'])) {
-            $query->availableInRegion($validated['region']);
-        }
+        $region = ! empty($validated['region'])
+            ? $validated['region']
+            : LibraryItem::regionForCountry($user->country ?? null);
+        $query->availableInRegion($region);
 
         if (! empty($validated['search'])) {
             $query->search($validated['search']);
@@ -134,7 +135,6 @@ class MobileLibraryController extends Controller
     public function show(Request $request, LibraryItem $item): JsonResponse
     {
         abort_unless($item->is_active, 404);
-        $this->abortIfNotAvailableInUserRegion($request->user(), $item);
 
         $item->load(['category', 'libraryAuthor']);
         $item->incrementViews();
@@ -199,6 +199,7 @@ class MobileLibraryController extends Controller
                 ],
                 'user_access' => $userAccess,
                 'has_access' => $hasAccess,
+                'available_in_region' => $this->itemAvailableInUserRegion($request->user(), $item),
                 'requires_paid_access' => $requiresPaidAccess,
                 'stripe_configured' => StripeConfig::checkoutConfigured(),
                 'apple_product_id' => $requiresPaidAccess ? $item->appleProductId() : null,
@@ -223,15 +224,14 @@ class MobileLibraryController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         if ($section === 'available') {
+            $region = $request->filled('region') && is_string($request->query('region')) && in_array($request->query('region'), LibraryItem::supportedRegions(), true)
+                ? $request->query('region')
+                : LibraryItem::regionForCountry($user->country ?? null);
+
             $paginator = LibraryItem::query()
                 ->active()
+                ->availableInRegion($region)
                 ->when($search !== '', fn ($q) => $q->search($search))
-                ->when($request->filled('region'), function ($q) use ($request) {
-                    $region = $request->query('region');
-                    if (is_string($region) && in_array($region, LibraryItem::supportedRegions(), true)) {
-                        $q->availableInRegion($region);
-                    }
-                })
                 ->where(function ($q) use ($user) {
                     $q->whereDoesntHave('userAccess', function ($access) use ($user) {
                         $access->where('user_id', $user->id)->whereNotNull('purchased_at');
@@ -664,23 +664,28 @@ class MobileLibraryController extends Controller
         ]);
     }
 
-    private function abortIfNotAvailableInUserRegion(User $user, LibraryItem $item): void
+    private function itemAvailableInUserRegion(User $user, LibraryItem $item): bool
     {
         if ($this->userHasAccess($user->id, $item)) {
-            return;
+            return true;
         }
 
         $region = LibraryItem::regionForCountry($user->country ?? null);
         if ($region === null) {
-            return;
+            return true;
         }
 
         $regions = $item->regions ?? null;
         if (! is_array($regions) || count($regions) === 0) {
-            return;
+            return true;
         }
 
-        abort_unless(in_array($region, $regions, true), 404);
+        return in_array($region, $regions, true);
+    }
+
+    private function abortIfNotAvailableInUserRegion(User $user, LibraryItem $item): void
+    {
+        abort_unless($this->itemAvailableInUserRegion($user, $item), 403, 'This title is not available in your region.');
     }
 
     private function requiresPaidAccess(LibraryItem $item): bool
